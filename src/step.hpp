@@ -82,7 +82,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
 /**
  * Does a single step along the ray
  */
-HOST_DEVICE inline void Step2D(const ray2DPt *ray0, ray2DPt *ray2, 
+HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2, 
     const vec2 &Topx, const vec2 &Topn, const vec2 &Botx, const vec2 &Botn,
     const real &freq, 
     const BeamStructure *Beam, const SSPStructure *ssp,
@@ -103,25 +103,25 @@ HOST_DEVICE inline void Step2D(const ray2DPt *ray0, ray2DPt *ray2,
 
     // *** Phase 1 (an Euler step)
 
-    EvaluateSSP(ray0->x, ccpx0, gradc0, crr0, crz0, czz0, rho, freq, ssp, iSegz, iSegr);
+    EvaluateSSP(ray0.x, ccpx0, gradc0, crr0, crz0, czz0, rho, freq, ssp, iSegz, iSegr);
     
     csq0      = SQ(ccpx0.real());
-    cnn0_csq0 = crr0 * SQ(ray0->t.y) - RC(2.0) * crz0 * ray0->t.x * ray0->t.y + czz0 * SQ(ray0->t.x);
+    cnn0_csq0 = crr0 * SQ(ray0.t.y) - RC(2.0) * crz0 * ray0.t.x * ray0.t.y + czz0 * SQ(ray0.t.x);
     iSegz0    = iSegz; // make note of current layer
     iSegr0    = iSegr;
     
     h = Beam->deltas;       // initially set the step h, to the basic one, deltas
-    urayt0 = ccpx0.real() * ray0->t; // unit tangent
+    urayt0 = ccpx0.real() * ray0.t; // unit tangent
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0->x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, 
+    ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, 
         Beam, ssp, h, iSmallStepCtr);
     halfh = RC(0.5) * h; // first step of the modified polygon method is a half step
     
-    ray1.x = ray0->x + halfh * urayt0;
-    ray1.t = ray0->t - halfh * gradc0 / csq0;
-    ray1.p = ray0->p - halfh * cnn0_csq0    * ray0->q;
-    ray1.q = ray0->q + halfh * ccpx0.real() * ray0->p;
+    ray1.x = ray0.x + halfh * urayt0;
+    ray1.t = ray0.t - halfh * gradc0 / csq0;
+    ray1.p = ray0.p - halfh * cnn0_csq0    * ray0.q;
+    ray1.q = ray0.q + halfh * ccpx0.real() * ray0.p;
     
     // *** Phase 2
     
@@ -137,7 +137,7 @@ HOST_DEVICE inline void Step2D(const ray2DPt *ray0, ray2DPt *ray2,
     urayt1 = ccpx1.real() * ray1.t; // unit tangent
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0->x, urayt1, iSegz0, iSegr0, Topx, Topn, Botx, Botn, 
+    ReduceStep2D(ray0.x, urayt1, iSegz0, iSegr0, Topx, Topn, Botx, Botn, 
         Beam, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
@@ -146,16 +146,16 @@ HOST_DEVICE inline void Step2D(const ray2DPt *ray0, ray2DPt *ray2,
     hw0 = h * w0;
     hw1 = h * w1;
 
-    ray2->x   = ray0->x   + hw0 * urayt0                 + hw1 * urayt1;
-    ray2->t   = ray0->t   - hw0 * gradc0 / csq0          - hw1 * gradc1 / csq1;
-    ray2->p   = ray0->p   - hw0 * cnn0_csq0    * ray0->q - hw1 * cnn1_csq1    * ray1.q;
-    ray2->q   = ray0->q   + hw0 * ccpx0.real() * ray0->p + hw1 * ccpx1.real() * ray1.p;
-    ray2->tau = ray0->tau + hw0 / ccpx0                  + hw1 / ccpx1;
+    ray2->x   = ray0.x   + hw0 * urayt0                 + hw1 * urayt1;
+    ray2->t   = ray0.t   - hw0 * gradc0 / csq0          - hw1 * gradc1 / csq1;
+    ray2->p   = ray0.p   - hw0 * cnn0_csq0    * ray0.q - hw1 * cnn1_csq1    * ray1.q;
+    ray2->q   = ray0.q   + hw0 * ccpx0.real() * ray0.p + hw1 * ccpx1.real() * ray1.p;
+    ray2->tau = ray0.tau + hw0 / ccpx0                  + hw1 / ccpx1;
 
-    ray2->Amp       = ray0->Amp;
-    ray2->Phase     = ray0->Phase;
-    ray2->NumTopBnc = ray0->NumTopBnc;
-    ray2->NumBotBnc = ray0->NumBotBnc;
+    ray2->Amp       = ray0.Amp;
+    ray2->Phase     = ray0.Phase;
+    ray2->NumTopBnc = ray0.NumTopBnc;
+    ray2->NumBotBnc = ray0.NumBotBnc;
     
     // If we crossed an interface, apply jump condition
 

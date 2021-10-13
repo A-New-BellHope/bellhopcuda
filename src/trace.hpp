@@ -23,6 +23,19 @@ HOST_DEVICE inline void Distances2D(const vec2 &rayx,
 }
 
 /**
+ * Copy only specific data from the HSInfo (halfspace info) struct.
+ * [LP: FORTRAN] compiler is not accepting the copy of the whole structure at once ...
+ * LP: maybe this means actually the whole struct should be copied, but he
+ * only copied the elements which were needed?
+ */
+HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
+{
+    b.cp  = a.cp;
+    b.cs  = a.cs;
+    b.rho = a.rho;
+}
+
+/**
  * Traces the beam corresponding to a particular take-off angle
  * 
  * xs: x-y coordinate of the source
@@ -72,20 +85,8 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     GetBotSeg(xs.x, IsegBot, rBotseg); // identify the bottom segment below the source
     
     // convert range-dependent geoacoustic parameters from user to program units
-    // [LP: FORTRAN] compiler is not accepting the copy of the whole structure at once ...
-    // LP: maybe this means actually the whole struct should be copied, but he
-    // only copied the elements which were needed?
-    if(atiType[1] == 'L'){
-        Bdry.Top.hs.cp  = Top[IsegTop].hs.cp;
-        Bdry.Top.hs.cs  = Top[IsegTop].hs.cs;
-        Bdry.Top.hs.rho = Top[IsegTop].hs.rho;
-    }
-    
-    if(btyType[1] == 'L'){
-        Bdry.Bot.hs.cp  = Bot[IsegBot].hs.cp;
-        Bdry.Bot.hs.cs  = Bot[IsegBot].hs.cs;
-        Bdry.Bot.hs.rho = Bot[IsegBot].hs.rho;
-    }
+    if(atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, Top[IsegTop].hs);
+    if(btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, Bot[IsegBot].hs);
     
     // Trace the beam (note that Reflect alters the step index is)
     is = 0;
@@ -98,5 +99,89 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
         return; // source must be within the medium
     }
     
-    for(int32_t istep = 0; istep<
+    for(int32_t istep = 0; istep<MaxN-1; ++istep){
+        is  = istep + 1;
+        is1 = istep + 1;
+        
+        Step2D(ray2D[is], &ray2D[is1], Top[IsegTop].x, Top[IsegTop].n,
+            Bot[IsegBot].x, Bot[IsegBot].n, freq, Beam, ssp, iSegz, iSegr, iSmallStepCtr);
+        
+        // New altimetry segment?
+        if(ray2D[is1].x.x < rTopSeg.x || ray2D[is1].x.x > rTopSeg.y){
+            GetTopSeg(ray2D[is1].x.x, IsegTop, rTopseg);
+            if(atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, Top[IsegTop].hs); // grab the geoacoustic info for the new segment
+        }
+        
+        // New bathymetry segment?
+        if(ray2D[is1].x.x < rBotSeg.x || ray2D[is1].x.x > rBotSeg.y){
+            GetBotSeg(ray2D[is1].x.x, IsegBot, rBotseg);
+            if(btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
+        }
+        
+        // Reflections?
+        // Tests that ray at step is is inside, and ray at step is+1 is outside
+        // to detect only a crossing from inside to outside
+        // DistBeg is the distance at step is,   which is saved
+        // DistEnd is the distance at step is+1, which needs to be calculated
+        
+        Distances2D(ray2D[is1].x, Top[IsegTop].x, Bot[IsegBot].x, dEndTop, dEndBot,
+            Top[IsegTop].n, Bot[IsegBot].n, DistEndTop, DistEndBot);
+        
+        if(DistBegTop > RC(0.0) && DistEndTop <= RC(0.0)){ // test top reflection
+            
+            if(atiType[0] == 'C'){ // LP: Actually checking if the whole string is just "C", not just the first char
+                sss = glm::dot(dEndTop, Top[IsegTop].t) / Top[IsegTop].Len; // proportional distance along segment
+                TopnInt = (RC(1.0) - sss) * Top[IsegTop].Noden + sss * Top[IsegTop+1].Noden;
+                ToptInt = (RC(1.0) - sss) * Top[IsegTop].Nodet + sss * Top[IsegTop+1].Nodet;
+            }else{
+                TopnInt = Top[IsegTop].n; // normal is constant in a segment
+                ToptInt = Top[IsegTop].t;
+            }
+            
+            Reflect2D(is, Bdry.Top.hs, true, ToptInt, TopnInt, Top[IsegTop].Kappa, 
+                RTop, NTopPTS);
+            ++ray2D[is+1].NumTopBnc;
+            
+            Distances2D(ray2D[is+1].x, Top[IsegTop].x, Bot[IsegBot].x, dEndTop, dEndBot,
+                Top[IsegTop].n, Bot[IsegBot].n, DistEndTop, DistEndBot);
+                
+        }else if(DistBegBot > RC(0.0) && DistEndBot <= RC(0.0)){ // test bottom reflection
+            
+            if(btyType[0] == 'C'){ // LP: Actually checking if the whole string is just "C", not just the first char
+                sss = glm::dot(dEndBot, Bot[IsegBot].t) / Bot[IsegBot].Len; // proportional distance along segment
+                BotnInt = (RC(1.0) - sss) * Bot[IsegBot].Noden + sss * Bot[IsegBot+1].Noden;
+                BottInt = (RC(1.0) - sss) * Bot[IsegBot].Nodet + sss * Bot[IsegBot+1].Nodet;
+            }else{
+                BotnInt = Bot[IsegBot].n; // normal is constant in a segment
+                BottInt = Bot[IsegBot].t;
+            }
+            
+            Reflect2D(is, Bdry.Bot.hs, true, BottInt, BotnInt, Bot[IsegBot].Kappa, 
+                RBot, NBotPTS);
+            ++ray2D[is+1].NumBotBnc;
+            
+            Distances2D(ray2D[is+1].x, Top[IsegTop].x, Bot[IsegBot].x, dEndTop, dEndBot,
+                Top[IsegTop].n, Bot[IsegBot].n, DistEndTop, DistEndBot);
+            
+        }
+        
+        // Has the ray left the box, lost its energy, escaped the boundaries, or exceeded storage limit?
+        if( STD::abs(ray2D[is+1].x.x) > Beam->Box.r ||
+            STD::abs(ray2d[is+1].x.y) > Beam->Box.z ||
+            ray2d[is+1].Amp < RC(0.005) ||
+            (DistBegTop < RC(0.0) && DistEndTop < RC(0.0)) ||
+            (DistBegBot < RC(0.0) && DistEndBot < RC(0.0)) 
+            // ray2d[is+1].t.x < 0 // this last test kills off a backward traveling ray
+        ){
+            Beam->Nsteps = is + 1;
+            break;
+        }else if(is >= MaxN - 4){
+            printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
+            Beam->Nsteps = is;
+            break;
+        }
+        
+        DistBegTop = DistEndTop;
+        DistBegBot = DistEndBot;        
+    }
 }
