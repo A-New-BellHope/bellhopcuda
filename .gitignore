@@ -4,3 +4,6 @@
 *.ptx
 *.cubin
 *.fatbin
+
+build/
+build_windows/
