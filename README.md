@@ -1,2 +1,2 @@
 # bellhopcuda
-CUDA and C++ port of BELLHOP
+CUDA and C++ port of BELLHOP.
