@@ -1,10 +1,14 @@
 #pragma once
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 #include <cstdio>
 
 #ifdef __CUDACC__
 #define HOST_DEVICE __host__ __device__
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
+//libcu++
 #define STD cuda::std
 #else
 #define HOST_DEVICE
@@ -23,9 +27,9 @@
 using real = float;
 #define REAL_MAX FLT_MAX
 #define REAL_EPSILON FLT_EPSILON
-#define RC(a) (a##f)
 //Real constant: transforms 2.0 into 2.0f. This is needed on CUDA or else
 //unwanted double-precision instructions may be emitted.
+#define RC(a) (a##f)
 #else
 using real = double;
 #define REAL_MAX DBL_MAX
@@ -43,7 +47,23 @@ using mat3 = glm::mat<3, 3, real, glm::defaultp>;
 using mat4 = glm::mat<4, 4, real, glm::defaultp>;
 
 #define SQ(a) ((a) * (a)) //Square
+constexpr real RadDeg = RC(180.0) / M_PI;
+constexpr real DegRad = M_PI / RC(180.0);
 
+inline bool isInt(std::string str, bool allowNegative = true){
+	if(str.empty()) return false;
+	for(int i=0; i<str.length(); ++i){
+		if(str[i] == '-'){
+			if(i != 0 || !allowNegative || str.length() == 1) return false;
+			continue;
+		}else if(str[i] >= '0' && str[i] <= '9'){
+			continue;
+		}else{
+			return false;
+		}
+	}
+	return true;
+}
 
 #if 0
 namespace math {

@@ -1,6 +1,7 @@
 #pragma once
 #include "step.hpp"
 #include "boundaries.hpp"
+#include "refcoef.hpp"
 
 /**
  * Calculates the distances to the boundaries
@@ -20,6 +21,199 @@ HOST_DEVICE inline void Distances2D(const vec2 &rayx,
     dBot = rayx - Botx; // vector pointing from bottom to ray
     DistTop = -glm::dot(Topn, dTop);
     DistBot = -glm::dot(Botn, dBot);
+}
+
+/**
+ * LP: No function description given.
+ * 
+ * hs: half-space properties
+ * isTop: Flag indicating bottom or top reflection
+ * tBdry, nBdry: Tangent and normal to the boundary
+ * kappa: Boundary curvature
+ * RefC: reflection coefficient
+ */
+HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
+    const vec2 &tBdry, const vec2 &nBdry, real kappa, 
+    const ReflectionCoef *RefC, int32_t Npts,
+    ray2DPt *ray2D, const BeamStructure *Beam, const SSPStructure *ssp,
+    int32_t &iSegz, int32_t &iSegr)
+{
+    int32_t is1;
+    cpx ccpx;
+    vec2 gradc;
+    real crr, crz, czz, rho; // derivatives of sound speed
+    real rm, rn, Tg, Th;
+    vec2 rayt, rayn, rayt_tilde, rayn_tilde;
+    real cnjump, csjump; // for curvature change
+    real ck, co, si, cco, ssi, pdelta, rddelta, sddelta, theta_bot; // for beam shift
+    cpx kx, kz, kzP, kzS, kzP2, kzS2, mu, f, g, y2, y4, Refl; // for tabulated reflection coef.
+    cpx ch, a, b, d, sb, delta, ddelta; // for beam shift
+    ReflectionCoef RInt;
+    
+    is  = is + 1;
+    is1 = is + 1;
+    
+    Tg = glm::dot(ray2D[is].t, tBdry); // component of ray tangent, along boundary
+    Th = glm::dot(ray2D[is].t, nBdry); // component of ray tangent, normal to boundary
+    
+    ray2D[is1].NumTopBnc = ray2D[is].NumTopBnc;
+    ray2D[is1].NumBotBnc = ray2D[is].NumBotBnc;
+    ray2D[is1].x         = ray2D[is].x;
+    ray2D[is1].t         = ray2D[is].t - RC(2.0) * Th * nBdry; // changing the ray direction
+    
+    // Calculate the change in curvature
+    // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
+    
+    EvaluateSSP(ray2D[is].x, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr); // just to get c [LP: ccpx.real()]
+    
+    // incident unit ray tangent and normal
+    rayt = ccpx.real() * ray2D[is].t; // unit tangent to ray
+    rayn = vec2(-rayt.y, rayt.x);     // unit normal  to ray
+    
+    // reflected unit ray tangent and normal (the reflected tangent, normal system has a different orientation)
+    rayt_tilde = ccpx.real() * ray2D[is1].t;         // unit tangent to ray
+    rayn_tilde = -vec2(-rayt_tilde.y, rayt_tilde.x); // unit normal  to ray
+    
+    rn = RC(2.0) * kappa / SQ(ccpx.real()) / Th; // boundary curvature correction
+    
+    // get the jumps (this could be simplified, e.g. jump in rayt is roughly 2 * Th * nbdry
+    cnjump = -glm::dot(gradc, rayn_tilde - rayn);
+    csjump = -glm::dot(gradc, rayt_tilde - rayt);
+    
+    if(isTop){
+        cnjump = -cnjump; // this is because the (t,n) system of the top boundary has a different sense to the bottom boundary
+        rn = -rn;
+    }
+    
+    rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
+    rn = rn + rm * (RC(2.0) * cnjump - rm * csjump) / SQ(ccpx.real());
+    
+    if(Beam->Type[2] == 'D'){
+        rn = RC(2.0) * rn;
+    }else if(Beam->Type[2] == 'Z'){
+        rn = RC(0.0);
+    }
+    
+    ray2D[is1].c   = ccpx.real();
+    ray2D[is1].tau = ray2D[is].tau;
+    ray2D[is1].p   = ray2D[is].p + ray2D[is].q * rn;
+    ray2D[is1].q   = ray2D[is].q;
+    
+    // account for phase change
+    
+    if(hs.bc == 'R'){ // rigid
+        ray2D[is1].Amp   = ray2D[is].Amp;
+        ray2D[is1].Phase = ray2D[is].Phase;
+    }else if(hs.bc == 'V'){ // vacuum
+        ray2D[is1].Amp   = ray2D[is].Amp;
+        ray2D[is1].Phase = ray2D[is].Phase + M_PI;
+    }else if(hs.bc == 'F'){ // file
+        RInt.theta = RadDeg * STD::abs(STD::atan2(Th, Tg)); // angle of incidence (relative to normal to bathymetry)
+        if(RInt.theta > RC(90.0)) RInt.theta = RC(180.0) - RInt.theta; // reflection coefficient is symmetric about 90 degrees
+        InterpolateReflectionCoefficient(RInt, RefC, Npts);
+        ray2D[is1].Amp   = ray2D[is].Amp * RInt.r;
+        ray2D[is1].Phase = ray2D[is].Phase + RInt.phi;
+    }else if(hs.bc == 'A' || hs.bc == 'G'){ // half-space
+        kx = omega * Tg; // wavenumber in direction parallel      to bathymetry
+        kz = omega * Th; // wavenumber in direction perpendicular to bathymetry (in ocean)
+        real kx2 = SQ(kx);
+        
+        // notation below is a bit mis-leading
+        // kzS, kzP is really what I called gamma in other codes, and differs by a factor of +/- i
+        if(hs.cS.real() > RC(0.0)){
+            kzS2 = kx2 - SQ(omega / hs.cS);
+            kzP2 = kx2 - SQ(omega / hs.cP);
+            kzS  = STD::sqrt(kzS2);
+            kzP  = STD::sqrt(kzP2);
+            mu   = hs.rho * SQ(hs.cS);
+            
+            y2 = (SQ(kzS2 + kx2) - RC(4.0) * kzS * kzP * kx2) * mu;
+            y4 = kzP * (kx2 - kzS2);
+            
+            f = SQ(omega) * y4;
+            g = y2;
+        }else{
+            kzP = STD::sqrt(kx2 - SQ(omega / hs.cP));
+            
+            // Intel and GFortran compilers return different branches of the SQRT for negative reals
+            // LP: looks like this just means we want the positive branch
+            if(kzP.real() == RC(0.0) && kzP.imag() < RC(0.0)) kzP = -kzP;
+            f = kzP;
+            g = hs.rho;
+        }
+        
+        Refl = -cpx(rho * f, -(kz * g)) / cpx(rho * f, kz * g); // complex reflection coef.
+        
+        if(STD::abs(Refl) < RC(1.0e-5)){ // kill a ray that has lost its energy in reflection
+            ray2D[is1].Amp   = RC(0.0);
+            ray2D[is1].Phase = ray2D[is].Phase;
+        }else{
+            ray2D[is1].Amp   = STD::abs(Refl) * ray2D[is].Amp;
+            ray2D[is1].Phase = ray2D[is].Phase + STD::atan2(Refl.imag(), Refl.real());
+            
+            // compute beam-displacement Tindle, Eq. (14)
+            // needs a correction to beam-width as well ...
+            // LP: most of these variables don't exist, likely very old code
+            // if(kz2Sq.real() < RC(0.0)){
+            //     rhoW = RC(1.0); // density of water
+            //     rhoWSq = rhoW * rhoW;
+            //     rhoHSSq = rhoHS * rhoHS;
+            //     delta = RC(2.0) * gk * rhoW * rhoS * (kz1Sq - kz2Sq) /
+            //         (kz1 * i * kz2 *
+            //             (-rhoWSq * kz2Sq + rhoHSSq * kz1Sq));
+            //     rv[is+1] = rv[is+1] + delta;
+            // }
+            
+            if(Beam->Type[3] == 'S'){ // beam displacement & width change (Seongil's version)
+                ch = ray2D[is].c / STD::conj(hs.cP);
+                co = ray2D[is].t.x * ray2D[is].c;
+                si = ray2D[is].t.y * ray2D[is].c;
+                ck = omega / ray2D[is].c;
+                
+                a   = RC(2.0) * hs.rho * (RC(1.0) - SQ(ch));
+                b   = SQ(co) - SQ(ch);
+                d   = SQ(hs.rho) * SQ(si) + b;
+                sb  = STD::sqrt(b);
+                cco = SQ(co);
+                ssi = SQ(si);
+                
+                if(si != RC(0.0)){
+                    delta = a * co / si / (ck * sb * d); // Do we need an abs() on this???
+                }else{
+                    delta = 0.0
+                }
+                
+                pdelta = delta.real() / (ray2D[is].c / co);
+                // LP: The spacing in the original version of this formula,
+                // the fact that several terms could be factored out to reduce
+                // computation, and the repeated divisons, lead me to believe
+                // that it may not be correct.
+                // Here is the original version with the weird spacing:
+                // ddelta = -a / (ck*sb*d) - a*cco / ssi / (ck*sb*d) + a*cco / (ck*b*sb*d)
+                //     -a*co / si / (ck*sb*d*d) * (RC(2.0)* SQ(hs.rho) *si*co-RC(2.0)*co*si);
+                // Here is a version with things factored better:
+                real cksbd = ck * sb * d;
+                ddelta = a * (cco / (cksbd * b)
+                    - (RC(1.0) + (cco / ssi)) / cksbd
+                    - RC(2.0) * SQ(co) * (SQ(hs.rho) - RC(1.0)) / (cksbd * d) );
+                rddelta = -delta.real();
+                sddelta = rddelta / STD::abs(rddelta);
+                
+                // next 3 lines have an update by Diana McCammon to allow a sloping bottom
+                // I think the formulas are good, but this won't be reliable because it doesn't have the logic
+                // that tracks crossing into new segments after the ray displacement.
+                
+                theta_bot = STD::atan(tBdry.y / tBdry.x); // bottom angle
+                ray2D[is1].x.x = ray2D[is1].x.x + delta.real() * STD::cos(theta_bot); // range displacement
+                ray2D[is1].x.y = ray2D[is1].x.y + delta.real() * STD::sin(theta_bot); // depth displacement
+                ray2D[is1].tau = ray2D[is1].tau + pdelta; // phase change
+                ray2D[is1].q   = ray2D[is1].q + sddelta * rddelta * si * c * ray2D[is].p; // beam-width change
+            }
+        }
+    }else{
+        printf("Reflect2D: Unknown boundary condition type\n");
+        bail();
+    }
 }
 
 /**
@@ -46,6 +240,8 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     const real &freq, BeamStructure *Beam, const SSPStructure *ssp,
     const BdryPtFull *Top, const BdryPtFull *Bot,
     const char *atiType, const char *btyType,
+    const ReflectionCoef *RTop, int32_t NTopPts,
+    const ReflectionCoef *RBot, int32_t NBotPts,
     ray2DPt *ray2D)
 {
     int32_t is, is1; // index for a step along the ray
