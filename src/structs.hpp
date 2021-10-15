@@ -32,6 +32,12 @@ struct SSPStructure {
     char AttenUnit[2];
 };
 
+struct SSPVars {
+    int32_t iSegr = 1, iSegx = 1, iSegy = 1, iSegz = 1;
+    real zTemp, betaPowerLaw = RC(1.0), fT = RC(1.0e20);
+    real alphaR = RC(1500.0), betaR = RC(0.0), alphaI = RC(0.0), betaI = RC(0.0), rhoR = RC(1.0);
+};
+
 struct ray2DPt {
     int32_t NumTopBnc, NumBotBnc;
     ///ray coordinate, (r,z)
@@ -77,18 +83,6 @@ struct AnglesStructure {
     int32_t Nalpha = 0, Nbeta = 1, iSingle_alpha = -1, iSingle_beta = -1;
     real Dalpha, Dbeta;
     real *alpha, *beta;
-};
-
-struct bioStructure {
-    real Z1, Z2, f0, q, a0;
-};
-
-constexpr int32_t MaxBioLayers = 200;
-
-struct AttenInfo {
-    int32_t NBioLayers;
-    bioStructure bio[MaxBioLayers];
-    real t = RC(20.0), Salinity = RC(35.0), pH = RC(8.0), z_bar = RC(0.0), fg;
 };
 
 struct Position {

@@ -39,6 +39,11 @@ using real = double;
 
 using cpx = STD::complex<real>;
 
+inline std::ostream &operator<<(std::ostream &s, const cpx &v){
+	s << "(" << v.real() << "," << v.imag() << ")";
+	return s;
+}
+
 using vec2 = glm::vec<2, real, glm::defaultp>;
 using vec3 = glm::vec<3, real, glm::defaultp>;
 using vec4 = glm::vec<4, real, glm::defaultp>;
@@ -47,6 +52,7 @@ using mat3 = glm::mat<3, 3, real, glm::defaultp>;
 using mat4 = glm::mat<4, 4, real, glm::defaultp>;
 
 #define SQ(a) ((a) * (a)) //Square
+#define CUBE(a) ((a) * (a) * (a))
 constexpr real RadDeg = RC(180.0) / M_PI;
 constexpr real DegRad = M_PI / RC(180.0);
 

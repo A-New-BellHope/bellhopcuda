@@ -5,10 +5,20 @@
 #include <string>
 #include <cctype>
 
+/**
+ * C++ emulation of FORTRAN list-directed input.
+ * To use:
+ * LDIFile YourFile("filename");
+ * //List() starts a new list (single READ line). This is needed because the
+ * //slash in an input file terminates assignment for the rest of the list,
+ * //so we need to be able to distinguish list boundaries.
+ * YourFile.List(); YourFile.Read(somestring); YourFile.read(somecpx); //etc.
+ */
 class LDIFile {
 public:
-    LDIFile(const std::string &filename) 
-        : _filename(filename), lastitemcount(0), line(0), isafterslash(false)
+    LDIFile(const std::string &filename, bool abort_on_error = true) 
+        : _filename(filename), _abort_on_error(abort_on_error),
+        lastitemcount(0), line(0), isafterslash(false)
     {
         f.open(filename);
         if(!f.good()) Error("Failed to open file");
@@ -74,7 +84,7 @@ public:
 private:
     void Error(std::string msg){
         std::cout << _filename << ":" << line << ": " << msg << "\n";
-        std::abort();
+        if(_abort_on_error) std::abort();
     }
     void GotSlash(){
         isafterslash = true;
@@ -185,6 +195,7 @@ private:
     }
     
     std::string _filename;
+    bool _abort_on_error;
     std::ifstream f;
     std::string lastitem;
     uint32_t lastitemcount;
