@@ -65,6 +65,19 @@ inline bool isInt(std::string str, bool allowNegative = true){
 	return true;
 }
 
+inline bool isReal(std::string str){
+	if(str.empty()) return false;
+	char *ptr;
+	strtod(str.c_str(), &ptr);
+	return (*ptr) == '\0';
+}
+
+inline std::string WithExtension(const std::string &basename, 
+	const std::string &newextension)
+{
+	return basename.substr(0, basename.find_last_of(".")) + newextension;
+}
+
 #if 0
 namespace math {
 	//Intrinsic/optimized math functions on device, or normal ones on host.

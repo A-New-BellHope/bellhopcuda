@@ -242,7 +242,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     const char *atiType, const char *btyType,
     const ReflectionCoef *RTop, int32_t NTopPts,
     const ReflectionCoef *RBot, int32_t NBotPts,
-    ray2DPt *ray2D)
+    BdryType *Bdry, ray2DPt *ray2D)
 {
     int32_t is, is1; // index for a step along the ray
     cpx ccpx;
@@ -253,8 +253,6 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     
     int32_t IsegTop, IsegBot; // indices that point to the current active segment
     vec2 rTopseg, rBotseg; // range intervals defining the current active segment
-    
-    BdryType Bdry;
     
     // Initial conditions
     
@@ -281,8 +279,8 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     GetBotSeg(xs.x, IsegBot, rBotseg); // identify the bottom segment below the source
     
     // convert range-dependent geoacoustic parameters from user to program units
-    if(atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, Top[IsegTop].hs);
-    if(btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, Bot[IsegBot].hs);
+    if(atiType[1] == 'L') CopyHSInfo(Bdry->Top.hs, Top[IsegTop].hs);
+    if(btyType[1] == 'L') CopyHSInfo(Bdry->Bot.hs, Bot[IsegBot].hs);
     
     // Trace the beam (note that Reflect alters the step index is)
     is = 0;
@@ -305,13 +303,13 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
         // New altimetry segment?
         if(ray2D[is1].x.x < rTopSeg.x || ray2D[is1].x.x > rTopSeg.y){
             GetTopSeg(ray2D[is1].x.x, IsegTop, rTopseg);
-            if(atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, Top[IsegTop].hs); // grab the geoacoustic info for the new segment
+            if(atiType[1] == 'L') CopyHSInfo(Bdry->Top.hs, Top[IsegTop].hs); // grab the geoacoustic info for the new segment
         }
         
         // New bathymetry segment?
         if(ray2D[is1].x.x < rBotSeg.x || ray2D[is1].x.x > rBotSeg.y){
             GetBotSeg(ray2D[is1].x.x, IsegBot, rBotseg);
-            if(btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
+            if(btyType[1] == 'L') CopyHSInfo(Bdry->Bot.hs, Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
         }
         
         // Reflections?
@@ -334,7 +332,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
                 ToptInt = Top[IsegTop].t;
             }
             
-            Reflect2D(is, Bdry.Top.hs, true, ToptInt, TopnInt, Top[IsegTop].Kappa, 
+            Reflect2D(is, Bdry->Top.hs, true, ToptInt, TopnInt, Top[IsegTop].Kappa, 
                 RTop, NTopPTS);
             ++ray2D[is+1].NumTopBnc;
             
@@ -352,7 +350,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
                 BottInt = Bot[IsegBot].t;
             }
             
-            Reflect2D(is, Bdry.Bot.hs, true, BottInt, BotnInt, Bot[IsegBot].Kappa, 
+            Reflect2D(is, Bdry->Bot.hs, true, BottInt, BotnInt, Bot[IsegBot].Kappa, 
                 RBot, NBotPTS);
             ++ray2D[is+1].NumBotBnc;
             

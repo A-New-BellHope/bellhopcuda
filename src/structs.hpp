@@ -78,3 +78,24 @@ struct AnglesStructure {
     real Dalpha, Dbeta;
     real *alpha, *beta;
 };
+
+struct bioStructure {
+    real Z1, Z2, f0, q, a0;
+};
+
+constexpr int32_t MaxBioLayers = 200;
+
+struct AttenInfo {
+    int32_t NBioLayers;
+    bioStructure bio[MaxBioLayers];
+    real t = RC(20.0), Salinity = RC(35.0), pH = RC(8.0), z_bar = RC(0.0), fg;
+};
+
+struct Position {
+    int32_t NSx = 1, NSy = 1, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
+    real Delta_r, Delta_theta;
+    int32_t *iSz, *iRz;
+    real *Sx, *Sy, *Sz; // Source x, y, z coordinates
+    real *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
+    real *theta; // Receiver bearings
+};
