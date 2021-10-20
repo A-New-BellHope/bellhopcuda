@@ -80,6 +80,11 @@ public:
         std::strncpy(v, s.c_str(), s.length());
         if(s.length() < nc) memset(v+s.length(), ' ', nc-s.length());
     }
+    void Read(real *arr, size_t count){
+        for(size_t i=0; i<count; ++i){
+            Read(arr[i]);
+        }
+    }
     
 private:
     void Error(std::string msg){

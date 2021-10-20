@@ -411,7 +411,7 @@ void ReadEnvironment(std::string FileRoot, std::ostream &PRTFile,
     
     // *** source and receiver locations ***
     
-    ReadSxSy(ENVFile, PRTFile);
+    ReadSxSy(false, ENVFile, PRTFile);
     
     ZMin = Bdry.Top.hs.Depth;
     ZMax = Bdry.Bot.hs.Depth;
