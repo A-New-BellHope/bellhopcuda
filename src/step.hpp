@@ -2,6 +2,33 @@
 #include "structs.hpp"
 #include "ssp.hpp"
 
+struct rxyz {
+    real r, x, y, z;
+};
+
+struct BeamStructure {
+    int32_t NBeams, Nimage, Nsteps, iBeamWindow;
+    real deltas, epsMultiplier = RC(1.0), rLoop;
+    char Component;
+    char Type[4] = "G S ";
+    char RunType[7];
+    rxyz Box;
+};
+
+struct ray2DPt {
+    int32_t NumTopBnc, NumBotBnc;
+    ///ray coordinate, (r,z)
+    vec2 x;
+    ///scaled tangent to the ray (previously (rho, zeta))
+    vec2 t;
+    vec2 p, q;
+    ///c * t would be the unit tangent
+    real c;
+    real Amp, Phase;
+    cpx tau;
+};
+
+
 /**
  * calculate a reduced step size, h, that lands on any points where the environment changes
  * 

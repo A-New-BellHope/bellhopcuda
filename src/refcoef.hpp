@@ -1,5 +1,9 @@
 #pragma once
-#include "structs.hpp"
+#include "common.hpp"
+
+struct ReflectionCoef {
+    real theta, r, phi;
+};
 
 /**
  * Given an angle RInt%ThetaInt, returns the magnitude and
