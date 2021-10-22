@@ -65,3 +65,79 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
         RInt.phi = (RC(1.0) - alpha) * r[iLeft].phi + alpha * r[iRight].phi;
     }
 }
+
+/**
+ * Optionally read in reflection coefficient for Top or Bottom boundary
+ * 
+ * BotRC, TopRC: flag set to 'F' if refl. coef. is to be read from a File
+ */
+inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char TopRC,
+    std::ostream &PRTFile, ReflectionCoef *&RBot, ReflecteionCoef *&RTop,
+    int32_t &NBotPts, int32_t &NTopPts)
+{
+    if(BotRC == 'F'){
+        PRTFile << "__________________________________________________________________________\n\n";
+        PRTFile << "Using tabulated bottom reflection coef.\n";
+        LDIFile BRCFile(FileRoot + ".brc");
+        if(!BRCFile.Good()){
+            PRTFile << "BRCFile = " << FileRoot + ".brc\n";
+            std::cout << "ReadReflectionCoefficient: Unable to open Bottom Reflection Coefficient file\n";
+            std::abort();
+        }
+        
+        BRCFile.List(); BRCFile.Read(NBotPts);
+        PRTFile << "Number of points in bottom reflection coefficient = " << NBotPts << "\n";
+        
+        if(RBot != nullptr) deallocate(RBot);
+        RBot = allocate<ReflectionCoef>(NBotPts);
+        
+        BRCFile.List();
+        for(int32_t itheta=0; itheta<NBotPts; ++itheta){
+            BRCFile.Read(RBot[itheta].theta);
+            BRCFile.Read(RBot[itheta].r);
+            BRCFile.Read(RBot[itheta].phi);
+            RBot->phi *= DegRad; // convert to radians
+        }
+    }else{ // should allocate something anyway, since variable is passed
+        //LP: Bug: Does not deallocate first.
+        RBot = allocate<ReflectionCoef>(1);
+    }
+    
+    // Optionally read in top reflection coefficient
+    
+    if(TopRC == 'F'){
+        PRTFile << "__________________________________________________________________________\n\n";
+        PRTFile << "Using tabulated top    reflection coef.\n";
+        LDIFile TRCFile(FileRoot + ".trc");
+        if(!TRCFile.Good()){
+            PRTFile << "TRCFile = " << FileRoot + ".trc\n";
+            std::cout << "ReadReflectionCoefficient: Unable to open Top Reflection Coefficient file\n";
+            std::abort();
+        }
+        
+        TRCFile.List(); TRCFile.Read(NTopPts);
+        PRTFile << "Number of points in top reflection coefficient = " << NTopPts << "\n";
+        
+        if(RTop != nullptr) deallocate(RTop);
+        RTop = allocate<ReflectionCoef>(NTopPts);
+        
+        TRCFile.List();
+        for(int32_t itheta=0; itheta<NTopPts; ++itheta){
+            TRCFile.Read(RTop[itheta].theta);
+            TRCFile.Read(RTop[itheta].r);
+            TRCFile.Read(RTop[itheta].phi);
+            RTop->phi *= DegRad; // convert to radians
+        }
+    }else{ // should allocate something anyway, since variable is passed
+        //LP: Bug: Does not deallocate first.
+        RTop = allocate<ReflectionCoef>(1);
+    }
+    
+    // Optionally read in internal reflection coefficient data
+    
+    if(BotRC == 'P'){
+        std::cout << "Internal reflections not supported by BELLHOP and therefore "
+            "not supported by bellhopcuda\n";
+        std::abort();
+    }
+}

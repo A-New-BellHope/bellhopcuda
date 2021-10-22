@@ -176,12 +176,31 @@ template<> inline void Sort(cpx *arr, size_t n){
 /**
  * mbp: tests whether an input vector is strictly monotonically increasing
  */
-bool monotonic(real *arr, size_t n){
+HOST_DEVICE inline bool monotonic(real *arr, size_t n){
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
 		if(arr[i+1] <= arr[i]) return false;
 	}
 	return true;
+}
+
+/**
+ * mbp: full 360-degree sweep? remove duplicate angle/beam
+ */
+HOST_DEVICE inline void CheckFix360Sweep(const real *angles, int32_t &n){
+	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], RC(360.0)))
+            < RC(10.0) * (STD::nextafter(RC(1.0), RC(2.0)) - RC(1.0)))
+        --n;
+    }
+}
+
+inline void EchoVector(real *v, int32_t Nv, std::ostream &PRTFile)
+{
+    constexpr int32_t NEcho = 10;
+    PRTFile << std::setprecision(6);
+    for(int32_t i=0; i<std::min(Nv, NEcho); ++i) PRTFile << std::setw(14) << v[i] << " ";
+    if(Nv > NEcho) PRTFile << "... " << std::setw(14) << v[Nv-1];
+    PRTFile << "\n";
 }
 
 ////////////////////////////////////////////////////////////////////////////////

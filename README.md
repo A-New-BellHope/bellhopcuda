@@ -46,10 +46,10 @@ between its extreme values.
 - `misc/subtabulate.f90`
 
 `curves.hpp`: Templated splines and Piecewise Cubic Hermite Interpolating Polynomial.
-- `misc/pchipMod.f90`: NEED all
-- `misc/splinec.f90`: NEED all (templated version for real/cpx)
-- `misc/splined.f90`
-- `misc/spliner.f90`
+- `misc/pchipMod.f90`
+- `misc/splinec.f90`
+- `misc/splined.f90`: Double version, not used by BELLHOP.
+- `misc/spliner.f90`: Float version, not used by BELLHOP.
 
 ### Data I/O code
 
@@ -66,13 +66,13 @@ derivatives and with less pre-computed info. Not used by BELLHOP.
 - `Bellhop/bdry3DMod.f90`: BELLHOP3D version.
 
 `refcoef.hpp`: Reflection coefficients.
-- `misc/RefCoef.f90`: InterpolateReflectionCoefficient, NEED ReadReflectionCoefficient
+- `misc/RefCoef.f90`
 
 `sourcereceiver.hpp`: Source and receiver (single or array) positions.
 - `misc/SourceReceiverPositions.f90`
 
 `angles.hpp`: Source ray angles.
-- `Bellhop/angleMod.f90`: NEED all
+- `Bellhop/angleMod.f90`
 
 `beampattern.hpp`: Source beam pattern.
 - `misc/beampattern.f90`: NEED all

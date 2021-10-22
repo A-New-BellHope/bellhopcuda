@@ -14,7 +14,7 @@ void ReadTopOpt(char (TopOpt&)[6], char &bc, char (AttenUnit&)[2],
     AttenInfo &atten)
 {
     TopOpt = "      "; // initialize to blanks
-    ENVFile.Line(); ENVFile.Read(TopOpt, 6);
+    ENVFile.List(); ENVFile.Read(TopOpt, 6);
     PRTFile << "\n";
     
     ssp.Type     = TopOpt[0];
@@ -82,7 +82,7 @@ void ReadTopOpt(char (TopOpt&)[6], char &bc, char (AttenUnit&)[2],
         PRTFile << "    THORP volume attenuation added\n"; break;
     case 'F':
         PRTFile << "    Francois-Garrison volume attenuation added\n";
-        ENVFile.Line(); ENVFile.Read(atten.t); ENVFile.Read(atten.Salinity);
+        ENVFile.List(); ENVFile.Read(atten.t); ENVFile.Read(atten.Salinity);
         ENVFile.Read(atten.pH); ENVFile.Read(atten.z_bar);
         PRTFile << std::setprecision(4);
         PRTFile << " T = " << std::setw(11) << atten.t 
@@ -92,10 +92,10 @@ void ReadTopOpt(char (TopOpt&)[6], char &bc, char (AttenUnit&)[2],
         break;
     case 'B':
         PRTFile << "    Biological attenuation\n";
-        ENVFile.Line(); ENVFile.Read(atten.NBioLayers);
+        ENVFile.List(); ENVFile.Read(atten.NBioLayers);
         PRTFile << "      Number of Bio Layers = " << atten.NBioLayers << "\n";
         for(int32_t iBio = 0; iBio < NBioLayers; ++iBio){
-            ENVFile.Line(); ENVFile.Read(atten.bio[iBio].z1); ENVFile.Read(atten.bio[iBio].z2);
+            ENVFile.List(); ENVFile.Read(atten.bio[iBio].z1); ENVFile.Read(atten.bio[iBio].z2);
             ENVFile.Read(atten.bio[iBio].f0); ENVFile.Read(atten.bio[iBio].q); ENVFile.Read(atten.bio[iBio].a0);
             PRTFile << "      Top    of layer = " << bio[iBio].z1 << " m\n";
             PRTFile << "      Bottom of layer = " << bio[iBio].z2 << " m\n";
@@ -140,7 +140,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     LDIFile &ENVFile, std::ostream &PRTFile,
     Position &Pos)
 {
-    ENVFile.Line(); ENVFile.Read(RunType, 7);
+    ENVFile.List(); ENVFile.Read(RunType, 7);
     PRTFile << "\n";
     
     switch(RunType[0]){

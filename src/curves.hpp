@@ -195,6 +195,68 @@ HOST_DEVICE inline void h_del(const real *x, const cpx *y, int32_t ix,
 }
 
 /**
+ * check if derivative is within the trust region, project into it if not
+ */
+HOST_DEVICE inline real fprime_interior(real del1, real del2, real fprime)
+{
+    if(del1 * del2 > RC(0.0)){
+        // adjacent secant slopes have the same sign, enforce monotonicity
+        if(del1 > RC(0.0)){
+            return STD::min(STD::max(fprime, RC(0.0)), RC(3.0) * STD::min(del1, del2));
+        }else{
+            return STD::max(STD::min(fprime, RC(0.0)), RC(3.0) * STD::max(del1, del2));
+        }
+    }else{
+        // force the interpolant to have an extrema here
+        return RC(0.0);
+    }
+}
+
+HOST_DEVICE inline real fprime_left_end(real del1, real del2, real fprime)
+{
+    if(del1 * fprime <= RC(0.0)){
+        // set derivative to zero if the sign differs from sign of secant slope
+        return RC(0.0);
+    }else if((del1 * del2 <= RC(0.0)) && (STD::abs(fprime) > STD::abs(RC(3.0) * del1))){
+        // adjust derivative value to enforce monotonicity
+        return RC(3.0) * del1;
+    }else{
+        return fprime;
+    }
+}
+
+/**
+ * This is essentially the same as fprime_left_end( del2, del1, fprime )
+ * Written separately for clarity
+ * LP: How is writing the code twice more clear? It is exactly that.
+ */
+HOST_DEVICE inline real fprime_right_end(real del1, real del2, real fprime)
+{
+    return fprime_left_end(del2, del1, fprime);
+}
+
+HOST_DEVICE inline cpx fprime_interior_Cmplx(const cpx &del1, const cpx &del2,
+    const cpx &fprime)
+{
+    return cpx(fprime_interior(del1.real(), del2.real(), fprime.real()),
+        fprime_interior(del1.imag(), del2.imag(), fprime.imag()));
+}
+
+HOST_DEVICE inline cpx fprime_left_end_Cmplx(const cpx &del1, const cpx &del2,
+    const cpx &fprime)
+{
+    return cpx(fprime_left_end(del1.real(), del2.real(), fprime.real()),
+        fprime_left_end(del1.imag(), del2.imag(), fprime.imag()));
+}
+
+HOST_DEVICE inline cpx fprime_right_end_Cmplx(const cpx &del1, const cpx &del2,
+    const cpx &fprime)
+{
+    return cpx(fprime_right_end(del1.real(), del2.real(), fprime.real()),
+        fprime_right_end(del1.imag(), del2.imag(), fprime.imag()));
+}
+
+/**
  * This implements the monotone piecewise cubic Hermite interpolating
  * polynomial (PCHIP) algorithm. This is a new variant of monotone PCHIP
  * (paper submitted to JASA). Also see;
@@ -262,6 +324,27 @@ HOST_DEVICE inline void pchip(const real *x, const cpx *y, int32_t n,
         
         // interior nodes (use derivatives from the cubic spline as initial estimate)
         
-        TODO;
+        for(ix=1; ix<n-1; ++ix){
+            h_del(x, y, ix, h1, h2, del1, del2);
+            // check if the derivative from the cubic spline satisfies monotonicity
+            PolyCoef2[ix] = fprime_interior_Cmplx(del1, del2, csWork2[ix]);
+        }
+        
+        //                                                               2      3
+        // compute coefficients of std cubic polynomial: c0 + c1*x + c2*x + c3*x
+        //
+        
+        for(ix=0; ix<n-1; ++ix){
+            h = x[ix+1] - x[ix];
+            
+            f1 = PolyCoef1[ix];
+            f2 = PolyCoef1[ix+1];
+            
+            f1prime = PolyCoef2[ix];
+            f2prime = PolyCoef2[ix+1];
+            
+            PolyCoef3[ix] = (RC(3.0) * (f2 - f1) - h * (RC(2.0) * f1prime + f2prime)) / SQ(h);
+            PolyCoef4[ix] = (h * (f1prime + f2prime) - RC(2.0) * (f2 - f1)) / CUBE(h);
+        }
     }
 }

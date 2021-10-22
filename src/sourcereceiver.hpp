@@ -11,15 +11,6 @@ struct Position {
     real *theta; // Receiver bearings
 };
 
-inline void EchoVector(real *v, int32_t Nv, std::ostream &PRTFile)
-{
-    constexpr int32_t SrcRcvr_NEcho = 10;
-    PRTFile << std::setprecision(6);
-    for(int32_t i=0; i<std::min(Nv, SrcRcvr_NEcho); ++i) PRTFile << std::setw(14) << v[i] << " ";
-    if(Nv > SrcRcvr_NEcho) PRTFile << "... " << std::setw(14) << v[Nv-1];
-    PRTFile << "\n";
-}
-
 /**
  * Optionally reads a vector of source frequencies for a broadband run
  * If the broadband option is not selected, then the input freq (a scalar) is stored in the frequency vector
@@ -33,7 +24,7 @@ inline void ReadfreqVec(real freq0, char BroadbandOption,
     Nfreq = 1;
     
     if(BroadbandOption == 'B'){
-        ENVFile.Line(); ENVFile.Read(Nfreq);
+        ENVFile.List(); ENVFile.Read(Nfreq);
         PRTFile << "__________________________________________________________________________\n\n\n";
         PRTFile << "Number of frequencies = " << Nfreq << "\n";
         if(Nfreq <= 0){
@@ -48,7 +39,7 @@ inline void ReadfreqVec(real freq0, char BroadbandOption,
     if(BroadbandOption == 'B'){
         PRTFile << "Frequencies (Hz)\n";
         freqVec[2] = RC(-999.9);
-        ENVFile.Line(); ENVFile.Read(freqVec, Nfreq);
+        ENVFile.List(); ENVFile.Read(freqVec, Nfreq);
         SubTab(freqVec, Nfreq);
         EchoVector(freqVec, Nfreq, PRTFile);
     }else{
@@ -65,7 +56,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
     std::string Units, LDIFile &ENVFile, std::ostream &PRTFile)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
-    ENVFile.Line(); ENVFile.Read(Nx);
+    ENVFile.List(); ENVFile.Read(Nx);
     PRTFile << "Number of " << Description << " = " << Nx << "\n";
     
     if(Nx <= 0){
@@ -78,7 +69,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
     
     PRTFile << Description << " (" << Units << ")\n";
     x[2] = RC(-999.9);
-    ENVFile.Line(); ENVFile.Read(x, Nx);
+    ENVFile.List(); ENVFile.Read(x, Nx);
     
     SubTab(x, Nx);
     Sort(x, Nx);
@@ -192,12 +183,7 @@ inline void ReadRcvrBearings(LDIFile &ENVFile, std::ostream &PRTFile,
 {
     ReadVector(Pos.Ntheta, Pos.theta, "receiver bearings, theta", "degrees");
     
-    // full 360-degree sweep? remove duplicate angle
-    if(Pos.Ntheta > 1){
-        if(STD::abs(STD::fmod(Pos.theta[Pos.Ntheta-1] - Pos.theta[0], RC(360.0)))
-                < RC(10.0) * STD::nextafter(RC(1.0), RC(2.0)))
-            --Pos.Ntheta;
-    }
+    CheckFix360Sweep(Pos.theta, Pos.Ntheta);
     
     // calculate angular spacing
     Pos.Delta_theta = RC(0.0);
