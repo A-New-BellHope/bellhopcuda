@@ -37,7 +37,7 @@ public:
         std::string s = GetNextItem(); \
         if(s == nullitem) return; \
         do{} while(false)
-    
+        
     void Read(std::string &v){
         LDIFILE_READPREFIX();
         v = s;

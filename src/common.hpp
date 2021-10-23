@@ -54,11 +54,6 @@ using real = double;
 
 using cpx = STD::complex<real>;
 
-inline std::ostream &operator<<(std::ostream &s, const cpx &v){
-	s << "(" << v.real() << "," << v.imag() << ")";
-	return s;
-}
-
 using vec2 = glm::vec<2, real, glm::defaultp>;
 using vec3 = glm::vec<3, real, glm::defaultp>;
 using vec4 = glm::vec<4, real, glm::defaultp>;
@@ -91,6 +86,16 @@ inline bool isReal(std::string str){
 	char *ptr;
 	strtod(str.c_str(), &ptr);
 	return (*ptr) == '\0';
+}
+
+inline std::ostream &operator<<(std::ostream &s, const cpx &v){
+	s << "(" << v.real() << "," << v.imag() << ")";
+	return s;
+}
+
+inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
+	s << v.x << " " << v.y;
+	return s;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -180,6 +185,13 @@ HOST_DEVICE inline bool monotonic(real *arr, size_t n){
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
 		if(arr[i+1] <= arr[i]) return false;
+	}
+	return true;
+}
+HOST_DEVICE inline bool monotonic(vec2 *arr, size_t n, const int32_t dim){
+	if(n == 1) return true;
+	for(size_t i=0; i<n-1; ++i){
+		if(arr[i+1][dim] <= arr[i][dim]) return false;
 	}
 	return true;
 }
