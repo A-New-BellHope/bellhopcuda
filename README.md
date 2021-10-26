@@ -54,7 +54,7 @@ between its extreme values.
 ### Data I/O code
 
 `ssp.hpp`: Sound speed as a function of position.
-- `Bellhop/sspMod.f90`: NEED all loading / precomputation.
+- `Bellhop/sspMod.f90`
 - `misc/sspMod.f90`: Base implementation for other programs, but without
 derivatives and with less pre-computed info. Not used by BELLHOP.
 
@@ -62,7 +62,7 @@ derivatives and with less pre-computed info. Not used by BELLHOP.
 - `misc/AttenMod.f90`
 
 `boundary.hpp`: Ocean surface and floor.
-- `Bellhop/bdryMod.f90`: NEED all
+- `Bellhop/bdryMod.f90`
 - `Bellhop/bdry3DMod.f90`: BELLHOP3D version.
 
 `refcoef.hpp`: Reflection coefficients.
@@ -75,7 +75,7 @@ derivatives and with less pre-computed info. Not used by BELLHOP.
 - `Bellhop/angleMod.f90`
 
 `beampattern.hpp`: Source beam pattern.
-- `misc/beampattern.f90`: NEED all
+- `misc/beampattern.f90`
 
 `arrivals.hpp`: Ray arrival recording.
 - `Bellhop/ArrMod.f90`: NEED all non-3D

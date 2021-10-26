@@ -23,6 +23,56 @@ constexpr HOST_DEVICE inline real BdryInfinity(){
 }
 
 /**
+ * Get the Top segment info (index and range interval) for range, r
+ *
+ * rTopSeg: segment limits in range
+ */
+HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
+    const BdryInfo *bdry)
+{
+    // LP: bdry->Top.x is checked for being monotonic at load time, so we can
+    // linearly search out from the last position, usually only have to move
+    // by 1
+    int32_t n = bdry->NATIPts;
+    IsegTop = STD::max(IsegTop, 0);
+    IsegTop = STD::min(IsegTop, n-2);
+    while(IsegTop >= 0 && bdry->Top[IsegTop].x.x > r) --IsegTop;
+    while(IsegTop >= 0 && IsegTop < n-1 && bdry->Top[IsegTop+1].x.x < r) ++IsegTop;
+    if(IsegTop < 0 || IsegTop >= n-1){
+        // IsegTop MUST LIE IN [0, NatiPts-2]
+        printf("Error: GetTopSeg: Top altimetry undefined above the ray, r=%f\n", r);
+        bail();
+    }
+    rTopSeg.x = bdry->Top[IsegTop].x.x;
+    rTopSeg.y = bdry->Top[IsegTop+1].x.x;
+}
+
+/**
+ * Get the Bottom segment info (index and range interval) for range, r
+ *
+ * rBotSeg: segment limits in range
+ */
+HOST_DEVICE inline void GetBotSeg(real r, int32_t &IsegBot, vec2 &rBotSeg,
+    const BdryInfo *bdry)
+{
+    // LP: bdry->Bot.x is checked for being monotonic at load time, so we can
+    // linearly search out from the last position, usually only have to move
+    // by 1
+    int32_t n = bdry->NATIPts;
+    IsegBot = STD::max(IsegBot, 0);
+    IsegBot = STD::min(IsegBot, n-2);
+    while(IsegBot >= 0 && bdry->Bot[IsegBot].x.x > r) --IsegBot;
+    while(IsegBot >= 0 && IsegBot < n-1 && bdry->Bot[IsegBot+1].x.x < r) ++IsegBot;
+    if(IsegBot < 0 || IsegBot >= n-1){
+        // IsegBot MUST LIE IN [0, NatiPts-2]
+        printf("Error: GetBotSeg: Bottom altimetry undefined below the source, r=%f\n", r);
+        bail();
+    }
+    rBotSeg.x = bdry->Bot[IsegBot].x.x;
+    rBotSeg.y = bdry->Bot[IsegBot+1].x.x;
+}
+
+/**
  * Does some pre-processing on the boundary points to pre-compute segment
  * lengths  (%Len),
  * tangents (%t, %nodet),

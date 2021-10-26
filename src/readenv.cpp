@@ -10,8 +10,7 @@
  */
 void ReadTopOpt(char (TopOpt&)[6], char &bc, char (AttenUnit&)[2], 
     std::string FileRoot, LDIFile &ENVFile, std::ostream &PRTFile,
-    SSPStructure &ssp, std::ifstream &SSPFile,
-    AttenInfo &atten)
+    SSPStructure &ssp, AttenInfo &atten)
 {
     TopOpt = "      "; // initialize to blanks
     ENVFile.List(); ENVFile.Read(TopOpt, 6);
@@ -34,22 +33,26 @@ void ReadTopOpt(char (TopOpt&)[6], char &bc, char (AttenUnit&)[2],
         PRTFile << "    PCHIP approximation to SSP\n"; break;
     case 'S':
         PRTFile << "    Spline approximation to SSP\n"; break;
-    case 'Q':
+    case 'Q':{
         PRTFile << "    Quad approximation to SSP\n";
+        //LP: This just checks for existence, moved actual open for reading
+        //to InitQuad.
+        std::ifstream SSPFile;
         SSPFile.open(WithExtension(FileRoot, ".ssp"));
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << WithExtension(FileRoot, ".ssp") << "\n";
             std::cout << "bellhopcuda - ReadEnvironment: Unable to open the SSP file\n";
         }
-        break;
-    /*case 'H':
+        } break;
+    /*case 'H':{
         PRTFile << "    Hexahedral approximation to SSP\n";
+        std::ifstream SSPFile;
         SSPFile.open(WithExtension(FileRoot, ".ssp"));
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << WithExtension(FileRoot, ".ssp") << "\n";
             std::cout << "bellhopcuda - ReadEnvironment: Unable to open the SSP file\n";
         }
-        break;*/
+        } break;*/
     case 'A':
         PRTFile << "    Analytic SSP option\n"; break;
     default:
@@ -322,8 +325,7 @@ void TopBot(const real &freq, const char (&AttenUnit)[2], HSInfo &hs,
 
 void ReadEnvironment(std::string FileRoot, std::ostream &PRTFile,
     std::string &Title, real &freq, BdryType &Bdry, 
-    SSPStructure &ssp, std::ifstream &SSPFile,
-    AttenInfo &atten)
+    SSPStructure *ssp, AttenInfo *atten)
 {
     const real c0 = RC(1500.0);
     int32_t NPts, NMedia;
@@ -361,7 +363,7 @@ void ReadEnvironment(std::string FileRoot, std::ostream &PRTFile,
     }
     
     ReadTopOpt(Bdry.Top.hs.Opt, Bdr.Top.hs.bc, AttenUnit, FileRoot, 
-        ENVFile, PRTFile, ssp, SSPFile, atten);
+        ENVFile, PRTFile, ssp, atten);
     
     // *** Top BC ***
     
@@ -382,7 +384,7 @@ void ReadEnvironment(std::string FileRoot, std::ostream &PRTFile,
         ssp.z.y = Bdry.Bot.hs.Depth;
     }else{
         x = vec2(RC(0.0), Bdry.Bot.hs.Depth);
-        InitializeSSP(x, freq);
+        InitializeSSP(SSP_CALL_INIT_ARGS);
     }
     
     Bdry.Top.hs.Depth = ssp.z[0]; // Depth of top boundary is taken from first SSP point
