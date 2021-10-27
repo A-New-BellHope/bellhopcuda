@@ -9,7 +9,7 @@ constexpr int32_t MaxBioLayers = 200;
 struct AttenInfo {
     int32_t NBioLayers;
     bioStructure bio[MaxBioLayers];
-    real t = RC(20.0), Salinity = RC(35.0), pH = RC(8.0), z_bar = RC(0.0), fg;
+    real t, Salinity, pH, z_bar, fg;
 };
 
 /**

@@ -2,7 +2,7 @@
 #include "common.hpp"
 
 struct AnglesStructure {
-    int32_t Nalpha = 0, Nbeta = 1, iSingle_alpha = -1, iSingle_beta = -1;
+    int32_t Nalpha, Nbeta, iSingle_alpha, iSingle_beta;
     real Dalpha, Dbeta;
     real *alpha, *beta;
 };

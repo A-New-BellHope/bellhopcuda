@@ -10,9 +10,9 @@ struct BdryPtFull {
 };
  
 struct BdryInfo {
-    int32_t NATIPts = 2, NBTYPts = 2;
-    char atiType[2] = "LS";
-    char btyType[2] = "LS";
+    int32_t NATIPts, NBTYPts;
+    char atiType[2];
+    char btyType[2];
     BdryPtFull *Top, *Bot;
 };
 

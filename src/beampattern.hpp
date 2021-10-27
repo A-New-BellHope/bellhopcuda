@@ -8,9 +8,9 @@ struct rxyz {
 
 struct BeamStructure {
     int32_t NBeams, Nimage, Nsteps, iBeamWindow;
-    real deltas, epsMultiplier = RC(1.0), rLoop;
+    real deltas, epsMultiplier, rLoop;
     char Component;
-    char Type[4] = "G S ";
+    char Type[4];
     char RunType[7];
     rxyz Box;
 };
