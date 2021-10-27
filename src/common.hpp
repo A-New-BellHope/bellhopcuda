@@ -54,12 +54,21 @@ using real = double;
 
 using cpx = STD::complex<real>;
 
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+//#include <glm/vec4.hpp>
+//#include <glm/mat2x2.hpp>
+//#include <glm/mat3x3.hpp>
+//#include <glm/mat4x4.hpp>
+#include <glm/common.hpp>
+#include <glm/geometric.hpp>
+
 using vec2 = glm::vec<2, real, glm::defaultp>;
 using vec3 = glm::vec<3, real, glm::defaultp>;
-using vec4 = glm::vec<4, real, glm::defaultp>;
-using mat2 = glm::mat<2, 2, real, glm::defaultp>;
-using mat3 = glm::mat<3, 3, real, glm::defaultp>;
-using mat4 = glm::mat<4, 4, real, glm::defaultp>;
+// using vec4 = glm::vec<4, real, glm::defaultp>;
+// using mat2 = glm::mat<2, 2, real, glm::defaultp>;
+// using mat3 = glm::mat<3, 3, real, glm::defaultp>;
+// using mat4 = glm::mat<4, 4, real, glm::defaultp>;
 
 #define SQ(a) ((a) * (a)) //Square
 #define CUBE(a) ((a) * (a) * (a))
@@ -146,7 +155,7 @@ static inline std::string trim_copy(std::string s) {
 //CUDA memory
 ////////////////////////////////////////////////////////////////////////////////
 
-template<typename T> inline T* allocate(size_t n){
+template<typename T> inline T* allocate(size_t n=1){
 	#ifdef BUILD_CUDA
 		T* ret;
 		checkCudaErrors(cudaMallocManaged(&ret, n*sizeof(T)));
@@ -156,12 +165,13 @@ template<typename T> inline T* allocate(size_t n){
 	#endif
 }
 
-template<typename T> inline void deallocate(T *ptr){
+template<typename T> inline void deallocate(T *&ptr){
 	#ifdef BUILD_CUDA
 		checkCudaErrors(cudaFree(ptr));
 	#else
 		delete[] ptr;
 	#endif
+	ptr = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

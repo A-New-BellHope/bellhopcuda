@@ -361,3 +361,110 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         std::abort();
     }
 }
+
+/**
+ * Handles top and bottom boundary conditions
+ * LP: Moved from readenv.cpp as it relates to boundary conditions.
+ * 
+ * freq: frequency [LP: :( ]
+ */
+inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs,
+    LDIFile &ENVFile, std::ostream &PRTFile)
+{
+    real Mz, vr, alpha2_f; // values related to grain size
+    
+    real alphaR = RC(1500.0), betaR = RC(0.0), alphaI = RC(0.0), betaI = RC(0.0), rhoR = RC(1.0);
+    real ztemp;
+    
+    // Echo to PRTFile user's choice of boundary condition
+    
+    switch(hs.bc){
+    case 'V':
+        PRTFile << "    VACUUM\n"; break;
+    case 'R':
+        PRTFile << "    Perfectly RIGID\n"; break;
+    case 'A':
+        PRTFile << "    ACOUSTO-ELASTIC half-space\n"; break;
+    case 'G':
+        PRTFile << "    Grain size to define half-space\n"; break;
+    case 'F':
+        PRTFile << "    FILE used for reflection loss\n"; break;
+    case 'W':
+        PRTFile << "    Writing an IRC file\n"; break;
+    case 'P':
+        PRTFile << "    reading PRECALCULATED IRC\n"; break;
+    default:
+       std::cout << "TopBot: Unknown boundary condition type\n";
+    }
+    
+    // ****** Read in BC parameters depending on particular choice ******
+    
+    hs.cp = hs.cs = hs.rho = RC(0.0);
+    
+    if(hs.bc == 'A'){ // *** Half-space properties ***
+        zTemp = RC(0.0);
+        ENVFile.List(); ENVFile.Read(zTemp); ENVFile.Read(alphaR);
+        ENVFile.Read(betaR); ENVFile.read(rhoR);
+        ENVFile.read(alphaI); ENVFile.read(beta);
+        PRTFile << std::setprecision(2) << std::setw(10) << ztemp << " "
+            << std::setw(10) << alphaR << " " << std::setw(10) << betaR << " "
+            << std::setw(6) << rhoR << " " << std::setprecision(4) 
+            << std::setw(10) << alphaI << " " << std::setw(10) << betaI << "\n";
+        // dummy parameters for a layer with a general power law for attenuation
+        // these are not in play because the AttenUnit for this is not allowed yet
+        //freq0         = freq;
+        //betaPowerLaw  = RC(1.0); //LP: Default is 1.0, this is the only other place it's set (also to 1.0).
+        fT            = RC(1000.0);
+        
+        hs.cp  = crci(zTemp, alphaR, alphaI, freq, freq, AttenUnit, betaPowerLaw, fT);
+        hs.cs  = crci(zTemp, betaR,  betaI,  freq, freq, AttenUnit, betaPowerLaw, fT);
+        
+        hs.rho = rhoR;
+    }else if(hs.bc == 'G'){ // *** Grain size (formulas from UW-APL HF Handbook)
+        
+        // These formulas are from the UW-APL Handbook
+        // The code is taken from older Matlab and is unnecesarily verbose
+        // vr   is the sound speed ratio
+        // rhor is the density ratio
+        ENVFile.List(); ENVFile.Read(zTemp); ENVFile.Read(Mz);
+        PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " "
+            << std::setw(10) << Mz << "\n";
+        
+        if(Mz >= RC(-1.0) && Mz < RC(1.0)){
+            vr   = RC(0.002709) * SQ(Mz) - RC(0.056452) * Mz + RC(1.2778);
+            rhor = RC(0.007797) * SQ(Mz) - RC(0.17057)  * Mz + RC(2.3139);
+        }else if(Mz >= RC(1.0) && Mz < RC(5.3)){
+            vr   = RC(-0.0014881) * Cube(Mz) + RC(0.0213937) * SQ(Mz) - RC(0.1382798) * Mz + RC(1.3425);
+            rhor = RC(-0.0165406) * Cube(Mz) + RC(0.2290201) * SQ(Mz) - RC(1.1069031) * Mz + RC(3.0455);
+        }else{
+            vr   = RC(-0.0024324) * Mz + RC(1.0019);
+            rhor = RC(-0.0012973) * Mz + RC(1.1565);
+        }
+        
+        if(Mz >= RC(-1.0) && Mz < RC(0.0)){
+            alpha2_f = RC(0.4556);
+        }else if(Mz >= RC(0.0) && Mz < RC(2.6)){
+            alpha2_f = RC(0.4556) + RC(0.0245) * Mz;
+        }else if(Mz >= RC(2.6) && Mz < RC(4.5)){
+            alpha2_f = RC(0.1978) + RC(0.1245) * Mz;
+        }else if(Mz >= RC(4.5) && Mz < RC(6.0)){
+            alpha2_f = RC(8.0399) - RC(2.5228) * Mz + RC(0.20098) * SQ(Mz);
+        }else if(Mz >= RC(6.0) && Mz < RC(9.5)){
+            alpha2_f = RC(0.9431) - RC(0.2041) * Mz + RC(0.0117) * SQ(Mz);
+        }else{
+            alpha2_f =  RC(0.0601);
+        }
+        
+        // AttenUnit = 'L';  // loss parameter
+        // !! following uses a reference sound speed of 1500 ???
+        // !! should be sound speed in the water, just above the sediment
+        // the term vr / 1000 converts vr to units of m per ms 
+        alphaR = vr * RC(1500.0);
+        alphaI = alpha2_f * (vr / RC(1000.0)) * RC(1500.0) * 
+            STD::log(RC(10.0)) / (RC(40.0) * M_PI); // loss parameter Sect. IV., Eq. (4) of handbook
+ 
+        hs.cp  = crci(zTemp, alphaR, alphaI, freq, freq, "L ", betaPowerLaw, fT);
+        hs.cs  = RC(0.0);
+        hs.rho = rhoR;
+    }
+}

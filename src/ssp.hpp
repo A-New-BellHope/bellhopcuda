@@ -5,12 +5,9 @@ constexpr int32_t MaxN = 100000;
 constexpr int32_t MaxSSP = MaxN + 1;
 
 constexpr real betaPowerLaw = RC(1.0);
-constexpr real fT = RC(1.0e20);
 
 struct SSPVars {
     int32_t iSegr = 1, iSegx = 1, iSegy = 1, iSegz = 1;
-    real zTemp;
-    real alphaR = RC(1500.0), betaR = RC(0.0), alphaI = RC(0.0), betaI = RC(0.0), rhoR = RC(1.0);
 };
 
 struct rxyz_vector {

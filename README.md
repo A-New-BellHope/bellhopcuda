@@ -15,9 +15,10 @@ input values, if a double-precision literal is used in a CUDA kernel, CUDA may
 emit double-precision instructions around this literal and destroy the kernel
 performance. Strictly speaking, this may not be needed in all cases (e.g.
 `float f = 0.0;` and `f *= 2.0;` will probably not emit double-precision
-instructions, as the results should always be bitwise identical to if the
-floating-point literals had been `0.0f` and `2.0f`), but for consistency it
-should be used on every floating-point literal.
+instructions, as the results should always be bitwise identical whether the
+operations were performed in 32-bit precision or performed in 64-bit precision
+and then typecasted), but for consistency it should be used on every floating-
+point literal.
 
 ## Comments
 Unattributed comments in all translated code are copied directly from the original
