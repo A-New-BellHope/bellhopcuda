@@ -5,6 +5,11 @@ struct ReflectionCoef {
     real theta, r, phi;
 };
 
+struct ReflectionInfo {
+    int32_t NBotPts, NTopPts;
+    ReflectionCoef *RBot, *RTop;
+};
+
 /**
  * Given an angle RInt%ThetaInt, returns the magnitude and
  * phase of the reflection coefficient (RInt%R, RInt%phi).
@@ -72,8 +77,7 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
  * BotRC, TopRC: flag set to 'F' if refl. coef. is to be read from a File
  */
 inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char TopRC,
-    std::ostream &PRTFile, ReflectionCoef *&RBot, ReflecteionCoef *&RTop,
-    int32_t &NBotPts, int32_t &NTopPts)
+    std::ostream &PRTFile, ReflectionInfo *refl)
 {
     if(BotRC == 'F'){
         PRTFile << "__________________________________________________________________________\n\n";
@@ -85,22 +89,24 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             std::abort();
         }
         
-        BRCFile.List(); BRCFile.Read(NBotPts);
-        PRTFile << "Number of points in bottom reflection coefficient = " << NBotPts << "\n";
+        BRCFile.List(); BRCFile.Read(refl->NBotPts);
+        PRTFile << "Number of points in bottom reflection coefficient = " << refl->NBotPts << "\n";
         
-        if(RBot != nullptr) deallocate(RBot);
-        RBot = allocate<ReflectionCoef>(NBotPts);
+        if(refl->RBot != nullptr) deallocate(refl->RBot);
+        refl->RBot = allocate<ReflectionCoef>(refl->NBotPts);
         
         BRCFile.List();
-        for(int32_t itheta=0; itheta<NBotPts; ++itheta){
-            BRCFile.Read(RBot[itheta].theta);
-            BRCFile.Read(RBot[itheta].r);
-            BRCFile.Read(RBot[itheta].phi);
-            RBot->phi *= DegRad; // convert to radians
+        for(int32_t itheta=0; itheta<refl->NBotPts; ++itheta){
+            BRCFile.Read(refl->RBot[itheta].theta);
+            BRCFile.Read(refl->RBot[itheta].r);
+            BRCFile.Read(refl->RBot[itheta].phi);
+            refl->RBot->phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        //LP: Bug: Does not deallocate first.
-        RBot = allocate<ReflectionCoef>(1);
+        //LP: BUG: BELLHOP does not deallocate this array first, despite doing
+        //so above.
+        if(refl->RBot != nullptr) deallocate(refl->RBot);
+        refl->RBot = allocate<ReflectionCoef>(1);
     }
     
     // Optionally read in top reflection coefficient
@@ -115,22 +121,24 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             std::abort();
         }
         
-        TRCFile.List(); TRCFile.Read(NTopPts);
-        PRTFile << "Number of points in top reflection coefficient = " << NTopPts << "\n";
+        TRCFile.List(); TRCFile.Read(refl->NTopPts);
+        PRTFile << "Number of points in top reflection coefficient = " << refl->NTopPts << "\n";
         
-        if(RTop != nullptr) deallocate(RTop);
-        RTop = allocate<ReflectionCoef>(NTopPts);
+        if(refl->RTop != nullptr) deallocate(refl->RTop);
+        refl->RTop = allocate<ReflectionCoef>(refl->NTopPts);
         
         TRCFile.List();
-        for(int32_t itheta=0; itheta<NTopPts; ++itheta){
-            TRCFile.Read(RTop[itheta].theta);
-            TRCFile.Read(RTop[itheta].r);
-            TRCFile.Read(RTop[itheta].phi);
-            RTop->phi *= DegRad; // convert to radians
+        for(int32_t itheta=0; itheta<refl->NTopPts; ++itheta){
+            TRCFile.Read(refl->RTop[itheta].theta);
+            TRCFile.Read(refl->RTop[itheta].r);
+            TRCFile.Read(refl->RTop[itheta].phi);
+            refl->RTop->phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        //LP: Bug: Does not deallocate first.
-        RTop = allocate<ReflectionCoef>(1);
+        //LP: BUG: BELLHOP does not deallocate this array first, despite doing
+        //so above.
+        if(refl->RTop != nullptr) deallocate(refl->RTop);
+        refl->RTop = allocate<ReflectionCoef>(1);
     }
     
     // Optionally read in internal reflection coefficient data

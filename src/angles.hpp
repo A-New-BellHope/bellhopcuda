@@ -3,7 +3,7 @@
 
 struct AnglesStructure {
     int32_t Nalpha, Nbeta, iSingle_alpha, iSingle_beta;
-    real Dalpha, Dbeta;
+    real Dalpha, Dbeta; // angular spacing between beams
     real *alpha, *beta;
 };
 
