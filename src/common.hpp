@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cctype>
 #include <locale>
+#include <fstream>
 
 ////////////////////////////////////////////////////////////////////////////////
 //Select which standard library
@@ -97,12 +98,12 @@ inline bool isReal(std::string str){
 	return (*ptr) == '\0';
 }
 
-inline std::ostream &operator<<(std::ostream &s, const cpx &v){
+inline std::ofstream &operator<<(std::ofstream &s, const cpx &v){
 	s << "(" << v.real() << "," << v.imag() << ")";
 	return s;
 }
 
-inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
+inline std::ofstream &operator<<(std::ofstream &s, const vec2 &v){
 	s << v.x << " " << v.y;
 	return s;
 }
@@ -205,6 +206,39 @@ HOST_DEVICE inline bool monotonic(vec2 *arr, size_t n, const int32_t dim){
 	}
 	return true;
 }
+HOST_DEVICE inline bool monotonic(real *arr, size_t n, const int32_t stride, 
+	const int32_t offset)
+{
+	if(n == 1) return true;
+	for(size_t i=0; i<n-1; ++i){
+		if(arr[(i+1)*stride+offset] <= arr[i*stride+offset]) return false;
+	}
+	return true;
+}
+
+/**
+ * Returns the index of the element in the array less than or equal to target,
+ * given that the array is monotonically increasing.
+ */
+HOST_DEVICE inline int32_t BinarySearch(real *arr, int32_t n, const int32_t stride,
+	const int32_t offset, real target)
+{
+	int32_t low = 0;
+	int32_t hi = n;
+	while(low < hi){
+		int32_t t = (low + hi) / 2;
+		if(arr[t*stride+offset] > target){
+			hi = t;
+		}else if(t >= n-1){
+			return n-1;
+		}else if(arr[(t+1]*stride+offset] >= target){
+			return t;
+		}else{
+			low = t+1;
+		}
+	}
+	return low;
+}
 
 /**
  * mbp: full 360-degree sweep? remove duplicate angle/beam
@@ -216,7 +250,7 @@ HOST_DEVICE inline void CheckFix360Sweep(const real *angles, int32_t &n){
     }
 }
 
-inline void EchoVector(real *v, int32_t Nv, std::ostream &PRTFile)
+inline void EchoVector(real *v, int32_t Nv, std::ofstream &PRTFile)
 {
     constexpr int32_t NEcho = 10;
     PRTFile << std::setprecision(6);

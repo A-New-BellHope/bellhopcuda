@@ -164,7 +164,7 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
 }
 
 inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
-    std::ostream &PRTFile, BdryInfo *bdry)
+    std::ofstream &PRTFile, BdryInfo *bdry)
 {
     //LP: Removed phi, which got allocated but not used. Just to check that
     //there was enough memory for it to be allocated later? Or bug?
@@ -257,7 +257,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
 }
 
 inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
-    std::ostream &PRTFile, BdryInfo *bdry)
+    std::ofstream &PRTFile, BdryInfo *bdry)
 {
     switch(BotBTY){
     case '~':
@@ -369,7 +369,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
  * freq: frequency [LP: :( ]
  */
 inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs,
-    LDIFile &ENVFile, std::ostream &PRTFile)
+    LDIFile &ENVFile, std::ofstream &PRTFile)
 {
     real Mz, vr, alpha2_f; // values related to grain size
     

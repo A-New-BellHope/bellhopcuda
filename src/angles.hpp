@@ -9,7 +9,7 @@ struct AnglesStructure {
 
 inline void ReadRayElevationAngles(real freq, real Depth,
     const char (&TopOpt)[6], const char (&RunType)[6],
-    LDIFile &ENVFile, std::ostream &PRTFile,
+    LDIFile &ENVFile, std::ofstream &PRTFile,
     AnglesStructure *Angles, Position *Pos)
 {
     constexpr real c0 = RC(1500.0);

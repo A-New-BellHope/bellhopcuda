@@ -83,7 +83,7 @@ real Franc_Garr(real f, const AttenInfo *atten){
  * alpha imaginary part of sound speed
  */
 cpx crci(real z, real c, real alpha, real freq, real freq0, char (&AttenUnit)[2],
-    real beta, real fT, const AttenInfo *atten, std::ostream &PRTFile)
+    real beta, real fT, const AttenInfo *atten, std::ofstream &PRTFile)
 {
     real f2, omega, alphaT, Thorp, a, fg;
     cpx ret;

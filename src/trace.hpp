@@ -23,6 +23,8 @@ HOST_DEVICE inline void Distances2D(const vec2 &rayx,
     DistBot = -glm::dot(Botn, dBot);
 }
 
+is, hs, isTop, tBdry, nBdry, kappa, freq, RefC, Npts, ray2D, Beam, ssp, iSegz, iSegr
+
 /**
  * LP: No function description given.
  * 
@@ -33,7 +35,7 @@ HOST_DEVICE inline void Distances2D(const vec2 &rayx,
  * RefC: reflection coefficient
  */
 HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
-    const vec2 &tBdry, const vec2 &nBdry, real kappa, 
+    const vec2 &tBdry, const vec2 &nBdry, real kappa, real freq,
     const ReflectionCoef *RefC, int32_t Npts,
     ray2DPt *ray2D, const BeamStructure *Beam, const SSPStructure *ssp,
     int32_t &iSegz, int32_t &iSegr)
@@ -224,8 +226,8 @@ HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
  */
 HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
 {
-    b.cp  = a.cp;
-    b.cs  = a.cs;
+    b.cP  = a.cP;
+    b.cS  = a.cS;
     b.rho = a.rho;
 }
 
@@ -237,12 +239,9 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  * Amp0: initial amplitude
  */
 HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
-    const real &freq, BeamStructure *Beam, const SSPStructure *ssp,
-    const BdryPtFull *Top, const BdryPtFull *Bot,
-    const char *atiType, const char *btyType,
-    const ReflectionCoef *RTop, int32_t NTopPts,
-    const ReflectionCoef *RBot, int32_t NBotPts,
-    BdryType *Bdry, ray2DPt *ray2D)
+    ray2DPt *ray2D, int32_t &Nsteps,
+    const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
+    const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     int32_t is, is1; // index for a step along the ray
     cpx ccpx;
@@ -257,7 +256,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     // Initial conditions
     
     int32_t iSmallStepCtr = 0, iSegz = 0, iSegr = 0;
-    EvaluateSSP(xs, ccpx, gradc, crr, crz, czz, rho, freq, iSegz, iSegr);
+    EvaluateSSP(xs, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, iSegz, iSegr);
     ray2D[0] = {
         .c         = ccpx.real(),
         .x         = xs,
@@ -279,16 +278,21 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     GetBotSeg(xs.x, IsegBot, rBotseg); // identify the bottom segment below the source
     
     // convert range-dependent geoacoustic parameters from user to program units
-    if(atiType[1] == 'L') CopyHSInfo(Bdry->Top.hs, Top[IsegTop].hs);
-    if(btyType[1] == 'L') CopyHSInfo(Bdry->Bot.hs, Bot[IsegBot].hs);
+    // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and rho
+    // from the current segment in bdinfo. rho is read from files in ReadATI and
+    // Read BTY, and cP and cS are computed in core_setup. bc, which is also read
+    // by Reflect2D, is never set in bdinfo and is left alone from ConstBdry.
+    BdryType Bdry = *ConstBdry;
+    if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs);
+    if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs);
     
     // Trace the beam (note that Reflect alters the step index is)
     is = 0;
-    Distances2D(ray2D[0].x, Top[IsegTop].x, Bot[IsegBot].x, dEndTop, dEndBot,
-        Top[IsegTop].n, Bot[IsegBot].n, DistBegTop, DistBegBot);
+    Distances2D(ray2D[0].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
+        bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistBegTop, DistBegBot);
     
     if(DistBegTop <= 0 || DistBegBot <= 0){
-        Beam->Nsteps = 1;
+        Nsteps = 1;
         printf("Terminating the ray trace because the source is on or outside the boundaries\n");
         return; // source must be within the medium
     }
@@ -297,19 +301,20 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
         is  = istep + 1;
         is1 = istep + 1;
         
-        Step2D(ray2D[is], &ray2D[is1], Top[IsegTop].x, Top[IsegTop].n,
-            Bot[IsegBot].x, Bot[IsegBot].n, freq, Beam, ssp, iSegz, iSegr, iSmallStepCtr);
+        Step2D(ray2D[is], &ray2D[is1], bdinfo->Top[IsegTop].x, bdinfo->Top[IsegTop].n,
+            bdinfo->Bot[IsegBot].x, bdinfo->Bot[IsegBot].n, freqinfo->freq0, Beam, ssp, 
+            iSegz, iSegr, iSmallStepCtr);
         
         // New altimetry segment?
         if(ray2D[is1].x.x < rTopSeg.x || ray2D[is1].x.x > rTopSeg.y){
             GetTopSeg(ray2D[is1].x.x, IsegTop, rTopseg);
-            if(atiType[1] == 'L') CopyHSInfo(Bdry->Top.hs, Top[IsegTop].hs); // grab the geoacoustic info for the new segment
+            if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs); // grab the geoacoustic info for the new segment
         }
         
         // New bathymetry segment?
         if(ray2D[is1].x.x < rBotSeg.x || ray2D[is1].x.x > rBotSeg.y){
             GetBotSeg(ray2D[is1].x.x, IsegBot, rBotseg);
-            if(btyType[1] == 'L') CopyHSInfo(Bdry->Bot.hs, Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
+            if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
         }
         
         // Reflections?
@@ -318,44 +323,45 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
         // DistBeg is the distance at step is,   which is saved
         // DistEnd is the distance at step is+1, which needs to be calculated
         
-        Distances2D(ray2D[is1].x, Top[IsegTop].x, Bot[IsegBot].x, dEndTop, dEndBot,
-            Top[IsegTop].n, Bot[IsegBot].n, DistEndTop, DistEndBot);
+        Distances2D(ray2D[is1].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x,
+            dEndTop, dEndBot,
+            bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
         
         if(DistBegTop > RC(0.0) && DistEndTop <= RC(0.0)){ // test top reflection
             
-            if(atiType[0] == 'C'){ // LP: Actually checking if the whole string is just "C", not just the first char
-                sss = glm::dot(dEndTop, Top[IsegTop].t) / Top[IsegTop].Len; // proportional distance along segment
-                TopnInt = (RC(1.0) - sss) * Top[IsegTop].Noden + sss * Top[IsegTop+1].Noden;
-                ToptInt = (RC(1.0) - sss) * Top[IsegTop].Nodet + sss * Top[IsegTop+1].Nodet;
+            if(bdinfo->atiType[0] == 'C'){ // LP: Actually checking if the whole string is just "C", not just the first char
+                sss = glm::dot(dEndTop, bdinfo->Top[IsegTop].t) / bdinfo->Top[IsegTop].Len; // proportional distance along segment
+                TopnInt = (RC(1.0) - sss) * bdinfo->Top[IsegTop].Noden + sss * bdinfo->Top[IsegTop+1].Noden;
+                ToptInt = (RC(1.0) - sss) * bdinfo->Top[IsegTop].Nodet + sss * bdinfo->Top[IsegTop+1].Nodet;
             }else{
-                TopnInt = Top[IsegTop].n; // normal is constant in a segment
-                ToptInt = Top[IsegTop].t;
+                TopnInt = bdinfo->Top[IsegTop].n; // normal is constant in a segment
+                ToptInt = bdinfo->Top[IsegTop].t;
             }
             
-            Reflect2D(is, Bdry->Top.hs, true, ToptInt, TopnInt, Top[IsegTop].Kappa, 
-                RTop, NTopPTS);
+            Reflect2D(is, Bdry.Top.hs, true, ToptInt, TopnInt, bdinfo->Top[IsegTop].Kappa, 
+                freqinfo->freq0, refl->RTop, refl->NTopPTS, ray2D, Beam, ssp, iSegz, iSegr);
             ++ray2D[is+1].NumTopBnc;
             
-            Distances2D(ray2D[is+1].x, Top[IsegTop].x, Bot[IsegBot].x, dEndTop, dEndBot,
-                Top[IsegTop].n, Bot[IsegBot].n, DistEndTop, DistEndBot);
+            Distances2D(ray2D[is+1].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
+                bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
                 
         }else if(DistBegBot > RC(0.0) && DistEndBot <= RC(0.0)){ // test bottom reflection
             
-            if(btyType[0] == 'C'){ // LP: Actually checking if the whole string is just "C", not just the first char
-                sss = glm::dot(dEndBot, Bot[IsegBot].t) / Bot[IsegBot].Len; // proportional distance along segment
-                BotnInt = (RC(1.0) - sss) * Bot[IsegBot].Noden + sss * Bot[IsegBot+1].Noden;
-                BottInt = (RC(1.0) - sss) * Bot[IsegBot].Nodet + sss * Bot[IsegBot+1].Nodet;
+            if(bdinfo->btyType[0] == 'C'){ // LP: Actually checking if the whole string is just "C", not just the first char
+                sss = glm::dot(dEndBot, bdinfo->Bot[IsegBot].t) / bdinfo->Bot[IsegBot].Len; // proportional distance along segment
+                BotnInt = (RC(1.0) - sss) * bdinfo->Bot[IsegBot].Noden + sss * bdinfo->Bot[IsegBot+1].Noden;
+                BottInt = (RC(1.0) - sss) * bdinfo->Bot[IsegBot].Nodet + sss * bdinfo->Bot[IsegBot+1].Nodet;
             }else{
-                BotnInt = Bot[IsegBot].n; // normal is constant in a segment
-                BottInt = Bot[IsegBot].t;
+                BotnInt = bdinfo->Bot[IsegBot].n; // normal is constant in a segment
+                BottInt = bdinfo->Bot[IsegBot].t;
             }
             
-            Reflect2D(is, Bdry->Bot.hs, true, BottInt, BotnInt, Bot[IsegBot].Kappa, 
-                RBot, NBotPTS);
+            Reflect2D(is, Bdry.Bot.hs, false, BottInt, BotnInt, bdinfo->Bot[IsegBot].Kappa, 
+                freqinfo->freq0, refl->RBot, refl->NBotPTS, ray2D, Beam, ssp, iSegz, iSegr);
             ++ray2D[is+1].NumBotBnc;
             
-            Distances2D(ray2D[is+1].x, Top[IsegTop].x, Bot[IsegBot].x, dEndTop, dEndBot,
-                Top[IsegTop].n, Bot[IsegBot].n, DistEndTop, DistEndBot);
+            Distances2D(ray2D[is+1].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
+                bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
             
         }
         
@@ -367,15 +373,80 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
             (DistBegBot < RC(0.0) && DistEndBot < RC(0.0)) 
             // ray2d[is+1].t.x < 0 // this last test kills off a backward traveling ray
         ){
-            Beam->Nsteps = is + 1;
+            Nsteps = is + 1;
             break;
         }else if(is >= MaxN - 4){
             printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
-            Beam->Nsteps = is;
+            Nsteps = is;
             break;
         }
         
         DistBegTop = DistEndTop;
         DistBegBot = DistEndBot;        
     }
+}
+
+//TODO 
+/*
+switch(Beam->RunType[0]){
+case 'C':
+case 'S':
+case 'I':
+    // TL calculation, zero out pressure matrix
+    memset(inflinfo->u, 0, TODO);
+    break;
+case 'A':
+case 'a':
+    // Arrivals calculation, zero out arrival matrix
+    memset(arrinfo->Narr, 0, TODO);
+    break;
+}
+*/
+
+
+
+//TODO only call for valid ialpha w.r.t. Angles->iSingleAlpha
+inline void CoreSingleBeam(int32_t is, int32_t ialpha, ray2DPt *ray2D,
+    const BdryType *Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
+    const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
+    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
+{
+    float omega = RC(2.0) * M_PI * freqinfo->freq0;
+    
+    vec2 xs = vec2(RC(0.0), Pos->sz[is]);
+    
+    cpx ccpx;
+    EvaluateSSP(xs, ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
+    real RadMax = RC(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
+    
+    // Are there enough beams?
+    real DalphaOpt = STD::sqrt(ccpx.real() / (RC(6.0) * freqinfo->freq0 * Pos->Rr[Pos-NRr-1]);
+    int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
+    
+    if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt){
+        printf("Warning in bellhopcuda : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
+    }
+    
+    real alpha = Angles->alpha[ialpha];
+    real SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
+    
+    int32_t ibp = BinarySearch(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
+    ibp = STD::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
+    
+    // linear interpolation to get amplitude
+    real s = (SrcDeclAngle - beaminfo->SrcBmPat[2*ibp+0]) / (beaminfo->SrcBmPat[2*(ibp+1)+0] - beaminfo->SrcBmPat[2*ibp+0]);
+    float Amp0 = (RC(1.0) - s) * beaminfo->SrcBmPat[2*ibp+1] + s * beaminfo->SrcBmPat[2*(ibp+1)+1];
+    
+    // Lloyd mirror pattern for semi-coherent option
+    if(Beam->RunType[0] == 'S')
+        Amp0 *= STD::sqrt(RC(2.0)) * STD::abs(STD::sin(omega / ccpx.real() * xs.y * STD::sin(alpha)));
+        
+    // show progress ...
+    //LP: Removed
+    // if(((ialpha - 1) % STD::max(Angles->Nalpha / 50, 1)) == 0){
+    //     printf("Tracing beam %d %f\n", ialpha, SrcDeclAngle);
+    // }
+    
+    int32_t Nsteps;
+    TraceRay2D(xs, alpha, Amp0, ray2D, Nsteps, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
 }

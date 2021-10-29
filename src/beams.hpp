@@ -7,7 +7,8 @@ struct rxyz {
 };
 
 struct BeamStructure {
-    int32_t NBeams, Nimage, Nsteps, iBeamWindow;
+    //LP: NSteps moved out of this struct as it's a property of a single beam.
+    int32_t NBeams, Nimage, iBeamWindow;
     real deltas, epsMultiplier, rLoop;
     char Component;
     char Type[4];
@@ -21,7 +22,7 @@ struct BeamInfo {
     char SBPFlag;
 };
 
-inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
+inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
     BeamInfo *beaminfo)
 {
     if(SBPFlag == '*'){
@@ -52,6 +53,18 @@ inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
         beaminfo->SrcBmPat[1*2+0] = RC( 180.0); beaminfo->SrcBmPat[1*2+1] = RC(0.0);
     }
     
+    //LP: BUG: BELLHOP does not require that the angles are monotonically
+    //increasing. However, in bellhop.f90:261, it looks for the largest angle
+    //below the target angle and then linearly interpolates between that one and
+    //the next angle in the array. This is only sensible if the angles are
+    //monotonically increasing.
+    if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)){
+        std::cout << "Source beam pattern angles are not monotonic. This was not "
+            << "a requirement in BELLHOP but has been added to bellhopcuda "
+            << "because BELLHOP gave nonsense results if they were not.\n";
+        std::abort();
+    }
+    
     // convert dB to linear scale
     for(int32_t i=0; i<beaminfo->NSBPPts; ++i) beaminfo->SrcBmPat[i*2+1] = 
         STD::pow(RC(10.0), beaminfo->SrcBmPat[i*2+1] / RC(20.0));
@@ -60,7 +73,7 @@ inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
 /**
  * Limits for tracing beams
  */
-inline void ReadBeamInfo(LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
     BeamStructure *Beam)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";

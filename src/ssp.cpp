@@ -3,7 +3,7 @@
 #include "curves.hpp"
 
 #define READ_SSP_ARGS real Depth, real freq, SSPStructure *ssp, \
-    LDIFile &ENVFile, std::ostream &PRTFile, const AttenInfo *atten
+    LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten
 #define CALL_READ_SSP_ARGS Depth, freq, ssp, ENVFile, PRTFile, atten
 
 /**

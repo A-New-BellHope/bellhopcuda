@@ -13,7 +13,7 @@
  * bc: Boundary condition type
  */
 void ReadTopOpt(char (TopOpt&)[6], char &bc,
-    std::string FileRoot, LDIFile &ENVFile, std::ostream &PRTFile,
+    std::string FileRoot, LDIFile &ENVFile, std::ofstream &PRTFile,
     SSPStructure *ssp, AttenInfo *atten)
 {
     TopOpt = "      "; // initialize to blanks
@@ -143,7 +143,7 @@ void ReadTopOpt(char (TopOpt&)[6], char &bc,
  * Read the RunType variable and echo with explanatory information to the print file
  */
 void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
-    LDIFile &ENVFile, std::ostream &PRTFile,
+    LDIFile &ENVFile, std::ofstream &PRTFile,
     Position *Pos)
 {
     ENVFile.List(); ENVFile.Read(RunType, 7);
@@ -219,7 +219,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     }
 }
 
-void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
+void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     std::string &Title, real &fT, FreqInfo *freqinfo, BdryType *Bdry,
     SSPStructure *ssp, AttenInfo *atten, Position *Pos, AnglesStructure *Angles,
     BeamStructure *Beam)

@@ -50,7 +50,7 @@ struct BdryType {
     const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr
 #define SSP_CALL_ARGS x, ccpx, gradc, crr, crz, czz, rho, freq, iSegz, iSegr
 #define SSP_INIT_ARGS vec2 x, real freq, SSPStructure *ssp, LDIFile &ENVFile, \
-    std::ostream &PRTFile, const AttenInfo *atten, std::string FileRoot
+    std::ofstream &PRTFile, const AttenInfo *atten, std::string FileRoot
 #define SSP_CALL_INIT_ARGS x, freq, ssp, ENVFile, PRTFile, atten, FileRoot
 
 HOST_DEVICE inline void UpdateDepthSegment(const vec2 &x,
@@ -297,6 +297,14 @@ HOST_DEVICE inline void EvaluateSSP(SSP_FN_ARGS)
         printf("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
         bail();
     }
+}
+
+HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, cpx &ccpx, real freq,
+    const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr)
+{
+    vec2 gradc;
+    real crr, crz, czz, rho;
+    EvaluateSSP(SSP_CALL_ARGS);
 }
 
 void InitializeSSP(SSP_INIT_ARGS);

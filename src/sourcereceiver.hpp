@@ -21,7 +21,7 @@ struct FreqInfo {
  * Optionally reads a vector of source frequencies for a broadband run
  * If the broadband option is not selected, then the input freq (a scalar) is stored in the frequency vector
  */
-inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &PRTFile,
     FreqInfo *freqinfo)
 {
     Nfreq = 1;
@@ -56,7 +56,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ostream &PR
  * Units       is something like 'km'
  */
 inline void ReadVector(int32_t &Nx, real *&x, std::string Description, 
-    std::string Units, LDIFile &ENVFile, std::ostream &PRTFile)
+    std::string Units, LDIFile &ENVFile, std::ofstream &PRTFile)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
     ENVFile.List(); ENVFile.Read(Nx);
@@ -92,7 +92,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
  * 
  * ThreeD: flag indicating whether this is a 3D run
  */
-inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ofstream &PRTFile,
     Position *Pos)
 {
     if(ThreeD){
@@ -110,7 +110,7 @@ inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ostream &PRTFile,
  * zMin, zMax: limits for those depths; 
  *     sources and receivers are shifted to be within those limits
  */
-inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ofstream &PRTFile,
     Position *Pos)
 {
     //bool monotonic; //LP: monotonic is a function, this is a name clash
@@ -166,7 +166,7 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ostream &PRTFi
     */
 }
 
-inline void ReadRcvrRanges(LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadRcvrRanges(LDIFile &ENVFile, std::ofstream &PRTFile,
     Position *Pos)
 {
     ReadVector(Pos->NRr, Pos->Rr, "Receiver ranges, Rr", "km", ENVFile, PRTFile);
@@ -181,7 +181,7 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, std::ostream &PRTFile,
     }
 }
 
-inline void ReadRcvrBearings(LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadRcvrBearings(LDIFile &ENVFile, std::ofstream &PRTFile,
     Position *Pos)
 {
     ReadVector(Pos->Ntheta, Pos->theta, "receiver bearings, theta", "degrees");
