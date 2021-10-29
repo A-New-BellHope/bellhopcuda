@@ -1,5 +1,7 @@
 #pragma once
-#include "structs.hpp" 
+#include "common.hpp"
+#include "curves.hpp"
+#include "attenuation.hpp"
 
 constexpr int32_t MaxN = 100000;
 constexpr int32_t MaxSSP = MaxN + 1;
@@ -30,7 +32,7 @@ struct HSInfo {
     cpx cP, cS; // P-wave, S-wave speeds
     real rho, Depth; // density, depth
     char bc; // Boundary condition type
-    char[6] Opt;
+    char Opt[6];
 };
 
 /**
@@ -94,7 +96,7 @@ HOST_DEVICE inline void UpdateDepthSegment(const vec2 &x,
     // a very small fraction of iterations doesn't affect much, on the GPU this
     // can be a huge bottleneck because it may make many other threads wait.
     while(x.y < ssp->z[iSegz] && iSegz > 0) --iSegz;
-    while(x.y > ssp->z[iSegz+1] && iSegz < ssp->Npts-1) ++iSegz;
+    while(x.y > ssp->z[iSegz+1] && iSegz < ssp->NPts-1) ++iSegz;
 }
 
 HOST_DEVICE inline void UpdateRangeSegment(const vec2 &x,
@@ -221,7 +223,7 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
     
     // interpolate the attenuation !!!! This will use the wrong segment if the ssp in the envil is sampled at different depths
     s2 = s2 / delta_z; // convert to a proportional depth in the layer
-    real cimag = ((RC(1.0) - s2) * ssp->c[Isegz] + s2 * ssp->c[Isegz+1]).imag(); // volume attenuation is taken from the single c(z) profile
+    real cimag = ((RC(1.0) - s2) * ssp->c[iSegz] + s2 * ssp->c[iSegz+1]).imag(); // volume attenuation is taken from the single c(z) profile
     
     ccpx = cpx(c, cimag);
     

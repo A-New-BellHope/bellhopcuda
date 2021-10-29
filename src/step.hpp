@@ -1,6 +1,7 @@
 #pragma once
-#include "structs.hpp"
+#include "common.hpp"
 #include "ssp.hpp"
+#include "beams.hpp"
 
 struct ray2DPt {
     int32_t NumTopBnc, NumBotBnc;

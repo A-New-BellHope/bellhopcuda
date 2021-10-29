@@ -1,3 +1,4 @@
+#pragma once
 #include "common.hpp"
 
 struct bioStructure {
@@ -35,9 +36,9 @@ real Franc_Garr(real f, const AttenInfo *atten){
     c = RC(1412.0) + RC(3.21) * atten->t + RC(1.19) * atten->Salinity + RC(0.0167) * atten->z_bar;
 
     // Boric acid contribution
-    a1 = RC(8.86) / c * STD::pow(RC(10.0), RC(0.78) * pH - RC(5.0));
+    a1 = RC(8.86) / c * STD::pow(RC(10.0), RC(0.78) * atten->pH - RC(5.0));
     p1 = RC(1.0);
-    f1 = RC(2.8) * STD::sqrt(atten->Salinity / 35) * STD::pow(RC(1.0), RC(4.0) - RC(1245.0) / (t + RC(273.0)));
+    f1 = RC(2.8) * STD::sqrt(atten->Salinity / 35) * STD::pow(RC(1.0), RC(4.0) - RC(1245.0) / (atten->t + RC(273.0)));
 
     // Magnesium sulfate contribution
     a2 = RC(21.44) * atten->Salinity / c * (RC(1.0) + RC(0.025) * atten->t);
@@ -46,7 +47,7 @@ real Franc_Garr(real f, const AttenInfo *atten){
 
     // Viscosity
     p3 = RC(1.0) - RC(3.83e-5) * atten->z_bar + RC(4.9e-10) * SQ(atten->z_bar);
-    if(t < RC(20.0)){
+    if(atten->t < RC(20.0)){
         a3 = RC(4.937e-4) - RC(2.59e-5) * atten->t + RC(9.11e-7) * SQ(atten->t) - RC(1.5e-8) * CUBE(atten->t);
     }else{
         a3 = RC(3.964e-4) RC(-1.146e-5) * atten->t + RC(1.45e-7) * SQ(atten->t) - RC(6.5e-10) * CUBE(atten->t);
@@ -54,7 +55,7 @@ real Franc_Garr(real f, const AttenInfo *atten){
     
     return a1 * p1 * (f1 * SQ(f)) / (SQ(f1) + SQ(f)) 
          + a2 * p2 * (f2 * SQ(f)) / (SQ(f2) + SQ(f))
-         + a3 * p3 * SQ(f)
+         + a3 * p3 * SQ(f);
 }
 
 /**

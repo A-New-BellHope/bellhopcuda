@@ -58,7 +58,7 @@
  * 
  * **********************************************************************
  */
-HOST_DEVICE inline void cSpline(real *tau, cpx *c1, cpx *c2, cpx *c3, cpx *c4, 
+HOST_DEVICE inline void cSpline(const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx *c4, 
     int32_t n, int32_t ibcbeg, int32_t ibcend, int32_t ndim)
 {
     cpx g, dtau, divdf1, divdf3;
@@ -169,7 +169,7 @@ HOST_DEVICE inline void cSpline(real *tau, cpx *c1, cpx *c2, cpx *c3, cpx *c4,
  *        SPLINE DERIVATIVE, AND
  *        SPLINE 2ND DERIVATIVE AT THE POINT H
  */
-HOST_DEVICE inline void SplineALL(const cpx &c1, const cpx &c2, conxt cpx &c3,
+HOST_DEVICE inline void SplineALL(const cpx &c1, const cpx &c2, const cpx &c3,
     const cpx &c4, real h, cpx &f, cpx &fx, cpx &fxx)
 {
     constexpr real half = RC(0.5), sixth = RC(1.0) / RC(6.0);
@@ -280,7 +280,7 @@ HOST_DEVICE inline void pchip(const real *x, const cpx *y, int32_t n,
 {
     int32_t ix, iBCBeg, iBCEnd, i;
     real h1, h2;
-    cpx dle1, del2, f1, f2, f1prime, f2prime, fprimeT;
+    cpx del1, del2, f1, f2, f1prime, f2prime, fprimeT;
     
     // Precompute estimates of the derivatives at the nodes
     // The vector PolyCoef1[] holds the ordinate values at the nodes

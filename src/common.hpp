@@ -6,11 +6,15 @@
 
 #define _USE_MATH_DEFINES 1 //must be before anything which includes math.h
 #include <math.h>
-#include <cstdio>
 #include <algorithm>
-#include <cctype>
 #include <locale>
+#include <cctype>
+#include <cstdio>
+#include <iostream>
 #include <fstream>
+#include <iomanip>
+#include <cstring>
+#include <string>
 
 ////////////////////////////////////////////////////////////////////////////////
 //Select which standard library
@@ -98,12 +102,12 @@ inline bool isReal(std::string str){
 	return (*ptr) == '\0';
 }
 
-inline std::ofstream &operator<<(std::ofstream &s, const cpx &v){
+inline std::ostream &operator<<(std::ostream &s, const cpx &v){
 	s << "(" << v.real() << "," << v.imag() << ")";
 	return s;
 }
 
-inline std::ofstream &operator<<(std::ofstream &s, const vec2 &v){
+inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
 	s << v.x << " " << v.y;
 	return s;
 }
@@ -231,7 +235,7 @@ HOST_DEVICE inline int32_t BinarySearch(real *arr, int32_t n, const int32_t stri
 			hi = t;
 		}else if(t >= n-1){
 			return n-1;
-		}else if(arr[(t+1]*stride+offset] >= target){
+		}else if(arr[(t+1)*stride+offset] >= target){
 			return t;
 		}else{
 			low = t+1;
@@ -247,7 +251,6 @@ HOST_DEVICE inline void CheckFix360Sweep(const real *angles, int32_t &n){
 	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], RC(360.0)))
             < RC(10.0) * (STD::nextafter(RC(1.0), RC(2.0)) - RC(1.0)))
         --n;
-    }
 }
 
 inline void EchoVector(real *v, int32_t Nv, std::ofstream &PRTFile)
@@ -257,6 +260,18 @@ inline void EchoVector(real *v, int32_t Nv, std::ofstream &PRTFile)
     for(int32_t i=0; i<std::min(Nv, NEcho); ++i) PRTFile << std::setw(14) << v[i] << " ";
     if(Nv > NEcho) PRTFile << "... " << std::setw(14) << v[Nv-1];
     PRTFile << "\n";
+}
+
+HOST_DEVICE inline void SubTab(real *x, int32_t Nx)
+{
+    if(Nx >= 3){
+        if(x[2] == RC(-999.9)){ // testing for equality here is dangerous
+            if(x[1] == RC(-999.9)) x[1] = x[0];
+            real deltax = (x[1] - x[0]) / (real)(Nx - 1);
+            real x0 = x[0];
+            for(int32_t i=0; i<Nx; ++i) x[i] = x0 + (real)i * deltax;
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

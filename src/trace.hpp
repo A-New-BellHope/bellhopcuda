@@ -1,7 +1,12 @@
 #pragma once
-#include "step.hpp"
-#include "boundaries.hpp"
+#include "common.hpp"
+#include "boundary.hpp"
 #include "refcoef.hpp"
+#include "ssp.hpp"
+#include "sourcereceiver.hpp"
+#include "angles.hpp"
+#include "beams.hpp"
+#include "step.hpp"
 
 /**
  * Calculates the distances to the boundaries
@@ -22,8 +27,6 @@ HOST_DEVICE inline void Distances2D(const vec2 &rayx,
     DistTop = -glm::dot(Topn, dTop);
     DistBot = -glm::dot(Botn, dBot);
 }
-
-is, hs, isTop, tBdry, nBdry, kappa, freq, RefC, Npts, ray2D, Beam, ssp, iSegz, iSegr
 
 /**
  * LP: No function description given.
@@ -407,6 +410,7 @@ case 'a':
 
 //TODO only call for valid ialpha w.r.t. Angles->iSingleAlpha
 inline void CoreSingleBeam(int32_t is, int32_t ialpha, ray2DPt *ray2D,
+    real &SrcDeclAngle, int32_t &Nsteps,
     const BdryType *Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
@@ -428,7 +432,7 @@ inline void CoreSingleBeam(int32_t is, int32_t ialpha, ray2DPt *ray2D,
     }
     
     real alpha = Angles->alpha[ialpha];
-    real SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
+    SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
     
     int32_t ibp = BinarySearch(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
     ibp = STD::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
@@ -447,6 +451,5 @@ inline void CoreSingleBeam(int32_t is, int32_t ialpha, ray2DPt *ray2D,
     //     printf("Tracing beam %d %f\n", ialpha, SrcDeclAngle);
     // }
     
-    int32_t Nsteps;
     TraceRay2D(xs, alpha, Amp0, ray2D, Nsteps, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
 }

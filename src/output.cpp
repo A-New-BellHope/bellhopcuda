@@ -1,11 +1,62 @@
-#include "common.hpp"
+#include "output.hpp"
+
+constexpr int32_t MaxNRayPoints = 500000; // this is the maximum length of the ray vector that is written out
+
+/**
+ * Compress the ray data keeping every iSkip point, points near surface or bottom, and last point.
+ * Write to RAYFile.
+ * 
+ * During an eigenray calculation, subsets of the full ray may be passed
+ * These have lengths Nsteps1 vs. Nsteps for the entire ray
+ * 
+ * The 2D version is for ray traces in (r,z) coordinates
+ * 
+ * alpha0: take-off angle of this ray
+ */
+void WriteRay2D(real alpha0, int32_t Nsteps1, std::ofstream &RAYFile,
+    const BdryType *Bdry, ray2DPt *ray2D)
+{
+    // compression
+    
+    int32_t n2 = 0;
+    int32_t iSkip = std::max(Nsteps1 / MaxNRayPoints, 1);
+    
+    for(int32_t is=1; is<Nsteps1; ++is){
+        // ensure that we always write ray points near bdry reflections (works only for flat bdry)
+        if(std::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < 0.2 ||
+                (is % iSkip) == 0 || is == Nsteps1-1){
+            ++n2;
+            ray2D[n2].x = ray2D[is].x;
+        }
+    }
+    
+    // write to ray file
+    
+    RAYFile << alpha0 << "\n";
+    RAYFile << n2 << " " << ray2D[Nsteps1-1].NumTopBnc << " " << ray2D[Nsteps1-1].NumBotBnc << "\n";
+    
+    for(int32_t is=0; is<n2; ++is){
+        RAYFile << ray2D[is].x << "\n";
+    }
+}
+
+/**
+ * LP: Write the header of a SHDFile ("binary `shade' file (SHDFIL) that 
+ * contains calculated pressure fields")
+ */
+void WriteHeader(std::string FileName, std::string Title, real freq0, real Atten,
+    std::string PlotType)
+{
+    std::cout << "TODO WriteHeader not yet implemented\n";
+    std::abort();
+}
 
 /**
  * Write appropriate header information
  */
 void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
-    BdryType *Bdry, Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, 
-    BeamStructure *Beam,
+    const BdryType *Bdry, const Position *Pos, const AnglesStructure *Angles, 
+    const FreqInfo *freqinfo, const BeamStructure *Beam,
     std::ofstream &RAYFile, std::ofstream &ARRFile)
 {
     real atten;

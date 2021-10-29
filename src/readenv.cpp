@@ -1,11 +1,5 @@
-#include "common.hpp"
+#include "readenv.hpp"
 #include "ldio.hpp"
-#include "ssp.hpp"
-#include "sourcereceiver.hpp"
-#include "angles.hpp"
-#include "beampattern.hpp"
-
-#include <iostream>
 
 /**
  * LP: No function description given.

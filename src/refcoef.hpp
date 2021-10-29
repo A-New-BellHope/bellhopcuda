@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "ldio.hpp"
 
 struct ReflectionCoef {
     real theta, r, phi;

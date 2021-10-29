@@ -2,7 +2,9 @@
 
 constexpr bool Init_Inline = false;
 
-void setup(int argc, char **argv, std::ofstream &PRTFile, std::string &Title, real &fT,
+void setup(int argc, char **argv, 
+    std::ofstream &PRTFile, std::ofstream &RAYFile, std::ofstream &ARRFile,
+    std::string &Title, real &fT,
     BdryType *&Bdry, BdryInfo *&bdinfo, ReflectionInfo *&refl, SSPStructure *&ssp,
     AttenInfo *&atten, Position *&Pos, AnglesStructure *&Angles, FreqInfo *&freqinfo, 
     BeamStructure *&Beam, BeamInfo *&beaminfo)
@@ -182,11 +184,15 @@ void setup(int argc, char **argv, std::ofstream &PRTFile, std::string &Title, re
         Pos->theta = allocate<real>(Pos->Ntheta);
         Pos->theta[0] = RC(0.0);
     }
+    
+    OpenOutputFiles(FileRoot, false, Title, Bdry, Pos, Angles, freqinfo, Beam,
+        RAYFile, ARRFile);
 }
 
 void core_setup(std::ofstream &PRTFile, 
-    BdryType *Bdry, BdryInfo *bdinfo, AttenInfo *atten, AnglesStructure *Angles,
-    FreqInfo *freqinfo, BeamStructure *Beam, InfluenceInfo *inflinfo, ArrivalsInfo *arrinfo)
+    const BdryType *Bdry, const BdryInfo *bdinfo, const AttenInfo *atten, 
+    AnglesStructure *Angles, const FreqInfo *freqinfo, BeamStructure *Beam/*, 
+    InfluenceInfo *inflinfo, ArrivalsInfo *arrinfo*/)
 {
     if(Beam->deltas == RC(0.0)){
         Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth) / RC(10.0); // Automatic step size selection
@@ -227,6 +233,7 @@ void core_setup(std::ofstream &PRTFile,
         inflinfo->NRz_per_range = Pos->NRz; // rectilinear grid
     }
     
+    /*
     // for a TL calculation, allocate space for the pressure matrix
     // TODO need a separate one for each source coord?
     switch(Beam->RunType[0]){
@@ -261,6 +268,7 @@ void core_setup(std::ofstream &PRTFile,
     }
     
     memset(arrinfo->NArr, 0, inflinfo->NRz_per_range * Pos->NRr * sizeof(int32_t));
+    */
     
     PRTFile << "\n";
 }

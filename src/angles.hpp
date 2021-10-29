@@ -1,5 +1,7 @@
 #pragma once
 #include "common.hpp"
+#include "ldio.hpp"
+#include "sourcereceiver.hpp"
 
 struct AnglesStructure {
     int32_t Nalpha, Nbeta, iSingle_alpha, iSingle_beta;

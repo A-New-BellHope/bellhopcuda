@@ -1,9 +1,6 @@
 #pragma once
 #include "common.hpp"
 
-#include <string>
-#include <cctype>
-
 /**
  * C++ emulation of FORTRAN list-directed input.
  * To use:
@@ -105,7 +102,7 @@ private:
             return nullitem;
         }
         //Whitespace before start of item
-        while(!f.eof() && isspace(f.peek()){
+        while(!f.eof() && isspace(f.peek())){
             int c = f.get();
             if(c == '\n') ++line;
         }
@@ -171,7 +168,7 @@ private:
         if(f.eof()) return lastitem;
         if(quotemode < 0){
             int c = f.peek();
-            if(!isspace(c) && c != ",") Error("Invalid character after end of quoted string");
+            if(!isspace(c) && c != ',') Error("Invalid character after end of quoted string");
         }
         //Whitespace and comma after item
         bool hadcomma = false;
@@ -208,5 +205,5 @@ private:
     
     //This string is not possible to represent, so we use it to indicate null
     //(empty string is separate and valid)
-    static const std::string nullitem = "\"'";
+    static constexpr const char *const nullitem = "\"'";
 }; 

@@ -1,5 +1,7 @@
 #pragma once
 #include "common.hpp"
+#include "ldio.hpp"
+#include "ssp.hpp"
 
 struct BdryPtFull {
     vec2 x, t, n; // coordinate, tangent, and outward normal for a segment

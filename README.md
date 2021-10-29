@@ -36,15 +36,12 @@ as possible to the original FORTRAN code, for ease of comparing the source files
 `common.hpp`: Main support code, CUDA compatibility, utilities, etc.
 - `misc/monotonicMod.f90`
 - `misc/SortMod.f90`
+- `misc/subtabulate.f90`
 - `misc/MathConstants.f90`
 - `misc/cross_products.f90`: Only used by BELLHOP3D, provided by glm.
 - `misc/FatalError.f90`: Not applicable.
 
 `ldio.hpp`: C++ emulation of FORTRAN list-directed I/O.
-
-`subtab.hpp`: Feature that allows a list to be automatically linearly interpolated
-between its extreme values.
-- `misc/subtabulate.f90`
 
 `curves.hpp`: Templated splines and Piecewise Cubic Hermite Interpolating Polynomial.
 - `misc/pchipMod.f90`
@@ -69,25 +66,28 @@ derivatives and with less pre-computed info. Not used by BELLHOP.
 `refcoef.hpp`: Reflection coefficients.
 - `misc/RefCoef.f90`
 
-`sourcereceiver.hpp`: Source and receiver (single or array) positions.
+`sourcereceiver.hpp`: Source and receiver (single or array) positions, also
+frequency information.
 - `misc/SourceReceiverPositions.f90`
 
 `angles.hpp`: Source ray angles.
 - `Bellhop/angleMod.f90`
 
-`beampattern.hpp`: Source beam pattern.
+`beams.hpp`: Beam information and source beam pattern.
 - `misc/beampattern.f90`
+- `Bellhop/bellhopMod.f90`: BeamStructure
 
 `arrivals.hpp`: Ray arrival recording.
 - `Bellhop/ArrMod.f90`: NEED all non-3D
 
-`writeray.hpp`: Ray trajectory recording.
-- `Bellhop/WriteRay.f90`: NEED all non-3D
-
 `readenv.cpp`: Main environment file reading.
-- `Bellhop/ReadEnvironmentBell.f90`, NEED OpenOutputFiles
+- `Bellhop/ReadEnvironmentBell.f90`
 - `misc/ReadEnvironmentMod.f90`: Base implementation for other programs, not
 used by BELLHOP.
+
+`output.cpp`: Output files writing.
+- `Bellhop/ReadEnvironmentBell.f90`: OpenOutputFiles
+- `Bellhop/WriteRay.f90`
 - `misc/RWSHDFile.f90`: NEED all
 
 ### Core simulation code
@@ -97,10 +97,10 @@ used by BELLHOP.
 - `Bellhop/Step3DMod.f90`: BELLHOP3D version.
 - `Bellhop/RayNormals.f90`: Used by Step3D and Reflect3D, but not by (2D)
 BELLHOP.
+- `Bellhop/bellhopMod.f90`: ray2DPt
 
 `trace.hpp`: Ray/beam tracing main.
 - `Bellhop/bellhop.f90`: TraceRay2D, Distances2D, Reflect2D
-- `Bellhop/bellhopMod.f90`: structs
 - `Bellhop/ReflectMod.f90`: Alternate implementation of Reflect2D. BELLHOP
 seems to use the implementation within `Bellhop/bellhop.f90`. BELLHOP3D uses
 this (despite it not being 3D).

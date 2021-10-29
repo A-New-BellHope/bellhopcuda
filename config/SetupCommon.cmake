@@ -5,7 +5,7 @@ set(CMAKE_CXX_EXTENSTIONS OFF) # ...without compiler extensions like gnu++11
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Necessary to build shared libraries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter")
 
 function(bellhop_setup_target target_name)
     if(USE_FLOAT)
@@ -17,7 +17,7 @@ endfunction()
 function(prepend OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend to
     set(TEMP "")
     foreach(ITEM ${ARGN})
-        set(TEMP "${TEMP} ${PREFIX}${ITEM}")
+        set(TEMP "${TEMP};${PREFIX}${ITEM}")
     endforeach()
     set(${OUT_VAR} "${TEMP}" PARENT_SCOPE)
 endfunction()
@@ -26,21 +26,24 @@ set(COMMON_SOURCE
     angles.hpp
     arrivals.hpp
     attenuation.hpp
-    beampattern.hpp
+    beams.hpp
     boundary.hpp
     common.hpp
     curves.hpp
     influence.hpp
     ldio.hpp
+    output.cpp
+    output.hpp
     readenv.cpp
+    readenv.hpp
     refcoef.hpp
+    setup.cpp
+    setup.hpp
     sourcereceiver.hpp
     ssp.cpp
     ssp.hpp
     step.hpp
-    subtab.hpp
     trace.hpp
-    writeray.hpp
 )
 
 prepend(COMMON_SOURCE "${CMAKE_SOURCE_DIR}/src/" ${COMMON_SOURCE})

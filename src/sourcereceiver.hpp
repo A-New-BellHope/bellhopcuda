@@ -1,6 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "subtab.hpp"
 
 struct Position {
     int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
