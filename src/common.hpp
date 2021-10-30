@@ -186,7 +186,6 @@ template<typename T> inline void deallocate(T *&ptr){
 template<typename T> inline void Sort(T *arr, size_t n){
 	std::sort(arr, arr + n);
 }
-template<> inline void Sort(real *arr, size_t n);
 template<> inline void Sort(cpx *arr, size_t n){
 	std::sort(arr, arr + n, [](const cpx &a, const cpx &b){
 		return a.real() > b.real(); // Based on order of decreasing real part
@@ -210,12 +209,12 @@ HOST_DEVICE inline bool monotonic(vec2 *arr, size_t n, const int32_t dim){
 	}
 	return true;
 }
-HOST_DEVICE inline bool monotonic(real *arr, size_t n, const int32_t stride, 
+HOST_DEVICE inline bool monotonic(real *arr, size_t n, const int32_t stridereals, 
 	const int32_t offset)
 {
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
-		if(arr[(i+1)*stride+offset] <= arr[i*stride+offset]) return false;
+		if(arr[(i+1)*stridereals+offset] <= arr[i*stridereals+offset]) return false;
 	}
 	return true;
 }

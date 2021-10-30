@@ -28,7 +28,7 @@ struct SSPStructure {
 };
 
 struct HSInfo {
-    cpx alpha, beta; // compressional and shear wave speeds/attenuations in user units
+    real alphaR, betaR, alphaI, betaI; // compressional and shear wave speeds/attenuations in user units
     cpx cP, cS; // P-wave, S-wave speeds
     real rho, Depth; // density, depth
     char bc; // Boundary condition type
@@ -50,10 +50,10 @@ struct BdryType {
 #define SSP_FN_ARGS const vec2 &x, cpx &ccpx, vec2 &gradc, \
     real &crr, real &crz, real &czz, real &rho, real freq, \
     const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr
-#define SSP_CALL_ARGS x, ccpx, gradc, crr, crz, czz, rho, freq, iSegz, iSegr
+#define SSP_CALL_ARGS x, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
 #define SSP_INIT_ARGS vec2 x, real freq, SSPStructure *ssp, LDIFile &ENVFile, \
     std::ofstream &PRTFile, const AttenInfo *atten, std::string FileRoot
-#define SSP_CALL_INIT_ARGS x, freq, ssp, ENVFile, PRTFile, atten, FileRoot
+#define SSP_CALL_INIT_ARGS x, freqinfo->freq0, ssp, ENVFile, PRTFile, atten, FileRoot
 
 HOST_DEVICE inline void UpdateDepthSegment(const vec2 &x,
     const SSPStructure *ssp, int32_t &iSegz)
@@ -127,6 +127,9 @@ HOST_DEVICE inline real LinInterpDensity(const vec2 &x,
     return w;
 }
 
+/**
+ * N2-linear interpolation of SSP data
+ */
 HOST_DEVICE inline void n2Linear(SSP_FN_ARGS)
 {
     UpdateDepthSegment(x, ssp, iSegz);
@@ -140,6 +143,9 @@ HOST_DEVICE inline void n2Linear(SSP_FN_ARGS)
     czz = RC(3.0) * gradc.y * gradc.y / c;
 }
 
+/**
+ * c-linear interpolation of SSP data
+ */
 HOST_DEVICE inline void cLinear(SSP_FN_ARGS)
 {
     UpdateDepthSegment(x, ssp, iSegz);
@@ -150,6 +156,10 @@ HOST_DEVICE inline void cLinear(SSP_FN_ARGS)
     crr = crz = czz = RC(0.0);
 }
 
+/**
+ * This implements the new monotone piecewise cubic Hermite interpolating
+ * polynomial (PCHIP) algorithm for the interpolation of the sound speed c.
+ */
 HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
 {
     UpdateDepthSegment(x, ssp, iSegz);
@@ -169,6 +179,9 @@ HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
     czz = (RC(2.0) * ssp->cCoef[2][iSegz] + RC(6.0) * ssp->cCoef[3][iSegz] * xt).real();
 }
 
+/**
+ * Cubic spline interpolation
+ */
 HOST_DEVICE inline void cCubic(SSP_FN_ARGS)
 {
     UpdateDepthSegment(x, ssp, iSegz);
@@ -177,7 +190,8 @@ HOST_DEVICE inline void cCubic(SSP_FN_ARGS)
     real hSpline = x.y - ssp->z[iSegz];
     cpx czcpx, czzcpx;
     
-    SplineALL(ssp->cSpline[0][iSegz], hSpline, ccpx, czcpx, czzcpx);
+    SplineALL(ssp->cSpline[0][iSegz], ssp->cSpline[1][iSegz], ssp->cSpline[2][iSegz],
+        ssp->cSpline[3][iSegz], hSpline, ccpx, czcpx, czzcpx);
     
     // LP: Only for these conversions, BELLHOP uses DBLE() instead of REAL().
     // The manual for DBLE simply says that it converts the argument to double
@@ -188,9 +202,11 @@ HOST_DEVICE inline void cCubic(SSP_FN_ARGS)
     czz = czzcpx.real();
 }
 
+/**
+ * Bilinear quadrilatteral interpolation of SSP data in 2D
+ */
 HOST_DEVICE inline void Quad(SSP_FN_ARGS)
 {
-    int32_t iSegT, iz2;
     real c1, c2, cz1, cz2, cr, cz, s1, s2, delta_r, delta_z;
     
     if(x.x < ssp->Seg.r[0] || x.x > ssp->Seg.r[ssp->Nr-1]){

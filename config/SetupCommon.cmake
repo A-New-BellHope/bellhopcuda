@@ -5,7 +5,9 @@ set(CMAKE_CXX_EXTENSTIONS OFF) # ...without compiler extensions like gnu++11
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Necessary to build shared libraries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-sign-compare -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra \
+-Wno-sign-compare -Wno-unused-parameter -Wno-class-memaccess \
+")
 
 function(bellhop_setup_target target_name)
     if(USE_FLOAT)

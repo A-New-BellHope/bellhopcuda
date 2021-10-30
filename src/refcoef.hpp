@@ -29,12 +29,12 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
     const ReflectionCoef *r, int32_t NPts)
 {
     int32_t iLeft, iRight, iMid;
-    real alpha, Thetaintr;
+    real alpha, thetaIntr;
     
     iLeft = 0;
     iRight = NPts - 1;
     
-    thetaIntr = RInt.Theta.real(); // This should be unnecessary? probably used when I was doing complex angles
+    thetaIntr = RInt.theta.real(); // This should be unnecessary? probably used when I was doing complex angles
     
     // Three cases: ThetaInt left, in, or right of tabulated interval
     

@@ -25,7 +25,7 @@ struct BeamInfo {
 inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
     BeamInfo *beaminfo)
 {
-    if(SBPFlag == '*'){
+    if(beaminfo->SBPFlag == '*'){
         PRTFile << "\n______________________________\nUsing source beam pattern file\n";
         
         LDIFile SBPFile(WithExtension(FileRoot, ".sbp"));
@@ -38,7 +38,7 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
         SBPFile.List(); SBPFile.Read(beaminfo->NSBPPts);
         PRTFile << "Number of source beam pattern points " << beaminfo->NSBPPts << "\n";
         
-        SrcBmPat = allocate<real>(beaminfo->NSBPPts * 2);
+        beaminfo->SrcBmPat = allocate<real>(beaminfo->NSBPPts * 2);
         
         PRTFile << "\n Angle (degrees)  Power (dB)\n" << std::setprecision(3);
         

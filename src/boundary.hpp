@@ -6,7 +6,7 @@
 struct BdryPtFull {
     vec2 x, t, n; // coordinate, tangent, and outward normal for a segment
     vec2 Nodet, Noden; // tangent and normal at the node, if the curvilinear option is used
-    real Len, Kappa; // length and curvature of a segement
+    real Len, kappa; // length and curvature of a segement
     real Dx, Dxx, Dss; // first, second derivatives wrt depth; s is along tangent
     HSInfo hs;
 };
@@ -30,23 +30,23 @@ constexpr HOST_DEVICE inline real BdryInfinity(){
  * rTopSeg: segment limits in range
  */
 HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
-    const BdryInfo *bdry)
+    const BdryInfo *bdinfo)
 {
-    // LP: bdry->Top.x is checked for being monotonic at load time, so we can
+    // LP: bdinfo->Top.x is checked for being monotonic at load time, so we can
     // linearly search out from the last position, usually only have to move
     // by 1
-    int32_t n = bdry->NATIPts;
+    int32_t n = bdinfo->NATIPts;
     IsegTop = STD::max(IsegTop, 0);
     IsegTop = STD::min(IsegTop, n-2);
-    while(IsegTop >= 0 && bdry->Top[IsegTop].x.x > r) --IsegTop;
-    while(IsegTop >= 0 && IsegTop < n-1 && bdry->Top[IsegTop+1].x.x < r) ++IsegTop;
+    while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x > r) --IsegTop;
+    while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x < r) ++IsegTop;
     if(IsegTop < 0 || IsegTop >= n-1){
         // IsegTop MUST LIE IN [0, NatiPts-2]
         printf("Error: GetTopSeg: Top altimetry undefined above the ray, r=%f\n", r);
         bail();
     }
-    rTopSeg.x = bdry->Top[IsegTop].x.x;
-    rTopSeg.y = bdry->Top[IsegTop+1].x.x;
+    rTopSeg.x = bdinfo->Top[IsegTop].x.x;
+    rTopSeg.y = bdinfo->Top[IsegTop+1].x.x;
 }
 
 /**
@@ -55,23 +55,23 @@ HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
  * rBotSeg: segment limits in range
  */
 HOST_DEVICE inline void GetBotSeg(real r, int32_t &IsegBot, vec2 &rBotSeg,
-    const BdryInfo *bdry)
+    const BdryInfo *bdinfo)
 {
-    // LP: bdry->Bot.x is checked for being monotonic at load time, so we can
+    // LP: bdinfo->Bot.x is checked for being monotonic at load time, so we can
     // linearly search out from the last position, usually only have to move
     // by 1
-    int32_t n = bdry->NATIPts;
+    int32_t n = bdinfo->NATIPts;
     IsegBot = STD::max(IsegBot, 0);
     IsegBot = STD::min(IsegBot, n-2);
-    while(IsegBot >= 0 && bdry->Bot[IsegBot].x.x > r) --IsegBot;
-    while(IsegBot >= 0 && IsegBot < n-1 && bdry->Bot[IsegBot+1].x.x < r) ++IsegBot;
+    while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x > r) --IsegBot;
+    while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x < r) ++IsegBot;
     if(IsegBot < 0 || IsegBot >= n-1){
         // IsegBot MUST LIE IN [0, NatiPts-2]
         printf("Error: GetBotSeg: Bottom altimetry undefined below the source, r=%f\n", r);
         bail();
     }
-    rBotSeg.x = bdry->Bot[IsegBot].x.x;
-    rBotSeg.y = bdry->Bot[IsegBot+1].x.x;
+    rBotSeg.x = bdinfo->Bot[IsegBot].x.x;
+    rBotSeg.y = bdinfo->Bot[IsegBot+1].x.x;
 }
 
 /**
@@ -114,7 +114,7 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
     // above caused compiler problems
     // LP: C++ obviously does not have vector slicing, but you get the idea.
     
-    for(int32_t ii=0; ii<Npts-1; ++ii){
+    for(int32_t ii=0; ii<NPts-1; ++ii){
         Bdry[ii].t  = Bdry[ii+1].x - Bdry[ii].x;
         Bdry[ii].Dx = Bdry[ii].t[1] / Bdry[ii].t[0]; // first derivative
         // std::cout << "Dx, t " << Bdry[ii].Dx << " " << Bdry[ii].x << " " << (RC(1.0) / (Bdry[ii].x[1] / RC(500.0)) << "\n";
@@ -139,15 +139,17 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
         Bdry[0     ].Nodet = vec2(RC(1.0), RC(0.0)); // tangent left-end  node
         Bdry[NPts-1].Nodet = vec2(RC(1.0), RC(0.0)); // tangent right-end node
         
-        Bdry[ii].Noden[0] = (isTop ? RC(1.0) : RC(-1.0)) * Bdry[ii].Nodet[1];
-        Bdry[ii].Noden[1] = (isTop ? RC(-1.0) : RC(1.0)) * Bdry[ii].Nodet[0];
+        for(int32_t ii=0; ii<NPts; ++ii){
+            Bdry[ii].Noden[0] = (isTop ? RC(1.0) : RC(-1.0)) * Bdry[ii].Nodet[1];
+            Bdry[ii].Noden[1] = (isTop ? RC(-1.0) : RC(1.0)) * Bdry[ii].Nodet[0];
+        }
         
         // compute curvature in each segment
-        phi = allocate<real>(Npts);
+        phi = allocate<real>(NPts);
         // this is the angle at each node
-        for(int32_t i=0; i<Npts; ++i) phi[i] = STD::atan2(Bdry[i].Nodet[1], Bdry[i].Nodet[0]);
+        for(int32_t i=0; i<NPts; ++i) phi[i] = STD::atan2(Bdry[i].Nodet[1], Bdry[i].Nodet[0]);
         
-        for(int32_t ii=0; ii<Npts-1; ++ii){
+        for(int32_t ii=0; ii<NPts-1; ++ii){
             Bdry[ii].kappa = (phi[ii+1] - phi[ii]) / Bdry[ii].Len; // this is curvature = dphi/ds
             Bdry[ii].Dxx   = (Bdry[ii+1].Dx - Bdry[ii].Dx) / // second derivative
                              (Bdry[ii+1].x[0] - Bdry[ii].x[0]); 
@@ -161,18 +163,18 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
             Bdry[ii].kappa = Bdry[ii].Dss; // over-ride kappa !!!!!
         }
     }else{
-        for(int32_t i=0; i<Npts; ++i) Bdry[i].kappa = RC(0.0);
+        for(int32_t i=0; i<NPts; ++i) Bdry[i].kappa = RC(0.0);
     }
 }
 
 inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
-    std::ofstream &PRTFile, BdryInfo *bdry)
+    std::ofstream &PRTFile, BdryInfo *bdinfo)
 {
     //LP: Removed phi, which got allocated but not used. Just to check that
     //there was enough memory for it to be allocated later? Or bug?
     switch(TopATI){
     case '~':
-    case '*':
+    case '*':{
         PRTFile << "__________________________________________________________________________\n\n";
         PRTFile << "Using top-altimetry file\n";
         
@@ -183,8 +185,8 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
             std::abort();
         }
         
-        ATIFile.List(); ATIFile.Read(bdry->atiType, 2);
-        switch(bdry->atiType[0]){
+        ATIFile.List(); ATIFile.Read(bdinfo->atiType, 2);
+        switch(bdinfo->atiType[0]){
         case 'C':
             PRTFile << "Curvilinear Interpolation\n"; break;
         case 'L':
@@ -194,39 +196,39 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
             std::abort();
         }
         
-        ATIFile.List(); ATIFile.Read(bdry->NATIPts);
-        PRTFile << "Number of altimetry points = " << bdry->NATIPts << "\n";
-        bdry->NATIPts += 2; // we'll be extending the altimetry to infinity to the left and right
+        ATIFile.List(); ATIFile.Read(bdinfo->NATIPts);
+        PRTFile << "Number of altimetry points = " << bdinfo->NATIPts << "\n";
+        bdinfo->NATIPts += 2; // we'll be extending the altimetry to infinity to the left and right
         
-        bdry->Top = allocate<BdryPtFull>(bdry->NATIPts);
+        bdinfo->Top = allocate<BdryPtFull>(bdinfo->NATIPts);
         
         PRTFile << "\n Range (km)  Depth (m)\n";
         
-        for(int32_t ii=1; ii<bdry->NATIPts-1; ++ii){
-            switch(atiType[1]){
+        for(int32_t ii=1; ii<bdinfo->NATIPts-1; ++ii){
+            switch(bdinfo->atiType[1]){
             case 'S':
             case '\0':
-                ATIFile.List(); ATIFile.Read(bdry->Top[ii].x);
-                if(ii < Bdry_Number_to_Echo || ii == bdry->NATIPts){ // echo some values
+                ATIFile.List(); ATIFile.Read(bdinfo->Top[ii].x);
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts){ // echo some values
                     //LP: Bug? Even in the Fortran, ii should never equal
                     //NATIPts as the loop ends at NATIPts-1.
-                    PRTFile << std::setprecision(3) << bdry->Top[ii].x << "\n";
+                    PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << "\n";
                 }
                 break;
             case 'L':
-                ATIFile.List(); ATIFile.Read(bdry->Top[ii].x);
-                ATIFile.Read(bdry->Top[ii].hs.alphaR);
-                ATIFile.Read(bdry->Top[ii].hs.betaR);
-                ATIFile.Read(bdry->Top[ii].hs.rho);
-                ATIFile.Read(bdry->Top[ii].hs.alphaI);
-                ATIFile.Read(bdry->Top[ii].hs.betaI);
-                if(ii < Bdry_Number_to_Echo || ii == bdry->NATIPts){ // echo some values
-                    PRTFile << std::setprecision(3) << bdry->Top[ii].x << " "
-                        << bdry->Top[ii].hs.alphaR << " "
-                        << bdry->Top[ii].hs.betaR << " "
-                        << bdry->Top[ii].hs.rho << " "
-                        << bdry->Top[ii].hs.alphaI << " "
-                        << bdry->Top[ii].hs.betaI << "\n";
+                ATIFile.List(); ATIFile.Read(bdinfo->Top[ii].x);
+                ATIFile.Read(bdinfo->Top[ii].hs.alphaR);
+                ATIFile.Read(bdinfo->Top[ii].hs.betaR);
+                ATIFile.Read(bdinfo->Top[ii].hs.rho);
+                ATIFile.Read(bdinfo->Top[ii].hs.alphaI);
+                ATIFile.Read(bdinfo->Top[ii].hs.betaI);
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts){ // echo some values
+                    PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << " "
+                        << bdinfo->Top[ii].hs.alphaR << " "
+                        << bdinfo->Top[ii].hs.betaR << " "
+                        << bdinfo->Top[ii].hs.rho << " "
+                        << bdinfo->Top[ii].hs.alphaI << " "
+                        << bdinfo->Top[ii].hs.betaI << "\n";
                 }
                 break;
             default:
@@ -234,36 +236,36 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
                 std::abort();
             }
             
-            if(bdry->Top[ii].x[1] < DepthT){
+            if(bdinfo->Top[ii].x[1] < DepthT){
                 std::cout << "BELLHOP:ReadATI: Altimetry rises above highest point in the sound speed profile\n";
                 std::abort();
             }
         }
         
         // Convert ranges in km to m
-        for(int32_t i=0; i<bdry->NATIPts; ++i) bdry->Top[i].x[0] *= RC(1000.0);
+        for(int32_t i=0; i<bdinfo->NATIPts; ++i) bdinfo->Top[i].x[0] *= RC(1000.0);
         
-        break;
+        }break;
     default:
-        bdry->Top = allocate<BdryPtFull>(2);
-        bdry->Top[0].x = vec2(-STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
-        bdry->Top[0].x = vec2( STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
+        bdinfo->Top = allocate<BdryPtFull>(2);
+        bdinfo->Top[0].x = vec2(-STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
+        bdinfo->Top[0].x = vec2( STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
     }
     
-    ComputeBdryTangentNormal(bdry->Top, true);
+    ComputeBdryTangentNormal(bdinfo->Top, true, bdinfo);
     
-    if(!monotonic(bdry->Top.x, bdry->NATIPts, 0)){
+    if(!monotonic(&bdinfo->Top[0].x.x, bdinfo->NATIPts, sizeof(BdryPtFull)/sizeof(real), 0)){
         std::cout << "BELLHOP:ReadATI: Altimetry ranges are not monotonically increasing\n";
         std::abort();
     }
 }
 
 inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
-    std::ofstream &PRTFile, BdryInfo *bdry)
+    std::ofstream &PRTFile, BdryInfo *bdinfo)
 {
     switch(BotBTY){
     case '~':
-    case '*':
+    case '*':{
         PRTFile << "__________________________________________________________________________\n\n";
         PRTFile << "Using bottom-bathymetry file\n";
         
@@ -274,9 +276,9 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             std::abort();
         }
         
-        BTYFile.List(); BTYFile.Read(bdry->btyType, 2);
+        BTYFile.List(); BTYFile.Read(bdinfo->btyType, 2);
         
-        switch(bdry->btyType[0]){
+        switch(bdinfo->btyType[0]){
         case 'C':
             PRTFile << "Curvilinear Interpolation\n"; break;
         case 'L':
@@ -286,14 +288,14 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             std::abort();
         }
         
-        BTYFile.List(); BTYFile.Read(bdry->NBTYPts);
-        PRTFile << "Number of bathymetry points = " << bdry->NBTYPts << "\n";
+        BTYFile.List(); BTYFile.Read(bdinfo->NBTYPts);
+        PRTFile << "Number of bathymetry points = " << bdinfo->NBTYPts << "\n";
         
-        bdry->NBTYPts += 2; // we'll be extending the bathymetry to infinity to the left and right
-        bdry->Bot = allocate<BdryPtFull>(bdry->NBTYPts);
+        bdinfo->NBTYPts += 2; // we'll be extending the bathymetry to infinity to the left and right
+        bdinfo->Bot = allocate<BdryPtFull>(bdinfo->NBTYPts);
         
         PRTFile << "\n";
-        switch(btyType[1]){
+        switch(bdinfo->btyType[1]){
         case 'S':
         case '\0':
             PRTFile << "Short format (bathymetry only)\n";
@@ -308,31 +310,31 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             std::abort();
         }
         
-        for(int32_t ii=1; ii<bdry->NBTYPts-1; ++ii){
-            switch(atiType[1]){
+        for(int32_t ii=1; ii<bdinfo->NBTYPts-1; ++ii){
+            switch(bdinfo->btyType[1]){
             case 'S':
             case '\0':
-                BTYFile.List(); BTYFile.Read(bdry->Bot[ii].x);
-                if(ii < Bdry_Number_to_Echo || ii == bdry->NBTYPts){ // echo some values
+                BTYFile.List(); BTYFile.Read(bdinfo->Bot[ii].x);
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts){ // echo some values
                     //LP: Bug? Even in the Fortran, ii should never equal
                     //NBTYPts as the loop ends at NBTYPts-1.
-                    PRTFile << std::setprecision(3) << bdry->Bot[ii].x << "\n";
+                    PRTFile << std::setprecision(3) << bdinfo->Bot[ii].x << "\n";
                 }
                 break;
             case 'L':
-                BTYFile.List(); BTYFile.Read(bdry->Bot[ii].x);
-                BTYFile.Read(bdry->Bot[ii].hs.alphaR);
-                BTYFile.Read(bdry->Bot[ii].hs.betaR);
-                BTYFile.Read(bdry->Bot[ii].hs.rho);
-                BTYFile.Read(bdry->Bot[ii].hs.alphaI);
-                BTYFile.Read(bdry->Bot[ii].hs.betaI);
-                if(ii < Bdry_Number_to_Echo || ii == bdry->NBTYPts){ // echo some values
-                    PRTFile << std::setprecision(2) << bdry->Bot[ii].x << " "
-                        << bdry->Bot[ii].hs.alphaR << " "
-                        << bdry->Bot[ii].hs.betaR << " "
-                        << bdry->Bot[ii].hs.rho << " " << std::setprecision(4)
-                        << bdry->Bot[ii].hs.alphaI << " "
-                        << bdry->Bot[ii].hs.betaI << "\n";
+                BTYFile.List(); BTYFile.Read(bdinfo->Bot[ii].x);
+                BTYFile.Read(bdinfo->Bot[ii].hs.alphaR);
+                BTYFile.Read(bdinfo->Bot[ii].hs.betaR);
+                BTYFile.Read(bdinfo->Bot[ii].hs.rho);
+                BTYFile.Read(bdinfo->Bot[ii].hs.alphaI);
+                BTYFile.Read(bdinfo->Bot[ii].hs.betaI);
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts){ // echo some values
+                    PRTFile << std::setprecision(2) << bdinfo->Bot[ii].x << " "
+                        << bdinfo->Bot[ii].hs.alphaR << " "
+                        << bdinfo->Bot[ii].hs.betaR << " "
+                        << bdinfo->Bot[ii].hs.rho << " " << std::setprecision(4)
+                        << bdinfo->Bot[ii].hs.alphaI << " "
+                        << bdinfo->Bot[ii].hs.betaI << "\n";
                 }
                 break;
             default:
@@ -340,25 +342,25 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
                 std::abort();
             }
             
-            if(bdry->Bot[ii].x[1] > DepthB){
+            if(bdinfo->Bot[ii].x[1] > DepthB){
                 std::cout << "BELLHOP:ReadBTY: Bathymetry drops below lowest point in the sound speed profile\n";
                 std::abort();
             }
         }
         
         // Convert ranges in km to m
-        for(int32_t i=0; i<bdry->NBTYPts; ++i) bdry->Bot[i].x[0] *= RC(1000.0);
+        for(int32_t i=0; i<bdinfo->NBTYPts; ++i) bdinfo->Bot[i].x[0] *= RC(1000.0);
         
-        break;
+        }break;
     default:
-        bdry->Bot = allocate<BdryPtFull>(2);
-        bdry->Bot[0].x = vec2(-BdryInfinity(), DepthB);
-        bdry->Bot[0].x = vec2( BdryInfinity(), DepthB);
+        bdinfo->Bot = allocate<BdryPtFull>(2);
+        bdinfo->Bot[0].x = vec2(-BdryInfinity(), DepthB);
+        bdinfo->Bot[0].x = vec2( BdryInfinity(), DepthB);
     }
     
-    ComputeBdryTangentNormal(bdry->Bot, false);
+    ComputeBdryTangentNormal(bdinfo->Bot, false, bdinfo);
     
-    if(!monotonic(bdry->Bot.x, bdry->NBTYPts, 0)){
+    if(!monotonic(&bdinfo->Bot[0].x.x, bdinfo->NBTYPts, sizeof(BdryPtFull)/sizeof(real), 0)){
         std::cout << "BELLHOP:ReadBTY: Bathymetry ranges are not monotonically increasing\n";
         std::abort();
     }
@@ -371,12 +373,12 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
  * freq: frequency [LP: :( ]
  */
 inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs,
-    LDIFile &ENVFile, std::ofstream &PRTFile)
+    LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten)
 {
     real Mz, vr, alpha2_f; // values related to grain size
     
     real alphaR = RC(1500.0), betaR = RC(0.0), alphaI = RC(0.0), betaI = RC(0.0), rhoR = RC(1.0);
-    real ztemp;
+    real zTemp;
     
     // Echo to PRTFile user's choice of boundary condition
     
@@ -401,14 +403,14 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
     
     // ****** Read in BC parameters depending on particular choice ******
     
-    hs.cp = hs.cs = hs.rho = RC(0.0);
+    hs.cP = hs.cS = hs.rho = RC(0.0);
     
     if(hs.bc == 'A'){ // *** Half-space properties ***
         zTemp = RC(0.0);
         ENVFile.List(); ENVFile.Read(zTemp); ENVFile.Read(alphaR);
-        ENVFile.Read(betaR); ENVFile.read(rhoR);
-        ENVFile.read(alphaI); ENVFile.read(beta);
-        PRTFile << std::setprecision(2) << std::setw(10) << ztemp << " "
+        ENVFile.Read(betaR); ENVFile.Read(rhoR);
+        ENVFile.Read(alphaI); ENVFile.Read(betaI);
+        PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " "
             << std::setw(10) << alphaR << " " << std::setw(10) << betaR << " "
             << std::setw(6) << rhoR << " " << std::setprecision(4) 
             << std::setw(10) << alphaI << " " << std::setw(10) << betaI << "\n";
@@ -418,8 +420,8 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         //betaPowerLaw  = RC(1.0); //LP: Default is 1.0, this is the only other place it's set (also to 1.0).
         fT            = RC(1000.0);
         
-        hs.cp  = crci(zTemp, alphaR, alphaI, freq, freq, AttenUnit, betaPowerLaw, fT);
-        hs.cs  = crci(zTemp, betaR,  betaI,  freq, freq, AttenUnit, betaPowerLaw, fT);
+        hs.cP  = crci(zTemp, alphaR, alphaI, freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
+        hs.cS  = crci(zTemp, betaR,  betaI,  freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
         
         hs.rho = rhoR;
     }else if(hs.bc == 'G'){ // *** Grain size (formulas from UW-APL HF Handbook)
@@ -427,20 +429,20 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         // These formulas are from the UW-APL Handbook
         // The code is taken from older Matlab and is unnecesarily verbose
         // vr   is the sound speed ratio
-        // rhor is the density ratio
+        // rhoR is the density ratio
         ENVFile.List(); ENVFile.Read(zTemp); ENVFile.Read(Mz);
         PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " "
             << std::setw(10) << Mz << "\n";
         
         if(Mz >= RC(-1.0) && Mz < RC(1.0)){
             vr   = RC(0.002709) * SQ(Mz) - RC(0.056452) * Mz + RC(1.2778);
-            rhor = RC(0.007797) * SQ(Mz) - RC(0.17057)  * Mz + RC(2.3139);
+            rhoR = RC(0.007797) * SQ(Mz) - RC(0.17057)  * Mz + RC(2.3139);
         }else if(Mz >= RC(1.0) && Mz < RC(5.3)){
-            vr   = RC(-0.0014881) * Cube(Mz) + RC(0.0213937) * SQ(Mz) - RC(0.1382798) * Mz + RC(1.3425);
-            rhor = RC(-0.0165406) * Cube(Mz) + RC(0.2290201) * SQ(Mz) - RC(1.1069031) * Mz + RC(3.0455);
+            vr   = RC(-0.0014881) * CUBE(Mz) + RC(0.0213937) * SQ(Mz) - RC(0.1382798) * Mz + RC(1.3425);
+            rhoR = RC(-0.0165406) * CUBE(Mz) + RC(0.2290201) * SQ(Mz) - RC(1.1069031) * Mz + RC(3.0455);
         }else{
             vr   = RC(-0.0024324) * Mz + RC(1.0019);
-            rhor = RC(-0.0012973) * Mz + RC(1.1565);
+            rhoR = RC(-0.0012973) * Mz + RC(1.1565);
         }
         
         if(Mz >= RC(-1.0) && Mz < RC(0.0)){
@@ -465,8 +467,8 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         alphaI = alpha2_f * (vr / RC(1000.0)) * RC(1500.0) * 
             STD::log(RC(10.0)) / (RC(40.0) * M_PI); // loss parameter Sect. IV., Eq. (4) of handbook
  
-        hs.cp  = crci(zTemp, alphaR, alphaI, freq, freq, "L ", betaPowerLaw, fT);
-        hs.cs  = RC(0.0);
+        hs.cP  = crci(zTemp, alphaR, alphaI, freq, freq, {'L', ' '}, betaPowerLaw, fT, atten, PRTFile);
+        hs.cS  = RC(0.0);
         hs.rho = rhoR;
     }
 }

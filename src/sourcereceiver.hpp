@@ -23,7 +23,7 @@ struct FreqInfo {
 inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &PRTFile,
     FreqInfo *freqinfo)
 {
-    Nfreq = 1;
+    freqinfo->Nfreq = 1;
     
     if(BroadbandOption == 'B'){
         ENVFile.List(); ENVFile.Read(freqinfo->Nfreq);
@@ -80,7 +80,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
     PRTFile << "\n";
     
     // Vectors in km should be converted to m for internal use
-    Units.trim();
+    trim(Units);
     if(Units.length() >= 2){
         if(Units.substr(2) == "km") for(int32_t i=0; i<Nx; ++i) x[i] *= RC(1000.0);
     }
@@ -117,11 +117,11 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ofstream &PRTF
     ReadVector(Pos->NSz, Pos->Sz, "Source   depths, Sz", "m", ENVFile, PRTFile);
     ReadVector(Pos->NRz, Pos->Rz, "Receiver depths, Rz", "m", ENVFile, PRTFile);
     
-    if(Pos->ws != nullptr) deallocate(Pos->ws); deallocate(Pos->iSz);
+    if(Pos->ws != nullptr){ deallocate(Pos->ws); deallocate(Pos->iSz); }
     Pos->ws = allocate<real>(Pos->NSz); Pos->iSz = allocate<int32_t>(Pos->NSz);
     
-    if(Pos->wr != nullptr) deallocate(Pos->wr); deallocate(Pos->iRz);
-    Pos->Wr = allocate<real>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
+    if(Pos->wr != nullptr){ deallocate(Pos->wr); deallocate(Pos->iRz); }
+    Pos->wr = allocate<real>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
     
     // *** Check for Sz/Rz in upper or lower halfspace ***
     
@@ -171,10 +171,10 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, std::ofstream &PRTFile,
     ReadVector(Pos->NRr, Pos->Rr, "Receiver ranges, Rr", "km", ENVFile, PRTFile);
     
     // calculate range spacing
-    Pos->delta_r = RC(0.0);
-    if(Pos->NRr != 1) Pos->delta_r = Pos->Rr[Pos->NRr-1] - Pos->Rr[Pos->NRr-2];
+    Pos->Delta_r = RC(0.0);
+    if(Pos->NRr != 1) Pos->Delta_r = Pos->Rr[Pos->NRr-1] - Pos->Rr[Pos->NRr-2];
     
-    if(!monotonic(Pos->rr, Pos->NRr)){
+    if(!monotonic(Pos->Rr, Pos->NRr)){
         std::cout << "ReadRcvrRanges: Receiver ranges are not monotonically increasing\n";
         std::abort();
     }
@@ -183,7 +183,7 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, std::ofstream &PRTFile,
 inline void ReadRcvrBearings(LDIFile &ENVFile, std::ofstream &PRTFile,
     Position *Pos)
 {
-    ReadVector(Pos->Ntheta, Pos->theta, "receiver bearings, theta", "degrees");
+    ReadVector(Pos->Ntheta, Pos->theta, "receiver bearings, theta", "degrees", ENVFile, PRTFile);
     
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);
     
@@ -193,5 +193,6 @@ inline void ReadRcvrBearings(LDIFile &ENVFile, std::ofstream &PRTFile,
     
     if(!monotonic(Pos->theta, Pos->Ntheta)){
         std::cout << "ReadRcvrBearings: Receiver bearings are not monotonically increasing\n";
+        std::abort();
     }
 }

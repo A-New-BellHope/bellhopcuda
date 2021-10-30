@@ -60,6 +60,7 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
     std::ofstream &RAYFile, std::ofstream &ARRFile)
 {
     real atten;
+    float freq;
     std::string PlotType;
     
     switch(Beam->RunType[0]){
@@ -80,7 +81,7 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
         // arrival file in ascii format
         ARRFile.open(WithExtension(FileRoot, ".arr"));
         
-        ARRFile << (ThreeD ? "'3D'" << "'2D'") << "\n";
+        ARRFile << (ThreeD ? "'3D'" : "'2D'") << "\n";
         
         ARRFile << freqinfo->freq0 << "\n";
         
@@ -103,24 +104,24 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
         // arrival file in binary format
         ARRFile.open(WithExtension(FileRoot, ".arr"));
         
-        ARRFile.write((ThreeD ? "'3D'" << "'2D'"), 4);
+        ARRFile.write((ThreeD ? "'3D'" : "'2D'"), 4);
         
-        float freq = freqinfo->freq0; ARRFile.write(&freq, 4);
+        freq = freqinfo->freq0; ARRFile.write((char*)&freq, 4);
         
         // write source locations
         
         #define RS sizeof(real)
         if(ThreeD){
-            ARRFile.write(&Pos->NSx, 4); for(int32_t i=0; i<Pos->NSx; ++i) ARRFile.write(&Pos->Sx[i], RS);
-            ARRFile.write(&Pos->NSy, 4); for(int32_t i=0; i<Pos->NSy; ++i) ARRFile.write(&Pos->Sy[i], RS);
+            ARRFile.write((char*)&Pos->NSx, 4); for(int32_t i=0; i<Pos->NSx; ++i) ARRFile.write((char*)&Pos->Sx[i], RS);
+            ARRFile.write((char*)&Pos->NSy, 4); for(int32_t i=0; i<Pos->NSy; ++i) ARRFile.write((char*)&Pos->Sy[i], RS);
         }
-        ARRFile.write(&Pos->NSz, 4); for(int32_t i=0; i<Pos->NSz; ++i) ARRFile.write(&Pos->Sz[i], RS);
+        ARRFile.write((char*)&Pos->NSz, 4); for(int32_t i=0; i<Pos->NSz; ++i) ARRFile.write((char*)&Pos->Sz[i], RS);
         
         // write receiver locations
-        ARRFile.write(&Pos->NRz, 4); for(int32_t i=0; i<Pos->NRz; ++i) ARRFile.write(&Pos->Rz[i], RS);
-        ARRFile.write(&Pos->NRr, 4); for(int32_t i=0; i<Pos->NRr; ++i) ARRFile.write(&Pos->Rr[i], RS);
+        ARRFile.write((char*)&Pos->NRz, 4); for(int32_t i=0; i<Pos->NRz; ++i) ARRFile.write((char*)&Pos->Rz[i], RS);
+        ARRFile.write((char*)&Pos->NRr, 4); for(int32_t i=0; i<Pos->NRr; ++i) ARRFile.write((char*)&Pos->Rr[i], RS);
         if(ThreeD){
-            ARRFile.write(&Pos->Ntheta, 4); for(int32_t i=0; i<Pos->Ntheta; ++i) ARRFile.write(&Pos->theta[i], RS);
+            ARRFile.write((char*)&Pos->Ntheta, 4); for(int32_t i=0; i<Pos->Ntheta; ++i) ARRFile.write((char*)&Pos->theta[i], RS);
         }
         #undef RS
         break;

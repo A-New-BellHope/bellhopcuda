@@ -254,7 +254,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     real sss;
     
     int32_t IsegTop, IsegBot; // indices that point to the current active segment
-    vec2 rTopseg, rBotseg; // range intervals defining the current active segment
+    vec2 rTopSeg, rBotSeg; // range intervals defining the current active segment
     
     // Initial conditions
     
@@ -277,8 +277,8 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     // set I.C. to 0 in hopes of saving run time
     if(Beam->RunType[1] == 'G') ray2D[0].q = vec2(RC(0.0), RC(0.0));
     
-    GetTopSeg(xs.x, IsegTop, rTopseg); // identify the top    segment above the source
-    GetBotSeg(xs.x, IsegBot, rBotseg); // identify the bottom segment below the source
+    GetTopSeg(xs.x, IsegTop, rTopSeg); // identify the top    segment above the source
+    GetBotSeg(xs.x, IsegBot, rBotSeg); // identify the bottom segment below the source
     
     // convert range-dependent geoacoustic parameters from user to program units
     // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and rho
@@ -305,8 +305,8 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
         is1 = istep + 1;
         
         Step2D(ray2D[is], &ray2D[is1], bdinfo->Top[IsegTop].x, bdinfo->Top[IsegTop].n,
-            bdinfo->Bot[IsegBot].x, bdinfo->Bot[IsegBot].n, freqinfo->freq0, Beam, ssp, 
-            iSegz, iSegr, iSmallStepCtr);
+            bdinfo->Bot[IsegBot].x, bdinfo->Bot[IsegBot].n, rTopSeg, rBotSeg, 
+            freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr);
         
         // New altimetry segment?
         if(ray2D[is1].x.x < rTopSeg.x || ray2D[is1].x.x > rTopSeg.y){

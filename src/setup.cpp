@@ -75,8 +75,8 @@ void setup(int argc, char **argv,
     //Bdry: none
     bdinfo->NATIPts = 2;
     bdinfo->NBTYPts = 2;
-    bdinfo->atiType = {'L', 'S'};
-    bdinfo->btyType = {'L', 'S'};
+    memcpy(bdinfo->atiType, "LS", 2);
+    memcpy(bdinfo->btyType, "LS", 2);
     //refl: none
     //ssp: none
     atten->t = RC(20.0);
@@ -91,7 +91,7 @@ void setup(int argc, char **argv,
     Angles->iSingle_beta = -1; //start of the array, which in Fortran is 0 but C++ is -1
     //freqinfo: none
     Beam->epsMultiplier = RC(1.0);
-    Beam->Type = {'G', ' ', 'S', ' '};
+    memcpy(Beam->Type, "G S ", 4);
     //beaminfo: none
     
     if(Init_Inline){
@@ -102,15 +102,15 @@ void setup(int argc, char **argv,
         
         // *** Boundary information (type of boundary condition and, if a halfspace, then halfspace info)
         
-        ssp->AttenUnit     = {'W', '\0'};
+        memcpy(ssp->AttenUnit, "W", 2); //LP: not a typo--one character string assigned to two
         Bdry->Top.hs.bc    = 'V';
         Bdry->Top.hs.Depth = RC(0.0);
         Bdry->Bot.hs.Depth = RC(100.0);
-        Bdry->Bot.hs.Opt   = {'A', '_'};
+        memcpy(Bdry->Bot.hs.Opt, "A_", 2);
         Bdry->Bot.hs.bc    = 'A';
-        Bdry->Bot.hs.cp    = crci(RC(1.0e20), RC(1590.0), RC(0.5), freqinfo->freq0, freqinfo->freq0,
+        Bdry->Bot.hs.cP    = crci(RC(1.0e20), RC(1590.0), RC(0.5), freqinfo->freq0, freqinfo->freq0,
             ssp->AttenUnit, betaPowerLaw, fT); // compressional wave speed
-        Bdry->Bot.hs.cs    = crci(RC(1.0e20), RC(0.0)   , RC(0.0), freqinfo->freq0, freqinfo->freq0,
+        Bdry->Bot.hs.cS    = crci(RC(1.0e20), RC(0.0)   , RC(0.0), freqinfo->freq0, freqinfo->freq0,
             ssp->AttenUnit, betaPowerLaw, fT); // shear         wave speed
         Bdry->Bot.hs.rho   = RC(1.2);
         
@@ -133,7 +133,7 @@ void setup(int argc, char **argv,
         Pos->Rr = allocate<real>(Pos->NRr);
         
         Beam->RunType = 'C';
-        Beam->Type    = {'G', ' ', ' ', ' '};
+        memcpy(Beam->Type, "G   ", 4);
         Beam->deltas  = RC(0.0);
         Beam->Box.z   = RC(101.0);
         Beam->Box.r   = RC(5100.0); // meters

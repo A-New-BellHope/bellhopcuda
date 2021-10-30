@@ -6,11 +6,11 @@
  * 
  * bc: Boundary condition type
  */
-void ReadTopOpt(char (TopOpt&)[6], char &bc,
+void ReadTopOpt(char (&TopOpt)[6], char &bc,
     std::string FileRoot, LDIFile &ENVFile, std::ofstream &PRTFile,
     SSPStructure *ssp, AttenInfo *atten)
 {
-    TopOpt = "      "; // initialize to blanks
+    memcpy(TopOpt, "      ", 6); // initialize to blanks
     ENVFile.List(); ENVFile.Read(TopOpt, 6);
     PRTFile << "\n";
     
@@ -94,7 +94,7 @@ void ReadTopOpt(char (TopOpt&)[6], char &bc,
         PRTFile << "    Biological attenuation\n";
         ENVFile.List(); ENVFile.Read(atten->NBioLayers);
         PRTFile << "      Number of Bio Layers = " << atten->NBioLayers << "\n";
-        for(int32_t iBio = 0; iBio < NBioLayers; ++iBio){
+        for(int32_t iBio = 0; iBio < atten->NBioLayers; ++iBio){
             ENVFile.List(); ENVFile.Read(atten->bio[iBio].z1); ENVFile.Read(atten->bio[iBio].z2);
             ENVFile.Read(atten->bio[iBio].f0); ENVFile.Read(atten->bio[iBio].q); ENVFile.Read(atten->bio[iBio].a0);
             PRTFile << "      Top    of layer = " << atten->bio[iBio].z1 << " m\n";
@@ -192,12 +192,12 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     case 'I':
        PRTFile << "Irregular grid: Receivers at Rr[:] x Rz[:]\n";
        if(Pos->NRz != Pos->NRr) std::cout << "ReadEnvironment: Irregular grid option selected with NRz not equal to Nr\n";
-       PlotType = "irregular ";
+       memcpy(PlotType, "irregular ", 10);
        break;
     default:
        PRTFile << "Rectilinear receiver grid: Receivers at Rr[:] x Rz[:]\n";
        RunType[4] = 'R';
-       PlotType = "rectilin  ";
+       memcpy(PlotType, "rectilin  ", 10);
     }
 
     switch(RunType[5]){
@@ -214,16 +214,15 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
 }
 
 void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
-    std::string &Title, real &fT, FreqInfo *freqinfo, BdryType *Bdry,
-    SSPStructure *ssp, AttenInfo *atten, Position *Pos, AnglesStructure *Angles,
-    BeamStructure *Beam)
+    std::string &Title, real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam)
 {
-    const real c0 = RC(1500.0);
+    //const real c0 = RC(1500.0); //LP: unused
     int32_t NPts, NMedia;
     real ZMin, ZMax;
     vec2 x, gradc;
     cpx ccpx;
-    real crr, crz, czz, rho, Sigma, Depth;
+    real Sigma, Depth;
     char PlotType[10];
     
     PRTFile << "bellhopcuda\n\n";
@@ -243,8 +242,8 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     PRTFile << Title << "\n";
     
     ENVFile.List(); ENVFile.Read(freqinfo->freq0);
-    PRTFile << std::setiosflags(std::scientific) << std::setprecision(4);
-    PRTFile << " frequency = " << std::setw(11) << freqinfo->freq0 << " Hz\n");
+    PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);
+    PRTFile << " frequency = " << std::setw(11) << freqinfo->freq0 << " Hz\n";
     
     ENVFile.List(); ENVFile.Read(NMedia);
     PRTFile << "Dummy parameter NMedia = " << NMedia << "\n";
@@ -259,7 +258,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     
     if(Bdry->Top.hs.bc == 'A') PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
     
-    TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Top.hs, ENVFile, PRTFile);
+    TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Top.hs, ENVFile, PRTFile, atten);
     
     // ****** Read in ocean SSP data ******
     
@@ -269,9 +268,9 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     if(Bdry->Top.hs.Opt[0] == 'A'){
         PRTFile << "Analytic SSP option\n";
         // following is hokey, should be set in Analytic routine
-        ssp->Npts = 2;
-        ssp->z.x = RC(0.0);
-        ssp->z.y = Bdry->Bot.hs.Depth;
+        ssp->NPts = 2;
+        ssp->z[0] = RC(0.0);
+        ssp->z[1] = Bdry->Bot.hs.Depth;
     }else{
         x = vec2(RC(0.0), Bdry->Bot.hs.Depth);
         InitializeSSP(SSP_CALL_INIT_ARGS);
@@ -281,7 +280,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     // bottom depth should perhaps be set the same way?
     
     // *** Bottom BC ***
-    Bdry->Bot.hs.Opt = "  "; // initialize to blanks
+    memcpy(Bdry->Bot.hs.Opt, "  ", 2); // initialize to blanks
     ENVFile.List(); ENVFile.Read(Bdry->Bot.hs.Opt, 6); ENVFile.Read(Sigma);
     PRTFile << "\n RMS roughness = " << std::setw(10) << std::setprecision(3) << Sigma << "\n";
     
@@ -299,7 +298,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     }
     
     Bdry->Bot.hs.bc = Bdry->Bot.hs.Opt[0];
-    TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Bot.hs, ENVFile, PRTFile);
+    TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Bot.hs, ENVFile, PRTFile, atten);
     
     // *** source and receiver locations ***
     
@@ -313,10 +312,10 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     //     ENVFile, PRTFile);
     ReadSzRz(ZMin, ZMax, ENVFile, PRTFile, Pos);
     ReadRcvrRanges(ENVFile, PRTFile, Pos);
-    ReadfreqVec(Bdry->Top.hs.Opt[5], ENVFile, PRTFile, freqinfo->freq0);
+    ReadfreqVec(Bdry->Top.hs.Opt[5], ENVFile, PRTFile, freqinfo);
     ReadRunType(Beam->RunType, PlotType, ENVFile, PRTFile, Pos);
     
-    Depth = Zmax - Zmin; // water depth
+    Depth = ZMax - ZMin; // water depth
     ReadRayElevationAngles(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, Beam->RunType, 
         ENVFile, PRTFile, Angles, Pos);
     

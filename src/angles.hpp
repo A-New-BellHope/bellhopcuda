@@ -9,8 +9,12 @@ struct AnglesStructure {
     real *alpha, *beta;
 };
 
+/**
+ * LP: RunType was originally length 6 in the FORTRAN, but Beam->RunType was
+ * being passed to it, which is definitely length 7.
+ */
 inline void ReadRayElevationAngles(real freq, real Depth,
-    const char (&TopOpt)[6], const char (&RunType)[6],
+    const char (&TopOpt)[6], const char (&RunType)[7],
     LDIFile &ENVFile, std::ofstream &PRTFile,
     AnglesStructure *Angles, Position *Pos)
 {
@@ -54,7 +58,7 @@ inline void ReadRayElevationAngles(real freq, real Depth,
     if(Angles->iSingle_alpha > 0) PRTFile << "Trace only beam number " << Angles->iSingle_alpha << "\n";
     PRTFile << "Beam take-off angles (degrees)\n";
     
-    EchoVector(Angles->alpha, Angles->Nalpha);
+    EchoVector(Angles->alpha, Angles->Nalpha, PRTFile);
     
     if(Angles->Nalpha > 1 && Angles->alpha[Angles->Nalpha-1] == Angles->alpha[0]){
         std::cout << "ReadRayElevationAngles: First and last beam take-off angle are identical\n";
@@ -62,7 +66,7 @@ inline void ReadRayElevationAngles(real freq, real Depth,
     }
     
     if(TopOpt[5] == 'I'){
-        if(Angles->iSingleAlpha < 1 || Angles->iSingle_alpha > Angles->Nalpha){
+        if(Angles->iSingle_alpha < 1 || Angles->iSingle_alpha > Angles->Nalpha){
             std::cout << "'ReadRayElevationAngles: Selected beam, iSingl not in [1, Angles->Nalpha]\n";
             std::abort();
         }

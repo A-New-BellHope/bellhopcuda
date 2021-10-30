@@ -29,7 +29,7 @@ public:
     }
     
     #define LDIFILE_READPREFIX() \
-        if(f.eof()) Error("End of file"); \
+        if(f.eof() && !isafterslash) Error("End of file"); \
         std::string s = GetNextItem(); \
         if(s == nullitem) return; \
         do{} while(false)
@@ -52,6 +52,16 @@ public:
         LDIFILE_READPREFIX();
         if(!isReal(s)) Error("String " + s + " is not a real number");
         v = strtod(s.c_str(), nullptr);
+    }
+    void Read(vec2 &v){
+        LDIFILE_READPREFIX();
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v.x = strtod(s.c_str(), nullptr);
+        if(f.eof() && !isafterslash) Error("End of file");
+        s = GetNextItem();
+        if(s == nullitem) Error("Only specified part of a vec2!");
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v.y = strtod(s.c_str(), nullptr);
     }
     void Read(cpx &v){
         LDIFILE_READPREFIX();

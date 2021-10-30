@@ -8,6 +8,5 @@
 #include "beams.hpp"
 
 void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
-    std::string &Title, real &fT, FreqInfo *freqinfo, BdryType *Bdry,
-    SSPStructure *ssp, AttenInfo *atten, Position *Pos, AnglesStructure *Angles,
-    BeamStructure *Beam);
+    std::string &Title, real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam);

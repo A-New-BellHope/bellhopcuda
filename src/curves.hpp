@@ -335,7 +335,7 @@ HOST_DEVICE inline void pchip(const real *x, const cpx *y, int32_t n,
         //
         
         for(ix=0; ix<n-1; ++ix){
-            h = x[ix+1] - x[ix];
+            real h = x[ix+1] - x[ix];
             
             f1 = PolyCoef1[ix];
             f2 = PolyCoef1[ix+1];

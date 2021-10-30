@@ -27,7 +27,7 @@ struct ray2DPt {
  */
 HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     int32_t iSegz0, int32_t iSegr0, const vec2 &Topx, const vec2 &Topn,
-    const vec2 &Botx, const vec2 &Botn, 
+    const vec2 &Botx, const vec2 &Botn, const vec2 &rTopSeg, const vec2 &rBotSeg,
     const BeamStructure *Beam, const SSPStructure *ssp, 
     real &h, uint32_t &iSmallStepCtr)
 {
@@ -99,7 +99,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
  */
 HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2, 
     const vec2 &Topx, const vec2 &Topn, const vec2 &Botx, const vec2 &Botn,
-    const real &freq, 
+    const vec2 &rTopSeg, const vec2 &rBotSeg, const real &freq,
     const BeamStructure *Beam, const SSPStructure *ssp,
     int32_t &iSegz, int32_t &iSegr, uint32_t &iSmallStepCtr)
 {
@@ -108,7 +108,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
     vec2 gradc0, gradc1, gradc2, urayt0, urayt1, ray2n, gradcjump;
     cpx ccpx0, ccpx1, ccpx2;
     real crr0, crz0, czz0, csq0, cnn0_csq0;
-    real crr1, crz1, czz1, csq1, cnn0_csq1;
+    real crr1, crz1, czz1, csq1, cnn1_csq1;
     real crr2, crz2, czz2;
     real h, halfh, hw0, hw1, rm, rn, cnjump, csjump, w0, w1, rho;
     
@@ -129,7 +129,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
     urayt0 = ccpx0.real() * ray0.t; // unit tangent
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, 
+    ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
         Beam, ssp, h, iSmallStepCtr);
     halfh = RC(0.5) * h; // first step of the modified polygon method is a half step
     
@@ -152,7 +152,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
     urayt1 = ccpx1.real() * ray1.t; // unit tangent
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0.x, urayt1, iSegz0, iSegr0, Topx, Topn, Botx, Botn, 
+    ReduceStep2D(ray0.x, urayt1, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
         Beam, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
