@@ -1,16 +1,14 @@
 #pragma once
 #include "common.hpp"
+#include "ldio.hpp"
 #include "curves.hpp"
 #include "attenuation.hpp"
+#include "sourcereceiver.hpp"
 
 constexpr int32_t MaxN = 100000;
 constexpr int32_t MaxSSP = MaxN + 1;
 
 constexpr real betaPowerLaw = RC(1.0);
-
-struct SSPVars {
-    int32_t iSegr = 1, iSegx = 1, iSegy = 1, iSegz = 1;
-};
 
 struct rxyz_vector {
     real *r, *x, *y, *z;
@@ -51,9 +49,10 @@ struct BdryType {
     real &crr, real &crz, real &czz, real &rho, real freq, \
     const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr
 #define SSP_CALL_ARGS x, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
-#define SSP_INIT_ARGS vec2 x, real freq, SSPStructure *ssp, LDIFile &ENVFile, \
-    std::ofstream &PRTFile, const AttenInfo *atten, std::string FileRoot
-#define SSP_CALL_INIT_ARGS x, freqinfo->freq0, ssp, ENVFile, PRTFile, atten, FileRoot
+#define SSP_INIT_ARGS vec2 x, const real &fT, \
+    LDIFile &ENVFile, std::ofstream &PRTFile, std::string FileRoot, \
+    SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo
+#define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo
 
 HOST_DEVICE inline void UpdateDepthSegment(const vec2 &x,
     const SSPStructure *ssp, int32_t &iSegz)
@@ -257,7 +256,7 @@ HOST_DEVICE inline void Analytic(SSP_FN_ARGS)
 {
     real c0, cr, cz, DxtDz, xt;
     
-    iSegz = 1;
+    iSegz = 0;
     c0 = RC(1500.0);
     rho = RC(1.0);
     

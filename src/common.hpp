@@ -58,6 +58,7 @@ using real = double;
 #endif
 
 using cpx = STD::complex<real>;
+constexpr cpx J = cpx(RC(0.0), RC(1.0));
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>

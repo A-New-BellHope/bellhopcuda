@@ -30,7 +30,7 @@ struct AttenInfo {
  *     Returns
  *        alpha = volume attenuation in dB/km
  */
-real Franc_Garr(real f, const AttenInfo *atten){
+inline real Franc_Garr(real f, const AttenInfo *atten){
     real c, a1, a2, a3, p1, p2, p3, f1, f2;
     
     c = RC(1412.0) + RC(3.21) * atten->t + RC(1.19) * atten->Salinity + RC(0.0167) * atten->z_bar;
@@ -83,7 +83,7 @@ real Franc_Garr(real f, const AttenInfo *atten){
  * c     real      part of sound speed
  * alpha imaginary part of sound speed
  */
-cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&AttenUnit)[2],
+inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&AttenUnit)[2],
     real beta, real fT, const AttenInfo *atten, std::ofstream &PRTFile)
 {
     real f2, omega, alphaT, Thorp, a, fg;

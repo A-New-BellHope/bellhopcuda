@@ -54,6 +54,7 @@ HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
     cpx kx, kz, kzP, kzS, kzP2, kzS2, mu, f, g, y2, y4, Refl; // for tabulated reflection coef.
     cpx ch, a, b, d, sb, delta, ddelta; // for beam shift
     ReflectionCoef RInt;
+    real omega = RC(2.0) * M_PI * freq;
     
     is  = is + 1;
     is1 = is + 1;
@@ -121,7 +122,7 @@ HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
     }else if(hs.bc == 'A' || hs.bc == 'G'){ // half-space
         kx = omega * Tg; // wavenumber in direction parallel      to bathymetry
         kz = omega * Th; // wavenumber in direction perpendicular to bathymetry (in ocean)
-        real kx2 = SQ(kx);
+        cpx kx2 = SQ(kx);
         
         // notation below is a bit mis-leading
         // kzS, kzP is really what I called gamma in other codes, and differs by a factor of +/- i
@@ -147,7 +148,7 @@ HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
             g = hs.rho;
         }
         
-        Refl = -cpx(rho * f, -(kz * g)) / cpx(rho * f, kz * g); // complex reflection coef.
+        Refl = -(rho * f - J * kz * g) / (rho * f + J * kz * g); // complex reflection coef.
         
         if(STD::abs(Refl) < RC(1.0e-5)){ // kill a ray that has lost its energy in reflection
             ray2D[is1].Amp   = RC(0.0);
@@ -185,7 +186,7 @@ HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
                 if(si != RC(0.0)){
                     delta = a * co / si / (ck * sb * d); // Do we need an abs() on this???
                 }else{
-                    delta = 0.0
+                    delta = RC(0.0);
                 }
                 
                 pdelta = delta.real() / (ray2D[is].c / co);
@@ -197,7 +198,7 @@ HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
                 // ddelta = -a / (ck*sb*d) - a*cco / ssi / (ck*sb*d) + a*cco / (ck*b*sb*d)
                 //     -a*co / si / (ck*sb*d*d) * (RC(2.0)* SQ(hs.rho) *si*co-RC(2.0)*co*si);
                 // Here is a version with things factored better:
-                real cksbd = ck * sb * d;
+                cpx cksbd = ck * sb * d;
                 ddelta = a * (cco / (cksbd * b)
                     - (RC(1.0) + (cco / ssi)) / cksbd
                     - RC(2.0) * SQ(co) * (SQ(hs.rho) - RC(1.0)) / (cksbd * d) );
@@ -212,7 +213,7 @@ HOST_DEVICE inline void Reflect2D(int32_t &is, const HSInfo &hs, bool isTop,
                 ray2D[is1].x.x = ray2D[is1].x.x + delta.real() * STD::cos(theta_bot); // range displacement
                 ray2D[is1].x.y = ray2D[is1].x.y + delta.real() * STD::sin(theta_bot); // depth displacement
                 ray2D[is1].tau = ray2D[is1].tau + pdelta; // phase change
-                ray2D[is1].q   = ray2D[is1].q + sddelta * rddelta * si * c * ray2D[is].p; // beam-width change
+                ray2D[is1].q   = ray2D[is1].q + sddelta * rddelta * si * ccpx.real() * ray2D[is].p; // beam-width change
             }
         }
     }else{
@@ -248,8 +249,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
 {
     int32_t is, is1; // index for a step along the ray
     cpx ccpx;
-    vec2 gradc, dEndTop, dEndBot, TopnInt, BotnInt, ToptInt, BottInt;
-    real crr, crz, czz, rho;
+    vec2 dEndTop, dEndBot, TopnInt, BotnInt, ToptInt, BottInt;
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot; // Distances from ray beginning, end to top and bottom
     real sss;
     
@@ -259,26 +259,26 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     // Initial conditions
     
     int32_t iSmallStepCtr = 0, iSegz = 0, iSegr = 0;
-    EvaluateSSP(xs, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, iSegz, iSegr);
-    ray2D[0] = {
-        .c         = ccpx.real(),
+    EvaluateSSPCOnly(xs, ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
+    ray2D[0] = ray2DPt{
+        .NumTopBnc = 0,
+        .NumBotBnc = 0,
         .x         = xs,
         .t         = vec2(STD::cos(alpha), STD::sin(alpha)) / ccpx.real(),
         .p         = vec2(RC(1.0), RC(0.0)),
         .q         = vec2(RC(0.0), RC(1.0)),
-        .tau       = cpx(RC(0.0), RC(0.0)),
+        .c         = ccpx.real(),
         .Amp       = Amp0,
         .Phase     = RC(0.0),
-        .NumTopBnc = 0,
-        .NumBotBnc = 0
+        .tau       = cpx(RC(0.0), RC(0.0)),
     };
     
     // second component of qv is not used in geometric beam tracing
     // set I.C. to 0 in hopes of saving run time
     if(Beam->RunType[1] == 'G') ray2D[0].q = vec2(RC(0.0), RC(0.0));
     
-    GetTopSeg(xs.x, IsegTop, rTopSeg); // identify the top    segment above the source
-    GetBotSeg(xs.x, IsegBot, rBotSeg); // identify the bottom segment below the source
+    GetTopSeg(xs.x, IsegTop, rTopSeg, bdinfo); // identify the top    segment above the source
+    GetBotSeg(xs.x, IsegBot, rBotSeg, bdinfo); // identify the bottom segment below the source
     
     // convert range-dependent geoacoustic parameters from user to program units
     // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and rho
@@ -310,13 +310,13 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
         
         // New altimetry segment?
         if(ray2D[is1].x.x < rTopSeg.x || ray2D[is1].x.x > rTopSeg.y){
-            GetTopSeg(ray2D[is1].x.x, IsegTop, rTopseg);
+            GetTopSeg(ray2D[is1].x.x, IsegTop, rTopSeg, bdinfo);
             if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs); // grab the geoacoustic info for the new segment
         }
         
         // New bathymetry segment?
         if(ray2D[is1].x.x < rBotSeg.x || ray2D[is1].x.x > rBotSeg.y){
-            GetBotSeg(ray2D[is1].x.x, IsegBot, rBotseg);
+            GetBotSeg(ray2D[is1].x.x, IsegBot, rBotSeg, bdinfo);
             if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
         }
         
@@ -341,8 +341,8 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
                 ToptInt = bdinfo->Top[IsegTop].t;
             }
             
-            Reflect2D(is, Bdry.Top.hs, true, ToptInt, TopnInt, bdinfo->Top[IsegTop].Kappa, 
-                freqinfo->freq0, refl->RTop, refl->NTopPTS, ray2D, Beam, ssp, iSegz, iSegr);
+            Reflect2D(is, Bdry.Top.hs, true, ToptInt, TopnInt, bdinfo->Top[IsegTop].kappa, 
+                freqinfo->freq0, refl->RTop, refl->NTopPts, ray2D, Beam, ssp, iSegz, iSegr);
             ++ray2D[is+1].NumTopBnc;
             
             Distances2D(ray2D[is+1].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
@@ -359,8 +359,8 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
                 BottInt = bdinfo->Bot[IsegBot].t;
             }
             
-            Reflect2D(is, Bdry.Bot.hs, false, BottInt, BotnInt, bdinfo->Bot[IsegBot].Kappa, 
-                freqinfo->freq0, refl->RBot, refl->NBotPTS, ray2D, Beam, ssp, iSegz, iSegr);
+            Reflect2D(is, Bdry.Bot.hs, false, BottInt, BotnInt, bdinfo->Bot[IsegBot].kappa, 
+                freqinfo->freq0, refl->RBot, refl->NBotPts, ray2D, Beam, ssp, iSegz, iSegr);
             ++ray2D[is+1].NumBotBnc;
             
             Distances2D(ray2D[is+1].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
@@ -370,11 +370,11 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
         
         // Has the ray left the box, lost its energy, escaped the boundaries, or exceeded storage limit?
         if( STD::abs(ray2D[is+1].x.x) > Beam->Box.r ||
-            STD::abs(ray2d[is+1].x.y) > Beam->Box.z ||
-            ray2d[is+1].Amp < RC(0.005) ||
+            STD::abs(ray2D[is+1].x.y) > Beam->Box.z ||
+            ray2D[is+1].Amp < RC(0.005) ||
             (DistBegTop < RC(0.0) && DistEndTop < RC(0.0)) ||
             (DistBegBot < RC(0.0) && DistEndBot < RC(0.0)) 
-            // ray2d[is+1].t.x < 0 // this last test kills off a backward traveling ray
+            // ray2D[is+1].t.x < 0 // this last test kills off a backward traveling ray
         ){
             Nsteps = is + 1;
             break;
@@ -417,14 +417,18 @@ inline void CoreSingleBeam(int32_t is, int32_t ialpha, ray2DPt *ray2D,
 {
     float omega = RC(2.0) * M_PI * freqinfo->freq0;
     
-    vec2 xs = vec2(RC(0.0), Pos->sz[is]);
+    vec2 xs = vec2(RC(0.0), Pos->Sz[is]);
     
     cpx ccpx;
-    EvaluateSSP(xs, ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
-    real RadMax = RC(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
+    int32_t iSegz = 0, iSegr = 0;
+    EvaluateSSPCOnly(xs, ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
+    
+    //LP: RadMax changed to RC(50.0) * ccpx.real() / freqinfo->freq0 before both
+    //of the times it's used, so this initialization is ineffective.
+    //real RadMax = RC(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
     
     // Are there enough beams?
-    real DalphaOpt = STD::sqrt(ccpx.real() / (RC(6.0) * freqinfo->freq0 * Pos->Rr[Pos-NRr-1]);
+    real DalphaOpt = STD::sqrt(ccpx.real() / (RC(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
     int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
     
     if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt){

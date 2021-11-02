@@ -29,7 +29,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     int32_t iSegz0, int32_t iSegr0, const vec2 &Topx, const vec2 &Topn,
     const vec2 &Botx, const vec2 &Botn, const vec2 &rTopSeg, const vec2 &rBotSeg,
     const BeamStructure *Beam, const SSPStructure *ssp, 
-    real &h, uint32_t &iSmallStepCtr)
+    real &h, int32_t &iSmallStepCtr)
 {
     vec2 x, d, d0, rSeg;
     real h1, h2, h3, h4;
@@ -101,7 +101,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
     const vec2 &Topx, const vec2 &Topn, const vec2 &Botx, const vec2 &Botn,
     const vec2 &rTopSeg, const vec2 &rBotSeg, const real &freq,
     const BeamStructure *Beam, const SSPStructure *ssp,
-    int32_t &iSegz, int32_t &iSegr, uint32_t &iSmallStepCtr)
+    int32_t &iSegz, int32_t &iSegr, int32_t &iSmallStepCtr)
 {
     ray2DPt ray1;
     int32_t iSegz0, iSegr0;

@@ -1,10 +1,8 @@
 #include "ssp.hpp"
-#include "attenuation.hpp"
-#include "curves.hpp"
 
-#define READ_SSP_ARGS real Depth, real freq, SSPStructure *ssp, \
+#define READ_SSP_ARGS real Depth, real freq, const real &fT, SSPStructure *ssp, \
     LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten
-#define CALL_READ_SSP_ARGS Depth, freq, ssp, ENVFile, PRTFile, atten
+#define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten
 
 /**
  * reads the SSP data from the environmental file and convert to Nepers/m
@@ -43,7 +41,7 @@ void ReadSSP(READ_SSP_ARGS)
         // Did we read the last point?
         if(std::abs(ssp->z[iz] - Depth) < RC(100.0) * REAL_EPSILON){
             ssp->Nz = ssp->NPts;
-            if(ssp->Npts == 1){
+            if(ssp->NPts == 1){
                 std::cout << "ReadSSP: The SSP must have at least 2 points\n";
                 std::abort();
             }
@@ -64,10 +62,10 @@ void Initn2Linear(SSP_INIT_ARGS)
     real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     
-    for(int32_t i=0; i<ssp->Npts; ++i) ssp->n2[i] = RC(1.0) / SQ(ssp->c[i]);
+    for(int32_t i=0; i<ssp->NPts; ++i) ssp->n2[i] = RC(1.0) / SQ(ssp->c[i]);
     
     // compute gradient, n2z
-    for(int32_t iz=1; iz<ssp->Npts; ++iz){
+    for(int32_t iz=1; iz<ssp->NPts; ++iz){
         ssp->n2z[iz-1] = (ssp->n2[iz] - ssp->n2[iz-1]) /
                          (ssp->z [iz] - ssp->z [iz-1]);
     }
@@ -149,7 +147,7 @@ void InitQuad(SSP_INIT_ARGS)
         for(int32_t iz2=1; iz2<ssp->NPts; ++iz2){
             real delta_z = ssp->z[iz2] - ssp->z[iz2-1];
             ssp->czMat[(iz2-1)*ssp->Nr + iSegt] = 
-                (ssp->cMat[iz2*ssp->Nr+iSegt] - ssp->cMat[(iz2-1)*ssp->Nr+isegT]) / delta_z;
+                (ssp->cMat[iz2*ssp->Nr+iSegt] - ssp->cMat[(iz2-1)*ssp->Nr+iSegt]) / delta_z;
         }
     }
     

@@ -1,8 +1,10 @@
 #include "setup.hpp"
 #include "trace.hpp"
+#include "output.hpp"
 
 #include <atomic>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 std::ofstream PRTFile, RAYFile, ARRFile;
@@ -28,9 +30,9 @@ void RayWorker()
     while(true){
         int32_t ray = rayID++;
         int32_t is, ialpha;
-        if(Angles->iSingleAlpha >= 0){
+        if(Angles->iSingle_alpha >= 0){
             is = ray;
-            ialpha = Angles->iSingleAlpha;
+            ialpha = Angles->iSingle_alpha;
         }else{
             is = ray / Angles->Nalpha;
             ialpha = ray % Angles->Nalpha;
@@ -63,12 +65,12 @@ int main(int argc, char **argv)
     
     setup(argc, argv, PRTFile, RAYFile, ARRFile, Title, fT,
         Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);
-    core_setup(PRTFile, Bdry, bdinfo, atten, Angles, freqinfo, Beam);
+    core_setup(PRTFile, fT, Bdry, bdinfo, atten, Angles, freqinfo, Beam);
     
     rayID = 0;
     
     std::vector<std::thread> threads;
-    int cores = std::max(std::thread::hardware_concurrency(), 1);
-    for(int i=0; i<cores; ++i) threads.push_back(std::thread(RayWorker));
-    for(int i=0; i<cores; ++i) threads[i].join();
+    uint32_t cores = std::max(std::thread::hardware_concurrency(), 1u);
+    for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(RayWorker));
+    for(uint32_t i=0; i<cores; ++i) threads[i].join();
 }

@@ -1,4 +1,6 @@
 #include "setup.hpp"
+#include "readenv.hpp"
+#include "output.hpp"
 
 constexpr bool Init_Inline = false;
 
@@ -109,9 +111,9 @@ void setup(int argc, char **argv,
         memcpy(Bdry->Bot.hs.Opt, "A_", 2);
         Bdry->Bot.hs.bc    = 'A';
         Bdry->Bot.hs.cP    = crci(RC(1.0e20), RC(1590.0), RC(0.5), freqinfo->freq0, freqinfo->freq0,
-            ssp->AttenUnit, betaPowerLaw, fT); // compressional wave speed
+            ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile); // compressional wave speed
         Bdry->Bot.hs.cS    = crci(RC(1.0e20), RC(0.0)   , RC(0.0), freqinfo->freq0, freqinfo->freq0,
-            ssp->AttenUnit, betaPowerLaw, fT); // shear         wave speed
+            ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile); // shear         wave speed
         Bdry->Bot.hs.rho   = RC(1.2);
         
         // *** sound speed in the water column ***
@@ -128,11 +130,11 @@ void setup(int argc, char **argv,
         Pos->NRz = 100;
         Pos->NRr = 500;
         
-        Pos->sz = allocate<real>(Pos->NSz); Pos->ws = allocate<real>(Pos->NSz); Pos->isz = allocate<int32_t>(Pos->NSz);
-        Pos->rz = allocate<real>(Pos->NRz); Pos->wr = allocate<real>(Pos->NRz); Pos->irz = allocate<int32_t>(Pos->NRz);
+        Pos->Sz = allocate<real>(Pos->NSz); Pos->ws = allocate<real>(Pos->NSz); Pos->iSz = allocate<int32_t>(Pos->NSz);
+        Pos->Rz = allocate<real>(Pos->NRz); Pos->wr = allocate<real>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
         Pos->Rr = allocate<real>(Pos->NRr);
         
-        Beam->RunType = 'C';
+        memcpy(Beam->RunType, "C      ", 7);
         memcpy(Beam->Type, "G   ", 4);
         Beam->deltas  = RC(0.0);
         Beam->Box.z   = RC(101.0);
@@ -148,7 +150,7 @@ void setup(int argc, char **argv,
         bdinfo->Top[0].x = vec2(-BdryInfinity(), RC(0.0));
         bdinfo->Top[1].x = vec2( BdryInfinity(), RC(0.0));
         
-        ComputeBdryTangentNormal(binfo->Top, true, binfo);
+        ComputeBdryTangentNormal(bdinfo->Top, true, bdinfo);
         
         // *** bathymetry ***
         
@@ -156,7 +158,7 @@ void setup(int argc, char **argv,
         bdinfo->Bot[0].x = vec2(-BdryInfinity(), RC(5000.0));
         bdinfo->Bot[1].x = vec2( BdryInfinity(), RC(5000.0));
         
-        ComputeBdryTangentNormal(binfo->Bot, false, binfo);
+        ComputeBdryTangentNormal(bdinfo->Bot, false, bdinfo);
         
         refl->RBot = allocate<ReflectionCoef>(1);
         refl->RTop = allocate<ReflectionCoef>(1);
@@ -189,7 +191,7 @@ void setup(int argc, char **argv,
         RAYFile, ARRFile);
 }
 
-void core_setup(std::ofstream &PRTFile, 
+void core_setup(std::ofstream &PRTFile, const real &fT,
     const BdryType *Bdry, const BdryInfo *bdinfo, const AttenInfo *atten, 
     AnglesStructure *Angles, const FreqInfo *freqinfo, BeamStructure *Beam/*, 
     InfluenceInfo *inflinfo, ArrivalsInfo *arrinfo*/)
@@ -202,7 +204,7 @@ void core_setup(std::ofstream &PRTFile,
     for(int32_t i=0; i<Angles->Nalpha; ++i) Angles->alpha[i] *= DegRad; // convert to radians
     Angles->Dalpha = RC(0.0);
     if(Angles->Nalpha != 1)
-        Angles->Dalpha = (Angles->alpha[Angles-Nalpha-1] - Angles->alpha[0]) / (Angles->Nalpha - 1);
+        Angles->Dalpha = (Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / (Angles->Nalpha-1);
     
     // convert range-dependent geoacoustic parameters from user to program units
     if(bdinfo->atiType[1] == 'L'){
@@ -227,13 +229,13 @@ void core_setup(std::ofstream &PRTFile,
         }
     }
     
+    /*
     if(Beam->RunType[4] == 'I'){
         inflinfo->NRz_per_range = 1; // irregular grid
     }else{
         inflinfo->NRz_per_range = Pos->NRz; // rectilinear grid
     }
     
-    /*
     // for a TL calculation, allocate space for the pressure matrix
     // TODO need a separate one for each source coord?
     switch(Beam->RunType[0]){

@@ -34,7 +34,9 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
     iLeft = 0;
     iRight = NPts - 1;
     
-    thetaIntr = RInt.theta.real(); // This should be unnecessary? probably used when I was doing complex angles
+    // LP: This was originally the FORTRAN version of RInt.theta.real(), but
+    // theta is definitely already a real (originally double).
+    thetaIntr = RInt.theta; // This should be unnecessary? probably used when I was doing complex angles
     
     // Three cases: ThetaInt left, in, or right of tabulated interval
     

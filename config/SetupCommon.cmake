@@ -9,11 +9,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra \
 -Wno-sign-compare -Wno-unused-parameter -Wno-class-memaccess \
 ")
 
+find_package(Threads)
+
 function(bellhop_setup_target target_name)
     if(USE_FLOAT)
         target_compile_definitions(${target_name} PUBLIC USE_FLOATS=1)
     endif()
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
+    target_link_libraries(${target_name} Threads::Threads)
 endfunction()
 
 function(prepend OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend to
