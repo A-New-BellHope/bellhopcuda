@@ -17,9 +17,9 @@ void setup(int argc, char **argv,
         std::abort();
     }
     std::string FileRoot(argv[1]);
-    PRTFile.open(WithExtension(FileRoot, ".prt"));
+    PRTFile.open(FileRoot + ".prt");
     if(!PRTFile.good()){
-        std::cout << "Could not open print file: " << WithExtension(FileRoot, ".prt") << "\n";
+        std::cout << "Could not open print file: " << FileRoot << ".prt\n";
         std::abort();
     }
     
@@ -41,7 +41,7 @@ void setup(int argc, char **argv,
     memset(refl, 0xFE, sizeof(ReflectionInfo));
     memset(ssp, 0xFE, sizeof(SSPStructure));
     memset(atten, 0xFE, sizeof(AttenInfo));
-    memset(Pos, 0xFE, sizeof(AttenInfo));
+    memset(Pos, 0xFE, sizeof(Position));
     memset(Angles, 0xFE, sizeof(AnglesStructure));
     memset(freqinfo, 0xFE, sizeof(FreqInfo));
     memset(Beam, 0xFE, sizeof(BeamStructure));

@@ -35,18 +35,18 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         //LP: This just checks for existence, moved actual open for reading
         //to InitQuad.
         std::ifstream SSPFile;
-        SSPFile.open(WithExtension(FileRoot, ".ssp"));
+        SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
-            PRTFile << "SSPFile = " << WithExtension(FileRoot, ".ssp") << "\n";
+            PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
             std::cout << "bellhopcuda - ReadEnvironment: Unable to open the SSP file\n";
         }
         } break;
     /*case 'H':{
         PRTFile << "    Hexahedral approximation to SSP\n";
         std::ifstream SSPFile;
-        SSPFile.open(WithExtension(FileRoot, ".ssp"));
+        SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
-            PRTFile << "SSPFile = " << WithExtension(FileRoot, ".ssp") << "\n";
+            PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
             std::cout << "bellhopcuda - ReadEnvironment: Unable to open the SSP file\n";
         }
         } break;*/
@@ -228,9 +228,9 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     PRTFile << "bellhopcuda\n\n";
     
     // Open the environmental file
-    LDIFile ENVFile(WithExtension(FileRoot, ".env"));
+    LDIFile ENVFile(FileRoot + ".env");
     if(!ENVFile.Good()){
-        PRTFile << "ENVFile = " << WithExtension(FileRoot, ".env") << "\n";
+        PRTFile << "ENVFile = " << FileRoot << ".env\n";
         std::cout << "bellhopcuda - ReadEnvironment: Unable to open the environmental file\n";
         return;
     }
@@ -263,7 +263,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     // ****** Read in ocean SSP data ******
     
     ENVFile.List(); ENVFile.Read(NPts); ENVFile.Read(Sigma); ENVFile.Read(Bdry->Bot.hs.Depth);
-    PRTFile << "\n  Depth = " << std::setw(10) << std::setprecision(2) << Bdry->Bot.hs.Depth << "  m )\n";
+    PRTFile << "\n  Depth = " << std::setw(10) << std::setprecision(2) << Bdry->Bot.hs.Depth << "  m\n";
     
     if(Bdry->Top.hs.Opt[0] == 'A'){
         PRTFile << "Analytic SSP option\n";

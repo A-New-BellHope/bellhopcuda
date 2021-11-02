@@ -113,7 +113,7 @@ void InitQuad(SSP_INIT_ARGS)
     PRTFile << "__________________________________________________________________________\n\n";
     PRTFile << "Using range-dependent sound speed\n";
     
-    LDIFile SSPFile(WithExtension(FileRoot, ".ssp"));
+    LDIFile SSPFile(FileRoot + ".ssp");
     SSPFile.List(); SSPFile.Read(ssp->Nr);
     PRTFile << "Number of SSP ranges = " << ssp->Nr << "\n";
     

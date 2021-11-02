@@ -117,12 +117,6 @@ inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
 //String manipulation
 ////////////////////////////////////////////////////////////////////////////////
 
-inline std::string WithExtension(const std::string &basename, 
-	const std::string &newextension)
-{
-	return basename.substr(0, basename.find_last_of(".")) + newextension;
-}
-
 //Courtesy Evan Teran, https://stackoverflow.com/a/217605
 // trim from start (in place)
 static inline void ltrim(std::string &s) {

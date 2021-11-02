@@ -8,3 +8,4 @@
 bin/
 build/
 build_windows/
+temp/

@@ -95,30 +95,45 @@ public:
 private:
     void Error(std::string msg){
         std::cout << _filename << ":" << line << ": " << msg << "\n";
+        std::cout << "Last token is: \"" << lastitem << "\"\n";
         if(_abort_on_error) std::abort();
     }
-    void GotSlash(){
-        isafterslash = true;
+    void IgnoreRestOfLine(){
         while(!f.eof() && f.peek() != '\n') f.get();
         if(!f.eof()) f.get(); //get the \n
         ++line;
     }
+    void GotSlash(){
+        isafterslash = true;
+        IgnoreRestOfLine();
+    }
     std::string GetNextItem(){
         if(lastitemcount > 0){
             --lastitemcount;
+            //std::cout << "-- lastitemcount, returning " << lastitem << "\n";
             return lastitem;
         }
         if(isafterslash){
+            //std::cout << "-- isafterslash, returning null\n";
             return nullitem;
         }
         //Whitespace before start of item
-        while(!f.eof() && isspace(f.peek())){
-            int c = f.get();
-            if(c == '\n') ++line;
+        while(!f.eof()){
+            int c = f.peek();
+            if(c == '!'){
+                IgnoreRestOfLine();
+                continue;
+            }else if(isspace(c)){
+                if(c == '\n') ++line;
+            }else{
+                break;
+            }
+            f.get();
         }
         if(f.eof()) return nullitem;
         if(f.peek() == ','){
             f.get();
+            //std::cout << "-- empty comma, returning null\n";
             return nullitem;
         }
         //Main item
@@ -126,65 +141,87 @@ private:
         int quotemode = 0;
         while(!f.eof()){
             int c = f.get();
-            if(c == '"'){
-                if(!quotemode){
-                    quotemode = 1;
-                }else if(quotemode == 1){
+            if(quotemode == 1){
+                if(c == '"'){
                     quotemode = -1;
                     break;
-                }else{
-                    lastitem += c; //add opposite quote to string
-                }
-            }else if(c == '\''){
-                if(!quotemode){
-                    quotemode = 2;
-                }else if(quotemode == 2){
-                    quotemode = -1;
+                }else if(c == '\n'){
+                    ++line;
                     break;
                 }else{
-                    lastitem += c; //add opposite quote to string
-                }
-            }else if(c == '('){
-                if(!quotemode){
-                    quotemode = 3;
-                }
-                lastitem += c;
-            }else if(c == ')'){
-                if(quotemode == 3){
-                    quotemode = -1;
                     lastitem += c;
-                    break;
                 }
-                lastitem += c;
-            }else if(isspace(c)){
-                if(c == '\n') ++line;
-                break;
-            }else if(c == ',' && quotemode != 3){
-                break;
-            }else if(c == '*'){
-                if(lastitemcount != 0) Error("Can't have nested repetitions");
-                if(!isInt(lastitem, false)) Error("Invalid repetition count");
-                lastitemcount = std::stoul(lastitem);
-                if(lastitemcount == 0) Error("Repetition count can't be 0");
-                lastitem = "";
-            }else if(c == '/'){
-                GotSlash();
-                break;
+            }else if(quotemode == 2){
+                if(c == '\''){
+                    quotemode = -1;
+                    break;
+                }else if(c == '\n'){
+                    ++line;
+                    break;
+                }else{
+                    lastitem += c;
+                }
             }else{
-                lastitem += c;
+                if(c == '"'){
+                    quotemode = 1;
+                }else if(c == '\''){
+                    quotemode = 2;
+                }else if(c == '('){
+                    if(!quotemode){
+                        quotemode = 3;
+                    }
+                    lastitem += c;
+                }else if(c == ')'){
+                    if(quotemode == 3){
+                        quotemode = -1;
+                        lastitem += c;
+                        break;
+                    }
+                    lastitem += c;
+                }else if(isspace(c)){
+                    if(c == '\n') ++line;
+                    break;
+                }else if(c == ',' && quotemode != 3){
+                    break;
+                }else if(c == '*'){
+                    if(lastitemcount != 0) Error("Can't have nested repetitions");
+                    if(!isInt(lastitem, false)) Error("Invalid repetition count");
+                    lastitemcount = std::stoul(lastitem);
+                    if(lastitemcount == 0) Error("Repetition count can't be 0");
+                    lastitem = "";
+                }else if(c == '/'){
+                    GotSlash();
+                    break;
+                }else if(c == '!'){
+                    IgnoreRestOfLine();
+                    break;
+                }else{
+                    lastitem += c;
+                }
             }
         }
         if(quotemode > 0) Error("Quotes or parentheses not closed");
-        if(f.eof()) return lastitem;
+        if(f.eof()){
+            //std::cout << "-- eof, returning " << lastitem << "\n";
+            return lastitem;
+        }
         if(quotemode < 0){
             int c = f.peek();
-            if(!isspace(c) && c != ',') Error("Invalid character after end of quoted string");
+            if(!isspace(c) && c != ',') Error(std::string("Invalid character '")
+                + (char)c + std::string("' after end of quoted string"));
+        }
+        if(isafterslash){
+            //std::cout << "-- new isafterslash, returning " << lastitem << "\n";
+            return lastitem;
         }
         //Whitespace and comma after item
         bool hadcomma = false;
         while(!f.eof()){
             int c = f.peek();
-            if(isspace(c)){
+            if(c == '!'){
+                IgnoreRestOfLine();
+                continue;
+            }else if(isspace(c)){
                 if(c == '\n') ++line;
             }else if(c == ','){
                 if(!hadcomma){
@@ -202,6 +239,7 @@ private:
         }
         //Finally
         if(lastitemcount > 0) --lastitemcount;
+        //std::cout << "-- normal returning " << lastitem << "\n";
         return lastitem;
     }
     

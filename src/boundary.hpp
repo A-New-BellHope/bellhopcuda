@@ -249,7 +249,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
     default:
         bdinfo->Top = allocate<BdryPtFull>(2);
         bdinfo->Top[0].x = vec2(-STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
-        bdinfo->Top[0].x = vec2( STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
+        bdinfo->Top[1].x = vec2( STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
     }
     
     ComputeBdryTangentNormal(bdinfo->Top, true, bdinfo);
@@ -355,7 +355,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
     default:
         bdinfo->Bot = allocate<BdryPtFull>(2);
         bdinfo->Bot[0].x = vec2(-BdryInfinity(), DepthB);
-        bdinfo->Bot[0].x = vec2( BdryInfinity(), DepthB);
+        bdinfo->Bot[1].x = vec2( BdryInfinity(), DepthB);
     }
     
     ComputeBdryTangentNormal(bdinfo->Bot, false, bdinfo);

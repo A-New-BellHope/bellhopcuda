@@ -28,9 +28,9 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
     if(beaminfo->SBPFlag == '*'){
         PRTFile << "\n______________________________\nUsing source beam pattern file\n";
         
-        LDIFile SBPFile(WithExtension(FileRoot, ".sbp"));
+        LDIFile SBPFile(FileRoot, ".sbp");
         if(!SBPFile.Good()){
-            PRTFile << "SBPFile = " << WithExtension(FileRoot, ".sbp") << ".sbp\n";
+            PRTFile << "SBPFile = " << FileRoot << ".sbp\n";
             std::cout << "BELLHOP-ReadPat: Unable to open source beampattern file\n";
             std::abort();
         }

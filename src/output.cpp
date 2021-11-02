@@ -16,6 +16,7 @@ constexpr int32_t MaxNRayPoints = 500000; // this is the maximum length of the r
 void WriteRay2D(real alpha0, int32_t Nsteps1, std::ofstream &RAYFile,
     const BdryType *Bdry, ray2DPt *ray2D)
 {
+    printf("WriteRay2D %d steps\n", Nsteps1);
     // compression
     
     int32_t n2 = 0;
@@ -67,7 +68,7 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
     case 'R':
     case 'E':
         // Ray trace or Eigenrays
-        RAYFile.open(WithExtension(FileRoot, ".ray"));
+        RAYFile.open(FileRoot + ".ray");
         RAYFile << "'" << Title << "'\n";
         RAYFile << freqinfo->freq0 << "\n";
         RAYFile << Pos->NSx << " " << Pos->NSy << " " << Pos->NSz << "\n";
@@ -79,7 +80,7 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
         break;
     case 'A':
         // arrival file in ascii format
-        ARRFile.open(WithExtension(FileRoot, ".arr"));
+        ARRFile.open(FileRoot + ".arr");
         
         ARRFile << (ThreeD ? "'3D'" : "'2D'") << "\n";
         
@@ -102,7 +103,7 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
         break;
     case 'a':
         // arrival file in binary format
-        ARRFile.open(WithExtension(FileRoot, ".arr"));
+        ARRFile.open(FileRoot + ".arr");
         
         ARRFile.write((ThreeD ? "'3D'" : "'2D'"), 4);
         
@@ -137,6 +138,6 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
         default:
             PlotType = "rectilin  ";
         }
-        WriteHeader(WithExtension(FileRoot, ".shd"), Title, freqinfo->freq0, atten, PlotType);
+        WriteHeader(FileRoot + ".shd", Title, freqinfo->freq0, atten, PlotType);
     }
 }

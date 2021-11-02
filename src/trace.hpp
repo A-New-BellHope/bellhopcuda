@@ -253,7 +253,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot; // Distances from ray beginning, end to top and bottom
     real sss;
     
-    int32_t IsegTop, IsegBot; // indices that point to the current active segment
+    int32_t IsegTop = 0, IsegBot = 0; // indices that point to the current active segment
     vec2 rTopSeg, rBotSeg; // range intervals defining the current active segment
     
     // Initial conditions
@@ -294,9 +294,13 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     Distances2D(ray2D[0].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
         bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistBegTop, DistBegBot);
     
-    if(DistBegTop <= 0 || DistBegBot <= 0){
+    if(DistBegTop <= RC(0.0) || DistBegBot <= RC(0.0)){
         Nsteps = 1;
         printf("Terminating the ray trace because the source is on or outside the boundaries\n");
+        // printf("xs (%g,%g) Bot.x (%g,%g) Bot.n (%g,%g) DistBegBot %g\n",
+        //     xs.x, xs.y,
+        //     bdinfo->Bot[IsegBot].x.x, bdinfo->Bot[IsegBot].x.y,
+        //     bdinfo->Bot[IsegBot].n.x, bdinfo->Bot[IsegBot].n.y, DistBegBot);
         return; // source must be within the medium
     }
     
