@@ -95,7 +95,7 @@ HOST_DEVICE inline void UpdateDepthSegment(const vec2 &x,
     // a very small fraction of iterations doesn't affect much, on the GPU this
     // can be a huge bottleneck because it may make many other threads wait.
     while(x.y < ssp->z[iSegz] && iSegz > 0) --iSegz;
-    while(x.y > ssp->z[iSegz+1] && iSegz < ssp->NPts-1) ++iSegz;
+    while(x.y > ssp->z[iSegz+1] && iSegz < ssp->NPts-2) ++iSegz;
 }
 
 HOST_DEVICE inline void UpdateRangeSegment(const vec2 &x,
@@ -115,7 +115,7 @@ HOST_DEVICE inline void UpdateRangeSegment(const vec2 &x,
     }
     */
     while(x.x < ssp->Seg.r[iSegr] && iSegr > 0) --iSegr;
-    while(x.x > ssp->Seg.r[iSegr+1] && iSegr < ssp->Nr-1) ++iSegr;
+    while(x.x > ssp->Seg.r[iSegr+1] && iSegr < ssp->Nr-2) ++iSegr;
 }
 
 HOST_DEVICE inline real LinInterpDensity(const vec2 &x,
@@ -165,6 +165,14 @@ HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
     LinInterpDensity(x, ssp, iSegz, rho);
     
     real xt = x.y - ssp->z[iSegz];
+    if(STD::abs(xt) > RC(1.0e10)){
+        printf("Invalid xt %g\n", xt);
+    }
+    for(int32_t i=0; i<4; ++i)
+        if(STD::abs(ssp->cCoef[i][iSegz]) > RC(1.0e10))
+            printf("Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSegz,
+                ssp->cCoef[i][iSegz].real(), ssp->cCoef[i][iSegz].imag());
+    
     ccpx = ssp->cCoef[0][iSegz]
         + (ssp->cCoef[1][iSegz]
         + (ssp->cCoef[2][iSegz]

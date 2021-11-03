@@ -120,6 +120,11 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
 
     EvaluateSSP(ray0.x, ccpx0, gradc0, crr0, crz0, czz0, rho, freq, ssp, iSegz, iSegr);
     
+    if(STD::abs(ccpx0) > RC(1.0e10)){
+        printf("ccpx0 invalid: (%g,%g\n", ccpx0.real(), ccpx0.imag());
+        bail();
+    }
+    
     csq0      = SQ(ccpx0.real());
     cnn0_csq0 = crr0 * SQ(ray0.t.y) - RC(2.0) * crz0 * ray0.t.x * ray0.t.y + czz0 * SQ(ray0.t.x);
     iSegz0    = iSegz; // make note of current layer
@@ -138,9 +143,31 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
     ray1.p = ray0.p - halfh * cnn0_csq0    * ray0.q;
     ray1.q = ray0.q + halfh * ccpx0.real() * ray0.p;
     
+    if(STD::abs(ray1.x.x) > RC(1.0e10) || STD::abs(ray1.x.y) > RC(1.0e10)){
+        printf("ray1.x invalid\n");
+        bail();
+    }
+    if(STD::abs(ray1.t.x) > RC(1.0e10) || STD::abs(ray1.t.y) > RC(1.0e10)){
+        printf("ray1.t invalid\n");
+        bail();
+    }
+    if(STD::abs(ray1.p.x) > RC(1.0e10) || STD::abs(ray1.p.y) > RC(1.0e10)){
+        printf("ray1.p invalid\n");
+        bail();
+    }
+    if(STD::abs(ray1.q.x) > RC(1.0e10) || STD::abs(ray1.q.y) > RC(1.0e10)){
+        printf("ray1.q invalid\n");
+        bail();
+    }
+    
     // *** Phase 2
     
     EvaluateSSP(ray1.x, ccpx1, gradc1, crr1, crz1, czz1, rho, freq, ssp, iSegz, iSegr);
+    if(STD::abs(ccpx1) > RC(1.0e10)){
+        printf("ccpx1 invalid: ray1.x (%g,%g) iSegz %d iSegr %d => ccpx1 (%g,%g)\n", 
+            ray1.x.x, ray1.x.y, iSegz, iSegr, ccpx1.real(), ccpx1.imag());
+        bail();
+    }
     csq1      = SQ(ccpx1.real());
     cnn1_csq1 = crr1 * SQ(ray1.t.y) - RC(2.0) * crz1 * ray1.t.x * ray1.t.y + czz1 * SQ(ray1.t.x);
     
@@ -166,7 +193,15 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
     ray2->p   = ray0.p   - hw0 * cnn0_csq0    * ray0.q - hw1 * cnn1_csq1    * ray1.q;
     ray2->q   = ray0.q   + hw0 * ccpx0.real() * ray0.p + hw1 * ccpx1.real() * ray1.p;
     ray2->tau = ray0.tau + hw0 / ccpx0                  + hw1 / ccpx1;
-
+    
+    if(STD::abs(ray2->x.x) > RC(1.0e10) || STD::abs(ray2->x.y) > RC(1.0e10)
+    || STD::abs(ray2->t.x) > RC(1.0e10) || STD::abs(ray2->t.y) > RC(1.0e10)
+    || STD::abs(ray2->p.x) > RC(1.0e10) || STD::abs(ray2->p.y) > RC(1.0e10)
+    || STD::abs(ray2->q.x) > RC(1.0e10) || STD::abs(ray2->q.y) > RC(1.0e10)){
+        printf("ray2 invalid\n");
+        bail();
+    }
+    
     ray2->Amp       = ray0.Amp;
     ray2->Phase     = ray0.Phase;
     ray2->NumTopBnc = ray0.NumTopBnc;
@@ -175,6 +210,10 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
     // If we crossed an interface, apply jump condition
 
     EvaluateSSP(ray2->x, ccpx2, gradc2, crr2, crz2, czz2, rho, freq, ssp, iSegz, iSegr);
+    if(STD::abs(ccpx2) > RC(1.0e10)){
+        printf("ccpx2 invalid: (%g,%g\n", ccpx1.real(), ccpx1.imag());
+        bail();
+    }
     ray2->c = ccpx2.real();
     
     if(iSegz != iSegz0 || iSegr != iSegr0){

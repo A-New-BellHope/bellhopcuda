@@ -12,10 +12,13 @@ void ReadSSP(READ_SSP_ARGS)
     PRTFile << "\nSound speed profile:\n";
     PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
     
+    // LP: If these are not written, they keep their value from the previous
+    // level, or else their initializations here.
+    real alphaR = RC(1500.0), betaR = RC(0.0), alphaI = RC(0.0), betaI = RC(0.0), rhoR = RC(1.0);
+    
     ssp->NPts = 1;
     
     for(int32_t iz=0; iz<MaxSSP; ++iz){
-        real alphaR, betaR, rhoR, alphaI, betaI;
         ENVFile.List(); ENVFile.Read(ssp->z[iz]); 
         ENVFile.Read(alphaR); ENVFile.Read(betaR); ENVFile.Read(rhoR);
         ENVFile.Read(alphaI); ENVFile.Read(betaI);
@@ -40,6 +43,9 @@ void ReadSSP(READ_SSP_ARGS)
         
         // Did we read the last point?
         if(std::abs(ssp->z[iz] - Depth) < RC(100.0) * REAL_EPSILON){
+            // LP: Gradient at iz is uninitialized.
+            ssp->cz[iz] = cpx(RC(5.5555555e30), RC(-3.3333333e29)); // LP: debugging
+            
             ssp->Nz = ssp->NPts;
             if(ssp->NPts == 1){
                 std::cout << "ReadSSP: The SSP must have at least 2 points\n";

@@ -42,7 +42,7 @@ HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
     while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x < r) ++IsegTop;
     if(IsegTop < 0 || IsegTop >= n-1){
         // IsegTop MUST LIE IN [0, NatiPts-2]
-        printf("Error: GetTopSeg: Top altimetry undefined above the ray, r=%f\n", r);
+        printf("Error: GetTopSeg: Top altimetry undefined above the ray, r=%g\n", r);
         bail();
     }
     rTopSeg.x = bdinfo->Top[IsegTop].x.x;
@@ -67,7 +67,7 @@ HOST_DEVICE inline void GetBotSeg(real r, int32_t &IsegBot, vec2 &rBotSeg,
     while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x < r) ++IsegBot;
     if(IsegBot < 0 || IsegBot >= n-1){
         // IsegBot MUST LIE IN [0, NatiPts-2]
-        printf("Error: GetBotSeg: Bottom altimetry undefined below the source, r=%f\n", r);
+        printf("Error: GetBotSeg: Bottom altimetry undefined below the source, r=%g\n", r);
         bail();
     }
     rBotSeg.x = bdinfo->Bot[IsegBot].x.x;

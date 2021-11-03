@@ -16,7 +16,6 @@ constexpr int32_t MaxNRayPoints = 500000; // this is the maximum length of the r
 void WriteRay2D(real alpha0, int32_t Nsteps1, std::ofstream &RAYFile,
     const BdryType *Bdry, ray2DPt *ray2D)
 {
-    printf("WriteRay2D %d steps\n", Nsteps1);
     // compression
     
     int32_t n2 = 0;

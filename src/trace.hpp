@@ -290,7 +290,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs);
     
     // Trace the beam (note that Reflect alters the step index is)
-    is = 0;
+    is = -1;
     Distances2D(ray2D[0].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
         bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistBegTop, DistBegBot);
     
@@ -305,8 +305,8 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     }
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
-        is  = istep + 1;
-        is1 = istep + 1;
+        is  = is + 1;
+        is1 = is + 1;
         
         Step2D(ray2D[is], &ray2D[is1], bdinfo->Top[IsegTop].x, bdinfo->Top[IsegTop].n,
             bdinfo->Bot[IsegBot].x, bdinfo->Bot[IsegBot].n, rTopSeg, rBotSeg, 
@@ -373,13 +373,24 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
         }
         
         // Has the ray left the box, lost its energy, escaped the boundaries, or exceeded storage limit?
-        if( STD::abs(ray2D[is+1].x.x) > Beam->Box.r ||
-            STD::abs(ray2D[is+1].x.y) > Beam->Box.z ||
-            ray2D[is+1].Amp < RC(0.005) ||
-            (DistBegTop < RC(0.0) && DistEndTop < RC(0.0)) ||
-            (DistBegBot < RC(0.0) && DistEndBot < RC(0.0)) 
-            // ray2D[is+1].t.x < 0 // this last test kills off a backward traveling ray
+        bool leftbox = STD::abs(ray2D[is+1].x.x) > Beam->Box.r ||
+                       STD::abs(ray2D[is+1].x.y) > Beam->Box.z;
+        bool lostenergy = ray2D[is+1].Amp < RC(0.005);
+        bool escapedboundaries = (DistBegTop < RC(0.0) && DistEndTop < RC(0.0)) ||
+                                 (DistBegBot < RC(0.0) && DistEndBot < RC(0.0));
+        //bool backward = ray2D[is+1].t.x < 0; // this last test kills off a backward traveling ray
+        if(leftbox || lostenergy || escapedboundaries // || backward
         ){
+            /*
+            if(leftbox){
+                printf("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
+            }else if(lostenergy){
+                printf("Ray energy dropped to %g\n", ray2D[is+1].Amp);
+            }else{
+                printf("Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g DistEndBot %g\n",
+                    DistBegTop, DistEndTop, DistBegBot, DistEndBot);
+            }
+            */
             Nsteps = is + 1;
             break;
         }else if(is >= MaxN - 4){

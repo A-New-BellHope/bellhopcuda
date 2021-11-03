@@ -156,13 +156,15 @@ static inline std::string trim_copy(std::string s) {
 ////////////////////////////////////////////////////////////////////////////////
 
 template<typename T> inline T* allocate(size_t n=1){
+	T* ret;
 	#ifdef BUILD_CUDA
-		T* ret;
 		checkCudaErrors(cudaMallocManaged(&ret, n*sizeof(T)));
-		return ret;
 	#else
-		return new T[n];
+		ret = new T[n];
 	#endif
+	// Debugging: Fill memory with garbage data to help detect uninitialized vars
+	memset(ret, 0xFE, n*sizeof(T));
+	return ret;
 }
 
 template<typename T> inline void deallocate(T *&ptr){

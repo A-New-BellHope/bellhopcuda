@@ -22,6 +22,7 @@ void setup(int argc, char **argv,
         std::cout << "Could not open print file: " << FileRoot << ".prt\n";
         std::abort();
     }
+    PRTFile << std::unitbuf;
     
     // Allocate main structs
     Bdry = allocate<BdryType>();
@@ -34,18 +35,6 @@ void setup(int argc, char **argv,
     freqinfo = allocate<FreqInfo>();
     Beam = allocate<BeamStructure>();
     beaminfo = allocate<BeamInfo>();
-    
-    // Debugging: Fill structs with garbage data to help detect uninitialized vars
-    memset(Bdry, 0xFE, sizeof(BdryType));
-    memset(bdinfo, 0xFE, sizeof(BdryInfo));
-    memset(refl, 0xFE, sizeof(ReflectionInfo));
-    memset(ssp, 0xFE, sizeof(SSPStructure));
-    memset(atten, 0xFE, sizeof(AttenInfo));
-    memset(Pos, 0xFE, sizeof(Position));
-    memset(Angles, 0xFE, sizeof(AnglesStructure));
-    memset(freqinfo, 0xFE, sizeof(FreqInfo));
-    memset(Beam, 0xFE, sizeof(BeamStructure));
-    memset(beaminfo, 0xFE, sizeof(BeamInfo));
     
     // Set pointers to null because BELLHOP checks if some of them are allocated
     // before allocating them
