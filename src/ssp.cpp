@@ -19,7 +19,7 @@ void ReadSSP(READ_SSP_ARGS)
     ssp->NPts = 1;
     
     for(int32_t iz=0; iz<MaxSSP; ++iz){
-        ENVFile.List(); ENVFile.Read(ssp->z[iz]); 
+        LIST_WARNLINE(ENVFile); ENVFile.Read(ssp->z[iz]); 
         ENVFile.Read(alphaR); ENVFile.Read(betaR); ENVFile.Read(rhoR);
         ENVFile.Read(alphaI); ENVFile.Read(betaI);
         PRTFile << std::setprecision(2) << ssp->z[iz] << " " << alphaR << " " << betaR
@@ -120,7 +120,7 @@ void InitQuad(SSP_INIT_ARGS)
     PRTFile << "Using range-dependent sound speed\n";
     
     LDIFile SSPFile(FileRoot + ".ssp");
-    SSPFile.List(); SSPFile.Read(ssp->Nr);
+    LIST(SSPFile); SSPFile.Read(ssp->Nr);
     PRTFile << "Number of SSP ranges = " << ssp->Nr << "\n";
     
     if(ssp->Nr < 2){
@@ -132,7 +132,7 @@ void InitQuad(SSP_INIT_ARGS)
     ssp->czMat = allocate<real>((ssp->NPts-1) * ssp->Nr);
     ssp->Seg.r = allocate<real>(ssp->Nr);
     
-    SSPFile.List(); SSPFile.Read(ssp->Seg.r, ssp->Nr);
+    LIST(SSPFile); SSPFile.Read(ssp->Seg.r, ssp->Nr);
     PRTFile << "\nProfile ranges (km):\n" << std::setprecision(2);
     for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->Seg.r[i] << " ";
     PRTFile << "\n";
@@ -142,10 +142,10 @@ void InitQuad(SSP_INIT_ARGS)
     PRTFile << "\nSound speed matrix:\n";
     PRTFile << " Depth (m )     Soundspeed (m/s)\n";
     for(int32_t iz2=0; iz2<ssp->NPts; ++iz2){
-        SSPFile.List(); SSPFile.Read(&ssp->cMat[iz2*ssp->Nr], ssp->Nr);
+        LIST(SSPFile); SSPFile.Read(&ssp->cMat[iz2*ssp->Nr], ssp->Nr);
         // PRTFile << "iSegz depth = " << std::setprecision(2) << ssp->z[iz2] << " m\n";
         PRTFile << std::setprecision(2) << ssp->z[iz2] << " ";
-        for(int32_t i=0; i<ssp->NPts; ++i) PRTFile << ssp->cMat[iz2*ssp->Nr+i] << " ";
+        for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->cMat[iz2*ssp->Nr+i] << " ";
     }
     
     // calculate cz

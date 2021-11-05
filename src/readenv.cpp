@@ -11,7 +11,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
     SSPStructure *ssp, AttenInfo *atten)
 {
     memcpy(TopOpt, "      ", 6); // initialize to blanks
-    ENVFile.List(); ENVFile.Read(TopOpt, 6);
+    LIST(ENVFile); ENVFile.Read(TopOpt, 6);
     PRTFile << "\n";
     
     ssp->Type         = TopOpt[0];
@@ -82,7 +82,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         PRTFile << "    THORP volume attenuation added\n"; break;
     case 'F':
         PRTFile << "    Francois-Garrison volume attenuation added\n";
-        ENVFile.List(); ENVFile.Read(atten->t); ENVFile.Read(atten->Salinity);
+        LIST(ENVFile); ENVFile.Read(atten->t); ENVFile.Read(atten->Salinity);
         ENVFile.Read(atten->pH); ENVFile.Read(atten->z_bar);
         PRTFile << std::setprecision(4);
         PRTFile << " T = " << std::setw(11) << atten->t 
@@ -92,10 +92,10 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         break;
     case 'B':
         PRTFile << "    Biological attenuation\n";
-        ENVFile.List(); ENVFile.Read(atten->NBioLayers);
+        LIST(ENVFile); ENVFile.Read(atten->NBioLayers);
         PRTFile << "      Number of Bio Layers = " << atten->NBioLayers << "\n";
         for(int32_t iBio = 0; iBio < atten->NBioLayers; ++iBio){
-            ENVFile.List(); ENVFile.Read(atten->bio[iBio].z1); ENVFile.Read(atten->bio[iBio].z2);
+            LIST(ENVFile); ENVFile.Read(atten->bio[iBio].z1); ENVFile.Read(atten->bio[iBio].z2);
             ENVFile.Read(atten->bio[iBio].f0); ENVFile.Read(atten->bio[iBio].q); ENVFile.Read(atten->bio[iBio].a0);
             PRTFile << "      Top    of layer = " << atten->bio[iBio].z1 << " m\n";
             PRTFile << "      Bottom of layer = " << atten->bio[iBio].z2 << " m\n";
@@ -140,7 +140,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     LDIFile &ENVFile, std::ofstream &PRTFile,
     Position *Pos)
 {
-    ENVFile.List(); ENVFile.Read(RunType, 7);
+    LIST(ENVFile); ENVFile.Read(RunType, 7);
     PRTFile << "\n";
     
     switch(RunType[0]){
@@ -236,16 +236,16 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     }
     
     // Prepend model name to title
-    ENVFile.List(); ENVFile.Read(Title);
+    LIST(ENVFile); ENVFile.Read(Title);
     Title = "bellhopcuda- " + Title;
     
     PRTFile << Title << "\n";
     
-    ENVFile.List(); ENVFile.Read(freqinfo->freq0);
+    LIST(ENVFile); ENVFile.Read(freqinfo->freq0);
     PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);
     PRTFile << " frequency = " << std::setw(11) << freqinfo->freq0 << " Hz\n";
     
-    ENVFile.List(); ENVFile.Read(NMedia);
+    LIST(ENVFile); ENVFile.Read(NMedia);
     PRTFile << "Dummy parameter NMedia = " << NMedia << "\n";
     if(NMedia != 1){
         std::cout << "ReadEnvironment: Only one medium or layer is allowed in BELLHOP; sediment layers must be handled using a reflection coefficient\n";
@@ -262,7 +262,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     
     // ****** Read in ocean SSP data ******
     
-    ENVFile.List(); ENVFile.Read(NPts); ENVFile.Read(Sigma); ENVFile.Read(Bdry->Bot.hs.Depth);
+    LIST(ENVFile); ENVFile.Read(NPts); ENVFile.Read(Sigma); ENVFile.Read(Bdry->Bot.hs.Depth);
     PRTFile << "\n  Depth = " << std::setw(10) << std::setprecision(2) << Bdry->Bot.hs.Depth << "  m\n";
     
     if(Bdry->Top.hs.Opt[0] == 'A'){
@@ -281,7 +281,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     
     // *** Bottom BC ***
     memcpy(Bdry->Bot.hs.Opt, "  ", 2); // initialize to blanks
-    ENVFile.List(); ENVFile.Read(Bdry->Bot.hs.Opt, 6); ENVFile.Read(Sigma);
+    LIST(ENVFile); ENVFile.Read(Bdry->Bot.hs.Opt, 6); ENVFile.Read(Sigma);
     PRTFile << "\n RMS roughness = " << std::setw(10) << std::setprecision(3) << Sigma << "\n";
     
     switch(Bdry->Bot.hs.Opt[1]){

@@ -35,7 +35,7 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
             std::abort();
         }
         
-        SBPFile.List(); SBPFile.Read(beaminfo->NSBPPts);
+        LIST(SBPFile); SBPFile.Read(beaminfo->NSBPPts);
         PRTFile << "Number of source beam pattern points " << beaminfo->NSBPPts << "\n";
         
         beaminfo->SrcBmPat = allocate<real>(beaminfo->NSBPPts * 2);
@@ -43,7 +43,7 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
         PRTFile << "\n Angle (degrees)  Power (dB)\n" << std::setprecision(3);
         
         for(int32_t i=0; i<beaminfo->NSBPPts; ++i){
-            SBPFile.List(); SBPFile.Read(&beaminfo->SrcBmPat[2*i], 2);
+            LIST(SBPFile); SBPFile.Read(&beaminfo->SrcBmPat[2*i], 2);
             PRTFile << beaminfo->SrcBmPat[2*i] << " " << beaminfo->SrcBmPat[2*i+1] << "\n";
         }
     }else{
@@ -78,7 +78,7 @@ inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
 
-    ENVFile.List(); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.z); ENVFile.Read(Beam->Box.r);
+    LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.z); ENVFile.Read(Beam->Box.r);
     
     PRTFile << std::setprecision(4);
     PRTFile << "\n Step length,       deltas = " << std::setw(11) << Beam->deltas << " m\n\n";
@@ -133,7 +133,7 @@ inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
             break;
         case 'R':
         case 'C':
-            ENVFile.List(); ENVFile.Read(&Beam->Type[1], 2); ENVFile.Read(Beam->epsMultiplier); ENVFile.Read(Beam->rLoop);
+            LIST(ENVFile); ENVFile.Read(&Beam->Type[1], 2); ENVFile.Read(Beam->epsMultiplier); ENVFile.Read(Beam->rLoop);
             PRTFile << "\n\nType of beam = " << Beam->Type[0] << "\n";
             switch(Beam->Type[2]){
             case 'D':

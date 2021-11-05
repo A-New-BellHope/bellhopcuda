@@ -22,9 +22,9 @@ inline void ReadRayElevationAngles(real freq, real Depth,
     
     if(TopOpt[5] == 'I'){
         // option to trace a single beam
-        ENVFile.List(); ENVFile.Read(Angles->Nalpha); ENVFile.Read(Angles->iSingle_alpha);
+        LIST(ENVFile); ENVFile.Read(Angles->Nalpha); ENVFile.Read(Angles->iSingle_alpha);
     }else{
-        ENVFile.List(); ENVFile.Read(Angles->Nalpha);
+        LIST(ENVFile); ENVFile.Read(Angles->Nalpha);
     }
     
     if(Angles->Nalpha == 0){ // automatically estimate Nalpha to use
@@ -46,7 +46,7 @@ inline void ReadRayElevationAngles(real freq, real Depth,
     Angles->alpha = allocate<real>(STD::max(3, Angles->Nalpha));
     
     if(Angles->Nalpha > 2) Angles->alpha[2] = RC(-999.9);
-    ENVFile.List(); ENVFile.Read(Angles->alpha, Angles->Nalpha);
+    LIST(ENVFile); ENVFile.Read(Angles->alpha, Angles->Nalpha);
     
     SubTab(Angles->alpha, Angles->Nalpha);
     Sort(  Angles->alpha, Angles->Nalpha);

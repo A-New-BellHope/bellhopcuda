@@ -41,7 +41,7 @@ HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
     while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x > r) --IsegTop;
     while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x < r) ++IsegTop;
     if(IsegTop < 0 || IsegTop >= n-1){
-        // IsegTop MUST LIE IN [0, NatiPts-2]
+        // IsegTop MUST LIE IN [0, NATIPts-2]
         printf("Error: GetTopSeg: Top altimetry undefined above the ray, r=%g\n", r);
         bail();
     }
@@ -60,14 +60,14 @@ HOST_DEVICE inline void GetBotSeg(real r, int32_t &IsegBot, vec2 &rBotSeg,
     // LP: bdinfo->Bot.x is checked for being monotonic at load time, so we can
     // linearly search out from the last position, usually only have to move
     // by 1
-    int32_t n = bdinfo->NATIPts;
+    int32_t n = bdinfo->NBTYPts;
     IsegBot = STD::max(IsegBot, 0);
     IsegBot = STD::min(IsegBot, n-2);
     while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x > r) --IsegBot;
     while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x < r) ++IsegBot;
     if(IsegBot < 0 || IsegBot >= n-1){
-        // IsegBot MUST LIE IN [0, NatiPts-2]
-        printf("Error: GetBotSeg: Bottom altimetry undefined below the source, r=%g\n", r);
+        // IsegBot MUST LIE IN [0, NBTYPts-2]
+        printf("Error: GetBotSeg: Bottom bathymetry undefined below the source, r=%g\n", r);
         bail();
     }
     rBotSeg.x = bdinfo->Bot[IsegBot].x.x;
@@ -185,7 +185,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
             std::abort();
         }
         
-        ATIFile.List(); ATIFile.Read(bdinfo->atiType, 2);
+        LIST(ATIFile); ATIFile.Read(bdinfo->atiType, 2);
         switch(bdinfo->atiType[0]){
         case 'C':
             PRTFile << "Curvilinear Interpolation\n"; break;
@@ -196,7 +196,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
             std::abort();
         }
         
-        ATIFile.List(); ATIFile.Read(bdinfo->NATIPts);
+        LIST(ATIFile); ATIFile.Read(bdinfo->NATIPts);
         PRTFile << "Number of altimetry points = " << bdinfo->NATIPts << "\n";
         bdinfo->NATIPts += 2; // we'll be extending the altimetry to infinity to the left and right
         
@@ -207,8 +207,8 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         for(int32_t ii=1; ii<bdinfo->NATIPts-1; ++ii){
             switch(bdinfo->atiType[1]){
             case 'S':
-            case '\0':
-                ATIFile.List(); ATIFile.Read(bdinfo->Top[ii].x);
+            case ' ':
+                LIST(ATIFile); ATIFile.Read(bdinfo->Top[ii].x);
                 if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts){ // echo some values
                     //LP: Bug? Even in the Fortran, ii should never equal
                     //NATIPts as the loop ends at NATIPts-1.
@@ -216,7 +216,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
                 }
                 break;
             case 'L':
-                ATIFile.List(); ATIFile.Read(bdinfo->Top[ii].x);
+                LIST(ATIFile); ATIFile.Read(bdinfo->Top[ii].x);
                 ATIFile.Read(bdinfo->Top[ii].hs.alphaR);
                 ATIFile.Read(bdinfo->Top[ii].hs.betaR);
                 ATIFile.Read(bdinfo->Top[ii].hs.rho);
@@ -276,7 +276,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             std::abort();
         }
         
-        BTYFile.List(); BTYFile.Read(bdinfo->btyType, 2);
+        LIST(BTYFile); BTYFile.Read(bdinfo->btyType, 2);
         
         switch(bdinfo->btyType[0]){
         case 'C':
@@ -288,7 +288,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             std::abort();
         }
         
-        BTYFile.List(); BTYFile.Read(bdinfo->NBTYPts);
+        LIST(BTYFile); BTYFile.Read(bdinfo->NBTYPts);
         PRTFile << "Number of bathymetry points = " << bdinfo->NBTYPts << "\n";
         
         bdinfo->NBTYPts += 2; // we'll be extending the bathymetry to infinity to the left and right
@@ -297,7 +297,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         PRTFile << "\n";
         switch(bdinfo->btyType[1]){
         case 'S':
-        case '\0':
+        case ' ':
             PRTFile << "Short format (bathymetry only)\n";
             PRTFile << " Range (km)  Depth (m)\n";
             break;
@@ -306,15 +306,15 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             PRTFile << "Range (km)  Depth (m)  alphaR (m/s)  betaR  rho (g/cm^3)  alphaI     betaI\n";
             break;
         default:
-            std::cout << "ReadBTY: Unknown option for selecting bathymetry interpolation";
+            std::cout << "ReadBTY: Unknown option for selecting bathymetry interpolation\n";
             std::abort();
         }
         
         for(int32_t ii=1; ii<bdinfo->NBTYPts-1; ++ii){
             switch(bdinfo->btyType[1]){
             case 'S':
-            case '\0':
-                BTYFile.List(); BTYFile.Read(bdinfo->Bot[ii].x);
+            case ' ':
+                LIST(BTYFile); BTYFile.Read(bdinfo->Bot[ii].x);
                 if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts){ // echo some values
                     //LP: Bug? Even in the Fortran, ii should never equal
                     //NBTYPts as the loop ends at NBTYPts-1.
@@ -322,7 +322,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
                 }
                 break;
             case 'L':
-                BTYFile.List(); BTYFile.Read(bdinfo->Bot[ii].x);
+                LIST(BTYFile); BTYFile.Read(bdinfo->Bot[ii].x);
                 BTYFile.Read(bdinfo->Bot[ii].hs.alphaR);
                 BTYFile.Read(bdinfo->Bot[ii].hs.betaR);
                 BTYFile.Read(bdinfo->Bot[ii].hs.rho);
@@ -407,7 +407,7 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
     
     if(hs.bc == 'A'){ // *** Half-space properties ***
         zTemp = RC(0.0);
-        ENVFile.List(); ENVFile.Read(zTemp); ENVFile.Read(alphaR);
+        LIST(ENVFile); ENVFile.Read(zTemp); ENVFile.Read(alphaR);
         ENVFile.Read(betaR); ENVFile.Read(rhoR);
         ENVFile.Read(alphaI); ENVFile.Read(betaI);
         PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " "
@@ -430,7 +430,7 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         // The code is taken from older Matlab and is unnecesarily verbose
         // vr   is the sound speed ratio
         // rhoR is the density ratio
-        ENVFile.List(); ENVFile.Read(zTemp); ENVFile.Read(Mz);
+        LIST(ENVFile); ENVFile.Read(zTemp); ENVFile.Read(Mz);
         PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " "
             << std::setw(10) << Mz << "\n";
         

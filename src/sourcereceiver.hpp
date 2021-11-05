@@ -26,7 +26,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &P
     freqinfo->Nfreq = 1;
     
     if(BroadbandOption == 'B'){
-        ENVFile.List(); ENVFile.Read(freqinfo->Nfreq);
+        LIST(ENVFile); ENVFile.Read(freqinfo->Nfreq);
         PRTFile << "__________________________________________________________________________\n\n\n";
         PRTFile << "Number of frequencies = " << freqinfo->Nfreq << "\n";
         if(freqinfo->Nfreq <= 0){
@@ -41,7 +41,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &P
     if(BroadbandOption == 'B'){
         PRTFile << "Frequencies (Hz)\n";
         freqinfo->freqVec[2] = RC(-999.9);
-        ENVFile.List(); ENVFile.Read(freqinfo->freqVec, freqinfo->Nfreq);
+        LIST(ENVFile); ENVFile.Read(freqinfo->freqVec, freqinfo->Nfreq);
         SubTab(freqinfo->freqVec, freqinfo->Nfreq);
         EchoVector(freqinfo->freqVec, freqinfo->Nfreq, PRTFile);
     }else{
@@ -58,7 +58,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
     std::string Units, LDIFile &ENVFile, std::ofstream &PRTFile)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
-    ENVFile.List(); ENVFile.Read(Nx);
+    LIST(ENVFile); ENVFile.Read(Nx);
     PRTFile << "Number of " << Description << " = " << Nx << "\n";
     
     if(Nx <= 0){
@@ -71,7 +71,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
     
     PRTFile << Description << " (" << Units << ")\n";
     x[2] = RC(-999.9);
-    ENVFile.List(); ENVFile.Read(x, Nx);
+    LIST(ENVFile); ENVFile.Read(x, Nx);
     
     SubTab(x, Nx);
     Sort(x, Nx);

@@ -5,10 +5,15 @@
  * C++ emulation of FORTRAN list-directed input.
  * To use:
  * LDIFile YourFile("filename");
- * //List() starts a new list (single READ line). This is needed because the
- * //slash in an input file terminates assignment for the rest of the list,
- * //so we need to be able to distinguish list boundaries.
- * YourFile.List(); YourFile.Read(somestring); YourFile.read(somecpx); //etc.
+ * LIST(YourFile); YourFile.Read(somestring); YourFile.read(somecpx); //etc.
+ * 
+ * List() starts a new list (single READ line). This is needed because the
+ * slash in an input file terminates assignment for the rest of the list,
+ * so we need to be able to distinguish list boundaries.
+ * 
+ * LIST_WARNLINE() is for cases when the input variables should all be on the
+ * same line of the input file. If this option is used and reading goes onto
+ * a new line of the input, a warning is printed.
  */
 class LDIFile {
 public:
@@ -24,8 +29,17 @@ public:
     
     bool Good() { return f.good(); }
     
-    void List(){
+#define LIST(ldif) ldif.List(__FILE__, __LINE__)
+#define LIST_WARNLINE(ldif) ldif.List(__FILE__, __LINE__, true)
+    void List(const char *file, int fline, bool warnline = false){
+        codefile = SOURCE_FILENAME(file);
+        codeline = fline;
         isafterslash = false;
+        if(warnline){
+            _warnline = line;
+        }else{
+            _warnline = -1;
+        }
     }
     
     #define LDIFILE_READPREFIX() \
@@ -93,8 +107,13 @@ public:
     }
     
 private:
+    void PrintLoc(){
+        std::cout << codefile << ":" << codeline << " reading " 
+            << _filename << ":" << line  << ": ";
+    }
     void Error(std::string msg){
-        std::cout << _filename << ":" << line << ": " << msg << "\n";
+        PrintLoc();
+        std::cout << msg << "\n";
         std::cout << "Last token is: \"" << lastitem << "\"\n";
         if(_abort_on_error) std::abort();
     }
@@ -137,6 +156,11 @@ private:
             return nullitem;
         }
         //Main item
+        if(_warnline >= 0 && _warnline != line){
+            PrintLoc();
+            std::cout << "Warning: input continues onto next line, likely mistake\n";
+            _warnline = line;
+        }
         lastitem = "";
         int quotemode = 0;
         while(!f.eof()){
@@ -244,6 +268,9 @@ private:
     }
     
     std::string _filename;
+    std::string codefile;
+    int codeline;
+    int _warnline;
     bool _abort_on_error;
     std::ifstream f;
     std::string lastitem;

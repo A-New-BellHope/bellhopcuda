@@ -47,6 +47,8 @@
 using real = float;
 #define REAL_MAX FLT_MAX
 #define REAL_EPSILON FLT_EPSILON
+//Must be below abs(bit_cast<float>(0xFEFEFEFEu) == -1.69e38f)
+#define DEBUG_LARGEVAL (1.0e30)
 //Real constant: transforms 2.0 into 2.0f. This is needed on CUDA or else
 //unwanted double-precision instructions may be emitted.
 #define RC(a) (a##f)
@@ -54,6 +56,8 @@ using real = float;
 using real = double;
 #define REAL_MAX DBL_MAX
 #define REAL_EPSILON DBL_EPSILON
+//Must be below abs(bit_cast<double>(0xFEFEFEFEFEFEFEFEull) == -5.31e303)
+#define DEBUG_LARGEVAL (1.0e250)
 #define RC(a) a
 #endif
 
@@ -149,6 +153,27 @@ static inline std::string rtrim_copy(std::string s) {
 static inline std::string trim_copy(std::string s) {
     trim(s);
     return s;
+}
+
+/**
+ * Returns a pointer to only the last portion of the source filename.
+ * This works perfectly correctly on GPU, but it consumes many registers,
+ * which are often evaluated once at the beginning and left in registers
+ * through the whole kernel.
+*/
+HOST_DEVICE inline const char *SOURCE_FILENAME(const char *file){
+    static const char *const tag = "/bellhopcuda/";
+    static const int taglen = 13;
+    const char *x = file;
+    for(; *x; ++x){
+        int i=0;
+        for(; i<taglen && x[i]; ++i){
+            if(x[i] != tag[i]) break;
+        }
+        if(i==taglen) break;
+    }
+    if(*x) return x+taglen;
+    return file;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
