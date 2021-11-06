@@ -280,7 +280,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     // bottom depth should perhaps be set the same way?
     
     // *** Bottom BC ***
-    memcpy(Bdry->Bot.hs.Opt, "  ", 2); // initialize to blanks
+    memcpy(Bdry->Bot.hs.Opt, "      ", 6); // initialize to blanks
     LIST(ENVFile); ENVFile.Read(Bdry->Bot.hs.Opt, 6); ENVFile.Read(Sigma);
     PRTFile << "\n RMS roughness = " << std::setw(10) << std::setprecision(3) << Sigma << "\n";
     
@@ -294,7 +294,8 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     case ' ':
         break;
     default:
-        std::cout << "Unknown bottom option letter in second position\n";
+        std::cout << "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt == '" 
+            << Bdry->Bot.hs.Opt << "'\n";
     }
     
     Bdry->Bot.hs.bc = Bdry->Bot.hs.Opt[0];

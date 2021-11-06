@@ -7,9 +7,10 @@
  * LDIFile YourFile("filename");
  * LIST(YourFile); YourFile.Read(somestring); YourFile.read(somecpx); //etc.
  * 
- * List() starts a new list (single READ line). This is needed because the
- * slash in an input file terminates assignment for the rest of the list,
- * so we need to be able to distinguish list boundaries.
+ * List() starts a new list (single READ line). This is needed because ending a
+ * list advances to the next line of the input. The converse is not true; a
+ * newline does not terminate assignment of values to a list, it will continue
+ * reading onto future lines, unless there is a '/'.
  * 
  * LIST_WARNLINE() is for cases when the input variables should all be on the
  * same line of the input file. If this option is used and reading goes onto
@@ -19,7 +20,7 @@ class LDIFile {
 public:
     LDIFile(const std::string &filename, bool abort_on_error = true) 
         : _filename(filename), _abort_on_error(abort_on_error),
-        lastitemcount(0), line(0), isafterslash(false)
+        lastitemcount(0), line(0), isafterslash(false), isafternewline(true)
     {
         f.open(filename);
         if(!f.good()) Error("Failed to open file");
@@ -35,6 +36,9 @@ public:
         codefile = SOURCE_FILENAME(file);
         codeline = fline;
         isafterslash = false;
+        if(!isafternewline){
+            IgnoreRestOfLine();
+        }
         if(warnline){
             _warnline = line;
         }else{
@@ -118,41 +122,39 @@ private:
         if(_abort_on_error) std::abort();
     }
     void IgnoreRestOfLine(){
+        if(_debug) std::cout << "-- ignoring rest of line\n";
         while(!f.eof() && f.peek() != '\n') f.get();
         if(!f.eof()) f.get(); //get the \n
         ++line;
-    }
-    void GotSlash(){
-        isafterslash = true;
-        IgnoreRestOfLine();
+        isafternewline = true;
     }
     std::string GetNextItem(){
         if(lastitemcount > 0){
             --lastitemcount;
-            //std::cout << "-- lastitemcount, returning " << lastitem << "\n";
+            if(_debug) std::cout << "-- lastitemcount, returning " << lastitem << "\n";
             return lastitem;
         }
         if(isafterslash){
-            //std::cout << "-- isafterslash, returning null\n";
+            if(_debug) std::cout << "-- isafterslash, returning null\n";
             return nullitem;
         }
         //Whitespace before start of item
         while(!f.eof()){
             int c = f.peek();
-            if(c == '!'){
-                IgnoreRestOfLine();
-                continue;
-            }else if(isspace(c)){
-                if(c == '\n') ++line;
-            }else{
-                break;
-            }
+            if(!isspace(c)) break;
             f.get();
+            if(c == '\n'){
+                ++line;
+                isafternewline = true;
+            }else{
+                isafternewline = false;
+            }
         }
         if(f.eof()) return nullitem;
         if(f.peek() == ','){
             f.get();
-            //std::cout << "-- empty comma, returning null\n";
+            isafternewline = false;
+            if(_debug) std::cout << "-- empty comma, returning null\n";
             return nullitem;
         }
         //Main item
@@ -165,12 +167,14 @@ private:
         int quotemode = 0;
         while(!f.eof()){
             int c = f.get();
+            isafternewline = false;
             if(quotemode == 1){
                 if(c == '"'){
                     quotemode = -1;
                     break;
                 }else if(c == '\n'){
                     ++line;
+                    isafternewline = true;
                     break;
                 }else{
                     lastitem += c;
@@ -181,6 +185,7 @@ private:
                     break;
                 }else if(c == '\n'){
                     ++line;
+                    isafternewline = true;
                     break;
                 }else{
                     lastitem += c;
@@ -203,7 +208,10 @@ private:
                     }
                     lastitem += c;
                 }else if(isspace(c)){
-                    if(c == '\n') ++line;
+                    if(c == '\n'){
+                        ++line;
+                        isafternewline = true;
+                    }
                     break;
                 }else if(c == ',' && quotemode != 3){
                     break;
@@ -214,10 +222,7 @@ private:
                     if(lastitemcount == 0) Error("Repetition count can't be 0");
                     lastitem = "";
                 }else if(c == '/'){
-                    GotSlash();
-                    break;
-                }else if(c == '!'){
-                    IgnoreRestOfLine();
+                    isafterslash = true;
                     break;
                 }else{
                     lastitem += c;
@@ -226,7 +231,7 @@ private:
         }
         if(quotemode > 0) Error("Quotes or parentheses not closed");
         if(f.eof()){
-            //std::cout << "-- eof, returning " << lastitem << "\n";
+            if(_debug) std::cout << "-- eof, returning " << lastitem << "\n";
             return lastitem;
         }
         if(quotemode < 0){
@@ -234,39 +239,46 @@ private:
             if(!isspace(c) && c != ',') Error(std::string("Invalid character '")
                 + (char)c + std::string("' after end of quoted string"));
         }
+        if(isafternewline){
+            if(_debug) std::cout << "-- isafternewline, returning " << lastitem << "\n";
+            return lastitem;
+        }
         if(isafterslash){
-            //std::cout << "-- new isafterslash, returning " << lastitem << "\n";
+            if(_debug) std::cout << "-- new isafterslash, returning " << lastitem << "\n";
             return lastitem;
         }
         //Whitespace and comma after item
         bool hadcomma = false;
         while(!f.eof()){
             int c = f.peek();
-            if(c == '!'){
-                IgnoreRestOfLine();
-                continue;
-            }else if(isspace(c)){
-                if(c == '\n') ++line;
+            if(isspace(c)){
+                f.get();
+                if(c != '\n'){
+                    isafternewline = false;
+                    continue;
+                }
+                ++line;
+                isafternewline = true;
             }else if(c == ','){
                 if(!hadcomma){
+                    f.get();
                     hadcomma = true;
-                }else{
-                    break;
+                    isafternewline = false;
+                    continue;
                 }
             }else if(c == '/'){
-                GotSlash();
-                break;
-            }else{
-                break;
+                f.get();
+                isafterslash = true;
             }
-            f.get();
+            break;
         }
         //Finally
         if(lastitemcount > 0) --lastitemcount;
-        //std::cout << "-- normal returning " << lastitem << "\n";
+        if(_debug) std::cout << "-- normal returning " << lastitem << "\n";
         return lastitem;
     }
     
+    constexpr static bool _debug = false;
     std::string _filename;
     std::string codefile;
     int codeline;
@@ -276,7 +288,7 @@ private:
     std::string lastitem;
     uint32_t lastitemcount;
     uint32_t line;
-    bool isafterslash;
+    bool isafterslash, isafternewline;
     
     //This string is not possible to represent, so we use it to indicate null
     //(empty string is separate and valid)
