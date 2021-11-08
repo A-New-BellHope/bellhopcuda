@@ -62,15 +62,43 @@ void RayWorker()
 
 int main(int argc, char **argv)
 {
+    std::string FileRoot;
+    bool singlethread = false;
+    for(int32_t i=1; i<argc; ++i){
+        std::string s = argv[i];
+        if(argv[i][0] == '-'){
+            if(s.length() >= 2 && argv[i][1] == '-'){ //two dashes
+                s = s.substr(1);
+            }
+            if(s == "-1" || s == "-singlethread"){
+                singlethread = true;
+            }else{
+                std::cout << "Unknown command-line option \"" << s << "\"\n";
+                std::abort();
+            }
+        }else{
+            if(FileRoot.empty()){
+                FileRoot = s;
+            }else{
+                std::cout << "Intepreting both \"" << FileRoot << "\" and \"" << 
+                    s << "\" as FileRoot, error\n";
+                std::abort();
+            }
+        }
+    }
+    if(FileRoot.empty()){
+        std::cout << "Must provide FileRoot as command-line parameter\n";
+        std::abort();
+    }
     
-    setup(argc, argv, PRTFile, RAYFile, ARRFile, Title, fT,
+    setup(FileRoot, PRTFile, RAYFile, ARRFile, Title, fT,
         Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);
     core_setup(PRTFile, fT, Bdry, bdinfo, atten, Angles, freqinfo, Beam);
     
     rayID = 0;
     
     std::vector<std::thread> threads;
-    uint32_t cores = std::max(std::thread::hardware_concurrency(), 1u);
+    uint32_t cores = singlethread ? 1u : std::max(std::thread::hardware_concurrency(), 1u);
     for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(RayWorker));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
 }

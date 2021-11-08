@@ -8,7 +8,7 @@
 #include "angles.hpp"
 #include "beams.hpp"
 
-void setup(int argc, char **argv, 
+void setup(std::string FileRoot, 
     std::ofstream &PRTFile, std::ofstream &RAYFile, std::ofstream &ARRFile,
     std::string &Title, real &fT,
     BdryType *&Bdry, BdryInfo *&bdinfo, ReflectionInfo *&refl, SSPStructure *&ssp,

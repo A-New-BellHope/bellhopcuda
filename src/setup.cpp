@@ -4,19 +4,13 @@
 
 constexpr bool Init_Inline = false;
 
-void setup(int argc, char **argv, 
+void setup(std::string FileRoot, 
     std::ofstream &PRTFile, std::ofstream &RAYFile, std::ofstream &ARRFile,
     std::string &Title, real &fT,
     BdryType *&Bdry, BdryInfo *&bdinfo, ReflectionInfo *&refl, SSPStructure *&ssp,
     AttenInfo *&atten, Position *&Pos, AnglesStructure *&Angles, FreqInfo *&freqinfo, 
     BeamStructure *&Beam, BeamInfo *&beaminfo)
 {
-    // Command-line parameters
-    if(argc < 2){
-        std::cout << "Must provide FileRoot as command-line parameter\n";
-        std::abort();
-    }
-    std::string FileRoot(argv[1]);
     PRTFile.open(FileRoot + ".prt");
     if(!PRTFile.good()){
         std::cout << "Could not open print file: " << FileRoot << ".prt\n";

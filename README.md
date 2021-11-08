@@ -138,19 +138,19 @@ block/blockB_ray.env:       Looks OK
 calib/calibray.env:         Looks OK
 calib/calibraygrad.env:     Looks OK
 Dickins/DickinsBray.env:    Looks OK
-Dickins/Dickins.env:        Fails due to missing slashes
-Dickins/Dickins.env (fixed slashes): Looks OK
+Dickins/Dickins.env:        BH and C++ fail due to missing slashes.
+Dickins/DickinsFixedSlashes.env: Looks OK
 Dickins/DickinsFlatBray.env: Looks OK
 Gulf/Gulf_ray_rd.env:       Looks OK; q diverges but don't notice without extra checks
 Gulf/Gulf_ray_ri.env:       Looks OK
-halfspace/vacuumB.env:      Fails due to new input list after first token in `1  4000.0`
-halfspace/vacuumB.env (fixed formatting): Looks OK
-head/head.env:              Fails due to `300` appearing where a bottom BC string should
+halfspace/vacuumB.env:      BH and C++ fail due to new input list after first token in `1  4000.0`
+halfspace/vacuumBFixed.env: Looks OK
+head/head.env:              BELLHOP also fails, but with error about number of media. Fails due to `300` appearing where a bottom BC string should
 head/headS.env:             Fails due to same issue as head
 head/iso.env:               Fails due to same issue as head
 Munk/MunkB_ray.env:         Looks OK
 Munk/MunkB_ray_rot.env:     Looks OK
 ParaBot/ParaBot.env:        Looks OK
-sduct/sductBray.env:        Looks OK
+sduct/sductBray.env:        BH fails. C++ prints error about 2nd bottom option but doesn't fail.
 sduct/sductnew.env:         Fails due to env file syntax
 sduct/single.env:           Fails due to env file syntax
