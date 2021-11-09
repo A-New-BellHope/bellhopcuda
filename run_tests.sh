@@ -41,3 +41,5 @@ while read -u 11 line || [[ -n $line ]]; do
         exit 1
     fi
 done 11<tests_fail.txt
+
+echo "Tests completed"

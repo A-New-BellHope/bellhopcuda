@@ -304,6 +304,7 @@ public:
     
     void open(const std::string &path){
         ostr.open(path);
+        ostr << std::setfill(' ');
     }
     bool good(){
         return ostr.good() && ostr.is_open();
@@ -321,8 +322,7 @@ public:
     void intwidth(int32_t iw) { iwidth = iw; }
     LDOFile &operator<<(const int32_t &i){
         if(iwidth > 0){
-            ostr << std::setiosflags(std::ios_base::right) 
-                << std::setfill(' ') 
+            ostr << std::setiosflags(std::ios_base::right)
                 << std::setw(iwidth);
         }
         ostr << i;
@@ -337,9 +337,8 @@ public:
         }
         ostr << "  ";
         if(!isfinite(r)){
-            ostr << std::setiosflags(std::ios_base::left) 
-                << std::setfill(' ')
-                << std::setw(rwidth)
+            ostr << std::setw(rwidth)
+                << std::left
                 << r;
             return *this;
         }
@@ -353,12 +352,12 @@ public:
         }
         --w;
         if(sci) --w;
-        ostr << std::setfill('0')
-            << std::setprecision(w - 6); //5 for exp, 1 for decimal point
+        ostr << std::setprecision(w - 6); //5 for exp, 1 for decimal point
         if(sci){
-            ostr << std::setiosflags(std::ios_base::left | std::ios_base::uppercase
+            ostr << std::setiosflags(std::ios_base::uppercase
                     | std::ios_base::scientific)
-                << std::setw(w)
+                << std::setw(w + 1)
+                << std::left
                 << r;
         }else{
             ostr << std::setiosflags(std::ios_base::showpoint)
