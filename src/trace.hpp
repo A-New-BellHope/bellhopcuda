@@ -347,7 +347,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
             
             Reflect2D(is, Bdry.Top.hs, true, ToptInt, TopnInt, bdinfo->Top[IsegTop].kappa, 
                 freqinfo->freq0, refl->RTop, refl->NTopPts, ray2D, Beam, ssp, iSegz, iSegr);
-            ++ray2D[is+1].NumTopBnc;
+            ray2D[is+1].NumTopBnc = ray2D[is].NumTopBnc + 1;
             
             Distances2D(ray2D[is+1].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
                 bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
@@ -365,7 +365,7 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
             
             Reflect2D(is, Bdry.Bot.hs, false, BottInt, BotnInt, bdinfo->Bot[IsegBot].kappa, 
                 freqinfo->freq0, refl->RBot, refl->NBotPts, ray2D, Beam, ssp, iSegz, iSegr);
-            ++ray2D[is+1].NumBotBnc;
+            ray2D[is+1].NumBotBnc = ray2D[is].NumBotBnc + 1;
             
             Distances2D(ray2D[is+1].x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
                 bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
@@ -391,11 +391,11 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
                     DistBegTop, DistEndTop, DistBegBot, DistEndBot);
             }
             */
-            Nsteps = is + 1;
+            Nsteps = is + 2;
             break;
         }else if(is >= MaxN - 4){
             printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
-            Nsteps = is;
+            Nsteps = is + 1;
             break;
         }
         

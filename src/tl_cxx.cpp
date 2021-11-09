@@ -7,7 +7,8 @@
 #include <thread>
 #include <vector>
 
-std::ofstream PRTFile, RAYFile, ARRFile;
+std::ofstream PRTFile, ARRFile;
+LDOFile RAYFile;
 std::string Title;
 real fT;
 BdryType *Bdry;

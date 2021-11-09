@@ -399,6 +399,7 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         PRTFile << "    reading PRECALCULATED IRC\n"; break;
     default:
        std::cout << "TopBot: Unknown boundary condition type\n";
+       std::abort();
     }
     
     // ****** Read in BC parameters depending on particular choice ******

@@ -294,3 +294,97 @@ private:
     //(empty string is separate and valid)
     static constexpr const char *const nullitem = "\"'";
 }; 
+
+class LDOFile {
+public:
+    LDOFile() : iwidth(12), rwidth(24) {}
+    ~LDOFile(){
+        if(ostr.is_open()) ostr.close();
+    }
+    
+    void open(const std::string &path){
+        ostr.open(path);
+    }
+    bool good(){
+        return ostr.good() && ostr.is_open();
+    }
+    
+    LDOFile &operator<<(const char &c){
+        ostr << c;
+        return *this;
+    }
+    LDOFile &operator<<(const std::string &s){
+        ostr << "'" << s << "'";
+        return *this;
+    }
+    
+    void intwidth(int32_t iw) { iwidth = iw; }
+    LDOFile &operator<<(const int32_t &i){
+        if(iwidth > 0){
+            ostr << std::setiosflags(std::ios_base::right) 
+                << std::setfill(' ') 
+                << std::setw(iwidth);
+        }
+        ostr << i;
+        return *this;
+    }
+    
+    void realwidth(int32_t rw) { rwidth = rw; }
+    LDOFile &operator<<(real r){
+        if(rwidth <= 0){
+            ostr << r;
+            return *this;
+        }
+        ostr << "  ";
+        if(!isfinite(r)){
+            ostr << std::setiosflags(std::ios_base::left) 
+                << std::setfill(' ')
+                << std::setw(rwidth)
+                << r;
+            return *this;
+        }
+        bool sci = r != RC(0.0) && (std::abs(r) < RC(0.1) || std::abs(r) >= RC(1.0e6));
+        int32_t w = rwidth;
+        if(r < RC(0.0)){
+            ostr << "-";
+            r = -r;
+        }else if(sci || r >= RC(1.0) || r == RC(0.0)){
+            ostr << " ";
+        }
+        --w;
+        if(sci) --w;
+        ostr << std::setfill('0')
+            << std::setprecision(w - 6); //5 for exp, 1 for decimal point
+        if(sci){
+            ostr << std::setiosflags(std::ios_base::left | std::ios_base::uppercase
+                    | std::ios_base::scientific)
+                << std::setw(w)
+                << r;
+        }else{
+            ostr << std::setiosflags(std::ios_base::showpoint)
+                << std::defaultfloat
+                << std::setw(w - 5)
+                << r;
+            ostr << "     ";
+        }
+        return *this;
+    }
+    
+    LDOFile &operator<<(const cpx &c){
+        ostr << "(";
+        this->operator<<(c.real());
+        ostr << ",";
+        this->operator<<(c.imag());
+        ostr << ")";
+        return *this;
+    }
+    LDOFile &operator<<(const vec2 &v){
+        this->operator<<(v.x);
+        this->operator<<(v.y);
+        return *this;
+    }
+    
+private:
+    std::ofstream ostr;
+    int32_t iwidth, rwidth;
+};

@@ -1,8 +1,9 @@
 #!/bin/bash
 
-set -x
+#set -x
 
 run_test () {
+    echo $1
     rm -f temp/cxx/$1.*
     rm -f temp/FORTRAN/$1.*
     cp temp/in/$1.* temp/cxx/
@@ -14,19 +15,6 @@ run_test () {
     if [[ $? != "0" ]]; then forres=1; fi
     if [[ "$forout" == *"STOP Fatal Error"* ]]; then forres=1; fi
 }
-
-while read -u 11 line || [[ -n $line ]]; do
-    run_test $line
-    if [[ $cxxres == "0" ]]; then
-        echo "$line: bellhopcxx failed to fail"
-    fi
-    if [[ $forres == "0" ]]; then
-        echo "$line: BELLHOP failed to fail"
-    fi
-    if [[ $cxxres == "0" || $forres == "0" ]]; then
-        exit 1
-    fi
-done 11<tests_fail.txt
 
 while read -u 10 line || [[ -n $line ]]; do
     run_test $line
@@ -40,3 +28,16 @@ while read -u 10 line || [[ -n $line ]]; do
         exit 1
     fi
 done 10<tests_pass.txt
+
+while read -u 11 line || [[ -n $line ]]; do
+    run_test $line
+    if [[ $cxxres == "0" ]]; then
+        echo "$line: bellhopcxx failed to fail"
+    fi
+    if [[ $forres == "0" ]]; then
+        echo "$line: BELLHOP failed to fail"
+    fi
+    if [[ $cxxres == "0" || $forres == "0" ]]; then
+        exit 1
+    fi
+done 11<tests_fail.txt

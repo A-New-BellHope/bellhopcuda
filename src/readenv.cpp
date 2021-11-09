@@ -39,6 +39,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
             std::cout << "bellhopcuda - ReadEnvironment: Unable to open the SSP file\n";
+            std::abort();
         }
         } break;
     /*case 'H':{
@@ -54,6 +55,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         PRTFile << "    Analytic SSP option\n"; break;
     default:
         std::cout << "ReadEnvironment: Unknown option for SSP approximation\n";
+        std::abort();
     }
     
     // Attenuation options
@@ -73,6 +75,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         PRTFile << "    Attenuation units: Loss parameter\n"; break;
     default:
         std::cout << "ReadEnvironment: Unknown attenuation units\n";
+        std::abort();
     }
     
     // optional addition of volume attenuation using standard formulas
@@ -107,6 +110,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         break;
     default:
         std::cout << "ReadEnvironment: Unknown top option letter in fourth position\n";
+        std::abort();
     }
     
     switch(TopOpt[4]){
@@ -120,6 +124,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         break;
     default:
         PRTFile << "ReadEnvironment: Unknown top option letter in fifth position\n";
+        std::abort();
     }
     
     switch(TopOpt[5]){
@@ -130,6 +135,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         break;
     default:
         PRTFile << "ReadEnvironment: Unknown top option letter in sixth position\n";
+        std::abort();
     }
 }
 
@@ -160,6 +166,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
        PRTFile << "Arrivals calculation, binary file output\n"; break;
     default:
        std::cout << "ReadEnvironment: Unknown RunType selected\n";
+       std::abort();
     }
 
     switch(RunType[1]){
@@ -232,7 +239,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     if(!ENVFile.Good()){
         PRTFile << "ENVFile = " << FileRoot << ".env\n";
         std::cout << "bellhopcuda - ReadEnvironment: Unable to open the environmental file\n";
-        return;
+        std::abort();
     }
     
     // Prepend model name to title
@@ -296,6 +303,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     default:
         std::cout << "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt == '" 
             << Bdry->Bot.hs.Opt << "'\n";
+        std::abort();
     }
     
     Bdry->Bot.hs.bc = Bdry->Bot.hs.Opt[0];
