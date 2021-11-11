@@ -36,7 +36,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &P
     }
     
     if(freqinfo->freqVec != nullptr) deallocate(freqinfo->freqVec);
-    freqinfo->freqVec = allocate<real>(std::max(3, freqinfo->Nfreq));
+    freqinfo->freqVec = allocate<real>(STD::max(3, freqinfo->Nfreq));
     
     if(BroadbandOption == 'B'){
         PRTFile << "Frequencies (Hz)\n";
@@ -67,7 +67,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
     }
     
     if(x != nullptr) deallocate(x);
-    x = allocate<real>(Nx);
+    x = allocate<real>(STD::max(3, Nx));
     
     PRTFile << Description << " (" << Units << ")\n";
     x[2] = RC(-999.9);
@@ -82,7 +82,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
     // Vectors in km should be converted to m for internal use
     trim(Units);
     if(Units.length() >= 2){
-        if(Units.substr(2) == "km") for(int32_t i=0; i<Nx; ++i) x[i] *= RC(1000.0);
+        if(Units.substr(0, 2) == "km") for(int32_t i=0; i<Nx; ++i) x[i] *= RC(1000.0);
     }
 }
 

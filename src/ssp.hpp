@@ -224,6 +224,11 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
     UpdateDepthSegment(x, ssp, iSegz);
     UpdateRangeSegment(x, ssp, iSegr);
     LinInterpDensity(x, ssp, iSegz, rho);
+    if(iSegz >= ssp->Nz - 1 || iSegr >= ssp->Nr - 1){
+        printf("iSeg error in Quad: z %d/%d r %d/%d\n",
+            iSegz, ssp->Nz, iSegr, ssp->Nr);
+        bail();
+    }
     
     // for this depth, x.y, get the sound speed at both ends of the segment
     int32_t Nr = ssp->Nr;
@@ -250,7 +255,7 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
     
     ccpx = cpx(c, cimag);
     
-    cz = (RC(1.0) - c1) * cz1 + s1 * cz2;
+    cz = (RC(1.0) - s1) * cz1 + s1 * cz2;
     
     cr  = (c2  - c1 ) / delta_r;
     crz = (cz2 - cz1) / delta_r;

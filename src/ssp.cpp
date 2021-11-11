@@ -146,6 +146,7 @@ void InitQuad(SSP_INIT_ARGS)
         // PRTFile << "iSegz depth = " << std::setprecision(2) << ssp->z[iz2] << " m\n";
         PRTFile << std::setprecision(2) << ssp->z[iz2] << " ";
         for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->cMat[iz2*ssp->Nr+i] << " ";
+        PRTFile << "\n";
     }
     
     // calculate cz

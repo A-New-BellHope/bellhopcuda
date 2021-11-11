@@ -134,36 +134,41 @@ TODO
 
 ### Ray tracing only
 
+Succeeding:
+
 A: Both succeed; have not checked numerical results yet.
 B: Results seem to be within machine precision, with same step counts.
 C: Results seem to be within machine precision, but at some boundary reflections,
    BELLHOP has an extra point (3 points at boundary) compared to bellhopcuda (2
    points at boundary). However, sometimes (e.g. blockB_ray:2085) there are 2
    points from bellhopcuda and only 1 point from BELLHOP.
-X: Both fail due to env file syntax, not easily correctible without changing the
-   run.
-Y: Both fail due to correctible env file syntax issues.
-Z: Both fail, but BELLHOP gives error about number of media, whereas bellhopcuda
-   gives error about syntax due to the run format being wrong.
-
 
 block/blockB_ray.env:       C
 calib/calibray.env:         C
 calib/calibraygrad.env:     B
 Dickins/DickinsBray.env:    C
-Dickins/Dickins.env:        Y
-Dickins/DickinsFixedSlashes.env: A
+Dickins/DickinsFixedSlashes.env: C
 Dickins/DickinsFlatBray.env: C
-Gulf/Gulf_ray_rd.env:       A; q diverges but don't notice without extra checks
-Gulf/Gulf_ray_ri.env:       A
+Gulf/Gulf_ray_rd.env:       B
+Gulf/Gulf_ray_ri.env:       B
+halfspace/vacuumBFixed.env: C
+Munk/MunkB_ray.env:         C
+Munk/MunkB_ray_rot.env:     C
+ParaBot/ParaBot.env:        C; one ray checked seemed to be farther off than usual, e.g. 1e-4 relative error rather than the usual <1e-6 relative error.
+
+Failing:
+
+X: Both fail due to env file syntax, not easily correctible without changing the
+run.
+Y: Both fail due to correctible env file syntax issues.
+Z: Both fail, but BELLHOP gives error about number of media, whereas bellhopcuda
+gives error about syntax due to the run format being wrong.
+
+Dickins/Dickins.env:        Y
 halfspace/vacuumB.env:      Y
-halfspace/vacuumBFixed.env: A
 head/head.env:              Z
 head/headS.env:             Z
 head/iso.env:               Z
-Munk/MunkB_ray.env:         A
-Munk/MunkB_ray_rot.env:     A
-ParaBot/ParaBot.env:        A
 sduct/sductBray.env:        X
 sduct/sductnew.env:         X
 sduct/single.env:           X
