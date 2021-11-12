@@ -20,9 +20,9 @@ struct BdryInfo {
 
 constexpr int32_t Bdry_Number_to_Echo = 21;
 
-constexpr HOST_DEVICE inline real BdryInfinity(){
-    return STD::sqrt(REAL_MAX) / RC(1.0e5);
-}
+// Unfortunately, can't be a constexpr as sqrt is not constexpr in C++14 without
+// GNU extensions, and can't be a variable for CUDA
+#define BdryInfinity (STD::sqrt(REAL_MAX) / RC(1.0e5))
 
 /**
  * Get the Top segment info (index and range interval) for range, r
@@ -101,10 +101,10 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
     
     // extend the bathymetry to +/- infinity in a piecewise constant fashion
 
-    Bdry[0     ].x[0] = -BdryInfinity();
+    Bdry[0     ].x[0] = -BdryInfinity;
     Bdry[0     ].x[1] = Bdry[1     ].x[1];
     Bdry[0     ].hs   = Bdry[1     ].hs;
-    Bdry[NPts-1].x[0] =  BdryInfinity();
+    Bdry[NPts-1].x[0] =  BdryInfinity;
     Bdry[NPts-1].x[1] = Bdry[NPts-2].x[1];
     Bdry[NPts-1].hs   = Bdry[NPts-2].hs;
     
@@ -354,8 +354,8 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         }break;
     default:
         bdinfo->Bot = allocate<BdryPtFull>(2);
-        bdinfo->Bot[0].x = vec2(-BdryInfinity(), DepthB);
-        bdinfo->Bot[1].x = vec2( BdryInfinity(), DepthB);
+        bdinfo->Bot[0].x = vec2(-BdryInfinity, DepthB);
+        bdinfo->Bot[1].x = vec2( BdryInfinity, DepthB);
     }
     
     ComputeBdryTangentNormal(bdinfo->Bot, false, bdinfo);

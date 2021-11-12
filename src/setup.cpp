@@ -130,16 +130,16 @@ void setup(std::string FileRoot,
         // *** altimetry ***
         
         bdinfo->Top = allocate<BdryPtFull>(2);
-        bdinfo->Top[0].x = vec2(-BdryInfinity(), RC(0.0));
-        bdinfo->Top[1].x = vec2( BdryInfinity(), RC(0.0));
+        bdinfo->Top[0].x = vec2(-BdryInfinity, RC(0.0));
+        bdinfo->Top[1].x = vec2( BdryInfinity, RC(0.0));
         
         ComputeBdryTangentNormal(bdinfo->Top, true, bdinfo);
         
         // *** bathymetry ***
         
         bdinfo->Bot = allocate<BdryPtFull>(2);
-        bdinfo->Bot[0].x = vec2(-BdryInfinity(), RC(5000.0));
-        bdinfo->Bot[1].x = vec2( BdryInfinity(), RC(5000.0));
+        bdinfo->Bot[0].x = vec2(-BdryInfinity, RC(5000.0));
+        bdinfo->Bot[1].x = vec2( BdryInfinity, RC(5000.0));
         
         ComputeBdryTangentNormal(bdinfo->Bot, false, bdinfo);
         

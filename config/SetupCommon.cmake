@@ -5,9 +5,15 @@ set(CMAKE_CXX_EXTENSTIONS OFF) # ...without compiler extensions like gnu++11
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Necessary to build shared libraries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra \
--Wno-sign-compare -Wno-unused-parameter -Wno-class-memaccess \
-")
+# Set default compile flags for each platform
+if(CMAKE_COMPILER_IS_GNUCXX)
+    message(STATUS "GCC detected, adding compile flags")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra \
+    -Wno-sign-compare -Wno-unused-parameter -Wno-class-memaccess")
+else()
+    message(STATUS "Not GCC, assuming Windows format compile flags")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W4")
+endif(CMAKE_COMPILER_IS_GNUCXX)
 
 find_package(Threads)
 

@@ -261,16 +261,16 @@ HOST_DEVICE inline void TraceRay2D(vec2 xs, real alpha, real Amp0,
     int32_t iSmallStepCtr = 0, iSegz = 0, iSegr = 0;
     EvaluateSSPCOnly(xs, ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
     ray2D[0] = ray2DPt{
-        .NumTopBnc = 0,
-        .NumBotBnc = 0,
-        .x         = xs,
-        .t         = vec2(STD::cos(alpha), STD::sin(alpha)) / ccpx.real(),
-        .p         = vec2(RC(1.0), RC(0.0)),
-        .q         = vec2(RC(0.0), RC(1.0)),
-        .c         = ccpx.real(),
-        .Amp       = Amp0,
-        .Phase     = RC(0.0),
-        .tau       = cpx(RC(0.0), RC(0.0)),
+        /*.NumTopBnc =*/ 0,
+        /*.NumBotBnc =*/ 0,
+        /*.x         =*/ xs,
+        /*.t         =*/ vec2(STD::cos(alpha), STD::sin(alpha)) / ccpx.real(),
+        /*.p         =*/ vec2(RC(1.0), RC(0.0)),
+        /*.q         =*/ vec2(RC(0.0), RC(1.0)),
+        /*.c         =*/ ccpx.real(),
+        /*.Amp       =*/ Amp0,
+        /*.Phase     =*/ RC(0.0),
+        /*.tau       =*/ cpx(RC(0.0), RC(0.0)),
     };
     
     // second component of qv is not used in geometric beam tracing
