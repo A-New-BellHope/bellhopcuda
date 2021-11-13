@@ -30,21 +30,21 @@ void RayWorker()
     ray2DPt *ray2D = new ray2DPt[MaxN];
     while(true){
         int32_t ray = rayID++;
-        int32_t is, ialpha;
+        int32_t isrc, ialpha; // LP: `is` changed to `isrc` because `is` is used for steps
         if(Angles->iSingle_alpha >= 0){
-            is = ray;
+            isrc = ray;
             ialpha = Angles->iSingle_alpha;
         }else{
-            is = ray / Angles->Nalpha;
+            isrc = ray / Angles->Nalpha;
             ialpha = ray % Angles->Nalpha;
         }
-        if(is >= Pos->NSz) break;
+        if(isrc >= Pos->NSz) break;
         
         memset(ray2D, 0xFE, MaxN*sizeof(ray2DPt)); //Set to garbage values for debugging
         
         real SrcDeclAngle;
         int32_t Nsteps;
-        CoreSingleBeam(is, ialpha, ray2D, SrcDeclAngle, Nsteps, 
+        MainRayMode(isrc, ialpha, SrcDeclAngle, ray2D, Nsteps, 
             Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
         
         if(Beam->RunType[0] == 'R'){

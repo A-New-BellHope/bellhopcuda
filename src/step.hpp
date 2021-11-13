@@ -97,7 +97,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
 /**
  * Does a single step along the ray
  */
-HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2, 
+HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2, 
     const vec2 &Topx, const vec2 &Topn, const vec2 &Botx, const vec2 &Botn,
     const vec2 &rTopSeg, const vec2 &rBotSeg, const real &freq,
     const BeamStructure *Beam, const SSPStructure *ssp,
@@ -209,54 +209,54 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt *ray2,
     
     //printf("w1 %g w0 %g hw0 %g hw1 %g\n", w1, w0, hw0, hw1);
 
-    ray2->x   = ray0.x   + hw0 * urayt0                + hw1 * urayt1;
-    ray2->t   = ray0.t   - hw0 * gradc0 / csq0         - hw1 * gradc1 / csq1;
-    ray2->p   = ray0.p   - hw0 * cnn0_csq0    * ray0.q - hw1 * cnn1_csq1    * ray1.q;
-    ray2->q   = ray0.q   + hw0 * ccpx0.real() * ray0.p + hw1 * ccpx1.real() * ray1.p;
-    ray2->tau = ray0.tau + hw0 / ccpx0                 + hw1 / ccpx1;
+    ray2.x   = ray0.x   + hw0 * urayt0                + hw1 * urayt1;
+    ray2.t   = ray0.t   - hw0 * gradc0 / csq0         - hw1 * gradc1 / csq1;
+    ray2.p   = ray0.p   - hw0 * cnn0_csq0    * ray0.q - hw1 * cnn1_csq1    * ray1.q;
+    ray2.q   = ray0.q   + hw0 * ccpx0.real() * ray0.p + hw1 * ccpx1.real() * ray1.p;
+    ray2.tau = ray0.tau + hw0 / ccpx0                 + hw1 / ccpx1;
     
     // printf("ray2: x (%g,%g) t (%g,%g) p (%g,%g) q (%g,%g) tau (%g,%g)\n", 
-    //     ray2->x.x, ray2->x.y, ray2->t.x, ray2->t.y,
-    //     ray2->p.x, ray2->p.y, ray2->q.x, ray2->q.y, 
-    //     ray2->tau.real(), ray2->tau.imag());
+    //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y,
+    //     ray2.p.x, ray2.p.y, ray2.q.x, ray2.q.y, 
+    //     ray2.tau.real(), ray2.tau.imag());
     
-    if(STD::abs(ray2->x.x) > DEBUG_LARGEVAL || STD::abs(ray2->x.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2->t.x) > DEBUG_LARGEVAL || STD::abs(ray2->t.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2->p.x) > DEBUG_LARGEVAL || STD::abs(ray2->p.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2->q.x) > DEBUG_LARGEVAL || STD::abs(ray2->q.y) > DEBUG_LARGEVAL){
+    if(STD::abs(ray2.x.x) > DEBUG_LARGEVAL || STD::abs(ray2.x.y) > DEBUG_LARGEVAL
+    || STD::abs(ray2.t.x) > DEBUG_LARGEVAL || STD::abs(ray2.t.y) > DEBUG_LARGEVAL
+    || STD::abs(ray2.p.x) > DEBUG_LARGEVAL || STD::abs(ray2.p.y) > DEBUG_LARGEVAL
+    || STD::abs(ray2.q.x) > DEBUG_LARGEVAL || STD::abs(ray2.q.y) > DEBUG_LARGEVAL){
         printf("ray2 invalid\n");
         bail();
     }
     
-    ray2->Amp       = ray0.Amp;
-    ray2->Phase     = ray0.Phase;
-    ray2->NumTopBnc = ray0.NumTopBnc;
-    ray2->NumBotBnc = ray0.NumBotBnc;
+    ray2.Amp       = ray0.Amp;
+    ray2.Phase     = ray0.Phase;
+    ray2.NumTopBnc = ray0.NumTopBnc;
+    ray2.NumBotBnc = ray0.NumBotBnc;
     
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP(ray2->x, ccpx2, gradc2, crr2, crz2, czz2, rho, freq, ssp, iSegz, iSegr);
+    EvaluateSSP(ray2.x, ccpx2, gradc2, crr2, crz2, czz2, rho, freq, ssp, iSegz, iSegr);
     //printf("ccpx2: (%g,%g)\n", ccpx2.real(), ccpx2.imag());
     if(STD::abs(ccpx2) > DEBUG_LARGEVAL){
         printf("ccpx2 invalid: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
         bail();
     }
-    ray2->c = ccpx2.real();
+    ray2.c = ccpx2.real();
     
     if(iSegz != iSegz0 || iSegr != iSegr0){
         gradcjump = gradc2 - gradc0;
-        ray2n = vec2(-ray2->t.y, ray2->t.x); // ray normal
+        ray2n = vec2(-ray2.t.y, ray2.t.x); // ray normal
         
         cnjump = glm::dot(gradcjump, ray2n);
-        csjump = glm::dot(gradcjump, ray2->t);
+        csjump = glm::dot(gradcjump, ray2.t);
         
         if(iSegz != iSegz0){             // crossing in depth
-            rm =  ray2->t.x / ray2->t.y; // this is tan( alpha ) where alpha is the angle of incidence
+            rm =  ray2.t.x / ray2.t.y; // this is tan( alpha ) where alpha is the angle of incidence
         }else{                           // crossing in range
-            rm = -ray2->t.y / ray2->t.x; // this is tan( alpha ) where alpha is the angle of incidence
+            rm = -ray2.t.y / ray2.t.x; // this is tan( alpha ) where alpha is the angle of incidence
         }                                // LP: The case where it crosses in depth and range simultaneously is not handled.
         
         rn = rm * (RC(2.0) * cnjump - rm * csjump) / ccpx2.real();
-        ray2->p = ray2->p - ray2->q * rn;
+        ray2.p = ray2.p - ray2.q * rn;
     }
 }
