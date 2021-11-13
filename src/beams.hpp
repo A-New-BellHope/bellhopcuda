@@ -146,10 +146,21 @@ inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
                 std::cout << "ReadEnvironment: Unknown curvature condition\n";
                 std::abort();
             }
+            
+            PRTFile << "Epsilon multiplier " << Beam->epsMultiplier << "\n";
+            PRTFile << "Range for choosing beam width " << Beam->rLoop << "\n";
+            
+            // Images, windows
+            LIST(ENVFile); ENVFile.Read(Beam->Nimage); ENVFile.Read(Beam->iBeamWindow); ENVFile.Read(Beam->Component);
+            PRTFile << "\nNumber of images, Nimage  = " << Beam->Nimage << "\n";
+            PRTFile << "Beam windowing parameter  = " << Beam->iBeamWindow << "\n";
+            PRTFile << "Component                 = " << Beam->Component << "\n";
             break;
         default:
             std::cout << "ReadEnvironment: Unknown beam type (second letter of run type\n";
             std::abort();
         }
+        
+        PRTFile << "\n";
     }
 }
