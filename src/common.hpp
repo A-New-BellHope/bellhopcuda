@@ -119,6 +119,10 @@ inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
 	return s;
 }
 
+inline real spacing(real v){
+	return STD::abs(STD::nextafter(v, RC(0.0)) - v);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //String manipulation
 ////////////////////////////////////////////////////////////////////////////////
@@ -244,10 +248,10 @@ HOST_DEVICE inline bool monotonic(real *arr, size_t n, const int32_t stridereals
 }
 
 /**
- * Returns the index of the element in the array less than or equal to target,
- * given that the array is monotonically increasing.
+ * Returns the index of the largest element in the array less than or equal to
+ * target, given that the array is monotonically increasing.
  */
-HOST_DEVICE inline int32_t BinarySearch(real *arr, int32_t n, const int32_t stride,
+HOST_DEVICE inline int32_t BinarySearchLEQ(real *arr, int32_t n, const int32_t stride,
 	const int32_t offset, real target)
 {
 	int32_t low = 0;
@@ -258,7 +262,7 @@ HOST_DEVICE inline int32_t BinarySearch(real *arr, int32_t n, const int32_t stri
 			hi = t;
 		}else if(t >= n-1){
 			return n-1;
-		}else if(arr[(t+1)*stride+offset] >= target){
+		}else if(arr[(t+1)*stride+offset] > target){
 			return t;
 		}else{
 			low = t+1;
@@ -268,11 +272,35 @@ HOST_DEVICE inline int32_t BinarySearch(real *arr, int32_t n, const int32_t stri
 }
 
 /**
+ * Returns the index of the smallest element in the array greater than or equal
+ * to target, given that the array is monotonically increasing.
+ */
+HOST_DEVICE inline int32_t BinarySearchGEQ(real *arr, int32_t n, const int32_t stride,
+	const int32_t offset, real target)
+{
+	int32_t low = 0;
+	int32_t hi = n;
+	while(low < hi){
+		int32_t t = (low + hi) / 2;
+		if(arr[t*stride+offset] < target){
+			low = t+1;
+		}else if(t <= 0){
+			return 0;
+		}else if(arr[(t-1)*stride+offset] < target){
+			return t;
+		}else{
+			hi = t;
+		}
+	}
+	return hi;
+}
+
+/**
  * mbp: full 360-degree sweep? remove duplicate angle/beam
  */
 HOST_DEVICE inline void CheckFix360Sweep(const real *angles, int32_t &n){
 	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], RC(360.0)))
-            < RC(10.0) * (STD::nextafter(RC(1.0), RC(2.0)) - RC(1.0)))
+            < RC(10.0) * spacing(RC(1.0)))
         --n;
 }
 

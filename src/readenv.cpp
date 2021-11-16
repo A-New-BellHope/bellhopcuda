@@ -316,8 +316,8 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     ZMin = Bdry->Top.hs.Depth;
     ZMax = Bdry->Bot.hs.Depth;
     // not sure why I had this
-    // ReadSzRz(ZMin + RC(100.0) * (std::nextafter(ZMin, ZMin+RC(1.0)) - ZMin),
-    //     ZMax - RC(100.0) * (std::nextafter(ZMax, ZMax+RC(1.0)) - ZMax), 
+    // ReadSzRz(ZMin + RC(100.0) * spacing(ZMin),
+    //     ZMax - RC(100.0) * spacing(ZMax), 
     //     ENVFile, PRTFile);
     ReadSzRz(ZMin, ZMax, ENVFile, PRTFile, Pos);
     ReadRcvrRanges(ENVFile, PRTFile, Pos);
