@@ -4,6 +4,11 @@
 
 struct InfluenceRayInfo {
     real phase, qOld, q0;
+    vec2 x, x2, x3;
+    bool lastValid, lastValidIm2, lastValidIm3;
+    real zn0, rn0, zn2, rn2, zn3, rn3;
+    int32_t kmah;
+    int32_t ir;
 };
 
 /**
@@ -104,6 +109,19 @@ HOST_DEVICE inline void IncPhaseIfCaustic(InfluenceRayInfo &inflray, real q)
         inflray.phase += M_PI * RC(0.5);
 }
 
+/**
+ * phase shifts at caustics
+ * LP: BUG: point.phase is discarded if the condition is met.
+ */
+HOST_DEVICE inline real BuggyFinalPhase(const ray2DPt &point, 
+    const InfluenceRayInfo &inflray, real q)
+{
+    real phaseInt = point.Phase + inflray.phase;
+    if(q <= RC(0.0) && inflray.qOld > RC(0.0) || q >= RC(0.0) && inflray.qOld < RC(0.0))
+        phaseInt = inflray.phase + M_PI * RC(0.5);
+    return phaseInt;
+}
+
 HOST_DEVICE inline void Init_InfluenceSGB(InfluenceRayInfo &inflray)
 {
     inflray.phase = RC(0.0);
@@ -199,8 +217,8 @@ HOST_DEVICE inline void Step_InfluenceSGB(
     }
 }
 
-HOST_DEVICE inline void ApplyContribution(real Amp, real cnst, real w,
-    real omega, real delay, real phaseInt, cpx delay, 
+HOST_DEVICE inline void ApplyContribution(real cnst, real w,
+    real omega, cpx delay, real phaseInt,
     cpx *u, const BeamStructure *Beam)
 {
     switch(Beam->RunType[0]){
@@ -220,7 +238,7 @@ HOST_DEVICE inline void ApplyContribution(real Amp, real cnst, real w,
         break;
     case 'C':
         // coherent TL
-        AtomicAddCpx(u, Amp * STD::exp(-J * (omega * delay - phaseInt)));
+        AtomicAddCpx(u, cnst * w * STD::exp(-J * (omega * delay - phaseInt)));
         // omega * SQ(n) / (RC(2.0) * SQ(point1.c) * delay)))) // curvature correction
         break;
     default:
@@ -242,8 +260,17 @@ HOST_DEVICE inline void Init_InfluenceGeoHatOrGaussianCart(
     inflray.qOld = point0.q.x; // used to track KMAH index
 }
 
+HOST_DEVICE inline real ComputeRatio1(const BeamStructure *Beam, real alpha)
+{
+    if(Beam->RunType[3] == 'R'){
+        return STD::sqrt(STD::abs(STD::cos(alpha))); // point source
+    }else{
+        return RC(1.0); // line source
+    }
+}
+
 /**
- * Geometric, Gaussian beams in Cartesian coordintes
+ * Geometric, hat-shaped or Gaussian beams in Cartesian coordintes
  *
  * alpha: take-off angle
  * dalpha: angular spacing
@@ -271,11 +298,7 @@ HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
     int32_t ir = BinarySearchGEQ(Pos->Rr, Pos->NRr, 1, 0, STD::min(rA, rB));
     if(Pos->Rr[ir] < STD::min(rA, rB)) return; // not "bracketted"
     
-    if(Beam->RunType[3] == 'R'){
-        Ratio1 = STD::sqrt(STD::abs(STD::cos(alpha))); // point source
-    }else{
-        Ratio1 = RC(1.0); // line source
-    }
+    Ratio1 = ComputeRatio1(Beam, alpha);
     // sqrt( 2 * pi ) represents a sum of Gaussians in free space
     if(isGaussian){
         Ratio1 /= STD::sqrt(RC(2.0) * M_PI);
@@ -355,15 +378,221 @@ HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
                 }else{
                     w = (RadiusMax - n) / RadiusMax; // hat function: 1 on center, 0 on edge
                 }
-                Amp      = cnst * w;
-                phaseInt = (isGaussian ? point1.Phase : point0.Phase) + inflray.phase;
-                // LP: BUG: point0/1.phase is discarded if this condition is met.
-                if(q <= RC(0.0) && inflray.qOld > RC(0.0) || q >= RC(0.0) && inflray.qOld < RC(0.0))
-                    phaseInt = inflray.phase + M_PI * RC(0.5); // phase shifts at caustics
+                phaseInt = BuggyFinalPhase((isGaussian ? point1 : point0), inflray, q);
                 
-                ApplyContribution(Amp, cnst, w, RC(2.0) * M_PI * freq0, 
-                    delay, phaseInt, delay, &u[iz*Pos->NRr+ir], Beam);
+                ApplyContribution(cnst, w, RC(2.0) * M_PI * freq0, 
+                    delay, phaseInt, &u[iz*Pos->NRr+ir], Beam);
             }
+        }
+    }
+}
+
+HOST_DEVICE inline void Init_InfluenceGeoHatRayCen(
+    InfluenceRayInfo &inflray, const ray2DPt &point0, real dalpha)
+{
+    inflray.q0 = point0.c / Dalpha; // Reference for J = q0 / q
+    inflray.phase = RC(0.0);
+    inflray.qOld = point0.q.x; // used to track KMAH index
+    
+    inflray.zn0 = -point0.t.x * point0.c;
+    inflray.rn0 =  point0.t.y * point0.c;
+    inflray.x = point0.x;
+    inflray.lastValid = STD::abs(inflray.zn0) >= 1e-6;
+}
+
+HOST_DEVICE inline void Compute_N_R_IR(real &n, real &r, int32_t &ir,
+    real xx, real xy, real zn, real rn, real zR, const Position *Pos)
+{
+    n = (zR - xy) / zn;
+    r = xx + n * rn;
+    // following assumes uniform spacing in Pos->r
+    ir = STD::max(STD::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0); // index of receiver
+}
+
+/**
+ * detect and skip duplicate points (happens at boundary reflection)
+ */
+HOST_DEVICE inline bool IsDuplicatePoint(const ray2DPt &point0, const ray2DPt &point1)
+{
+    return STD::abs(point1.x.x - point0.x.x) < RC(1.0e3) * spacing(point1.x.x);
+}
+
+/**
+ * Geometrically-spreading beams with a hat-shaped beam in ray-centered coordinates
+ */
+HOST_DEVICE inline void Step_InfluenceGeoHatRayCen(
+    const ray2DPt &point0, const ray2DPt &point1,
+    InfluenceRayInfo &inflray, int32_t is, cpx *u, real alpha, real dalpha,
+    int32_t NRz_per_range, const Position *Pos, const BeamStructure *Beam)
+{
+    real SrcDeclAngle, RcvrDeclAngle;
+    real dq, q, w, n, l, delay, cnst, phaseInt;
+    real zn0, rn0, zn1, rn1, nA, nB, rA, rB;
+    int32_t irA, irB;
+    cpx dtau;
+    
+    SrcDeclAngle = RadDeg * alpha; // take-off angle in degrees
+    
+    dq = point1.q.x - point0.q.x;
+    dtau = point1.tau - point0.tau;
+    
+    // ray normal based on tangent with c(s) scaling
+    zn1 = -point1.t.x * point1.c;
+    rn1 =  point1.t.y * point1.c;
+    if(STD::abs(zn1) < RC(1e-10)) return;
+    
+    if(IsDuplicatePoint(point0, point1)){
+        inflray.lastValid = true;
+        inflray.x = point1.x;
+        inflray.zn0 = zn1;
+        inflray.rn0 = rn1;
+        return;
+    }
+    
+    RcvrDeclAngle = RadDeg * STD::atan2(point1.t.y, point1.t.x);
+    
+    // During reflection imag(q) is constant and adjacent normals cannot bracket
+    // a segment of the TL line, so no special treatment is necessary
+    
+    Ratio1 = ComputeRatio1(Beam, alpha);
+    
+    real scaledAmp = Ratio1 * STD::sqrt(point1.c) * point1.Amp;
+    
+    for(int32_t iz=0; iz<NRz_per_range; ++iz){
+        real zR = Pos->Rz[iz];
+        
+        if(!inflray.lastValid){
+            nA = RC(1e10);
+            rA = RC(1e10);
+            irA = 0;
+        }else{
+            Compute_N_R_IR(nA, rA, irA, inflray.x.x, inflray.x.y, 
+                inflray.zn0, inflray.rn0, zR, Pos);
+        }
+        Compute_N_R_IR(nB, rB, irB, point1.x.x, point1.x.y, zn1, rn1, zR, Pos);
+        
+        // LP: TODO: hope this is correct, this is supposed to be a continue on
+        // the step loop, but the iz loop is originally outside the step loop.
+        if(irA == irB) continue;
+        
+        q = point0.q.x;
+        IncPhaseIfCaustic(inflray, q);
+        inflray.qOld = q;
+        
+        // *** Compute contributions to bracketted receivers ***
+        
+        for(int32_t ir = STD::min(irA, irB) + 1; ir <= STD::max(irA, irB); ++ir){
+            w = (Pos->Rr[ir] - rA) / (rB - rA);
+            n = STD::abs(nA + w * (nB - nA));
+            q = point0.q.x + w * dq; // interpolated amplitude
+            l = STD::abs(q) / inflray.q0; // beam radius
+            
+            if(n < l){ // in beamwindow?
+                delay = point0.tau + w * dtau;
+                cnst  = scaledAmp / STD::sqrt(STD::abs(q));
+                w     = (l - n) / l; // hat function: 1 on center, 0 on edge
+                phaseInt = BuggyFinalPhase(point0, inflray, q);
+                
+                ApplyContribution(cnst, w, RC(2.0) * M_PI * freq0, 
+                    delay, phaseInt, &u[iz*Pos->NRr+ir], Beam);
+            }
+        }
+    }
+    
+    inflray.lastValid = true;
+    inflray.x = point1.x;
+    inflray.zn0 = zn1;
+    inflray.rn0 = rn1;
+}
+
+HOST_DEVICE inline void Init_InfluenceCervenyRayCen(
+    InfluenceRayInfo &inflray, const ray2DPt &point0, real dalpha)
+{
+    inflray.kmah = 1;
+    
+    // mbp: This logic means that the first step along the ray is skipped
+    // which is a problem if deltas is very large, e.g. isospeed problems
+    // I fixed this in InfluenceGeoHatRayCen
+    inflray.lastValid = false;
+    inflray.lastValidIm2 = false;
+    inflray.lastValidIm3 = false;
+}
+
+/**
+ * Paraxial (Cerveny-style) beams in ray-centered coordinates
+ */
+HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
+    const ray2DPt &point0, const ray2DPt &point1,
+    InfluenceRayInfo &inflray, int32_t is, cpx *u, real alpha,
+    cpx epsilon, int32_t iBeamWindow2, real RadiusMax,
+    int32_t NRz_per_range, const BdryType *Bdry, 
+    const Position *Pos, const BeamStructure *Beam)
+{
+    cpx eps, eps0, pB, qB, qB0, gamma;
+    real zn, rn, Ratio1, zR;
+    // need to add logic related to NRz_per_range
+    
+    // During reflection imag(q) is constant and adjacent normals cannot bracket
+    // a segment of the TL line, so no special treatment is necessary
+    
+    if(Beam->Type[1] == 'C'){
+        eps  = J * STD::abs(point1.q.x / point1.q.y);
+        eps0 = J * STD::abs(point0.q.x / point0.q.y);
+    }else{
+        eps  = epsilon;
+        eps0 = epsilon;
+    }
+    
+    pB  = point1.p.x + eps  * point1.p.y;
+    qB  = point1.q.x + eps  * point1.q.y;
+    qB0 = point0.q.x + eps0 * point0.q.y;
+    gamma = pB / qB;
+    
+    // ray normal based on tangent with c(s) scaling
+    zn = -point1.t.x * point1.c;
+    rn =  point1.t.y * point1.c;
+    // If normal parallel to TL-line, skip to next step on ray
+    // LP: Possible BUG: This is the same as abs(zn) <= 0 -- there are no other
+    // numbers less than this. Definitely not equivalent to something like
+    // abs(zn) < RC(1e-7). The function was originally FORTRAN's TINY.
+    if(STD::abs(zn) < REAL_MINPOS) return;
+    
+    // detect and skip duplicate points (happens at boundary reflection)
+    if(IsDuplicatePoint(point0, point1)){
+        inflray.lastValid = inflray.lastValidIm2 = inflray.lastValidIm3 = true;
+        inflray.x = inflray.x2 = inflray.x3 = point1.x;
+        inflray.zn0 = inflray.zn2 = inflray.zn3 = zn1;
+        inflray.rn0 = inflray.rn2 = inflray.rn3 = rn1;
+        return;
+    }
+    
+    Ratio1 = ComputeRatio1(Beam, alpha);
+    
+    // compute KMAH index
+    // Following is incorrect for 'Cerveny'-style beamwidth (narrow as possible)
+    BranchCut(qB0, qB, Beam->Type, inflray.kmah);
+    
+    for(int32_t iz=0; iz<NRz_per_range; ++iz){
+        zR = Pos->Rz[iz];
+        
+        // LP: This is convoluted because the three image beams may become
+        // valid at different steps.
+        real nB1, nB2, nB3, rB1, rB2, rB3, ir21, ir22, ir23;
+        Compute_N_R_IR(nB1, rB1, ir21, point1.x.x, 
+            point1.x.y, 
+            zn, rn, zR, Pos);
+        Compute_N_R_IR(nB2, rB2, ir22, point1.x.x, 
+            RC(2.0) * Bdry->Top.hs.Depth - point1.x.y, 
+            zn, -rn, zR, Pos);
+        Compute_N_R_IR(nB3, rB3, ir23, point1.x.x, 
+            RC(2.0) * Bdry->Bot.hs.Depth - point1.x.y, 
+            zn, rn, zR, Pos);
+        // LP: BUG: The original code inverted rn for beam 2 and inverted it
+        // again for beam 3, meaning that if Beam->Nimage is set to 2, rn will
+        // be inverted for every other step.
+        
+        if(inflray.lastValid){
+            
         }
     }
 }

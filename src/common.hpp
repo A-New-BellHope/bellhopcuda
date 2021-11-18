@@ -47,6 +47,7 @@
 using real = float;
 #define REAL_MAX FLT_MAX
 #define REAL_EPSILON FLT_EPSILON
+#define REAL_MINPOS FLT_MIN
 //Must be below abs(bit_cast<float>(0xFEFEFEFEu) == -1.69e38f)
 #define DEBUG_LARGEVAL (1.0e30)
 //#define DEBUG_LARGEVAL (1.0e15)
@@ -57,6 +58,7 @@ using real = float;
 using real = double;
 #define REAL_MAX DBL_MAX
 #define REAL_EPSILON DBL_EPSILON
+#define REAL_MINPOS DBL_MIN
 //Must be below abs(bit_cast<double>(0xFEFEFEFEFEFEFEFEull) == -5.31e303)
 #define DEBUG_LARGEVAL (1.0e250)
 //#define DEBUG_LARGEVAL (1.0e15)
