@@ -213,11 +213,7 @@ void core_setup(std::ofstream &PRTFile, const real &fT,
     }
     
     /*
-    if(Beam->RunType[4] == 'I'){
-        inflinfo->NRz_per_range = 1; // irregular grid
-    }else{
-        inflinfo->NRz_per_range = Pos->NRz; // rectilinear grid
-    }
+    
     
     // for a TL calculation, allocate space for the pressure matrix
     // TODO need a separate one for each source coord?

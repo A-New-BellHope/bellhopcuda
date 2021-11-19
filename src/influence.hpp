@@ -3,6 +3,7 @@
 #include "atomics.hpp"
 
 struct InfluenceRayInfo {
+    // LP: Variables carried over between iterations.
     real phase, qOld, q0;
     vec2 x;
     bool lastValid;
@@ -10,6 +11,13 @@ struct InfluenceRayInfo {
     int32_t kmah;
     int32_t ir;
     cpx gamma;
+    // LP: Constants.
+    real RadMax;
+    int32_t iBeamWindow2, NRz_per_range;
+    real SrcDeclAngle; // take-off angle in degrees
+    real Dalpha; // angular spacing
+    cpx epsilon;
+    real Ratio1; // scale factor (point source vs. line source)
 };
 
 /**
@@ -101,125 +109,8 @@ HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
         (q1 > RC(0.0) && q2 <= RC(0.0)) ) kmah = -kmah;
 }
 
-/**
- * phase shifts at caustics
- */
-HOST_DEVICE inline void IncPhaseIfCaustic(InfluenceRayInfo &inflray, real q)
-{
-    if(q < RC(0.0) && inflray.qOld >= RC(0.0) || q > RC(0.0) && inflray.qOld <= RC(0.0))
-        inflray.phase += M_PI * RC(0.5);
-}
-
-/**
- * phase shifts at caustics
- * LP: BUG: point.phase is discarded if the condition is met.
- */
-HOST_DEVICE inline real BuggyFinalPhase(const ray2DPt &point, 
-    const InfluenceRayInfo &inflray, real q)
-{
-    real phaseInt = point.Phase + inflray.phase;
-    if(q <= RC(0.0) && inflray.qOld > RC(0.0) || q >= RC(0.0) && inflray.qOld < RC(0.0))
-        phaseInt = inflray.phase + M_PI * RC(0.5);
-    return phaseInt;
-}
-
-HOST_DEVICE inline void Init_InfluenceSGB(InfluenceRayInfo &inflray)
-{
-    inflray.phase = RC(0.0);
-    inflray.qOld = RC(1.0);
-}
-
-/**
- * Bucker's Simple Gaussian Beams in Cartesian coordinates
- */
-HOST_DEVICE inline void Step_InfluenceSGB(
-    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
-    int32_t is,
-    cpx *u, real alpha, real dalpha, real RadiusMax,
-    int32_t NRz_per_range, const Position *Pos, const BeamStructure *Beam)
-{
-    real w;
-    vec2 x, rayt;
-    cpx tau;
-    
-    real Ratio1 = STD::sqrt(STD::cos(alpha));
-    const real beta = RC(0.98); // Beam Factor
-    real a = RC(-4.0) * STD::log(beta) / SQ(dalpha);
-    real cn = Dalpha * STD::sqrt(a / M_PI);
-    real rA = point0.x.x;
-    int32_t ir = 0;
-    
-    real rB = point1.x.x;
-    
-    real q = point0.q.x;
-    IncPhaseIfCaustic(inflray, q);
-    inflray.qOld = q;
-    
-    // Loop over bracketted receiver ranges
-    // LP: BUG: This does not check for "bracketted" receivers, only that the
-    // end of the ray segment is to the right of the receiver. w may be an
-    // arbitrarily low negative number, which can lead to garbage extrapolated
-    // values for the other variables. See the BUG below.
-    while(STD::abs(rB - rA) > RC(1.0e3) * spacing(rA) && rB > Pos->Rr[ir]){
-        w    = (Pos->Rr[ir] - rA) / (rB - rA);
-        x    = point0.x   + w * (point1.x   - point0.x);
-        rayt = point0.t   + w * (point1.t   - point0.t);
-        q    = point0.q.x + w * (point1.q.x - point0.q.x);
-        tau  = point0.tau + w * (point1.tau - point0.tau);
-        
-        // following is incorrect because ray doesn't always use a step of deltas
-        // LP: The while ignores extremely small steps, but those small steps
-        // still increment is, so the later ray segments still treat it as if
-        // all steps leading up to them were of size deltas.
-        real sint = ((real)is + w) * Beam->deltas;
-        
-        IncPhaseIfCaustic(inflray, q);
-        
-        for(int32_t iz=0; i<NRz_per_range; ++i){
-            real deltaz = Pos->Rz[iz] - x.y; // ray to rcvr distance
-            //LP: This is commented out, but seems very important to have.
-            //Though with all the other bugs, perhaps this is not the main issue.
-            //real Adeltaz = STD::abs(deltaz);
-            //if(Adeltaz < RadiusMax){
-                if(Beam->RunType[0] == 'E'){ // eigenrays
-                    print("Eigenrays not yet supported\n");
-                    bail();
-                    //real SrcDeclAngle = RadDeg * alpha; // take-off angle in degrees
-                    //WriteRay2D(SrcDeclAngle, is);
-                }else{ // coherent TL
-                    // LP: BUG: It may be incoherent or semi-coherent.
-                    real cpa = STD::abs(deltaz * (rB - rA)) / STD::sqrt(SQ(rB - rQ) 
-                        + SQ(point1.x.y - point0.x.y));
-                    real ds = STD::sqrt(SQ(deltaz) - SQ(cpa));
-                    real sx1 = sint + ds;
-                    real thet = STD::atan(cpa / sx1);
-                    real delay = tau + rayt.y * deltaz;
-                    cpx contri = Ratio1 * cn * point1.Amp * STD::exp(-a * SQ(thet) -
-                        J * (omega * delay - point1.Phase - inflray.phase)) / STD::sqrt(sx1);
-                    AtomicAddCpx(&u[iz*Pos->NRr + ir], contri);
-                }
-            //}
-        }
-        
-        inflray.qOld = q;
-        ++ir;
-        // LP: BUG: In the FORTRAN this is also return, but it is within the
-        // loop over the ray steps. This means that once the ray is to the right
-        // of all receivers, it ignores the rest of the ray. This is wrong for
-        // two reasons. First, it assumes rays always travel to the right, which
-        // is not always true for certain bathymetries. Second, the influence is
-        // only computed when the ray is to the right of a receiver. If there
-        // are receviers at different range positions, the left ones will
-        // receive contributions for every step the ray is to the right. How
-        // many of these steps happen depends on where the right receivers are,
-        // which means the computed signal at one receiver depends on the
-        // position of another receiver, which is absurd.
-        if(ir >= Pos->NRr) return;
-    }
-}
-
 HOST_DEVICE inline void ApplyContribution(real cnst, real w,
-    real omega, cpx delay, real phaseInt,
+    real omega, cpx delay, real phaseInt, real SrcDeclAngle, real RcvrDeclAngle,
     cpx *u, const BeamStructure *Beam)
 {
     switch(Beam->RunType[0]){
@@ -253,152 +144,28 @@ HOST_DEVICE inline void ApplyContribution(real cnst, real w,
     }
 }
 
-HOST_DEVICE inline void Init_InfluenceGeoHatOrGaussianCart(
-    InfluenceRayInfo &inflray, const ray2DPt &point0, real dalpha)
-{
-    inflray.q0 = point0.c / Dalpha; // Reference for J = q0 / q
-    inflray.phase = RC(0.0);
-    inflray.qOld = point0.q.x; // used to track KMAH index
-}
+// LP: Helper functions.
 
-HOST_DEVICE inline real ComputeRatio1(const BeamStructure *Beam, real alpha)
+/**
+ * phase shifts at caustics
+ */
+HOST_DEVICE inline void IncPhaseIfCaustic(InfluenceRayInfo &inflray, real q)
 {
-    if(Beam->RunType[3] == 'R'){
-        return STD::sqrt(STD::abs(STD::cos(alpha))); // point source
-    }else{
-        return RC(1.0); // line source
-    }
+    if(q < RC(0.0) && inflray.qOld >= RC(0.0) || q > RC(0.0) && inflray.qOld <= RC(0.0))
+        inflray.phase += M_PI * RC(0.5);
 }
 
 /**
- * Geometric, hat-shaped or Gaussian beams in Cartesian coordintes
- *
- * alpha: take-off angle
- * dalpha: angular spacing
- * u: complex pressure field
+ * phase shifts at caustics
+ * LP: BUG: point.phase is discarded if the condition is met.
  */
-HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
-    bool isGaussian, const ray2DPt &point0, const ray2DPt &point1,
-    InfluenceRayInfo &inflray, int32_t is, cpx *u, real alpha, real dalpha,
-    int32_t NRz_per_range, const Position *Pos, const BeamStructure *Beam)
+HOST_DEVICE inline real BuggyFinalPhase(const ray2DPt &point, 
+    const InfluenceRayInfo &inflray, real q)
 {
-    const int32_t BeamWindow = 4; // beam window: kills beams outside e**(-0.5 * ibwin**2 )
-    
-    vec2 x_ray, rayt, rayn, x_rcvr;
-    real q0, SrcDeclAngle, RcvrDeclAngle, Ratio1;
-    real rlen, RadiusMax, zMin, zMax, sigma, lambda, a, dqds;
-    cpx dtauds;
-    
-    SrcDeclAngle = RadDeg * alpha;
-    rA = point0.x.x;
-    rB = point1.x.x;
-    
-    // what if never satistified?
-    // what if there is a single receiver (ir = -1 possible)
-    // LP: This implementation has been adjusted to handle these cases.
-    int32_t ir = BinarySearchGEQ(Pos->Rr, Pos->NRr, 1, 0, STD::min(rA, rB));
-    if(Pos->Rr[ir] < STD::min(rA, rB)) return; // not "bracketted"
-    
-    Ratio1 = ComputeRatio1(Beam, alpha);
-    // sqrt( 2 * pi ) represents a sum of Gaussians in free space
-    if(isGaussian){
-        Ratio1 /= STD::sqrt(RC(2.0) * M_PI);
-    }
-    
-    x_ray = point0.x;
-    
-    // compute normalized tangent (compute it because we need to measure the step length)
-    rayt = point1.x - point0.x;
-    rlen = glm::norm(tayt);
-    if(rlen < RC(1.0e3) * spacing(point1.x.x)) return; // if duplicate point in ray, skip to next step along the ray
-    rayt /= rlen;
-    rayn = vec2(-rayt.y, rayt.x); // unit normal to ray
-    RcvrDeclAngle = RadDeg * STD::atan2(rayt.y, rayt.x);
-    
-    dqds   = point1.q.x - point0.q.x;
-    dtauds = point1.tau - point0.tau;
-    
-    q = point0.q.x;
-    IncPhaseIfCaustic(inflray, q);
-    inflray.qOld = q;
-    
-    sigma = STD::max(STD::abs(point0.q.x), STD::abs(point1.q.x) / 
-        (inflray.q0 * STD::abs(rayt.x)); // beam radius projected onto vertical line
-    if(isGaussian){
-        // calculate beam width
-        lambda    = point0.c / freq;
-        sigma     = STD::max(sigma, STD::min(RC(0.2) * freq * point1.tau, M_PI * lambda));
-        RadiusMax = BeamWindow * sigma;
-    }else{
-        RadiusMax = sigma;
-    }
-    
-    // depth limits of beam
-    if(STD::abs(rayt.x) > RC(0.5)){ // shallow angle ray
-        zmin = min(point0.x.y, point1.x.y) - RadiusMax;
-        zmax = max(point0.x.y, point1.x.y) + RadiusMax;
-    }else{
-        zmin = -REAL_MAX;
-        zmax =  REAL_MAX;
-    }
-    
-    // compute beam influence for this segment of the ray
-    for(; ir<Pos->NRr; ++ir){
-        // is Rr[ir] contained in [rA, rB)? Then compute beam influence
-        // LP: Because of the new setup and always incrementing regardless of
-        // which direction the ray goes, we only have to check this side.
-        if(Pos->Rr[ir] >= STD::max(rA, rB)) return;
-        
-        for(int32_t iz=0; iz<NRz_per_range; ++iz){
-            if(Beam->RunType[4] == 'I'){
-                x_rcvr = vec2(Pos->Rr[ir], Pos->Rz[ir]); // irregular grid
-            }else{
-                x_rcvr = vec2(Pos->Rr[ir], Pos->Rz[iz]); // rectilinear grid
-            }
-            if(x_rcvr.y < zmin || x_rcvr.x > zmax) continue;
-            
-            s     = glm::dot(x_rcvr - x_ray, rayt) / rlen; // proportional distance along ray
-            n     = STD::abs(glm::dot(x_rcvr - x_ray, rayn)); // normal distance to ray
-            q     = point0.q.x + s * dqds; // interpolated amplitude
-            sigma = STD::abs(q / inflray.q0);
-            real beamWCompare;
-            if(isGaussian){
-                sigma = STD::max(sigma, STD::min(RC(0.2) * freq * point1.tau, M_PI * lambda)); // min pi * lambda, unless near
-                beamWCompare = BeamWindow * sigma;
-            }else{
-                RadiusMax = sigma;
-                beamWCompare = RadiusMax;
-            }
-            
-            if(n < beamWCompare){ // Within beam window?
-                delay = point0.tau + s * dtauds; // interpolated delay
-                cnst  = Ratio1 * STD::sqrt(point1.c / STD::abs(q)) * point1.Amp;
-                if(isGaussian){
-                    a = STD::abs(inflray.q0 / q);
-                    w = STD::exp(RC(-0.5) * SQ(n / sigma)) / (sigma * a); // Gaussian decay
-                }else{
-                    w = (RadiusMax - n) / RadiusMax; // hat function: 1 on center, 0 on edge
-                }
-                phaseInt = BuggyFinalPhase((isGaussian ? point1 : point0), inflray, q);
-                
-                ApplyContribution(cnst, w, RC(2.0) * M_PI * freq0, 
-                    delay, phaseInt, &u[iz*Pos->NRr+ir], Beam);
-            }
-        }
-    }
-}
-
-HOST_DEVICE inline void Init_InfluenceGeoHatRayCen(
-    InfluenceRayInfo &inflray, const ray2DPt &point0, real dalpha)
-{
-    inflray.q0 = point0.c / Dalpha; // Reference for J = q0 / q
-    inflray.phase = RC(0.0);
-    inflray.qOld = point0.q.x; // used to track KMAH index
-    
-    inflray.zn = -point0.t.x * point0.c;
-    inflray.rn =  point0.t.y * point0.c;
-    inflray.x = point0.x;
-    inflray.lastValid = STD::abs(inflray.zn0) >= 1e-6;
+    real phaseInt = point.Phase + inflray.phase;
+    if(q <= RC(0.0) && inflray.qOld > RC(0.0) || q >= RC(0.0) && inflray.qOld < RC(0.0))
+        phaseInt = inflray.phase + M_PI * RC(0.5);
+    return phaseInt;
 }
 
 HOST_DEVICE inline int32_t RToIR(real r, const Position *Pos)
@@ -424,105 +191,6 @@ HOST_DEVICE inline bool IsDuplicatePoint(const ray2DPt &point0, const ray2DPt &p
     return STD::abs(point1.x.x - point0.x.x) < RC(1.0e3) * spacing(point1.x.x);
 }
 
-/**
- * Geometrically-spreading beams with a hat-shaped beam in ray-centered coordinates
- */
-HOST_DEVICE inline void Step_InfluenceGeoHatRayCen(
-    const ray2DPt &point0, const ray2DPt &point1,
-    InfluenceRayInfo &inflray, int32_t is, cpx *u, real alpha, real dalpha,
-    int32_t NRz_per_range, const Position *Pos, const BeamStructure *Beam)
-{
-    real SrcDeclAngle, RcvrDeclAngle;
-    real dq, q, w, n, l, delay, cnst, phaseInt;
-    real zn, rn, nA, nB, rA, rB;
-    int32_t irA, irB;
-    cpx dtau;
-    
-    SrcDeclAngle = RadDeg * alpha; // take-off angle in degrees
-    
-    dq = point1.q.x - point0.q.x;
-    dtau = point1.tau - point0.tau;
-    
-    // ray normal based on tangent with c(s) scaling
-    zn = -point1.t.x * point1.c;
-    rn =  point1.t.y * point1.c;
-    if(STD::abs(zn) < RC(1e-10)) return;
-    
-    if(IsDuplicatePoint(point0, point1)){
-        inflray.lastValid = true;
-        inflray.x = point1.x;
-        inflray.zn = zn;
-        inflray.rn = rn;
-        return;
-    }
-    
-    RcvrDeclAngle = RadDeg * STD::atan2(point1.t.y, point1.t.x);
-    
-    // During reflection imag(q) is constant and adjacent normals cannot bracket
-    // a segment of the TL line, so no special treatment is necessary
-    
-    Ratio1 = ComputeRatio1(Beam, alpha);
-    
-    real scaledAmp = Ratio1 * STD::sqrt(point1.c) * point1.Amp;
-    
-    for(int32_t iz=0; iz<NRz_per_range; ++iz){
-        real zR = Pos->Rz[iz];
-        
-        if(!inflray.lastValid){
-            nA = RC(1e10);
-            rA = RC(1e10);
-            irA = 0;
-        }else{
-            Compute_N_R_IR(nA, rA, irA, inflray.x.x, inflray.x.y, 
-                inflray.zn, inflray.rn, zR, Pos);
-        }
-        Compute_N_R_IR(nB, rB, irB, point1.x.x, point1.x.y, zn, rn, zR, Pos);
-        
-        if(irA == irB) continue;
-        
-        q = point0.q.x;
-        IncPhaseIfCaustic(inflray, q);
-        inflray.qOld = q;
-        
-        // *** Compute contributions to bracketted receivers ***
-        
-        for(int32_t ir = STD::min(irA, irB) + 1; ir <= STD::max(irA, irB); ++ir){
-            w = (Pos->Rr[ir] - rA) / (rB - rA);
-            n = STD::abs(nA + w * (nB - nA));
-            q = point0.q.x + w * dq; // interpolated amplitude
-            l = STD::abs(q) / inflray.q0; // beam radius
-            
-            if(n < l){ // in beamwindow?
-                delay = point0.tau + w * dtau;
-                cnst  = scaledAmp / STD::sqrt(STD::abs(q));
-                w     = (l - n) / l; // hat function: 1 on center, 0 on edge
-                phaseInt = BuggyFinalPhase(point0, inflray, q);
-                
-                ApplyContribution(cnst, w, RC(2.0) * M_PI * freq0, 
-                    delay, phaseInt, &u[iz*Pos->NRr+ir], Beam);
-            }
-        }
-    }
-    
-    inflray.lastValid = true;
-    inflray.x = point1.x;
-    inflray.zn = zn;
-    inflray.rn = rn;
-}
-
-HOST_DEVICE inline void Init_InfluenceCervenyRayCen(InfluenceRayInfo &inflray)
-{
-    inflray.kmah = 1;
-    
-    // mbp: This logic means that the first step along the ray is skipped
-    // which is a problem if deltas is very large, e.g. isospeed problems
-    // I fixed this in InfluenceGeoHatRayCen
-    inflray.lastValid = false;
-    inflray.x = vec2(RC(0.0), RC(0.0));
-    inflray.zn = RC(1.0);
-    inflray.rn = RC(0.0);
-}
-
 HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
     cpx epsilon, const ray2DPt &point, const BeamStructure *Beam)
 {
@@ -535,18 +203,85 @@ HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
     qB = point.q.x + eps * point.q.y;
 }
 
+HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
+    const ray2DPt &point0, real alpha,
+    const Position *Pos, const AnglesStructure *Angles,
+    const FreqInfo *freqinfo, const BeamStructure *Beam)
+{
+    // LP: The 5x version is changed to 50x on both codepaths before it is used.
+    // inflray.RadMax = RC(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
+    inflray.RadMax = RC(50.0) * point0.c / freqinfo->freq0; // 50 wavelength max radius
+    inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
+    if(Beam->RunType[4] == 'I'){
+        inflray.NRz_per_range = 1; // irregular grid
+    }else{
+        inflray.NRz_per_range = Pos->NRz; // rectilinear grid
+    }
+    inflray.SrcDeclAngle = RadDeg * alpha;
+    inflray.Dalpha = Angles->Dalpha;
+    if(Beam->RunType[3] == 'R'){
+        inflray.Ratio1 = STD::sqrt(STD::abs(STD::cos(alpha))); // point source
+        // LP: In InfluenceSGB, this was sqrt(cos(alpha)) without the abs,
+        // but Ratio1 is real, so there will be an error for backward rays.
+        // I don't think there's any real reason this influence function should
+        // not be capable of handling backward rays, so this check could just
+        // be removed, but we must match all the quirks of BELLHOP.
+        if(STD::cos(alpha) < RC(0.0) && Beam->Type[0] == 'S'){
+            printf("Error: Original SGB implementation has spurious error for backward rays\n");
+            bail();
+        }
+    }else{
+        inflray.Ratio1 = RC(1.0); // line source
+    }
+    
+    // LP: For GeoHat and Gaussian
+    inflray.q0 = point0.c / inflray.Dalpha; // Reference for J = q0 / q
+    
+    // LP: For all except Cerveny
+    inflray.phase = RC(0.0);
+    
+    if(Beam->Type[0] == 'S'){
+        // LP: For SGB
+        inflray.qOld = RC(1.0);
+    }else{
+        // LP: For GeoHat and Gaussian
+        inflray.qOld = point0.q.x; // used to track KMAH index
+    }
+    
+    // LP: For Cerveny
+    inflray.kmah = 1;
+    
+    // LP: For RayCen types
+    if(Beam->Type[0] == 'g'){
+        // LP: For GeoHat
+        inflray.zn = -point0.t.x * point0.c;
+        inflray.rn =  point0.t.y * point0.c;
+        inflray.x = point0.x;
+        inflray.lastValid = STD::abs(inflray.zn) >= 1e-6;
+    }else{
+        // LP: For Cerveny
+        // mbp: This logic means that the first step along the ray is skipped
+        // which is a problem if deltas is very large, e.g. isospeed problems
+        // I fixed this in InfluenceGeoHatRayCen
+        inflray.zn = RC(1.0);
+        inflray.rn = RC(0.0);
+        inflray.x = vec2(RC(0.0), RC(0.0));
+        inflray.lastValid = false;
+    }
+}
+
+// LP: Main functions.
+
 /**
  * Paraxial (Cerveny-style) beams in ray-centered coordinates
  */
 HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
-    const ray2DPt &point0, const ray2DPt &point1,
-    InfluenceRayInfo &inflray, int32_t is, cpx *u, real alpha,
-    cpx epsilon, int32_t iBeamWindow2, real RadiusMax,
-    int32_t NRz_per_range, const BdryType *Bdry, 
-    const Position *Pos, const BeamStructure *Beam)
+    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
+    int32_t is, cpx epsilon, cpx *u,
+    const BdryType *Bdry, const Position *Pos, const BeamStructure *Beam)
 {
     cpx eps0, eps1, qB0, qB1, gamma0, gamma1;
-    real zn, rn, Ratio1, zR;
+    real zn, rn, zR;
     // need to add logic related to NRz_per_range
     
     // During reflection imag(q) is constant and adjacent normals cannot bracket
@@ -575,14 +310,12 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
         return;
     }
     
-    Ratio1 = ComputeRatio1(Beam, alpha);
-    
     // compute KMAH index
     // Following is incorrect for 'Cerveny'-style beamwidth (narrow as possible)
     int32_t old_kmah = inflray.kmah;
     BranchCut(qB0, qB1, Beam->Type, inflray.kmah);
     
-    for(int32_t iz=0; iz<NRz_per_range; ++iz){
+    for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
         zR = Pos->Rz[iz];
         
         for(int32_t image=1; image <= Beam->Nimage; ++image){
@@ -622,10 +355,10 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
                         continue;
                     }
                     
-                    if(RC(-0.5) * omega * gamma.imag() * nSq < iBeamWindow2){ // Within beam window?
+                    if(RC(-0.5) * omega * gamma.imag() * nSq < inflray.iBeamWindow2){ // Within beam window?
                         c   = point0.c;
                         tau = point0.tau + w * (point1.tau - point0.tau);
-                        contri = Ratio1 * point1.Amp * STD::sqrt(c * STD::abs(eps1) / q) *
+                        contri = inflray.Ratio1 * point1.Amp * STD::sqrt(c * STD::abs(eps1) / q) *
                             STD::exp(-J * (omega * (tau + RC(0.5) * gamma * nSq) - point1.phase));
                         
                         cpx P_n = -J * omega * gamma * n * contri;
@@ -651,7 +384,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
                         }
                         
                         AtomicAddCpx(&u[iz*Pos->NRr+ir], 
-                            Hermite(n, RadiusMax, RC(2.0) * RadiusMax) * contri);
+                            Hermite(n, inflray.RadMax, RC(2.0) * inflray.RadMax) * contri);
                     }
                 }
             }
@@ -664,24 +397,17 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
     inflray.rn = rn;
 }
 
-HOST_DEVICE inline void Init_InfluenceCervenyCart(InfluenceRayInfo &inflray)
-{
-    inflray.kmah = 1;
-}    
-
 /**
  * Paraxial (Cerveny-style) beams in ray-centered coordinates
  */
 HOST_DEVICE inline void Step_InfluenceCervenyCart(
-    const ray2DPt &point0, const ray2DPt &point1,
-    InfluenceRayInfo &inflray, int32_t is, cpx *u, real alpha,
-    cpx epsilon, int32_t iBeamWindow2, real RadiusMax,
-    int32_t NRz_per_range, const BdryType *Bdry, 
-    const Position *Pos, const BeamStructure *Beam, const SSPStructure *ssp,
-    int32_t &iSegz, int32_t &iSegr)
+    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
+    int32_t is, cpx epsilon, cpx *u, 
+    const BdryType *Bdry, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr, 
+    const Position *Pos, const BeamStructure *Beam)
 {
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
-    real zn, rn, Ratio1, zR;
+    real zn, rn, zR;
     // need to add logic related to NRz_per_range
     
     // During reflection imag(q) is constant and adjacent normals cannot bracket
@@ -689,8 +415,6 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
     
     Compute_eps_pB_qB(eps0, pB0, qB0, epsilon, point0, Beam);
     Compute_eps_pB_qB(eps1, pB1, qB1, epsilon, point1, Beam);
-    
-    Ratio1 = ComputeRatio1(Beam, alpha);
     
     // Form gamma and KMAH index
     // Treatment of KMAH index is incorrect for 'Cerveny' style beam width BeamType
@@ -746,14 +470,14 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
             continue;
         }
         
-        cnst = Ratio1 * STD::sqrt(c * STD::abs(eps0) / q);
+        cnst = inflray.Ratio1 * STD::sqrt(c * STD::abs(eps0) / q);
         
         // Get correct branch of STD::sqrt
         int32_t kmah = old_kmah;
         BranchCut(qB0, q, Beam->Type, kmah);
         if(kmah < 0) cnst = -cnst;
         
-        for(int32_t iz=0; iz<NRz_per_range; ++iz){
+        for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
             zR = Pos->Rz[iz];
             
             cpx contri = RC(0.0);
@@ -772,9 +496,11 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
                     printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
                     bail();
                 }
-                if(omega * gamma.imag() * SQ(deltaz) < iBeamWindow2)
-                    contri += Polarity * point1.Amp * Hermite(deltaz, RadiusMax, RC(2.0) * RadiusMax) *
-                        STD::exp(-J * (omega * (tau + rayt.y * deltaz + gamma * SQ(deltaz)) - point1.Phase));
+                if(omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2)
+                    contri += Polarity * point1.Amp * 
+                        Hermite(deltaz, inflray.RadiusMax, RC(2.0) * inflray.RadiusMax) *
+                        STD::exp(-J * (omega * (
+                            tau + rayt.y * deltaz + gamma * SQ(deltaz)) - point1.Phase));
             }
             
             if(Beam->RunType[0] == 'C'){ // coherent
@@ -785,5 +511,309 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
             }
             AtomicAddCpx(&u[iz*Pos->NRr+ir], contri);
         }
+    }
+}
+
+/**
+ * Geometrically-spreading beams with a hat-shaped beam in ray-centered coordinates
+ */
+HOST_DEVICE inline void Step_InfluenceGeoHatRayCen(
+    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
+    int32_t is, cpx *u, 
+    const Position *Pos, const BeamStructure *Beam)
+{
+    real RcvrDeclAngle;
+    real dq, q, w, n, l, delay, cnst, phaseInt;
+    real zn, rn, nA, nB, rA, rB;
+    int32_t irA, irB;
+    cpx dtau;
+    
+    dq = point1.q.x - point0.q.x;
+    dtau = point1.tau - point0.tau;
+    
+    // ray normal based on tangent with c(s) scaling
+    zn = -point1.t.x * point1.c;
+    rn =  point1.t.y * point1.c;
+    if(STD::abs(zn) < RC(1e-10)) return;
+    
+    if(IsDuplicatePoint(point0, point1)){
+        inflray.lastValid = true;
+        inflray.x = point1.x;
+        inflray.zn = zn;
+        inflray.rn = rn;
+        return;
+    }
+    
+    RcvrDeclAngle = RadDeg * STD::atan2(point1.t.y, point1.t.x);
+    
+    // During reflection imag(q) is constant and adjacent normals cannot bracket
+    // a segment of the TL line, so no special treatment is necessary
+    
+    real scaledAmp = inflray.Ratio1 * STD::sqrt(point1.c) * point1.Amp;
+    
+    for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
+        real zR = Pos->Rz[iz];
+        
+        if(!inflray.lastValid){
+            nA = RC(1e10);
+            rA = RC(1e10);
+            irA = 0;
+        }else{
+            Compute_N_R_IR(nA, rA, irA, inflray.x.x, inflray.x.y, 
+                inflray.zn, inflray.rn, zR, Pos);
+        }
+        Compute_N_R_IR(nB, rB, irB, point1.x.x, point1.x.y, zn, rn, zR, Pos);
+        
+        if(irA == irB) continue;
+        
+        q = point0.q.x;
+        IncPhaseIfCaustic(inflray, q);
+        inflray.qOld = q;
+        
+        // *** Compute contributions to bracketted receivers ***
+        
+        for(int32_t ir = STD::min(irA, irB) + 1; ir <= STD::max(irA, irB); ++ir){
+            w = (Pos->Rr[ir] - rA) / (rB - rA);
+            n = STD::abs(nA + w * (nB - nA));
+            q = point0.q.x + w * dq; // interpolated amplitude
+            l = STD::abs(q) / inflray.q0; // beam radius
+            
+            if(n < l){ // in beamwindow?
+                delay = point0.tau + w * dtau;
+                cnst  = scaledAmp / STD::sqrt(STD::abs(q));
+                w     = (l - n) / l; // hat function: 1 on center, 0 on edge
+                phaseInt = BuggyFinalPhase(point0, inflray, q);
+                
+                ApplyContribution(cnst, w, RC(2.0) * M_PI * freq0, 
+                    delay, phaseInt, inflray.SrcDeclAngle, RcvrDeclAngle,
+                    &u[iz*Pos->NRr+ir], Beam);
+            }
+        }
+    }
+    
+    inflray.lastValid = true;
+    inflray.x = point1.x;
+    inflray.zn = zn;
+    inflray.rn = rn;
+}
+
+/**
+ * Geometric, hat-shaped or Gaussian beams in Cartesian coordintes
+ *
+ * u: complex pressure field
+ */
+HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
+    bool isGaussian, 
+    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
+    int32_t is, cpx *u, 
+    const Position *Pos, const BeamStructure *Beam)
+{
+    const int32_t BeamWindow = 4; // beam window: kills beams outside e**(-0.5 * ibwin**2 )
+    
+    vec2 x_ray, rayt, rayn, x_rcvr;
+    real q0, RcvrDeclAngle;
+    real rlen, RadiusMax, zMin, zMax, sigma, lambda, a, dqds;
+    cpx dtauds;
+    
+    rA = point0.x.x;
+    rB = point1.x.x;
+    
+    // what if never satistified?
+    // what if there is a single receiver (ir = -1 possible)
+    // LP: This implementation has been adjusted to handle these cases.
+    int32_t ir = BinarySearchGEQ(Pos->Rr, Pos->NRr, 1, 0, STD::min(rA, rB));
+    if(Pos->Rr[ir] < STD::min(rA, rB)) return; // not "bracketted"
+    
+    x_ray = point0.x;
+    
+    // compute normalized tangent (compute it because we need to measure the step length)
+    rayt = point1.x - point0.x;
+    rlen = glm::norm(tayt);
+    if(rlen < RC(1.0e3) * spacing(point1.x.x)) return; // if duplicate point in ray, skip to next step along the ray
+    rayt /= rlen;
+    rayn = vec2(-rayt.y, rayt.x); // unit normal to ray
+    RcvrDeclAngle = RadDeg * STD::atan2(rayt.y, rayt.x);
+    
+    dqds   = point1.q.x - point0.q.x;
+    dtauds = point1.tau - point0.tau;
+    
+    q = point0.q.x;
+    IncPhaseIfCaustic(inflray, q);
+    inflray.qOld = q;
+    
+    sigma = STD::max(STD::abs(point0.q.x), STD::abs(point1.q.x) / 
+        (inflray.q0 * STD::abs(rayt.x)); // beam radius projected onto vertical line
+    if(isGaussian){
+        // calculate beam width
+        lambda    = point0.c / freq;
+        sigma     = STD::max(sigma, STD::min(RC(0.2) * freq * point1.tau, M_PI * lambda));
+        RadiusMax = BeamWindow * sigma;
+    }else{
+        RadiusMax = sigma;
+    }
+    
+    // depth limits of beam
+    if(STD::abs(rayt.x) > RC(0.5)){ // shallow angle ray
+        zmin = min(point0.x.y, point1.x.y) - RadiusMax;
+        zmax = max(point0.x.y, point1.x.y) + RadiusMax;
+    }else{
+        zmin = -REAL_MAX;
+        zmax =  REAL_MAX;
+    }
+    
+    // compute beam influence for this segment of the ray
+    for(; ir<Pos->NRr; ++ir){
+        // is Rr[ir] contained in [rA, rB)? Then compute beam influence
+        // LP: Because of the new setup and always incrementing regardless of
+        // which direction the ray goes, we only have to check this side.
+        if(Pos->Rr[ir] >= STD::max(rA, rB)) return;
+        
+        for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
+            if(Beam->RunType[4] == 'I'){
+                x_rcvr = vec2(Pos->Rr[ir], Pos->Rz[ir]); // irregular grid
+            }else{
+                x_rcvr = vec2(Pos->Rr[ir], Pos->Rz[iz]); // rectilinear grid
+            }
+            if(x_rcvr.y < zmin || x_rcvr.x > zmax) continue;
+            
+            s     = glm::dot(x_rcvr - x_ray, rayt) / rlen; // proportional distance along ray
+            n     = STD::abs(glm::dot(x_rcvr - x_ray, rayn)); // normal distance to ray
+            q     = point0.q.x + s * dqds; // interpolated amplitude
+            sigma = STD::abs(q / inflray.q0);
+            real beamWCompare;
+            if(isGaussian){
+                sigma = STD::max(sigma, STD::min(RC(0.2) * freq * point1.tau, M_PI * lambda)); // min pi * lambda, unless near
+                beamWCompare = BeamWindow * sigma;
+            }else{
+                RadiusMax = sigma;
+                beamWCompare = RadiusMax;
+            }
+            
+            if(n < beamWCompare){ // Within beam window?
+                delay = point0.tau + s * dtauds; // interpolated delay
+                cnst  = inflray.Ratio1 * STD::sqrt(point1.c / STD::abs(q)) * point1.Amp;
+                if(isGaussian){
+                    // sqrt( 2 * pi ) represents a sum of Gaussians in free space
+                    cnst /= STD::sqrt(RC(2.0) * M_PI);
+                    a = STD::abs(inflray.q0 / q);
+                    w = STD::exp(RC(-0.5) * SQ(n / sigma)) / (sigma * a); // Gaussian decay
+                }else{
+                    w = (RadiusMax - n) / RadiusMax; // hat function: 1 on center, 0 on edge
+                }
+                phaseInt = BuggyFinalPhase((isGaussian ? point1 : point0), inflray, q);
+                
+                ApplyContribution(cnst, w, RC(2.0) * M_PI * freq0, 
+                    delay, phaseInt, inflray.SrcDeclAngle, RcvrDeclAngle,
+                    &u[iz*Pos->NRr+ir], Beam);
+            }
+        }
+    }
+}
+
+/**
+ * Bucker's Simple Gaussian Beams in Cartesian coordinates
+ */
+HOST_DEVICE inline void Step_InfluenceSGB(
+    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
+    int32_t is, cpx *u,
+    const Position *Pos, const BeamStructure *Beam)
+{
+    real w;
+    vec2 x, rayt;
+    cpx tau;
+    
+    const real beta = RC(0.98); // Beam Factor
+    real a = RC(-4.0) * STD::log(beta) / SQ(inflray.Dalpha);
+    real cn = inflray.Dalpha * STD::sqrt(a / M_PI);
+    real rA = point0.x.x;
+    int32_t ir = 0;
+    
+    real rB = point1.x.x;
+    
+    real q = point0.q.x;
+    IncPhaseIfCaustic(inflray, q);
+    inflray.qOld = q;
+    
+    // Loop over bracketted receiver ranges
+    // LP: BUG: This does not check for "bracketted" receivers, only that the
+    // end of the ray segment is to the right of the receiver. w may be an
+    // arbitrarily low negative number, which can lead to garbage extrapolated
+    // values for the other variables. See the BUG below.
+    while(STD::abs(rB - rA) > RC(1.0e3) * spacing(rA) && rB > Pos->Rr[ir]){
+        w    = (Pos->Rr[ir] - rA) / (rB - rA);
+        x    = point0.x   + w * (point1.x   - point0.x);
+        rayt = point0.t   + w * (point1.t   - point0.t);
+        q    = point0.q.x + w * (point1.q.x - point0.q.x);
+        tau  = point0.tau + w * (point1.tau - point0.tau);
+        
+        // following is incorrect because ray doesn't always use a step of deltas
+        // LP: The while ignores extremely small steps, but those small steps
+        // still increment is, so the later ray segments still treat it as if
+        // all steps leading up to them were of size deltas.
+        real sint = ((real)is + w) * Beam->deltas;
+        
+        IncPhaseIfCaustic(inflray, q);
+        
+        for(int32_t iz=0; i<inflray.NRz_per_range; ++i){
+            real deltaz = Pos->Rz[iz] - x.y; // ray to rcvr distance
+            //LP: This is commented out, but seems very important to have.
+            //Though with all the other bugs, perhaps this is not the main issue.
+            //real Adeltaz = STD::abs(deltaz);
+            //if(Adeltaz < inflray.RadMax){
+                if(Beam->RunType[0] == 'E'){ // eigenrays
+                    print("Eigenrays not yet supported\n");
+                    bail();
+                    //WriteRay2D(inflray.SrcDeclAngle, is);
+                }else{ // coherent TL
+                    // LP: BUG: It may be incoherent or semi-coherent.
+                    real cpa = STD::abs(deltaz * (rB - rA)) / STD::sqrt(SQ(rB - rQ) 
+                        + SQ(point1.x.y - point0.x.y));
+                    real ds = STD::sqrt(SQ(deltaz) - SQ(cpa));
+                    real sx1 = sint + ds;
+                    real thet = STD::atan(cpa / sx1);
+                    real delay = tau + rayt.y * deltaz;
+                    cpx contri = inflray.Ratio1 * cn * point1.Amp * STD::exp(-a * SQ(thet) -
+                        J * (omega * delay - point1.Phase - inflray.phase)) / STD::sqrt(sx1);
+                    AtomicAddCpx(&u[iz*Pos->NRr + ir], contri);
+                }
+            //}
+        }
+        
+        inflray.qOld = q;
+        ++ir;
+        // LP: BUG: In the FORTRAN this is also return, but it is within the
+        // loop over the ray steps. This means that once the ray is to the right
+        // of all receivers, it ignores the rest of the ray. This is wrong for
+        // two reasons. First, it assumes rays always travel to the right, which
+        // is not always true for certain bathymetries. Second, the influence is
+        // only computed when the ray is to the right of a receiver. If there
+        // are receviers at different range positions, the left ones will
+        // receive contributions for every step the ray is to the right. How
+        // many of these steps happen depends on where the right receivers are,
+        // which means the computed signal at one receiver depends on the
+        // position of another receiver, which is absurd.
+        if(ir >= Pos->NRr) return;
+    }
+}
+/**
+ 
+ 
+ */
+HOST_DEVICE inline void Step_Influence(
+    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
+    int32_t is, cpx epsilon, cpx *u,
+    const BdryType *Bdry, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr, 
+    const Position *Pos, const BeamStructure *Beam)
+{
+    
+    switch(Beam->Type[0]){
+    case 'R': Step_InfluenceCervenyRayCen(
+            point0, point1, inflray, is, epsilon, u, Bdry, Pos, Beam
+        ); break;
+    case 'C': Step_InfluenceCervenyCart(); break;
+    case 'g': Step_InfluenceGeoHatRayCen(); break;
+    case 'S': Step_InfluenceSGB(); break;
+    case 'B':
+    default:  Step_InfluenceGeoHatOrGaussianCart();
     }
 }

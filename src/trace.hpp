@@ -477,10 +477,6 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
     }
 }
 
-//LP: RadMax changed to RC(50.0) * ccpx.real() / freqinfo->freq0 before both
-//of the times it's used, so this initialization is ineffective.
-//real RadMax = RC(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
-
 //TODO 
 /*
 switch(Beam->RunType[0]){
