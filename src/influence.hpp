@@ -9,6 +9,7 @@ struct InfluenceRayInfo {
     real zn0, rn0;
     int32_t kmah;
     int32_t ir;
+    cpx gamma;
 };
 
 /**
@@ -400,13 +401,19 @@ HOST_DEVICE inline void Init_InfluenceGeoHatRayCen(
     inflray.lastValid = STD::abs(inflray.zn0) >= 1e-6;
 }
 
+HOST_DEVICE inline int32_t RToIR(real r, const Position *Pos)
+{
+    // mbp: should be ", -1);"? [LP: for computation of ir1 / irA]
+    return STD::max(STD::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0);
+}
+
 HOST_DEVICE inline void Compute_N_R_IR(real &n, real &r, int32_t &ir,
     real xx, real xy, real zn, real rn, real zR, const Position *Pos)
 {
     n = (zR - xy) / zn;
     r = xx + n * rn;
     // following assumes uniform spacing in Pos->r
-    ir = STD::max(STD::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0); // index of receiver
+    ir = RToIR(r, Pos); // index of receiver
 }
 
 /**
@@ -595,7 +602,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
                 printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
                 bail();
             }
-            real nA, rA, nB, rB; 
+            real nA, rA, nB, rB;
             int32_t ir1, ir2; // LP: mbp switches from A/B naming to 1/2 here.
             Compute_N_R_IR(nB, rB, ir2, point1.x.x, tempz, zn, temprn, zR, Pos);
             Compute_N_R_IR(nA, rA, ir1, inflray.x.x, inflray.x.y, inflray.zn, 
@@ -673,7 +680,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
     const Position *Pos, const BeamStructure *Beam, const SSPStructure *ssp,
     int32_t &iSegz, int32_t &iSegr)
 {
-    cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma;
+    cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
     real zn, rn, Ratio1, zR;
     // need to add logic related to NRz_per_range
     
@@ -691,7 +698,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
     cpx ccpx; vec2 gradc; real crr, crz, czz, rho;
-    EvaluateSSP(ray0.x, ccpx, gradc, crr, crz, czz, rho, freq0, ssp, iSegz, iSegr);
+    EvaluateSSP(point1.x, ccpx, gradc, crr, crz, czz, rho, freq0, ssp, iSegz, iSegr);
     
     real csq = SQ(ccpx.real());
     real cS = glm::dot(gradc, rayt);
@@ -700,118 +707,83 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
     real Tr = rayt.x;
     real Tz = rayt.y;
     
-    gamma = RC(0.0);
+    gamma1 = RC(0.0);
     if(qB1 != RC(0.0)) gamma = RC(0.5) * (pB1 / qB1 * SQ(Tr) + 
         RC(2.0) * cN / csq * Tz * Tr - cS / csq * SQ(Tz));
+    gamma0 = inflray.gamma;
+    inflray.gamma = gamma1;
         
     int32_t old_kmah = inflray.kmah;
     BranchCut(qB0, qB1, Beam->Type, inflray.kmah);
     
-    if(is < 2) return;
+    if(is < 2) return; // LP: Skips the first valid pair, which here would be is=1.
     if(point1.x.x > Pos->Rr[Pos->NRr-1]) return;
+    real rA = point0.x.x;
+    real rB = point1.x.x;
+    if(IsDuplicatePoint(point0, point1)) return; // don't process duplicate points
     
+    // Compute upper index on rcvr line
+    // Assumes r is a vector of equally spaced points
+    int32_t irA = RToIR(rA, Pos);
+    int32_t irB = RToIR(rB, Pos);
     
-    ////////////////////////////////////////////////////////////////////////////
+    if(irA >= irB) return;
     
-    // ray normal based on tangent with c(s) scaling
-    zn = -point1.t.x * point1.c;
-    rn =  point1.t.y * point1.c;
-    // If normal parallel to TL-line, skip to next step on ray
-    // LP: Possible BUG: This is the same as abs(zn) <= 0 -- there are no other
-    // numbers less than this. Definitely not equivalent to something like
-    // abs(zn) < RC(1e-7). The function was originally FORTRAN's TINY.
-    if(STD::abs(zn) < REAL_MINPOS) return;
-    
-    // detect and skip duplicate points (happens at boundary reflection)
-    if(IsDuplicatePoint(point0, point1)){
-        inflray.lastValid = true;
-        inflray.x = point1.x;
-        inflray.zn = zn;
-        inflray.rn = rn;
-        return;
-    }
-    
-    // compute KMAH index
-    // Following is incorrect for 'Cerveny'-style beamwidth (narrow as possible)
-    
-    for(int32_t iz=0; iz<NRz_per_range; ++iz){
-        zR = Pos->Rz[iz];
+    for(int32_t ir=ir1+1; ir<=ir2; ++ir){
+        real w, c;
+        vec2 x, rayt;
+        cpx q, tau, gamma, cnst;                
+        w     = (Pos->Rr[ir] - rA) / (rB - rA);
+        x     = point0.x   + w * (point1.x   - point0.x);
+        rayt  = point0.t   + w * (point1.t   - point0.t);
+        c     = point0.c   + w * (point1.c   - point0.c);
+        q     = qB0        + w * (qB1        - qB0);
+        tau   = point0.tau + w * (point1.tau - point0.tau);
+        gamma = gamma0     + w * (gamma1     - gamma0);
         
-        for(int32_t image=1; image <= Beam->Nimage; ++image){
-            real tempz = point1.x.y;
-            real temprn = rn;
-            // LP: BUG: The original code inverted rn for beam 2 and inverted it
-            // again for beam 3, meaning that if Beam->Nimage is set to 2, rn will
-            // be inverted for every other step.
-            if(image == 1){ // True beam
-                (void)0;
-            }else if(image == 2){ // Surface-reflected beam
-                tempz = RC(2.0) * Bdry->Top.hs.Depth - tempz;
-                temprn = -temprn;
-            }else if(image == 3){ // Bottom-reflected beam
-                tempz = RC(2.0) * Bdry->Bot.hs.Depth - tempz;
-            }else{
-                printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
-                bail();
-            }
-            real nA, rA, nB, rB; 
-            int32_t ir1, ir2; // LP: mbp switches from A/B naming to 1/2 here.
-            Compute_N_R_IR(nB, rB, ir2, point1.x.x, tempz, zn, temprn, zR, Pos);
-            Compute_N_R_IR(nA, rA, ir1, inflray.x.x, inflray.x.y, inflray.zn, 
-                inflray.rn, zR, Pos);
+        if(gamma.imag() > 0){
+            print("Unbounded beam\n");
+            continue;
+        }
+        
+        cnst = Ratio1 * STD::sqrt(c * STD::abs(eps0) / q);
+        
+        // Get correct branch of STD::sqrt
+        int32_t kmah = old_kmah;
+        BranchCut(qB0, q, Beam->Type, kmah);
+        if(kmah < 0) cnst = -cnst;
+        
+        for(int32_t iz=0; iz<NRz_per_range; ++iz){
+            zR = Pos->Rz[iz];
             
-            if(inflray.lastValid && ir1 < ir2){
-                for(int32_t ir=ir1+1; ir<=ir2; ++ir){
-                    real w, n, nSq, c;
-                    cpx q, gamma, tau, contri;
-                    w     = (Pos->Rr[ir] - rA) / (rB - rA);
-                    q     = qB0    + w * (qB1 - qB0);
-                    gamma = gamma0 + w * (gamma1 - gamma0);
-                    n     = nA     + w * (nB - nA);
-                    nSq   = SQ(n);
-                    if(gamma.imag() > 0){
-                        print("Unbounded beam\n");
-                        continue;
-                    }
-                    
-                    if(RC(-0.5) * omega * gamma.imag() * nSq < iBeamWindow2){ // Within beam window?
-                        c   = point0.c;
-                        tau = point0.tau + w * (point1.tau - point0.tau);
-                        contri = Ratio1 * point1.Amp * STD::sqrt(c * STD::abs(eps1) / q) *
-                            STD::exp(-J * (omega * (tau + RC(0.5) * gamma * nSq) - point1.phase));
-                        
-                        cpx P_n = -J * omega * gamma * n * contri;
-                        cpx P_s = -J * omega / c         * contri;
-                        switch(Beam->Component){
-                        case 'P': // pressure
-                        case 'V': // vertical component
-                            contri = c * glm::dot(vec2(P_n, P_s), point1.t);
-                            break;
-                        case 'H': // horizontal component
-                            contri = c * (-P_n * point1.t.y + P_s * point1.t.x);
-                            break;
-                        }
-                        
-                        int32_t kmah = old_kmah;
-                        BranchCut(qB0, q, Beam->Type, kmah); // Get correct branch of STD::sqrt
-                        
-                        if(kmah < 0)   contri = -contri;
-                        if(image == 2) contri = -contri;
-                        
-                        if(Beam->RunType[0] == 'I' || Beam->RunType[0] == 'S'){ // Incoherent or Semi-coherent TL
-                            contri = contri * contri.conj();
-                        }
-                        
-                        AtomicAddCpx(&u[iz*Pos->NRr+ir], 
-                            Hermite(n, RadiusMax, RC(2.0) * RadiusMax) * contri);
-                    }
+            cpx contri = RC(0.0);
+            for(int32_t image=1; image <= Beam->Nimage; ++image){
+                real deltaz, Polarity;
+                if(image == 1){ // True beam
+                    deltaz = zR - x.y;
+                    Polarity = RC(1.0);
+                }else if(image == 2){ // Surface reflected beam
+                    deltaz = -zR + RC(2.0) * Bdry->Top.hs.Depth - x.y;
+                    Polarity = RC(-1.0);
+                }else if(image == 3){ // Bottom  reflected beam
+                    deltaz = -zR + RC(2.0) * Bdry->Bot.hs.Depth - x.y;
+                    Polarity = RC(1.0); // assumes rigid bottom
+                }else{
+                    printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
+                    bail();
                 }
+                if(omega * gamma.imag() * SQ(deltaz) < iBeamWindow2)
+                    contri += Polarity * point1.Amp * Hermite(deltaz, RadiusMax, RC(2.0) * RadiusMax) *
+                        STD::exp(-J * (omega * (tau + rayt.y * deltaz + gamma * SQ(deltaz)) - point1.Phase));
             }
+            
+            if(Beam->RunType[0] == 'C'){ // coherent
+                contri = cnst * contri;
+            }else if(Beam->RunType[0] == 'I' || Beam->RunType[0] == 'S'){
+                contri = cnst * contri;
+                contri = contri * contri.conj();
+            }
+            AtomicAddCpx(&u[iz*Pos->NRr+ir], contri);
         }
     }
-    
-    inflray.lastValid = true;
-    inflray.x = point1.x;
-    inflray.zn = zn;
-    inflray.rn = rn;
 }
