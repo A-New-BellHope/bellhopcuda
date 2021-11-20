@@ -172,13 +172,7 @@ void setup(std::string FileRoot,
     
     OpenOutputFiles(FileRoot, false, Title, Bdry, Pos, Angles, freqinfo, Beam,
         RAYFile, ARRFile);
-}
-
-void core_setup(std::ofstream &PRTFile, const real &fT,
-    const BdryType *Bdry, const BdryInfo *bdinfo, const AttenInfo *atten, 
-    AnglesStructure *Angles, const FreqInfo *freqinfo, BeamStructure *Beam/*, 
-    InfluenceInfo *inflinfo, ArrivalsInfo *arrinfo*/)
-{
+    
     if(Beam->deltas == RC(0.0)){
         Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth) / RC(10.0); // Automatic step size selection
         PRTFile << "\n Step length,       deltas = " << Beam->deltas << " m (automatically selected)\n";
@@ -211,45 +205,6 @@ void core_setup(std::ofstream &PRTFile, const real &fT,
                 {'W', ' '}, betaPowerLaw, fT, atten, PRTFile); // shear         wave speed
         }
     }
-    
-    /*
-    
-    
-    // for a TL calculation, allocate space for the pressure matrix
-    // TODO need a separate one for each source coord?
-    switch(Beam->RunType[0]){
-    case 'C':
-    case 'S':
-    case 'I':
-        // TL calculation
-        inflinfo->u = allocate<real>(inflinfo->NRz_per_range * Pos->NRr);
-        break;
-    case 'A':
-    case 'a':
-    case 'R':
-    case 'E':
-        // Arrivals calculation
-        inflinfo->u = allocate<real>(1); // open a dummy variable
-        break;
-    default:
-        std::cout << "RunType[0] == " << Beam->RunType[0] << " case not handled by BELLHOP\n";
-        std::abort();
-    }
-    
-    switch(Beam->RunType[0]){
-    case 'A':
-    case 'a':
-        arrinfo->MaxNArr = std::max(ArrivalsStorage / (inflinfo->NRz_per_range * Pos->NRr), MinNArr);
-        PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
-        break;
-    default:
-        arrinfo->MaxNArr = 1;
-        arrinfo->arr = allocate<TODO>(inflinfo->NRz_per_range * Pos->NRr * 1);
-        arrinfo->NArr = allocate<int32_t>(inflinfo->NRz_per_range * Pos->NRr);
-    }
-    
-    memset(arrinfo->NArr, 0, inflinfo->NRz_per_range * Pos->NRr * sizeof(int32_t));
-    */
     
     PRTFile << "\n";
 }

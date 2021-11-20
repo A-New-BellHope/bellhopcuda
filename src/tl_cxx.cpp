@@ -22,23 +22,20 @@ FreqInfo *freqinfo;
 BeamStructure *Beam;
 BeamInfo *beaminfo;
 
-std::atomic<int32_t> rayID;
+std::atomic<int32_t> jobID;
+
+
+// Ray mode
+
 std::mutex rayfilemutex;
 
-void RayWorker()
+void RayModeWorker()
 {
     ray2DPt *ray2D = new ray2DPt[MaxN];
     while(true){
-        int32_t ray = rayID++;
-        int32_t isrc, ialpha; // LP: `is` changed to `isrc` because `is` is used for steps
-        if(Angles->iSingle_alpha >= 0){
-            isrc = ray;
-            ialpha = Angles->iSingle_alpha;
-        }else{
-            isrc = ray / Angles->Nalpha;
-            ialpha = ray % Angles->Nalpha;
-        }
-        if(isrc >= Pos->NSz) break;
+        int32_t job = jobID++;
+        int32_t isrc, ialpha;
+        if(!GetJobIndices(isrc, ialpha, job, Pos, Angles)) break;
         
         memset(ray2D, 0xFE, MaxN*sizeof(ray2DPt)); //Set to garbage values for debugging
         
@@ -60,6 +57,26 @@ void RayWorker()
     }
     delete[] ray2D;
 }
+
+// TL mode
+
+cpx *uAllSources;
+
+void TLModeWorker()
+{
+    while(true){
+        int32_t job = jobID++;
+        int32_t isrc, ialpha;
+        if(!GetJobIndices(isrc, ialpha, job, Pos, Angles)) break;
+        
+        real SrcDeclAngle;
+        MainTLMode(isrc, ialpha, SrcDeclAngle, uAllSources,
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
+    }
+}
+
+
+// Main
 
 int main(int argc, char **argv)
 {
@@ -93,13 +110,28 @@ int main(int argc, char **argv)
     }
     
     setup(FileRoot, PRTFile, RAYFile, ARRFile, Title, fT,
-        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);
-    core_setup(PRTFile, fT, Bdry, bdinfo, atten, Angles, freqinfo, Beam);
-    
-    rayID = 0;
-    
+        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);   
+     
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : std::max(std::thread::hardware_concurrency(), 1u);
-    for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(RayWorker));
-    for(uint32_t i=0; i<cores; ++i) threads[i].join();
+    jobID = 0;
+    
+    if(Beam->RunType[0] == 'R'){
+        // Ray mode
+        
+        for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(RayModeWorker));
+        for(uint32_t i=0; i<cores; ++i) threads[i].join();
+        
+    }else if(Beam->RunType[0] == 'C' || Beam->RunType[0] == 'S' || Beam->RunType[0] == 'I'){
+        // TL mode
+        InitTLMode(uAllSources, Pos, Beam);
+        
+        for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(TLModeWorker));
+        for(uint32_t i=0; i<cores; ++i) threads[i].join();
+        
+        FinalizeTLMode(uAllSources);
+    }else{
+        std::cout << "Not yet implemented RunType " << Beam->RunType[0] << "\n";
+        std::abort();
+    }
 }

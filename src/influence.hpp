@@ -1,6 +1,12 @@
 #pragma once
 #include "common.hpp"
 #include "atomics.hpp"
+#include "boundary.hpp"
+#include "ssp.hpp"
+#include "sourcereceiver.hpp"
+#include "angles.hpp"
+#include "beams.hpp"
+#include "step.hpp"
 
 struct InfluenceRayInfo {
     // LP: Variables carried over between iterations.
@@ -12,11 +18,12 @@ struct InfluenceRayInfo {
     int32_t ir;
     cpx gamma;
     // LP: Constants.
+    cpx epsilon; // beam constant
+    real freq0, omega;
     real RadMax;
     int32_t iBeamWindow2, NRz_per_range;
     real SrcDeclAngle; // take-off angle in degrees
     real Dalpha; // angular spacing
-    cpx epsilon;
     real Ratio1; // scale factor (point source vs. line source)
 };
 
@@ -144,6 +151,93 @@ HOST_DEVICE inline void ApplyContribution(real cnst, real w,
     }
 }
 
+/**
+ * Picks the optimum value for epsilon
+ * 
+ * omega: angular frequency
+ * c: sound speed
+ * gradc: gradient
+ * alpha: angular spacing for ray fan
+ * rLoop: loop range
+ * EpsMultiplier: multiplier [LP: :( ]
+ */
+HOST_DEVICE inline cpx PickEpsilon(char BeamType0, char BeamType1, real omega, 
+    real c, vec2 gradc, real alpha, real Dalpha, real rLoop, real EpsMultiplier)
+{
+    real halfwidth, cz;
+    cpx epsilonOpt;
+    //const char *tag;
+    switch(BeamType0){
+    case 'C':
+    case 'R':
+        //tag = "Paraxial beams";
+        switch(BeamType1){
+        case 'F':
+            //tag = "Space filling beams";
+            halfwidth = RC(2.0) / ((omega / c) * Dalpha);
+            epsilonOpt = J * RC(0.5) * omega * SQ(halfwidth);
+            break;
+        case 'M':
+            //tag = "Minimum width beams";
+            halfwidth = STD::sqrt(RC(2.0) * c * RC(1000.0) * rLoop / omega);
+            epsilonOpt = J * RC(0.5) * omega * SQ(halfwidth);
+            break;
+        case 'W':
+            //tag = "WKB beams";
+            halfwidth = REAL_MAX;
+            cz = gradc.y;
+            if(cz == RC(0.0)){
+                epsilonOpt = RC(1e10);
+            }else{
+                epsilonOpt = (-STD::sin(alpha) / STD::cos(SQ(alpha))) * c * c / cz;
+            }
+            break;
+        default:
+            print("Invalid BeamType[1]: %c\n", BeamType1);
+            bail();
+        }
+        break;
+    case 'G':
+    case 'g':
+        //tag = "Geometric hat beams";
+        halfwidth = RC(2.0) / ((omega / c) * Dalpha);
+        epsilonOpt = J * RC(0.5) * omega * SQ(halfwidth);
+        break;
+    case 'B':
+        //tag = "Geometric Gaussian beams";
+        halfwidth = RC(2.0) / ((omega / c) * Dalpha);
+        epsilonOpt = J * RC(0.5) * omega * SQ(halfwidth);
+        break;
+    case 'b':
+        printf("bellhopcuda: Geo Gaussian beams in ray-cent. coords. not "
+            "implemented in BELLHOP (and therefore not in bellhopcuda)\n");
+        bail();
+        break;
+    case 'S':
+        //tag = "Simple Gaussian beams";
+        halfwidth = RC(2.0) / ((omega / c) * Dalpha);
+        epsilonOpt = J * RC(0.5) * omega * SQ(halfwidth);
+        break;
+    default:
+        print("Invalid BeamType[0]: %c\n", BeamType0);
+        bail();
+    }
+    
+    /*
+    // On first call write info to prt file
+    static bool INIFlag = true;
+    if(INIFlag){
+        PRTFile << "\n" << tag << "\n";
+        PRTFile << "halfwidth  = " << halfwidth << "\n";
+        PRTFile << "epsilonOpt = " << epsilonOpt << "\n";
+        PRTFile << "EpsMult    = " << EpsMultiplier << "\n\n";
+        INIFlag = false;
+    }
+    */
+    
+    return EpsMultiplier * epsilonOpt;
+}
+
 // LP: Helper functions.
 
 /**
@@ -192,31 +286,35 @@ HOST_DEVICE inline bool IsDuplicatePoint(const ray2DPt &point0, const ray2DPt &p
 }
 
 HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
-    cpx epsilon, const ray2DPt &point, const BeamStructure *Beam)
+    const ray2DPt &point, const InfluenceRayInfo &inflray, const BeamStructure *Beam)
 {
     if(Beam->Type[1] == 'C'){
         eps = J * STD::abs(point.q.x / point.q.y);
     }else{
-        eps = epsilon;
+        eps = inflray.epsilon;
     }
     pB = point.p.x + eps * point.p.y;
     qB = point.q.x + eps * point.q.y;
 }
 
+// 
+
 HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
-    const ray2DPt &point0, real alpha,
+    const ray2DPt &point0, real alpha, vec2 gradc,
     const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
+    if(Beam->Type == 'R' || Beam->Type == 'C'){
+        inflray.epsilon = PickEpsilon(Beam->Type[0], Beam->Type[1], inflray.omega,
+            point0.c, gradc, alpha, Angles->Dalpha, Beam->rLoop, Beam->epsMultiplier);
+    }
+    inflray.freq0 = freqinfo->freq0;
+    inflray.omega = RC(2.0) * M_PI * inflray.freq0;
     // LP: The 5x version is changed to 50x on both codepaths before it is used.
     // inflray.RadMax = RC(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
     inflray.RadMax = RC(50.0) * point0.c / freqinfo->freq0; // 50 wavelength max radius
     inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
-    if(Beam->RunType[4] == 'I'){
-        inflray.NRz_per_range = 1; // irregular grid
-    }else{
-        inflray.NRz_per_range = Pos->NRz; // rectilinear grid
-    }
+    inflray.NRz_per_range = Compute_NRz_per_range(Pos, Beam);
     inflray.SrcDeclAngle = RadDeg * alpha;
     inflray.Dalpha = Angles->Dalpha;
     if(Beam->RunType[3] == 'R'){
@@ -277,7 +375,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
  */
 HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpx epsilon, cpx *u,
+    int32_t is, cpx *u,
     const BdryType *Bdry, const Position *Pos, const BeamStructure *Beam)
 {
     cpx eps0, eps1, qB0, qB1, gamma0, gamma1;
@@ -287,8 +385,8 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
     // During reflection imag(q) is constant and adjacent normals cannot bracket
     // a segment of the TL line, so no special treatment is necessary
     
-    Compute_eps_pB_qB(eps0, pB0, qB0, epsilon, point0, Beam);
-    Compute_eps_pB_qB(eps1, pB1, qB1, epsilon, point1, Beam);
+    Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
+    Compute_eps_pB_qB(eps1, pB1, qB1, point1, inflray, Beam);
     gamma0 = pB0 / qB0;
     gamma1 = pB1 / qB1;
     
@@ -355,14 +453,14 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
                         continue;
                     }
                     
-                    if(RC(-0.5) * omega * gamma.imag() * nSq < inflray.iBeamWindow2){ // Within beam window?
+                    if(RC(-0.5) * inflray.omega * gamma.imag() * nSq < inflray.iBeamWindow2){ // Within beam window?
                         c   = point0.c;
                         tau = point0.tau + w * (point1.tau - point0.tau);
                         contri = inflray.Ratio1 * point1.Amp * STD::sqrt(c * STD::abs(eps1) / q) *
-                            STD::exp(-J * (omega * (tau + RC(0.5) * gamma * nSq) - point1.phase));
+                            STD::exp(-J * (inflray.omega * (tau + RC(0.5) * gamma * nSq) - point1.phase));
                         
-                        cpx P_n = -J * omega * gamma * n * contri;
-                        cpx P_s = -J * omega / c         * contri;
+                        cpx P_n = -J * inflray.omega * gamma * n * contri;
+                        cpx P_s = -J * inflray.omega / c         * contri;
                         switch(Beam->Component){
                         case 'P': // pressure
                         case 'V': // vertical component
@@ -402,7 +500,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
  */
 HOST_DEVICE inline void Step_InfluenceCervenyCart(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpx epsilon, cpx *u, 
+    int32_t is, cpx *u, 
     const BdryType *Bdry, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr, 
     const Position *Pos, const BeamStructure *Beam)
 {
@@ -413,8 +511,8 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
     // During reflection imag(q) is constant and adjacent normals cannot bracket
     // a segment of the TL line, so no special treatment is necessary
     
-    Compute_eps_pB_qB(eps0, pB0, qB0, epsilon, point0, Beam);
-    Compute_eps_pB_qB(eps1, pB1, qB1, epsilon, point1, Beam);
+    Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
+    Compute_eps_pB_qB(eps1, pB1, qB1, point1, inflray, Beam);
     
     // Form gamma and KMAH index
     // Treatment of KMAH index is incorrect for 'Cerveny' style beam width BeamType
@@ -422,7 +520,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
     cpx ccpx; vec2 gradc; real crr, crz, czz, rho;
-    EvaluateSSP(point1.x, ccpx, gradc, crr, crz, czz, rho, freq0, ssp, iSegz, iSegr);
+    EvaluateSSP(point1.x, ccpx, gradc, crr, crz, czz, rho, inflray.freq0, ssp, iSegz, iSegr);
     
     real csq = SQ(ccpx.real());
     real cS = glm::dot(gradc, rayt);
@@ -496,10 +594,10 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
                     printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
                     bail();
                 }
-                if(omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2)
+                if(inflray.omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2)
                     contri += Polarity * point1.Amp * 
                         Hermite(deltaz, inflray.RadiusMax, RC(2.0) * inflray.RadiusMax) *
-                        STD::exp(-J * (omega * (
+                        STD::exp(-J * (inflray.omega * (
                             tau + rayt.y * deltaz + gamma * SQ(deltaz)) - point1.Phase));
             }
             
@@ -584,7 +682,7 @@ HOST_DEVICE inline void Step_InfluenceGeoHatRayCen(
                 w     = (l - n) / l; // hat function: 1 on center, 0 on edge
                 phaseInt = BuggyFinalPhase(point0, inflray, q);
                 
-                ApplyContribution(cnst, w, RC(2.0) * M_PI * freq0, 
+                ApplyContribution(cnst, w, inflray.omega, 
                     delay, phaseInt, inflray.SrcDeclAngle, RcvrDeclAngle,
                     &u[iz*Pos->NRr+ir], Beam);
             }
@@ -645,8 +743,8 @@ HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
         (inflray.q0 * STD::abs(rayt.x)); // beam radius projected onto vertical line
     if(isGaussian){
         // calculate beam width
-        lambda    = point0.c / freq;
-        sigma     = STD::max(sigma, STD::min(RC(0.2) * freq * point1.tau, M_PI * lambda));
+        lambda    = point0.c / inflray.freq0;
+        sigma     = STD::max(sigma, STD::min(RC(0.2) * inflray.freq0 * point1.tau, M_PI * lambda));
         RadiusMax = BeamWindow * sigma;
     }else{
         RadiusMax = sigma;
@@ -682,7 +780,7 @@ HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
             sigma = STD::abs(q / inflray.q0);
             real beamWCompare;
             if(isGaussian){
-                sigma = STD::max(sigma, STD::min(RC(0.2) * freq * point1.tau, M_PI * lambda)); // min pi * lambda, unless near
+                sigma = STD::max(sigma, STD::min(RC(0.2) * inflray.freq0 * point1.tau, M_PI * lambda)); // min pi * lambda, unless near
                 beamWCompare = BeamWindow * sigma;
             }else{
                 RadiusMax = sigma;
@@ -702,7 +800,7 @@ HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
                 }
                 phaseInt = BuggyFinalPhase((isGaussian ? point1 : point0), inflray, q);
                 
-                ApplyContribution(cnst, w, RC(2.0) * M_PI * freq0, 
+                ApplyContribution(cnst, w, inflray.omega, 
                     delay, phaseInt, inflray.SrcDeclAngle, RcvrDeclAngle,
                     &u[iz*Pos->NRr+ir], Beam);
             }
@@ -773,7 +871,7 @@ HOST_DEVICE inline void Step_InfluenceSGB(
                     real thet = STD::atan(cpa / sx1);
                     real delay = tau + rayt.y * deltaz;
                     cpx contri = inflray.Ratio1 * cn * point1.Amp * STD::exp(-a * SQ(thet) -
-                        J * (omega * delay - point1.Phase - inflray.phase)) / STD::sqrt(sx1);
+                        J * (inflray.omega * delay - point1.Phase - inflray.phase)) / STD::sqrt(sx1);
                     AtomicAddCpx(&u[iz*Pos->NRr + ir], contri);
                 }
             //}
@@ -795,25 +893,30 @@ HOST_DEVICE inline void Step_InfluenceSGB(
         if(ir >= Pos->NRr) return;
     }
 }
-/**
- 
- 
- */
+
 HOST_DEVICE inline void Step_Influence(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpx epsilon, cpx *u,
+    int32_t is, cpx *u,
     const BdryType *Bdry, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr, 
     const Position *Pos, const BeamStructure *Beam)
 {
     
     switch(Beam->Type[0]){
     case 'R': Step_InfluenceCervenyRayCen(
-            point0, point1, inflray, is, epsilon, u, Bdry, Pos, Beam
+            point0, point1, inflray, is, u, Bdry, Pos, Beam
         ); break;
-    case 'C': Step_InfluenceCervenyCart(); break;
-    case 'g': Step_InfluenceGeoHatRayCen(); break;
-    case 'S': Step_InfluenceSGB(); break;
+    case 'C': Step_InfluenceCervenyCart(
+            point0, point1, inflray, is, u, Bdry, ssp, iSegz, iSegr, Pos, Beam
+        ); break;
+    case 'g': Step_InfluenceGeoHatRayCen(
+            point0, point1, inflray, is, u, Pos, Beam
+        ); break;
+    case 'S': Step_InfluenceSGB(
+            point0, point1, inflray, is, u, Pos, Beam
+        ); break;
     case 'B':
-    default:  Step_InfluenceGeoHatOrGaussianCart();
+    default:  Step_InfluenceGeoHatOrGaussianCart(Beam->Type[0] == 'B',
+            point0, point1, inflray, is, u, Pos, Beam
+        );
     }
 }

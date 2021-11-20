@@ -243,7 +243,7 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  * rTopSeg, rBotSeg: range intervals defining the current active segment
  */
 HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
-    ray2DPt &point0, real &DistBegTop, real &DistBegBot, 
+    ray2DPt &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
     int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
     int32_t &iSegz, int32_t &iSegr, BdryType &Bdry,
     const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
@@ -256,8 +256,8 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     vec2 xs = vec2(RC(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
     
     iSegz = 0; iSegr = 0;
-    cpx ccpx;
-    EvaluateSSPCOnly(xs, ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
+    cpx ccpx; real crr, crz, czz, rho;
+    EvaluateSSP(xs, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSegz, iSegr);
     
     // Are there enough beams?
     real DalphaOpt = STD::sqrt(ccpx.real() / (RC(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
@@ -441,55 +441,3 @@ HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int3
     DistBegBot = DistEndBot;
     return false;
 }
-
-/**
- * Main ray tracing function for ray path output mode.
- */
-HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
-    ray2DPt *ray2D, int32_t &Nsteps,
-    const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
-    const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
-{
-    real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
-    int32_t IsegTop, IsegBot, iSegz, iSegr;
-    vec2 rTopSeg, rBotSeg;
-    BdryType Bdry;
-    
-    if(!RayInit(isrc, ialpha, SrcDeclAngle, ray2D[0], 
-        DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
-        Bdry, ConstBdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo))
-    {
-        Nsteps = 1;
-        return;
-    }
-    
-    int32_t iSmallStepCtr = 0;
-    int32_t is = 0; // index for a step along the ray
-    
-    for(int32_t istep = 0; istep<MaxN-1; ++istep){
-        is += RayUpdate(ray2D[is], ray2D[is+1], ray2D[is+2], 
-            DistBegTop, DistBegBot, DistEndTop, DistEndBot,
-            IsegTop, IsegBot, rTopSeg, rBotSeg, iSmallStepCtr, iSegz, iSegr,
-            Bdry, bdinfo, refl, ssp, freqinfo, Beam);
-        if(RayTerminate(ray2D[is], Nsteps, is, DistBegTop, DistBegBot,
-            DistEndTop, DistEndBot, Beam)) break;
-    }
-}
-
-//TODO 
-/*
-switch(Beam->RunType[0]){
-case 'C':
-case 'S':
-case 'I':
-    // TL calculation, zero out pressure matrix
-    memset(inflinfo->u, 0, TODO);
-    break;
-case 'A':
-case 'a':
-    // Arrivals calculation, zero out arrival matrix
-    memset(arrinfo->Narr, 0, TODO);
-    break;
-}
-*/

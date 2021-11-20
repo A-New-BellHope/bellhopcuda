@@ -15,7 +15,3 @@ void setup(std::string FileRoot,
     AttenInfo *&atten, Position *&Pos, AnglesStructure *&Angles, FreqInfo *&freqinfo, 
     BeamStructure *&Beam, BeamInfo *&beaminfo);
     
-void core_setup(std::ofstream &PRTFile, const real &fT,
-    const BdryType *Bdry, const BdryInfo *bdinfo, const AttenInfo *atten, 
-    AnglesStructure *Angles, const FreqInfo *freqinfo, BeamStructure *Beam/*, 
-    InfluenceInfo *inflinfo, ArrivalsInfo *arrinfo*/);
