@@ -41,14 +41,86 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
 }
 
 /**
- * LP: Write the header of a SHDFile ("binary `shade' file (SHDFIL) that 
- * contains calculated pressure fields")
+ * Write header to disk file
+ * LP: of a SHDFile ("binary `shade' file (SHDFIL) that contains calculated
+ * pressure fields")
+ *
+ * FileName: Name of the file (could be a shade file or a Green's function file)
+ * Title: Arbitrary title
+ * freq0: Nominal frequency [LP: now in freqinfo]
+ * Atten: stabilizing attenuation (for wavenumber integration only)
+ * PlotType: [LP: argument description comment present but blank; also never
+ * set to "TL" in BELLHOP]
  */
-void WriteHeader(std::string FileName, std::string Title, real freq0, real Atten,
-    std::string PlotType)
+void WriteHeader(DirectOFile &SHDFile, const std::string &FileName, 
+    const std::string &Title, real Atten, const std::string &PlotType, 
+    const Position *Pos, const FreqInfo *freqinfo)
 {
-    std::cout << "TODO WriteHeader not yet implemented\n";
-    std::abort();
+    // receiver bearing angles
+    if(Pos->theta == nullptr){
+        Pos->theta = allocate<real>(1);
+        Pos->theta[0] = RC(0.0); // dummy bearing angle
+        Pos->Ntheta = 1;
+    }
+    
+    // source x-coordinates
+    if(Pos->Sx == nullptr){
+        Pos->Sx = allocate<real>(1);
+        Pos->Sx[0] = RC(0.0); // dummy x-coordinate
+        Pos->NSx = 1;
+    }
+    
+    // source y-coordinates
+    if(Pos->Sy == nullptr){
+        Pos->Sy = allocate<real>(1);
+        Pos->Sy[0] = RC(0.0); // dummy y-coordinate
+        Pos->NSy = 1;
+    }
+    
+    bool isTL = (PlotType[0] == 'T' && PlotType[1] == 'L');
+    
+    int32_t LRecl = 84; //4 for LRecl, 80 for Title
+    LRecl = std::max(LRecl, 2 * freqinfo->Nfreq * sizeof(real));
+    LRecl = std::max(LRecl, Pos->Ntheta * sizeof(real));
+    if(!isTL){
+        LRecl = std::max(LRecl, Pos->NSx * sizeof(real));
+        LRecl = std::max(LRecl, Pos->NSy * sizeof(real));
+    }
+    LRecl = std::max(LRecl, Pos->NSz * sizeof(real));
+    LRecl = std::max(LRecl, Pos->NRz * sizeof(real));
+    LRecl = std::max(LRecl, Pos->NRr * sizeof(cpx));
+    
+    SHDFile.open(FileName, LRecl);
+    if(!SHDFile.good()){
+        std::cout << "Could not open SHDFile: " << FileName << "\n";
+        std::abort();
+    }
+    SHDFile.rec(0); DOFWRITE(SHDFile, &LRecl, 4); DOFWrite(SHDFile, Title, 80);
+    SHDFile.rec(1); DOFWRITE(SHDFile, PlotType, 10);
+    SHDFile.rec(2);
+        DOFWRITEV(SHDFile, freqinfo->Nfreq);
+        DOFWRITEV(SHDFile, Pos->Ntheta);
+        DOFWRITEV(SHDFile, Pos->NSx);
+        DOFWRITEV(SHDFile, Pos->NSy);
+        DOFWRITEV(SHDFile, Pos->NSz);
+        DOFWRITEV(SHDFile, Pos->NRz);
+        DOFWRITEV(SHDFile, Pos->NRr);
+        DOFWRITEV(SHDFile, freqinfo->freq0);
+        DOFWRITEV(SHDFile, Atten);
+    SHDFile.rec(3); DOFWRITE(SHDFile, freqinfo->freqVec, freqInfo->Nfreq * sizeof(real));
+    SHDFile.rec(4); DOFWRITE(SHDFile, Pos->theta, Pos->Nthetea * sizeof(real));
+    
+    if(!isTL){
+        SHDFile.rec(5); DOFWRITE(SHDFile, Pos->Sx, Pos->NSx * sizeof(real));
+        SHDFile.rec(6); DOFWRITE(SHDFile, Pos->Sy, Pos->NSy * sizeof(real));
+    }else{
+        SHDFile.rec(5); DOFWRITEV(SHDFile, Pos->Sx[0]); DOFWRITEV(SHDFile, Pos->Sx[Pos->NSx-1]);
+        SHDFile.rec(6); DOFWRITEV(SHDFile, Pos->Sy[0]); DOFWRITEV(SHDFile, Pos->Sy[Pos->NSy-1]);
+    }
+    SHDFile.rec(7); DOFWRITE(SHDFile, Pos->Sz, Pos->NSz * sizeof(real));
+    
+    SHDFile.rec(8); DOFWRITE(SHDFile, Pos->Rz, Pos->NRz * sizeof(real));
+    SHDFile.rec(9); DOFWRITE(SHDFile, Pos->Rr, Pos->NRr * sizeof(real));
 }
 
 /**
@@ -57,7 +129,7 @@ void WriteHeader(std::string FileName, std::string Title, real freq0, real Atten
 void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
     const BdryType *Bdry, const Position *Pos, const AnglesStructure *Angles, 
     const FreqInfo *freqinfo, const BeamStructure *Beam,
-    LDOFile &RAYFile, std::ofstream &ARRFile)
+    LDOFile &RAYFile, std::ofstream &ARRFile, DirectOFile &SHDFile)
 {
     real atten;
     float freq;
@@ -137,6 +209,6 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
         default:
             PlotType = "rectilin  ";
         }
-        WriteHeader(FileRoot + ".shd", Title, freqinfo->freq0, atten, PlotType);
+        WriteHeader(SHDFile, FileRoot + ".shd", Title, atten, PlotType, Pos, freqinfo);
     }
 }

@@ -59,7 +59,7 @@ HOST_DEVICE inline real Hermite(real x, real x1, real x2)
  * u: Pressure field
  */
 HOST_DEVICE inline void ScalePressure(real Dalpha, real c, real *r, 
-    cpx *u, int32_t NRz, int32_t Nr, char (&RunType)[5], real freq)
+    cpx *u, int32_t NRz, int32_t Nr, char (&RunType)[7], real freq)
 {
     // Compute scale factor for field
     real cnst;

@@ -66,9 +66,27 @@ inline void InitTLMode(cpx *&uAllSources, const Position *Pos,
     memset(uAllSources, 0, n * sizeof(cpx));
 }
 
-inline void FinalizeTLMode(cpx *&uAllSources)
+/**
+ * LP: Write TL results
+ */
+inline void FinalizeTLMode(cpx *&uAllSources, DirectOFile &SHDFile)
 {
-    TODO; //write results
+    for(int32_t isrc=0; isrc<Pos->NSz; ++isrc){
+        cpx ccpx;
+        int32_t iSegz = 0, iSegr = 0;
+        EvaluateSSPCOnly(vec2(RC(0.0), Pos->Sz[isrc]), ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
+        ScalePressure(Angles->Dalpha, ccpx.real(), Pos->Rr, 
+            &uAllSources[isrc * NRz_per_range * Pos->NRr], 
+            NRz_per_range, Pos->NRr, Beam->RunType, freqinfo->freq0);
+        int32_t IRec = 10 + NRz_per_range * isrc;
+        for(int32_t Irz1 = 0; Irz1 < NRz_per_range; ++Irz1){
+            SHDFile.rec(IRec);
+            for(int32_t r=0; r < Pos->NRr; ++r){
+                DOFWRITEV(SHDFile, uAllSources[(isrc * NRz_per_range + Irz1) * Pos->NRr + r]);
+            }
+            ++IRec;
+        }
+    }
     deallocate(uAllSources);
 }
 

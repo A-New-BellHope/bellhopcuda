@@ -9,6 +9,7 @@
 
 std::ofstream PRTFile, ARRFile;
 LDOFile RAYFile;
+DirectOFile SHDFile;
 std::string Title;
 real fT;
 BdryType *Bdry;
@@ -109,7 +110,7 @@ int main(int argc, char **argv)
         std::abort();
     }
     
-    setup(FileRoot, PRTFile, RAYFile, ARRFile, Title, fT,
+    setup(FileRoot, PRTFile, RAYFile, ARRFile, SHDFile, Title, fT,
         Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);   
      
     std::vector<std::thread> threads;
@@ -129,7 +130,7 @@ int main(int argc, char **argv)
         for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(TLModeWorker));
         for(uint32_t i=0; i<cores; ++i) threads[i].join();
         
-        FinalizeTLMode(uAllSources);
+        FinalizeTLMode(uAllSources, SHDFile);
     }else{
         std::cout << "Not yet implemented RunType " << Beam->RunType[0] << "\n";
         std::abort();

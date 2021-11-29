@@ -383,7 +383,84 @@ public:
         return *this;
     }
     
+    template<typename T> void write(const T *v, int32_t n){
+        for(int32_t i=0; i<n; ++i){
+            this->operator<<(v[i]);
+        }
+    }
+    template<typename T> void write(const T *v, int32_t m, int32_t n){
+        for(int32_t i=0; i<m; ++i){
+            for(int32_t j=0; j<n; ++j){
+                this->operator<<(v[i*n+j]);
+            }
+            this->operator<<('\n');
+        }
+    }
+    
 private:
     std::ofstream ostr;
     int32_t iwidth, rwidth;
+};
+
+class DirectOFile {
+public:
+    DirectOFile() : recl(-1), bytesWrittenThisRecord(777777777), lastWasString(false) {}
+    ~DirectOFile(){
+        if(!ostr.is_open()) return;
+        fillRestOfRecord();
+        ostr.close();
+    }
+    
+    /**
+     * LRecl: record length in bytes
+     */
+    void open(const std::string &path, int32_t LRecl){
+        recl = LRecl;
+        ostr.open(path);
+    }
+    
+    bool good(){
+        return ostr.good() && ostr.is_open();
+    }
+    
+    void rec(int32_t r){
+        fillRestOfRecord();
+        ostr.seekp(r * recl);
+        bytesWrittenThisRecord = 0;
+        lastWasString = false;
+    }
+    
+    #define DOFWRITE(d, data, bytes) d.write(__FILE__, __LINE__, data, bytes)
+    void write(const char *file, int fline, const void *data, int32_t bytes){
+        if(bytesWrittenThisRecord + bytes > recl){
+            std::cout << file << ":" << fline << ": DirectOFile overflow, " 
+                << bytesWrittenThisRecord << " bytes already written, rec size "
+                << recl << ", tried to write " << bytes << " more\n";
+            std::abort();
+        }
+        ostr.write((const char*)data, bytes);
+        lastWasString = false;
+    }
+    void write(const char *file, int fline, const std::string &str, int32_t bytes){
+        write(file, fline, str.data(), std::min(bytes, str.size()));
+        lastWasString = true;
+    }
+    #define DOFWRITEV(d, data) d.write(__FILE__, __LINE__, data)
+    template<typename T> void write(const char *file, int fline, T v){
+        write(file, line, &v, sizeof(T));
+    }
+    
+    
+private:
+    void fillRestOfRecord(){
+        while(bytesWrittenThisRecord < recl){
+            ostr.put(lastWasString ? ' ' : 0);
+            ++bytesWrittenThisRecord;
+        }
+    }
+    
+    std::ofstream ostr;
+    int32_t recl;
+    int32_t bytesWrittenThisRecord;
+    bool lastWasString;
 };

@@ -9,7 +9,7 @@
 #include "beams.hpp"
 
 void setup(std::string FileRoot, 
-    std::ofstream &PRTFile, LDOFile &RAYFile, std::ofstream &ARRFile,
+    std::ofstream &PRTFile, LDOFile &RAYFile, std::ofstream &ARRFile, DirectOFile &SHDFile,
     std::string &Title, real &fT,
     BdryType *&Bdry, BdryInfo *&bdinfo, ReflectionInfo *&refl, SSPStructure *&ssp,
     AttenInfo *&atten, Position *&Pos, AnglesStructure *&Angles, FreqInfo *&freqinfo, 
