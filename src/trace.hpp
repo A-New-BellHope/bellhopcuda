@@ -270,7 +270,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     real alpha = Angles->alpha[ialpha]; // initial angle
     SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
     
-    int32_t ibp = BinarySearch(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
+    int32_t ibp = BinarySearchLEQ(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
     ibp = STD::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
     
     // linear interpolation to get amplitude

@@ -10,11 +10,11 @@ HOST_DEVICE inline bool GetJobIndices(int32_t &isrc, int32_t &ialpha, int32_t jo
     const Position *Pos, const AnglesStructure *Angles)
 {
     if(Angles->iSingle_alpha >= 0){
-        isrc = ray;
+        isrc = job;
         ialpha = Angles->iSingle_alpha;
     }else{
-        isrc = ray / Angles->Nalpha;
-        ialpha = ray % Angles->Nalpha;
+        isrc = job / Angles->Nalpha;
+        ialpha = job % Angles->Nalpha;
     }
     return (isrc < Pos->NSz);
 }
@@ -69,8 +69,11 @@ inline void InitTLMode(cpx *&uAllSources, const Position *Pos,
 /**
  * LP: Write TL results
  */
-inline void FinalizeTLMode(cpx *&uAllSources, DirectOFile &SHDFile)
+inline void FinalizeTLMode(cpx *&uAllSources, DirectOFile &SHDFile,
+    const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
+    const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
+    int32_t NRz_per_range = Compute_NRz_per_range(Pos, Beam);
     for(int32_t isrc=0; isrc<Pos->NSz; ++isrc){
         cpx ccpx;
         int32_t iSegz = 0, iSegr = 0;
@@ -129,10 +132,11 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
         }else if(dStep == 1){
             point0 = point1;
         }else{
-            print("Invalid dstep: %d\n", dstep);
+            printf("Invalid dStep: %d\n", dStep);
             bail();
         }
         is += dStep;
+        int32_t Nsteps;
         if(RayTerminate(point0, Nsteps, is, DistBegTop, DistBegBot,
             DistEndTop, DistEndBot, Beam)) break;
     }

@@ -8,13 +8,13 @@
 template <class To, class From>
 typename std::enable_if_t<
     sizeof(To) == sizeof(From) &&
-    std::is_trivially_copyable_v<From> &&
-    std::is_trivially_copyable_v<To>,
+    std::is_trivially_copyable<From>::value &&
+    std::is_trivially_copyable<To>::value,
     To>
 // constexpr support needs compiler magic
 bit_cast(const From& src) noexcept
 {
-    static_assert(std::is_trivially_constructible_v<To>,
+    static_assert(std::is_trivially_constructible<To>::value,
         "This implementation additionally requires destination type to be trivially constructible");
  
     To dst;
@@ -45,12 +45,13 @@ HOST_DEVICE inline void AtomicAddReal(float *ptr, float v)
     #else
     // Have to do compare-and-swap.
     int32_t *intptr = (int32_t*)ptr;
-    int32_t curint, prevint;
+    int32_t curint;
     #ifdef __GNUC__
     __atomic_load(intptr, &curint, __ATOMIC_RELAXED);
     while(!__atomic_compare_exchange_n(intptr, &curint, IntFloatAdd(v, curint), 
         true, __ATOMIC_RELAXED, __ATOMIC_RELAXED));
     #elif defined(_MSC_VER)
+    int32_t prevint;
     curint = InterlockedOr(intptr, 0); //MSVC does not have a pure atomic load.
     do{
         prevint = curint;
@@ -70,12 +71,13 @@ HOST_DEVICE inline void AtomicAddReal(double *ptr, double v)
     #else
     // Have to do compare-and-swap.
     int64_t *intptr = (int64_t*)ptr;
-    int64_t curint, prevint;
+    int64_t curint;
     #ifdef __GNUC__
     __atomic_load(intptr, &curint, __ATOMIC_RELAXED);
     while(!__atomic_compare_exchange_n(intptr, &curint, Int64DoubleAdd(v, curint),
         true, __ATOMIC_RELAXED, __ATOMIC_RELAXED));
     #elif defined(_MSC_VER)
+    int64_t prevint;
     curint = InterlockedOr64(intptr, 0); //MSVC does not have a pure atomic load.
     do{
         prevint = curint;

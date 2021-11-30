@@ -56,6 +56,11 @@ public:
         LDIFILE_READPREFIX();
         v = s;
     }
+    void Read(char &v){
+        LDIFILE_READPREFIX();
+        if(s.length() != 1) Error("String " + s + " is not one character");
+        v = s[0];
+    }
     void Read(int32_t &v){
         LDIFILE_READPREFIX();
         if(!isInt(s, true)) Error("String " + s + " is not an integer");
@@ -442,12 +447,12 @@ public:
         lastWasString = false;
     }
     void write(const char *file, int fline, const std::string &str, int32_t bytes){
-        write(file, fline, str.data(), std::min(bytes, str.size()));
+        write(file, fline, str.data(), std::min(bytes, (int32_t)str.size()));
         lastWasString = true;
     }
     #define DOFWRITEV(d, data) d.write(__FILE__, __LINE__, data)
     template<typename T> void write(const char *file, int fline, T v){
-        write(file, line, &v, sizeof(T));
+        write(file, fline, &v, sizeof(T));
     }
     
     

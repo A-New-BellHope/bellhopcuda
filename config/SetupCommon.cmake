@@ -36,6 +36,7 @@ endfunction()
 set(COMMON_SOURCE
     angles.hpp
     arrivals.hpp
+    atomics.hpp
     attenuation.hpp
     beams.hpp
     boundary.hpp
@@ -43,6 +44,7 @@ set(COMMON_SOURCE
     curves.hpp
     influence.hpp
     ldio.hpp
+    main.hpp
     output.cpp
     output.hpp
     readenv.cpp

@@ -170,6 +170,26 @@ void setup(std::string FileRoot,
         Pos->theta[0] = RC(0.0);
     }
     
+    // LP: Moved from WriteHeader
+    // receiver bearing angles
+    if(Pos->theta == nullptr){
+        Pos->theta = allocate<real>(1);
+        Pos->theta[0] = RC(0.0); // dummy bearing angle
+        Pos->Ntheta = 1;
+    }
+    // source x-coordinates
+    if(Pos->Sx == nullptr){
+        Pos->Sx = allocate<real>(1);
+        Pos->Sx[0] = RC(0.0); // dummy x-coordinate
+        Pos->NSx = 1;
+    }
+    // source y-coordinates
+    if(Pos->Sy == nullptr){
+        Pos->Sy = allocate<real>(1);
+        Pos->Sy[0] = RC(0.0); // dummy y-coordinate
+        Pos->NSy = 1;
+    }
+    
     OpenOutputFiles(FileRoot, false, Title, Bdry, Pos, Angles, freqinfo, Beam,
         RAYFile, ARRFile, SHDFile);
     

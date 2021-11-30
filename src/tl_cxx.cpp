@@ -1,5 +1,5 @@
 #include "setup.hpp"
-#include "trace.hpp"
+#include "main.hpp"
 #include "output.hpp"
 
 #include <atomic>
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
         for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(TLModeWorker));
         for(uint32_t i=0; i<cores; ++i) threads[i].join();
         
-        FinalizeTLMode(uAllSources, SHDFile);
+        FinalizeTLMode(uAllSources, SHDFile, ssp, Pos, Angles, freqinfo, Beam);
     }else{
         std::cout << "Not yet implemented RunType " << Beam->RunType[0] << "\n";
         std::abort();
