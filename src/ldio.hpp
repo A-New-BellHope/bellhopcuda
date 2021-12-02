@@ -71,7 +71,12 @@ public:
         if(!isInt(s, false)) Error("String " + s + " is not an unsigned integer");
         v = std::stoul(s);
     }
-    void Read(real &v){
+    void Read(float &v){
+        LDIFILE_READPREFIX();
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v = strtof(s.c_str(), nullptr);
+    }
+    void Read(double &v){
         LDIFILE_READPREFIX();
         if(!isReal(s)) Error("String " + s + " is not a real number");
         v = strtod(s.c_str(), nullptr);
@@ -109,7 +114,7 @@ public:
         std::strncpy(v, s.c_str(), s.length());
         if(s.length() < nc) memset(v+s.length(), ' ', nc-s.length());
     }
-    void Read(real *arr, size_t count){
+    template<typename REAL> void Read(REAL *arr, size_t count){
         for(size_t i=0; i<count; ++i){
             Read(arr[i]);
         }
@@ -409,12 +414,8 @@ private:
 
 class DirectOFile {
 public:
-    DirectOFile() : recl(-1), bytesWrittenThisRecord(777777777), lastWasString(false) {}
-    ~DirectOFile(){
-        if(!ostr.is_open()) return;
-        fillRestOfRecord();
-        ostr.close();
-    }
+    DirectOFile() : recl(-1), bytesWrittenThisRecord(777777777) {}
+    ~DirectOFile() { if(ostr.is_open()) ostr.close(); }
     
     /**
      * LRecl: record length in bytes
@@ -429,10 +430,8 @@ public:
     }
     
     void rec(int32_t r){
-        fillRestOfRecord();
         ostr.seekp(r * recl);
         bytesWrittenThisRecord = 0;
-        lastWasString = false;
     }
     
     #define DOFWRITE(d, data, bytes) d.write(__FILE__, __LINE__, data, bytes)
@@ -444,11 +443,14 @@ public:
             std::abort();
         }
         ostr.write((const char*)data, bytes);
-        lastWasString = false;
+        bytesWrittenThisRecord += bytes;
     }
     void write(const char *file, int fline, const std::string &str, int32_t bytes){
         write(file, fline, str.data(), std::min(bytes, (int32_t)str.size()));
-        lastWasString = true;
+        for(int32_t b=str.size(); b<bytes; ++b){
+            ostr.put(' ');
+            ++bytesWrittenThisRecord;
+        }
     }
     #define DOFWRITEV(d, data) d.write(__FILE__, __LINE__, data)
     template<typename T> void write(const char *file, int fline, T v){
@@ -457,15 +459,7 @@ public:
     
     
 private:
-    void fillRestOfRecord(){
-        while(bytesWrittenThisRecord < recl){
-            ostr.put(lastWasString ? ' ' : 0);
-            ++bytesWrittenThisRecord;
-        }
-    }
-    
     std::ofstream ostr;
     int32_t recl;
     int32_t bytesWrittenThisRecord;
-    bool lastWasString;
 };

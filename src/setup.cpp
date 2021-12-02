@@ -113,9 +113,9 @@ void setup(std::string FileRoot,
         Pos->NRz = 100;
         Pos->NRr = 500;
         
-        Pos->Sz = allocate<real>(Pos->NSz); Pos->ws = allocate<real>(Pos->NSz); Pos->iSz = allocate<int32_t>(Pos->NSz);
-        Pos->Rz = allocate<real>(Pos->NRz); Pos->wr = allocate<real>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
-        Pos->Rr = allocate<real>(Pos->NRr);
+        Pos->Sz = allocate<float>(Pos->NSz); Pos->ws = allocate<float>(Pos->NSz); Pos->iSz = allocate<int32_t>(Pos->NSz);
+        Pos->Rz = allocate<float>(Pos->NRz); Pos->wr = allocate<float>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
+        Pos->Rr = allocate<float>(Pos->NRr);
         
         memcpy(Beam->RunType, "C      ", 7);
         memcpy(Beam->Type, "G   ", 4);
@@ -166,26 +166,26 @@ void setup(std::string FileRoot,
         ReadPat(FileRoot, PRTFile, beaminfo); // Source Beam Pattern
         // dummy bearing angles
         Pos->Ntheta = 1;
-        Pos->theta = allocate<real>(Pos->Ntheta);
+        Pos->theta = allocate<float>(Pos->Ntheta);
         Pos->theta[0] = RC(0.0);
     }
     
     // LP: Moved from WriteHeader
     // receiver bearing angles
     if(Pos->theta == nullptr){
-        Pos->theta = allocate<real>(1);
+        Pos->theta = allocate<float>(1);
         Pos->theta[0] = RC(0.0); // dummy bearing angle
         Pos->Ntheta = 1;
     }
     // source x-coordinates
     if(Pos->Sx == nullptr){
-        Pos->Sx = allocate<real>(1);
+        Pos->Sx = allocate<float>(1);
         Pos->Sx[0] = RC(0.0); // dummy x-coordinate
         Pos->NSx = 1;
     }
     // source y-coordinates
     if(Pos->Sy == nullptr){
-        Pos->Sy = allocate<real>(1);
+        Pos->Sy = allocate<float>(1);
         Pos->Sy[0] = RC(0.0); // dummy y-coordinate
         Pos->NSy = 1;
     }

@@ -61,7 +61,7 @@ void RayModeWorker()
 
 // TL mode
 
-cpx *uAllSources;
+cpxf *uAllSources;
 
 void TLModeWorker()
 {
@@ -109,6 +109,7 @@ int main(int argc, char **argv)
         std::cout << "Must provide FileRoot as command-line parameter\n";
         std::abort();
     }
+    std::cout << "Setup\n";
     
     setup(FileRoot, PRTFile, RAYFile, ARRFile, SHDFile, Title, fT,
         Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);   
@@ -127,9 +128,11 @@ int main(int argc, char **argv)
         // TL mode
         InitTLMode(uAllSources, Pos, Beam);
         
+        std::cout << "Run\n";
         for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(TLModeWorker));
         for(uint32_t i=0; i<cores; ++i) threads[i].join();
         
+        std::cout << "Output\n";
         FinalizeTLMode(uAllSources, SHDFile, ssp, Pos, Angles, freqinfo, Beam);
     }else{
         std::cout << "Not yet implemented RunType " << Beam->RunType[0] << "\n";

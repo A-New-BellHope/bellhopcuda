@@ -59,8 +59,8 @@ HOST_DEVICE inline real Hermite(real x, real x1, real x2)
  * c: nominal sound speed (LP: [NRz][Nr])
  * u: Pressure field
  */
-HOST_DEVICE inline void ScalePressure(real Dalpha, real c, real *r, 
-    cpx *u, int32_t NRz, int32_t Nr, const char (&RunType)[7], real freq)
+HOST_DEVICE inline void ScalePressure(real Dalpha, real c, float *r, 
+    cpxf *u, int32_t NRz, int32_t Nr, const char (&RunType)[7], real freq)
 {
     // Compute scale factor for field
     real cnst;
@@ -75,7 +75,7 @@ HOST_DEVICE inline void ScalePressure(real Dalpha, real c, real *r,
     if(RunType[0] != 'C'){
         for(int32_t irz=0; irz<NRz; ++irz){
             for(int32_t ir=0; ir<Nr; ++ir){
-                u[irz*Nr+ir] = cpx(STD::sqrt(u[irz*Nr+ir].real()), RC(0.0));
+                u[irz*Nr+ir] = cpxf((float)STD::sqrt(u[irz*Nr+ir].real()), 0.0f);
             }
         }
     }
@@ -86,14 +86,14 @@ HOST_DEVICE inline void ScalePressure(real Dalpha, real c, real *r,
         if(RunType[3] == 'X'){ // line source
             factor = RC(-4.0) * STD::sqrt(M_PI) * cnst;
         }else{ // point source
-            if(r[ir] == RC(0.0)){
+            if(r[ir] == 0.0f){
                 factor = RC(0.0); // avoid /0 at origin, return pressure = 0
             }else{
-                factor = cnst / STD::sqrt(STD::abs(r[ir]));
+                factor = cnst / (real)STD::sqrt(STD::abs(r[ir]));
             }
         }
         for(int32_t irz=0; irz<NRz; ++irz){
-            u[irz*Nr+ir] *= factor;
+            u[irz*Nr+ir] *= (float)factor;
         }
     }
 }
@@ -119,7 +119,7 @@ HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
 
 HOST_DEVICE inline void ApplyContribution(real cnst, real w,
     real omega, cpx delay, real phaseInt, real SrcDeclAngle, real RcvrDeclAngle,
-    cpx *u, const BeamStructure *Beam)
+    cpxf *u, const BeamStructure *Beam)
 {
     switch(Beam->RunType[0]){
     case 'E':
@@ -138,7 +138,7 @@ HOST_DEVICE inline void ApplyContribution(real cnst, real w,
         break;
     case 'C':
         // coherent TL
-        AtomicAddCpx(u, cnst * w * STD::exp(-J * (omega * delay - phaseInt)));
+        AtomicAddCpx(u, Cpx2Cpxf(cnst * w * STD::exp(-J * (omega * delay - phaseInt))));
         // omega * SQ(n) / (RC(2.0) * SQ(point1.c) * delay)))) // curvature correction
         break;
     default:
@@ -148,7 +148,7 @@ HOST_DEVICE inline void ApplyContribution(real cnst, real w,
             // Gaussian beam
             v *= STD::sqrt(RC(2.0) * M_PI);
         }
-        AtomicAddCpx(u, cpx(v, RC(0.0)));
+        AtomicAddCpx(u, cpxf((float)v, 0.0f));
     }
 }
 
@@ -382,7 +382,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
  */
 HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpx *u,
+    int32_t is, cpxf *u,
     const BdryType *Bdry, const Position *Pos, const BeamStructure *Beam)
 {
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
@@ -488,8 +488,8 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
                             contri = contri * STD::conj(contri);
                         }
                         
-                        AtomicAddCpx(&u[iz*Pos->NRr+ir], 
-                            Hermite(n, inflray.RadMax, RC(2.0) * inflray.RadMax) * contri);
+                        AtomicAddCpx(&u[iz*Pos->NRr+ir], Cpx2Cpxf(
+                            Hermite(n, inflray.RadMax, RC(2.0) * inflray.RadMax) * contri));
                     }
                 }
             }
@@ -507,7 +507,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyRayCen(
  */
 HOST_DEVICE inline void Step_InfluenceCervenyCart(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpx *u, 
+    int32_t is, cpxf *u, 
     const BdryType *Bdry, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr, 
     const Position *Pos, const BeamStructure *Beam)
 {
@@ -615,7 +615,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
                 contri = cnst * contri;
                 contri = contri * STD::conj(contri);
             }
-            AtomicAddCpx(&u[iz*Pos->NRr+ir], contri);
+            AtomicAddCpx(&u[iz*Pos->NRr+ir], Cpx2Cpxf(contri));
         }
     }
 }
@@ -625,7 +625,7 @@ HOST_DEVICE inline void Step_InfluenceCervenyCart(
  */
 HOST_DEVICE inline void Step_InfluenceGeoHatRayCen(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
-    int32_t is, cpx *u, 
+    int32_t is, cpxf *u, 
     const Position *Pos, const BeamStructure *Beam)
 {
     real RcvrDeclAngle;
@@ -711,7 +711,7 @@ HOST_DEVICE inline void Step_InfluenceGeoHatRayCen(
 HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
     bool isGaussian, 
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpx *u, 
+    int32_t is, cpxf *u, 
     const Position *Pos, const BeamStructure *Beam)
 {
     const int32_t BeamWindow = 4; // beam window: kills beams outside e**(-0.5 * ibwin**2 )
@@ -727,7 +727,7 @@ HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
     // what if never satistified?
     // what if there is a single receiver (ir = -1 possible)
     // LP: This implementation has been adjusted to handle these cases.
-    int32_t ir = BinarySearchGEQ(Pos->Rr, Pos->NRr, 1, 0, STD::min(rA, rB));
+    int32_t ir = BinarySearchGEQ(Pos->Rr, Pos->NRr, 1, 0, (float)STD::min(rA, rB));
     if(Pos->Rr[ir] < STD::min(rA, rB)) return; // not "bracketted"
     
     x_ray = point0.x;
@@ -821,7 +821,7 @@ HOST_DEVICE inline void Step_InfluenceGeoHatOrGaussianCart(
  */
 HOST_DEVICE inline void Step_InfluenceSGB(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
-    int32_t is, cpx *u,
+    int32_t is, cpxf *u,
     const Position *Pos, const BeamStructure *Beam)
 {
     real w;
@@ -880,7 +880,7 @@ HOST_DEVICE inline void Step_InfluenceSGB(
                     cpx delay = tau + rayt.y * deltaz;
                     cpx contri = inflray.Ratio1 * cn * point1.Amp * STD::exp(-a * SQ(thet) -
                         J * (inflray.omega * delay - point1.Phase - inflray.phase)) / STD::sqrt(sx1);
-                    AtomicAddCpx(&u[iz*Pos->NRr + ir], contri);
+                    AtomicAddCpx(&u[iz*Pos->NRr + ir], Cpx2Cpxf(contri));
                 }
             //}
         }
@@ -904,7 +904,7 @@ HOST_DEVICE inline void Step_InfluenceSGB(
 
 HOST_DEVICE inline void Step_Influence(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpx *u,
+    int32_t is, cpxf *u,
     const BdryType *Bdry, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr, 
     const Position *Pos, const BeamStructure *Beam)
 {

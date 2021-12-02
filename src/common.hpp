@@ -66,7 +66,11 @@ using real = double;
 #endif
 
 using cpx = STD::complex<real>;
+using cpxf = STD::complex<float>; // for uAllSources
 constexpr cpx J = cpx(RC(0.0), RC(1.0));
+HOST_DEVICE constexpr inline cpxf Cpx2Cpxf(const cpx &c){
+	return cpxf((float)c.real(), (float)c.imag());
+}
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -121,8 +125,8 @@ inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
 	return s;
 }
 
-inline real spacing(real v){
-	return STD::abs(STD::nextafter(v, RC(0.0)) - v);
+template<typename REAL> inline REAL spacing(REAL v){
+	return STD::abs(STD::nextafter(v, (REAL)(0.0f)) - v);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -225,22 +229,23 @@ template<> inline void Sort(cpx *arr, size_t n){
 /**
  * mbp: tests whether an input vector is strictly monotonically increasing
  */
-HOST_DEVICE inline bool monotonic(real *arr, size_t n){
+template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n){
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
 		if(arr[i+1] <= arr[i]) return false;
 	}
 	return true;
 }
-HOST_DEVICE inline bool monotonic(vec2 *arr, size_t n, const int32_t dim){
+template<typename VEC2> HOST_DEVICE inline bool monotonic(VEC2 *arr, size_t n,
+	const int32_t dim){
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
 		if(arr[i+1][dim] <= arr[i][dim]) return false;
 	}
 	return true;
 }
-HOST_DEVICE inline bool monotonic(real *arr, size_t n, const int32_t stridereals, 
-	const int32_t offset)
+template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n,
+	const int32_t stridereals, const int32_t offset)
 {
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
@@ -253,8 +258,8 @@ HOST_DEVICE inline bool monotonic(real *arr, size_t n, const int32_t stridereals
  * Returns the index of the largest element in the array less than or equal to
  * target, given that the array is monotonically increasing.
  */
-HOST_DEVICE inline int32_t BinarySearchLEQ(real *arr, int32_t n, const int32_t stride,
-	const int32_t offset, real target)
+template<typename REAL> HOST_DEVICE inline int32_t BinarySearchLEQ(REAL *arr, 
+	int32_t n, const int32_t stride, const int32_t offset, REAL target)
 {
 	int32_t low = 0;
 	int32_t hi = n;
@@ -277,8 +282,8 @@ HOST_DEVICE inline int32_t BinarySearchLEQ(real *arr, int32_t n, const int32_t s
  * Returns the index of the smallest element in the array greater than or equal
  * to target, given that the array is monotonically increasing.
  */
-HOST_DEVICE inline int32_t BinarySearchGEQ(real *arr, int32_t n, const int32_t stride,
-	const int32_t offset, real target)
+template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGEQ(REAL *arr,
+	int32_t n, const int32_t stride, const int32_t offset, REAL target)
 {
 	int32_t low = 0;
 	int32_t hi = n;
@@ -300,13 +305,14 @@ HOST_DEVICE inline int32_t BinarySearchGEQ(real *arr, int32_t n, const int32_t s
 /**
  * mbp: full 360-degree sweep? remove duplicate angle/beam
  */
-HOST_DEVICE inline void CheckFix360Sweep(const real *angles, int32_t &n){
-	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], RC(360.0)))
-            < RC(10.0) * spacing(RC(1.0)))
+template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *angles,
+	int32_t &n){
+	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], 360.0f))
+            < 10.0f * spacing(1.0f))
         --n;
 }
 
-inline void EchoVector(real *v, int32_t Nv, std::ofstream &PRTFile)
+template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ofstream &PRTFile)
 {
     constexpr int32_t NEcho = 10;
     PRTFile << std::setprecision(6);
@@ -315,14 +321,15 @@ inline void EchoVector(real *v, int32_t Nv, std::ofstream &PRTFile)
     PRTFile << "\n";
 }
 
-HOST_DEVICE inline void SubTab(real *x, int32_t Nx)
+template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 {
     if(Nx >= 3){
-        if(x[2] == RC(-999.9)){ // testing for equality here is dangerous
-            if(x[1] == RC(-999.9)) x[1] = x[0];
-            real deltax = (x[1] - x[0]) / (real)(Nx - 1);
-            real x0 = x[0];
-            for(int32_t i=0; i<Nx; ++i) x[i] = x0 + (real)i * deltax;
+		// mbp: testing for equality here is dangerous
+        if(STD::abs(x[2] - (REAL)(-999.9f)) < (REAL)(0.1f)){ 
+            if(STD::abs(x[1] - (REAL)(-999.9f)) < (REAL)(0.1f)) x[1] = x[0];
+            REAL deltax = (x[1] - x[0]) / (REAL)(Nx - 1);
+            REAL x0 = x[0];
+            for(int32_t i=0; i<Nx; ++i) x[i] = x0 + (REAL)i * deltax;
         }
     }
 }

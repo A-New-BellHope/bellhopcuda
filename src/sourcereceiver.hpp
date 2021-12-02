@@ -6,9 +6,10 @@ struct Position {
     int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
     real Delta_r, Delta_theta;
     int32_t *iSz, *iRz;
-    real *Sx, *Sy, *Sz; // Source x, y, z coordinates
-    real *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
-    real *theta; // Receiver bearings
+    // LP: These are really floats, not reals.
+    float *Sx, *Sy, *Sz; // Source x, y, z coordinates
+    float *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
+    float *theta; // Receiver bearings
 };
 
 struct FreqInfo {
@@ -65,7 +66,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &P
  * Description is something like 'receiver ranges'
  * Units       is something like 'km'
  */
-inline void ReadVector(int32_t &Nx, real *&x, std::string Description, 
+template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::string Description, 
     std::string Units, LDIFile &ENVFile, std::ofstream &PRTFile)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
@@ -78,7 +79,7 @@ inline void ReadVector(int32_t &Nx, real *&x, std::string Description,
     }
     
     if(x != nullptr) deallocate(x);
-    x = allocate<real>(STD::max(3, Nx));
+    x = allocate<REAL>(STD::max(3, Nx));
     
     PRTFile << Description << " (" << Units << ")\n";
     x[2] = RC(-999.9);
@@ -109,7 +110,7 @@ inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ofstream &PRTFile,
         ReadVector(Pos->NSx, Pos->Sx, "source   x-coordinates, Sx", "km", ENVFile, PRTFile);
         ReadVector(Pos->NSy, Pos->Sy, "source   y-coordinates, Sy", "km", ENVFile, PRTFile);
     }else{
-        Pos->Sx = allocate<real>(1); Pos->Sy = allocate<real>(1);
+        Pos->Sx = allocate<float>(1); Pos->Sy = allocate<float>(1);
         Pos->Sx[0] = RC(0.0);
         Pos->Sy[0] = RC(0.0);
     }
@@ -129,10 +130,10 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ofstream &PRTF
     ReadVector(Pos->NRz, Pos->Rz, "Receiver depths, Rz", "m", ENVFile, PRTFile);
     
     if(Pos->ws != nullptr){ deallocate(Pos->ws); deallocate(Pos->iSz); }
-    Pos->ws = allocate<real>(Pos->NSz); Pos->iSz = allocate<int32_t>(Pos->NSz);
+    Pos->ws = allocate<float>(Pos->NSz); Pos->iSz = allocate<int32_t>(Pos->NSz);
     
     if(Pos->wr != nullptr){ deallocate(Pos->wr); deallocate(Pos->iRz); }
-    Pos->wr = allocate<real>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
+    Pos->wr = allocate<float>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
     
     // *** Check for Sz/Rz in upper or lower halfspace ***
     

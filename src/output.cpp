@@ -53,27 +53,28 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
  * set to "TL" in BELLHOP]
  */
 void WriteHeader(DirectOFile &SHDFile, const std::string &FileName, 
-    const std::string &Title, real Atten, const std::string &PlotType, 
+    const std::string &Title, float Atten, const std::string &PlotType, 
     const Position *Pos, const FreqInfo *freqinfo)
 {
     bool isTL = (PlotType[0] == 'T' && PlotType[1] == 'L');
     
     int32_t LRecl = 84; //4 for LRecl, 80 for Title
-    LRecl = std::max(LRecl, 2 * freqinfo->Nfreq * (int32_t)sizeof(real));
-    LRecl = std::max(LRecl, Pos->Ntheta * (int32_t)sizeof(real));
+    LRecl = std::max(LRecl, 2 * freqinfo->Nfreq * (int32_t)sizeof(freqinfo->freqVec[0]));
+    LRecl = std::max(LRecl, Pos->Ntheta * (int32_t)sizeof(Pos->theta[0]));
     if(!isTL){
-        LRecl = std::max(LRecl, Pos->NSx * (int32_t)sizeof(real));
-        LRecl = std::max(LRecl, Pos->NSy * (int32_t)sizeof(real));
+        LRecl = std::max(LRecl, Pos->NSx * (int32_t)sizeof(Pos->Sx[0]));
+        LRecl = std::max(LRecl, Pos->NSy * (int32_t)sizeof(Pos->Sy[0]));
     }
-    LRecl = std::max(LRecl, Pos->NSz * (int32_t)sizeof(real));
-    LRecl = std::max(LRecl, Pos->NRz * (int32_t)sizeof(real));
-    LRecl = std::max(LRecl, Pos->NRr * (int32_t)sizeof(cpx));
+    LRecl = std::max(LRecl, Pos->NSz * (int32_t)sizeof(Pos->Sz[0]));
+    LRecl = std::max(LRecl, Pos->NRz * (int32_t)sizeof(Pos->Rz[0]));
+    LRecl = std::max(LRecl, Pos->NRr * (int32_t)sizeof(cpxf));
     
     SHDFile.open(FileName, LRecl);
     if(!SHDFile.good()){
         std::cout << "Could not open SHDFile: " << FileName << "\n";
         std::abort();
     }
+    LRecl /= 4;
     SHDFile.rec(0); DOFWRITE(SHDFile, &LRecl, 4); DOFWRITE(SHDFile, Title, 80);
     SHDFile.rec(1); DOFWRITE(SHDFile, PlotType, 10);
     SHDFile.rec(2);
@@ -84,22 +85,22 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
         DOFWRITEV(SHDFile, Pos->NSz);
         DOFWRITEV(SHDFile, Pos->NRz);
         DOFWRITEV(SHDFile, Pos->NRr);
-        DOFWRITEV(SHDFile, freqinfo->freq0);
+        DOFWRITEV(SHDFile, (float)freqinfo->freq0);
         DOFWRITEV(SHDFile, Atten);
-    SHDFile.rec(3); DOFWRITE(SHDFile, freqinfo->freqVec, freqinfo->Nfreq * sizeof(real));
-    SHDFile.rec(4); DOFWRITE(SHDFile, Pos->theta, Pos->Ntheta * sizeof(real));
+    SHDFile.rec(3); DOFWRITE(SHDFile, freqinfo->freqVec, freqinfo->Nfreq * sizeof(freqinfo->freqVec[0]));
+    SHDFile.rec(4); DOFWRITE(SHDFile, Pos->theta, Pos->Ntheta * sizeof(Pos->theta[0]));
     
     if(!isTL){
-        SHDFile.rec(5); DOFWRITE(SHDFile, Pos->Sx, Pos->NSx * sizeof(real));
-        SHDFile.rec(6); DOFWRITE(SHDFile, Pos->Sy, Pos->NSy * sizeof(real));
+        SHDFile.rec(5); DOFWRITE(SHDFile, Pos->Sx, Pos->NSx * sizeof(Pos->Sx[0]));
+        SHDFile.rec(6); DOFWRITE(SHDFile, Pos->Sy, Pos->NSy * sizeof(Pos->Sy[0]));
     }else{
         SHDFile.rec(5); DOFWRITEV(SHDFile, Pos->Sx[0]); DOFWRITEV(SHDFile, Pos->Sx[Pos->NSx-1]);
         SHDFile.rec(6); DOFWRITEV(SHDFile, Pos->Sy[0]); DOFWRITEV(SHDFile, Pos->Sy[Pos->NSy-1]);
     }
-    SHDFile.rec(7); DOFWRITE(SHDFile, Pos->Sz, Pos->NSz * sizeof(real));
+    SHDFile.rec(7); DOFWRITE(SHDFile, Pos->Sz, Pos->NSz * sizeof(Pos->Sz[0]));
     
-    SHDFile.rec(8); DOFWRITE(SHDFile, Pos->Rz, Pos->NRz * sizeof(real));
-    SHDFile.rec(9); DOFWRITE(SHDFile, Pos->Rr, Pos->NRr * sizeof(real));
+    SHDFile.rec(8); DOFWRITE(SHDFile, Pos->Rz, Pos->NRz * sizeof(Pos->Rz[0]));
+    SHDFile.rec(9); DOFWRITE(SHDFile, Pos->Rr, Pos->NRr * sizeof(Pos->Rr[0]));
 }
 
 /**

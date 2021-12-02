@@ -8,9 +8,11 @@ run_test () {
     rm -f temp/FORTRAN/$1.*
     cp temp/in/$1.* temp/cxx/
     cp temp/in/$1.* temp/FORTRAN/
+    echo "bellhopcxx"
     ./bin/bellhopcxx -1 temp/cxx/$1
     cxxres=$?
     forres=0
+    echo "BELLHOP"
     forout=$(../thirdparty/at_2020_11_4/Bellhop/bellhop.exe temp/FORTRAN/$1 2>&1)
     if [[ $? != "0" ]]; then forres=1; fi
     if [[ "$forout" == *"STOP Fatal Error"* ]]; then forres=1; fi

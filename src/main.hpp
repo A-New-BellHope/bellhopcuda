@@ -57,19 +57,19 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
 /**
  * for a TL calculation, allocate space for the pressure matrix
  */
-inline void InitTLMode(cpx *&uAllSources, const Position *Pos,
+inline void InitTLMode(cpxf *&uAllSources, const Position *Pos,
     const BeamStructure *Beam)
 {
     int32_t NRz_per_range = Compute_NRz_per_range(Pos, Beam);
     size_t n = Pos->NSz * NRz_per_range * Pos->NRr;
-    uAllSources = allocate<cpx>(n);
-    memset(uAllSources, 0, n * sizeof(cpx));
+    uAllSources = allocate<cpxf>(n);
+    memset(uAllSources, 0, n * sizeof(cpxf));
 }
 
 /**
  * LP: Write TL results
  */
-inline void FinalizeTLMode(cpx *&uAllSources, DirectOFile &SHDFile,
+inline void FinalizeTLMode(cpxf *&uAllSources, DirectOFile &SHDFile,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
@@ -97,7 +97,7 @@ inline void FinalizeTLMode(cpx *&uAllSources, DirectOFile &SHDFile,
  * Main ray tracing function for TL / field output modes.
  */
 HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
-    cpx *uAllSources,
+    cpxf *uAllSources,
     const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
@@ -110,13 +110,15 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
     ray2DPt point0, point1, point2;
     InfluenceRayInfo inflray;
     
+    //std::cout << "isrc " << isrc << " ialpha " << ialpha << "\n";
+    
     if(!RayInit(isrc, ialpha, SrcDeclAngle, point0, gradc,
         DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
         Bdry, ConstBdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) return;
     
     Init_Influence(inflray, point0, Angles->alpha[ialpha], gradc, Pos, Angles, freqinfo, Beam);
     
-    cpx *u = &uAllSources[isrc * inflray.NRz_per_range * Pos->NRr];
+    cpxf *u = &uAllSources[isrc * inflray.NRz_per_range * Pos->NRr];
     int32_t iSmallStepCtr = 0;
     int32_t is = 0; // index for a step along the ray
     
