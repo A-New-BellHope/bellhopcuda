@@ -263,7 +263,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     real DalphaOpt = STD::sqrt(ccpx.real() / (RC(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
     int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
     
-    if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt){
+    if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && ialpha == 0){
         printf("Warning in bellhopcuda : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
     }
     
