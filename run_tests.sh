@@ -10,6 +10,7 @@ run_test () {
     cp temp/in/$1.* temp/FORTRAN/
     echo "bellhopcxx"
     ./bin/bellhopcxx -1 temp/cxx/$1
+    #./bin/bellhopcxx temp/cxx/$1
     cxxres=$?
     forres=0
     echo "BELLHOP"
@@ -19,6 +20,9 @@ run_test () {
 }
 
 while read -u 10 line || [[ -n $line ]]; do
+    if [[ $line == //* ]]; then
+        continue
+    fi
     run_test $line
     if [[ $cxxres != "0" ]]; then
         echo "$line: bellhopcxx failed"
@@ -32,6 +36,9 @@ while read -u 10 line || [[ -n $line ]]; do
 done 10<tests_pass.txt
 
 while read -u 11 line || [[ -n $line ]]; do
+    if [[ $line == //* ]]; then
+        continue
+    fi
     run_test $line
     if [[ $cxxres == "0" ]]; then
         echo "$line: bellhopcxx failed to fail"

@@ -110,7 +110,7 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
     ray2DPt point0, point1, point2;
     InfluenceRayInfo inflray;
     
-    //std::cout << "isrc " << isrc << " ialpha " << ialpha << "\n";
+    printf("isrc %d ialpha %d\n", isrc, ialpha);
     
     if(!RayInit(isrc, ialpha, SrcDeclAngle, point0, gradc,
         DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
@@ -121,15 +121,21 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
     cpxf *u = &uAllSources[isrc * inflray.NRz_per_range * Pos->NRr];
     int32_t iSmallStepCtr = 0;
     int32_t is = 0; // index for a step along the ray
+    int32_t Nsteps = 0; // not actually needed in TL mode, debugging only
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
         int32_t dStep = RayUpdate(point0, point1, point2, 
             DistBegTop, DistBegBot, DistEndTop, DistEndBot,
             IsegTop, IsegBot, rTopSeg, rBotSeg, iSmallStepCtr, iSegz, iSegr,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
-        Step_Influence(point0, point1, inflray, is, u, ConstBdry, ssp, iSegz, iSegr, Pos, Beam);
+        if(!Step_Influence(point0, point1, inflray, is, u, 
+            ConstBdry, ssp, iSegz, iSegr, Pos, Beam)){
+            printf("Step_Influence terminated ray\n");
+            break;
+        }
         if(dStep == 2){
-            Step_Influence(point1, point2, inflray, is, u, ConstBdry, ssp, iSegz, iSegr, Pos, Beam);
+            if(!Step_Influence(point1, point2, inflray, is, u, 
+                ConstBdry, ssp, iSegz, iSegr, Pos, Beam)) break;
             point0 = point2;
         }else if(dStep == 1){
             point0 = point1;
@@ -138,10 +144,11 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
             bail();
         }
         is += dStep;
-        int32_t Nsteps;
         if(RayTerminate(point0, Nsteps, is, DistBegTop, DistBegBot,
             DistEndTop, DistEndBot, Beam)) break;
     }
+    
+    //printf("testNumIters %d Nsteps %d\n", inflray.testNumIters, Nsteps);
 }
 
 //TODO 
