@@ -257,19 +257,23 @@ template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n,
 /**
  * Returns the index of the largest element in the array less than or equal to
  * target, given that the array is monotonically increasing.
+ * It is not a bug that arr is REAL and target is real. If the array is of
+ * reduced precision relative to the actual desired target, the comparisons
+ * must be done in the higher precision, or incorrect results can be returned
+ * (e.g. round(target) <= arr[i] but target > arr[i]).
  */
 template<typename REAL> HOST_DEVICE inline int32_t BinarySearchLEQ(REAL *arr, 
-	int32_t n, const int32_t stride, const int32_t offset, REAL target)
+	int32_t n, const int32_t stride, const int32_t offset, real target)
 {
-	int32_t low = 0;
-	int32_t hi = n;
+	int32_t low = 0; //Low is included
+	int32_t hi = n; //Hi is excluded
 	while(low < hi){
 		int32_t t = (low + hi) / 2;
-		if(arr[t*stride+offset] > target){
+		if((real)arr[t*stride+offset] > target){
 			hi = t;
 		}else if(t >= n-1){
 			return n-1;
-		}else if(arr[(t+1)*stride+offset] > target){
+		}else if((real)arr[(t+1)*stride+offset] > target){
 			return t;
 		}else{
 			low = t+1;
@@ -281,22 +285,54 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchLEQ(REAL *arr,
 /**
  * Returns the index of the smallest element in the array greater than or equal
  * to target, given that the array is monotonically increasing.
+ * It is not a bug that arr is REAL and target is real. If the array is of
+ * reduced precision relative to the actual desired target, the comparisons
+ * must be done in the higher precision, or incorrect results can be returned
+ * (e.g. round(target) >= arr[i] but target < arr[i]).
  */
 template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGEQ(REAL *arr,
-	int32_t n, const int32_t stride, const int32_t offset, REAL target)
+	int32_t n, const int32_t stride, const int32_t offset, real target)
 {
-	int32_t low = 0;
-	int32_t hi = n;
+	int32_t low = -1; //Low is excluded
+	int32_t hi = n-1; //Hi is included
 	while(low < hi){
-		int32_t t = (low + hi) / 2;
-		if(arr[t*stride+offset] < target){
-			low = t+1;
+		int32_t t = (low + hi + 1) / 2; //Round up
+		if((real)arr[t*stride+offset] < target){
+			low = t;
 		}else if(t <= 0){
 			return 0;
-		}else if(arr[(t-1)*stride+offset] < target){
+		}else if((real)arr[(t-1)*stride+offset] < target){
 			return t;
 		}else{
-			hi = t;
+			hi = t-1;
+		}
+	}
+	return hi;
+}
+
+/**
+ * Returns the index of the smallest element in the array strictly greater than
+ * to target, given that the array is monotonically increasing.
+ * It is not a bug that arr is REAL and target is real. If the array is of
+ * reduced precision relative to the actual desired target, the comparisons
+ * must be done in the higher precision, or incorrect results can be returned
+ * (e.g. round(target) > arr[i] but target <= arr[i]).
+ */
+template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGT(REAL *arr,
+	int32_t n, const int32_t stride, const int32_t offset, real target)
+{
+	int32_t low = -1; //Low is excluded
+	int32_t hi = n-1; //Hi is included
+	while(low < hi){
+		int32_t t = (low + hi + 1) / 2; //Round up
+		if((real)arr[t*stride+offset] <= target){
+			low = t;
+		}else if(t <= 0){
+			return 0;
+		}else if((real)arr[(t-1)*stride+offset] <= target){
+			return t;
+		}else{
+			hi = t-1;
 		}
 	}
 	return hi;

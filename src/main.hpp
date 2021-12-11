@@ -110,7 +110,9 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
     ray2DPt point0, point1, point2;
     InfluenceRayInfo inflray;
     
-    printf("isrc %d ialpha %d\n", isrc, ialpha);
+    if(ialpha != 489) return;
+    
+    //printf("isrc %d ialpha %d\n", isrc, ialpha);
     
     if(!RayInit(isrc, ialpha, SrcDeclAngle, point0, gradc,
         DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
@@ -148,7 +150,7 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
             DistEndTop, DistEndBot, Beam)) break;
     }
     
-    //printf("testNumIters %d Nsteps %d\n", inflray.testNumIters, Nsteps);
+    //printf("Nsteps %d\n", Nsteps);
 }
 
 //TODO 
