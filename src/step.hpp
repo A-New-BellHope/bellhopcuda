@@ -45,9 +45,15 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     if(STD::abs(urayt.y) > REAL_EPSILON){
         if(       ssp->z[iSegz0]     >  x.y){
             h1 = (ssp->z[iSegz0]     - x0.y) / urayt.y;
+            //printf("h1 path 1\n");
         }else if( ssp->z[iSegz0 + 1] <  x.y){
             h1 = (ssp->z[iSegz0 + 1] - x0.y) / urayt.y;
+            //printf("h1 path 2\n");
+        //}else{
+        //    printf("h1 path 3 iSegz0 ssp x %d %g (%g,%g)\n", iSegz0, ssp->z[iSegz0], x.x, x.y);
         }
+    //}else{
+    //    printf("h1 path 4\n");
     }
     
     // top crossing
@@ -84,6 +90,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
         }
     }
     
+    //printf("ReduceStep2D h h1 h2 h3 h4 %g %g %g %g %g\n", h, h1, h2, h3, h4);
     // take limit set by shortest distance to a crossing
     h = STD::min(h, STD::min(h1, STD::min(h2, STD::min(h3, h4))));
     if(h < RC(1.0e-4) * Beam->deltas){ // is it taking an infinitesimal step?
@@ -112,7 +119,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     real crr2, crz2, czz2;
     real h, halfh, hw0, hw1, rm, rn, cnjump, csjump, w0, w1, rho;
     
-    //printf("\nray0: x (%g,%g) t (%g,%g) p (%g,%g) q (%g,%g)\n", 
+    //printf("\nray0 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
     //    ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y);
     
     // The numerical integrator used here is a version of the polygon (a.k.a. midpoint, leapfrog, or Box method), and similar
@@ -139,7 +146,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     h = Beam->deltas;       // initially set the step h, to the basic one, deltas
     urayt0 = ccpx0.real() * ray0.t; // unit tangent
     
-    //printf("cnn0_csq0 %g h %g urayt0 (%g,%g)\n", cnn0_csq0, h, urayt0.x, urayt0.y);
+    //printf("h %g urayt0 (%g,%g)\n", h, urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
     ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
@@ -154,8 +161,8 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray1.p = ray0.p - halfh * cnn0_csq0    * ray0.q;
     ray1.q = ray0.q + halfh * ccpx0.real() * ray0.p;
     
-    //printf("ray1: x (%g,%g) t (%g,%g) p (%g,%g) q (%g,%g)\n", 
-    //    ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
+    //printf("ray1 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    //   ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     if(STD::abs(ray1.x.x) > DEBUG_LARGEVAL || STD::abs(ray1.x.y) > DEBUG_LARGEVAL){
         printf("ray1.x invalid\n");
@@ -215,10 +222,9 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray2.q   = ray0.q   + hw0 * ccpx0.real() * ray0.p + hw1 * ccpx1.real() * ray1.p;
     ray2.tau = ray0.tau + hw0 / ccpx0                 + hw1 / ccpx1;
     
-    // printf("ray2: x (%g,%g) t (%g,%g) p (%g,%g) q (%g,%g) tau (%g,%g)\n", 
-    //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y,
-    //     ray2.p.x, ray2.p.y, ray2.q.x, ray2.q.y, 
-    //     ray2.tau.real(), ray2.tau.imag());
+    //printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    //    ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
+    //    ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
     
     if(STD::abs(ray2.x.x) > DEBUG_LARGEVAL || STD::abs(ray2.x.y) > DEBUG_LARGEVAL
     || STD::abs(ray2.t.x) > DEBUG_LARGEVAL || STD::abs(ray2.t.y) > DEBUG_LARGEVAL

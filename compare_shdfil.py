@@ -1,4 +1,10 @@
-import sys, struct
+import sys
+
+if sys.version_info.major < 3:
+    print('This is a python3 script')
+    sys.exit(-1)
+
+import struct
 from math import isnan, isfinite
 
 if len(sys.argv) != 2:

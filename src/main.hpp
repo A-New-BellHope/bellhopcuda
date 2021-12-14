@@ -110,7 +110,7 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
     ray2DPt point0, point1, point2;
     InfluenceRayInfo inflray;
     
-    if(ialpha != 489) return;
+    //if(ialpha != 489) return;
     
     //printf("isrc %d ialpha %d\n", isrc, ialpha);
     

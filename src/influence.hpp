@@ -750,8 +750,9 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     rA = inflray.x.x;
     rB = point1.x.x;
     
-    if(is == 0) printf("(%g,%g)\n", point0.tau.real(), point0.tau.imag());
-    printf("(%g,%g)\n", point1.tau.real(), point1.tau.imag());
+    //if(is == 0) printf("influence tau (%g,%g)\n", point0.tau.real(), point0.tau.imag());
+    //printf("influence tau (%g,%g)\n", point1.tau.real(), point1.tau.imag());
+    //if(point1.tau.real() > RC(1.0)) bail();
     
     // what if never satistified?
     // what if there is a single receiver (ir = -1 possible)
@@ -855,9 +856,9 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                 }
                 phaseInt = BuggyFinalPhase((isGaussian ? point1 : point0), inflray, q);
                 
-                if(iz == 100 && ir == 5){
-                    printf("isect iz 100 ir 5 %g\n", point1.tau.real());
-                }
+                //if(iz == 100 && ir == 5){
+                //    printf("isect iz 100 ir 5 %g\n", point1.tau.real());
+                //}
                 //printf("%f ", phaseInt);
                 
                 ApplyContribution(cnst, w, inflray.omega, 

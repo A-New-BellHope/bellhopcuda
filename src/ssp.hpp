@@ -94,8 +94,15 @@ HOST_DEVICE inline void UpdateDepthSegment(const vec2 &x,
     // Finally, while on the CPU some code which is inefficient but runs only on
     // a very small fraction of iterations doesn't affect much, on the GPU this
     // can be a huge bottleneck because it may make many other threads wait.
+    // LP (later): It turns out that ReduceStep2D produces substantially different
+    // results depending on how the endpoints are treated here. This probably
+    // means there is some poor design elsewhere, but we have to match it.
+    // So this modification allows the results to match the slow version.
     while(x.y < ssp->z[iSegz] && iSegz > 0) --iSegz;
-    while(x.y > ssp->z[iSegz+1] && iSegz < ssp->NPts-2) ++iSegz;
+    if(x.y <= ssp->z[iSegz+1]) return;
+    while(x.y >= ssp->z[iSegz+1] && iSegz < ssp->NPts-2) ++iSegz;
+    // Fast version replaces the above two lines:
+    //while(x.y > ssp->z[iSegz+1] && iSegz < ssp->NPts-2) ++iSegz;
 }
 
 HOST_DEVICE inline void UpdateRangeSegment(const vec2 &x,
@@ -115,7 +122,10 @@ HOST_DEVICE inline void UpdateRangeSegment(const vec2 &x,
     }
     */
     while(x.x < ssp->Seg.r[iSegr] && iSegr > 0) --iSegr;
-    while(x.x > ssp->Seg.r[iSegr+1] && iSegr < ssp->Nr-2) ++iSegr;
+    if(x.x <= ssp->Seg.r[iSegr+1]) return;
+    while(x.x >= ssp->Seg.r[iSegr+1] && iSegr < ssp->Nr-2) ++iSegr;
+    // Fast version replaces the above two lines:
+    //while(x.x > ssp->Seg.r[iSegr+1] && iSegr < ssp->Nr-2) ++iSegr;
 }
 
 HOST_DEVICE inline real LinInterpDensity(const vec2 &x,
