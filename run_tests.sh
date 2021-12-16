@@ -2,6 +2,11 @@
 
 #set -x
 
+if [ -z $1 ]; then
+    echo "Usage: ./run_tests.sh ray_tests"
+    exit 1
+fi
+
 run_test () {
     echo $1
     rm -f temp/cxx/$1.*
@@ -33,7 +38,7 @@ while read -u 10 line || [[ -n $line ]]; do
     if [[ $cxxres != "0" || $forres != "0" ]]; then
         exit 1
     fi
-done 10<tests_pass.txt
+done 10<${1}_pass.txt
 
 while read -u 11 line || [[ -n $line ]]; do
     if [[ $line == //* ]]; then
@@ -49,6 +54,8 @@ while read -u 11 line || [[ -n $line ]]; do
     if [[ $cxxres == "0" || $forres == "0" ]]; then
         exit 1
     fi
-done 11<tests_fail.txt
+done 11<${1}_fail.txt
 
-echo "Tests completed"
+echo "============================"
+echo "Tests completed successfully"
+echo "============================"

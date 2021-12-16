@@ -390,6 +390,9 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
     // LP: For Cerveny
     inflray.kmah = 1;
     
+    // LP: For SGB
+    inflray.ir = 0;
+    
     // LP: For Cerveny cart
     // TODO: Cannot initialize correctly for now
     inflray.gamma = cpx(RC(1000000.0), RC(1000000.0));
@@ -888,7 +891,6 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
     real a = RC(-4.0) * STD::log(beta) / SQ(inflray.Dalpha);
     real cn = inflray.Dalpha * STD::sqrt(a / M_PI);
     real rA = point0.x.x;
-    int32_t ir = 0;
     
     real rB = point1.x.x;
     
@@ -897,12 +899,12 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
     inflray.qOld = q;
     
     // Loop over bracketted receiver ranges
-    // LP: BUG: This does not check for "bracketted" receivers, only that the
-    // end of the ray segment is to the right of the receiver. w may be an
-    // arbitrarily low negative number, which can lead to garbage extrapolated
-    // values for the other variables. See the BUG below.
-    while(STD::abs(rB - rA) > RC(1.0e3) * spacing(rA) && rB > Pos->Rr[ir]){
-        w    = (Pos->Rr[ir] - rA) / (rB - rA);
+    // LP: BUG: This way of setting up the loop (which matches the FORTRAN
+    // implementation) assumes the ray always travels towards positive R, which
+    // is not true for certain bathymetries (or for rays simply shot backwards,
+    // which would also crash during the setup, see Init_Influence).
+    while(STD::abs(rB - rA) > RC(1.0e3) * spacing(rA) && rB > Pos->Rr[inflray.ir]){
+        w    = (Pos->Rr[inflray.ir] - rA) / (rB - rA);
         x    = point0.x   + w * (point1.x   - point0.x);
         rayt = point0.t   + w * (point1.t   - point0.t);
         q    = point0.q.x + w * (point1.q.x - point0.q.x);
@@ -912,14 +914,18 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
         // LP: The while ignores extremely small steps, but those small steps
         // still increment is, so the later ray segments still treat it as if
         // all steps leading up to them were of size deltas.
-        real sint = ((real)is + w) * Beam->deltas;
+        real sint = ((real)(is + 1) + w) * Beam->deltas;
+        
+        if(inflray.ir == 249) {
+            printf("is+1 w x rayt q tau sint %d %g (%g,%g) (%g,%g) %g (%g,%g) %g\n",
+                is+1, w, x.x, x.y, rayt.x, rayt.y, q, tau.real(), tau.imag(), sint);
+        }
         
         IncPhaseIfCaustic(inflray, q, false);
         
         for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
             real deltaz = Pos->Rz[iz] - x.y; // ray to rcvr distance
             //LP: This is commented out, but seems very important to have.
-            //Though with all the other bugs, perhaps this is not the main issue.
             //real Adeltaz = STD::abs(deltaz);
             //if(Adeltaz < inflray.RadMax){
                 if(Beam->RunType[0] == 'E'){ // eigenrays
@@ -936,25 +942,23 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
                     cpx delay = tau + rayt.y * deltaz;
                     cpx contri = inflray.Ratio1 * cn * point1.Amp * STD::exp(-a * SQ(thet) -
                         J * (inflray.omega * delay - point1.Phase - inflray.phase)) / STD::sqrt(sx1);
-                    AtomicAddCpx(&u[iz*Pos->NRr + ir], Cpx2Cpxf(contri));
+                    if(!STD::isfinite(contri.real()) || !STD::isfinite(contri.imag())){
+                        printf("contri (%g,%g) is %d ir %d iz %d cpa %g ds %g sx1 %g thet %g delay (%g,%g)\n", 
+                            contri.real(), contri.imag(), is, inflray.ir, iz,
+                            cpa, ds, sx1, thet, delay.real(), delay.imag());
+                        bail();
+                    }
+                    // if(iz == 11 && inflray.ir == 249){
+                    //     printf("(%g,%g)\n", contri.real(), contri.imag());
+                    // }
+                    AtomicAddCpx(&u[iz*Pos->NRr + inflray.ir], Cpx2Cpxf(contri));
                 }
             //}
         }
         
         inflray.qOld = q;
-        ++ir;
-        // LP: BUG: This exits the loop over the ray steps (same behavior as in
-        // the FORTRAN version). This means that once the ray is to the right
-        // of all receivers, it ignores the rest of the ray. This is wrong for
-        // two reasons. First, it assumes rays always travel to the right, which
-        // is not always true for certain bathymetries. Second, the influence is
-        // only computed when the ray is to the right of a receiver. If there
-        // are receviers at different range positions, the left ones will
-        // receive contributions for every step the ray is to the right. How
-        // many of these steps happen depends on where the right receivers are,
-        // which means the computed signal at one receiver depends on the
-        // position of another receiver, which is absurd.
-        if(ir >= Pos->NRr) return false;
+        ++inflray.ir;
+        if(inflray.ir >= Pos->NRr) return false;
     }
     
     return true;

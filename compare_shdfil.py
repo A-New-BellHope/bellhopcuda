@@ -58,18 +58,31 @@ with open(cxxfile, 'rb') as cxxf, open(forfile, 'rb') as forf:
         print('NSz {} NRz {} NRr {} reclen {}'.format(NSz, NRz, NRr, reclen))
         raise RuntimeError('Invalid file size')
     
-    errored = False
+    errors = 0
+    maxerrors = 100
     for addr in range(4*10*reclen, len(cxxdata), 8):
         cxxd = cxxdata[addr:addr+8]
         ford = fordata[addr:addr+8]
         if cxxd == ford:
             continue
+        #
+        daddr = (addr - 4*10*reclen) // 8
+        s = daddr // (NRz * (reclen // 2))
+        Rz = (daddr // (reclen // 2)) % NRz
+        Rr = daddr % (reclen // 2)
+        p_Rr = ('INVALID ' if Rr >= NRr else '') + '{:3}'.format(Rr)
+        p_addr = 'src {:3} iz {:3} ir {} {:08X}: '.format(s, Rz, p_Rr, addr)
+        #
         cir, cii = struct.unpack('II', cxxd)
         fir, fii = struct.unpack('II', ford)
         cfr, cfi = struct.unpack('ff', cxxd)
         ffr, ffi = struct.unpack('ff', ford)
+        fmt_flt = '{:12.6}'
+        fmt_flt2 = '({},{}) / ({},{}) | '.format(fmt_flt, fmt_flt, fmt_flt, fmt_flt)
+        p_flt = fmt_flt2.format(cfr, cfi, ffr, ffi)
         if isnan(cfr) != isnan(ffr) or isnan(cfi) != isnan(ffi):
-            ulpr = ulpi = absr = absi = relr = reli = 10000000000
+            print('\n\n=============== NAN DETECTED ===============\n{}{}'.format(p_addr, p_flt))
+            sys.exit(1)
         else:
             ulpr, ulpi = abs(cir - fir), abs(cii - fii)
             absr, absi = abs(cfr - ffr), abs(cfi - ffi)
@@ -83,29 +96,23 @@ with open(cxxfile, 'rb') as cxxf, open(forfile, 'rb') as forf:
         if absi < 1e-10:
             ulpi = 0
             reli = 0.0
-        daddr = (addr - 4*10*reclen) // 8
-        s = daddr // (NRz * (reclen // 2))
-        Rz = (daddr // (reclen // 2)) % NRz
-        Rr = daddr % (reclen // 2)
-        p_Rr = ('INVALID ' if Rr >= NRr else '') + '{:3}'.format(Rr)
-        p_addr = 'src {:3} iz {:3} ir {} {:08X}: '.format(s, Rz, p_Rr, addr)
+        #
         p_int = '{:08X} {:08X} / {:08X} {:08X} | '.format(cir, cii, fir, fii)
         p_ulp = 'ULP ({:4},{:4}) | '.format(ulpr, ulpi)
-        fmt_flt = '{:12.6}'
-        fmt_flt2 = '({},{}) / ({},{}) | '.format(fmt_flt, fmt_flt, fmt_flt, fmt_flt)
-        p_flt = fmt_flt2.format(cfr, cfi, ffr, ffi)
         p_abs = 'ABS ({},{}) | '.format(fmt_flt, fmt_flt).format(absr, absi)
         p_rel = 'REL ({:9.6}%,{:9.6}%) | '.format(relr*100.0, reli*100.0)
+        #
         if ulpr > thresh_ulp_alarm or ulpi > thresh_ulp_alarm or \
             absr > thresh_abs_alarm or absi > thresh_abs_alarm or \
             relr > thresh_rel_alarm or reli > thresh_rel_alarm:
-            if not errored:
+            if errors == 0:
                 print('\nERROR: Extremely large error(s) detected:')
-                errored = True
-            else:
-                print(p_addr + p_int + p_flt + p_ulp + p_abs + p_rel)
-        if errored:
+            if errors < maxerrors:
+                print(p_addr + p_flt + p_abs + p_rel)
+            errors += 1
+        if errors > 0:
             continue
+        #
         errs = ''
         show_int, show_flt = False, False
         if ulpr > thresh_ulp_print or ulpi > thresh_ulp_print:
@@ -125,5 +132,7 @@ with open(cxxfile, 'rb') as cxxf, open(forfile, 'rb') as forf:
             errs = p_int + errs
         print(p_addr + errs)
 
-    if errored:
+    if errors >= maxerrors:
+        print('\nand {} more extremely large error(s)'.format(errors - maxerrors))
+    if errors > 0:
         sys.exit(1)

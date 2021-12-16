@@ -255,7 +255,47 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     float omega = RC(2.0) * M_PI * freqinfo->freq0;
     vec2 xs = vec2(RC(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
     
-    iSegz = 0; iSegr = 0;
+    // LP: BUG: BELLHOP does not reinitialize these between rays, so their
+    // initial state is the final state from the previous ray. Normally, the
+    // initial state should not really matter, but in many examples, sources
+    // are exactly on a boundary. Due to some greater-than-or-equal-to
+    // versus greater-than signs, BELLHOP only searches for a new segment when
+    // the point is strictly outside the current segment, but when searching
+    // it uses a half-open interval. This means that if the initial state is
+    // 0, it will stay with segment 0 for the first step, but if the initial
+    // state is nonzero, it will move to segment 1 for the first step. This 
+    // means there may or may not be one extra very small step at the beginning,
+    // depending on what happened in previous rays.
+    // Normally, this extra step would change very little about the results,
+    // but in TL SGB mode, there is *another* bug (acknowledged by mbp) that
+    // all steps are assumed to be of the default step size. Thus, adding one
+    // extra very small step actually means adding one full-size step, which
+    // substantially changes the results.
+    // In bellhopcxx / bellhopcuda, we *cannot* have one ray's initial state be
+    // dependent on another's final state, because they are processed in 
+    // parallel (besides this being physically absurd). So instead, we assume
+    // that ray 0 has properly initialized states, but all later rays get
+    // initial states which are different from their correct segment, and so
+    // they move and use the half-open search. This still does not match 100%
+    // though, since hypothetically one ray could end in the same segment as the
+    // next one starts, leading to the fully closed interval being used in
+    // BELLHOP and possibly edge cases being different.
+    if((isrc == 0 && ialpha == 0) || ssp->NPts <= 1){
+        iSegz = 0;
+    }else{
+        // This will always be the wrong initial state (and therefore cause a
+        // move using the half-open interval, like BELLHOP) unless xs.y == 
+        // ssp->z[1], in which case it will be 1 but also not cause a move and
+        // therefore stay 1. This should always produce results matching BELLHOP
+        // as long as the previous ray really did end in some higher segment.
+        iSegz = (xs.y <= ssp->z[1]) ? 1 : 0;
+    }
+    if((isrc == 0 && ialpha == 0) || ssp->Nr <= 1){
+        iSegr = 0;
+    }else{
+        // Same thing except xs.x is always 0.
+        iSegr = (xs.x <= ssp->Seg.r[1]) ? 1 : 0;
+    }
     cpx ccpx; real crr, crz, czz, rho;
     EvaluateSSP(xs, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSegz, iSegr);
     
