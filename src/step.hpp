@@ -119,9 +119,9 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     real crr2, crz2, czz2;
     real h, halfh, hw0, hw1, rm, rn, cnjump, csjump, w0, w1, rho;
     
-    printf("\nray0 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
-        ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y);
-    printf("iSegz iSegr %d %d\n", iSegz, iSegr);
+    // printf("\nray0 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y);
+    // printf("iSegz iSegr %d %d\n", iSegz, iSegr);
     
     // The numerical integrator used here is a version of the polygon (a.k.a. midpoint, leapfrog, or Box method), and similar
     // to the Heun (second order Runge-Kutta method).
@@ -130,10 +130,10 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // *** Phase 1 (an Euler step)
 
     EvaluateSSP(ray0.x, ccpx0, gradc0, crr0, crz0, czz0, rho, freq, ssp, iSegz, iSegr);
-    printf("iSegz iSegr %d %d\n", iSegz, iSegr);
+    // printf("iSegz iSegr %d %d\n", iSegz, iSegr);
     
-    printf("ccpx0: (%g,%g) gradc0: (%g,%g) crr0 %g crz0 %g czz0 %g, rho %g\n", 
-       ccpx0.real(), ccpx0.imag(), gradc0.x, gradc0.y, crr0, crz0, czz0, rho);
+    // printf("ccpx0: (%g,%g) gradc0: (%g,%g) crr0 %g crz0 %g czz0 %g, rho %g\n", 
+    //    ccpx0.real(), ccpx0.imag(), gradc0.x, gradc0.y, crr0, crz0, czz0, rho);
     
     if(STD::abs(ccpx0) > DEBUG_LARGEVAL){
         printf("ccpx0 invalid: (%g,%g)\n", ccpx0.real(), ccpx0.imag());
@@ -148,13 +148,13 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     h = Beam->deltas;       // initially set the step h, to the basic one, deltas
     urayt0 = ccpx0.real() * ray0.t; // unit tangent
     
-    printf("h %g urayt0 (%g,%g)\n", h, urayt0.x, urayt0.y);
+    // printf("h %g urayt0 (%g,%g)\n", h, urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
     ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
         Beam, ssp, h, iSmallStepCtr);
     
-    printf("out h %g\n", h);
+    // printf("out h %g\n", h);
     
     halfh = RC(0.5) * h; // first step of the modified polygon method is a half step
     
@@ -163,8 +163,8 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray1.p = ray0.p - halfh * cnn0_csq0    * ray0.q;
     ray1.q = ray0.q + halfh * ccpx0.real() * ray0.p;
     
-    printf("ray1 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
-      ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
+    // printf("ray1 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    //   ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     if(STD::abs(ray1.x.x) > DEBUG_LARGEVAL || STD::abs(ray1.x.y) > DEBUG_LARGEVAL){
         printf("ray1.x invalid\n");
@@ -187,7 +187,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     
     EvaluateSSP(ray1.x, ccpx1, gradc1, crr1, crz1, czz1, rho, freq, ssp, iSegz, iSegr);
     
-    printf("ccpx1: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
+    // printf("ccpx1: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
     
     if(STD::abs(ccpx1) > DEBUG_LARGEVAL){
         printf("ccpx1 invalid: ray1.x (%g,%g) iSegz %d iSegr %d => ccpx1 (%g,%g)\n", 
@@ -208,7 +208,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ReduceStep2D(ray0.x, urayt1, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
         Beam, ssp, h, iSmallStepCtr);
         
-    printf("urayt1 (%g,%g) out h 2 %g\n", urayt1.x, urayt1.y, h);
+    // printf("urayt1 (%g,%g) out h 2 %g\n", urayt1.x, urayt1.y, h);
         
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RC(2.0) * halfh);
@@ -216,7 +216,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     hw0 = h * w0;
     hw1 = h * w1;
     
-    printf("w1 %g w0 %g hw0 %g hw1 %g\n", w1, w0, hw0, hw1);
+    // printf("w1 %g w0 %g hw0 %g hw1 %g\n", w1, w0, hw0, hw1);
 
     ray2.x   = ray0.x   + hw0 * urayt0                + hw1 * urayt1;
     ray2.t   = ray0.t   - hw0 * gradc0 / csq0         - hw1 * gradc1 / csq1;
@@ -224,9 +224,9 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray2.q   = ray0.q   + hw0 * ccpx0.real() * ray0.p + hw1 * ccpx1.real() * ray1.p;
     ray2.tau = ray0.tau + hw0 / ccpx0                 + hw1 / ccpx1;
     
-    printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
-        ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
-        ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
+    // printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
+    //     ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
     
     if(STD::abs(ray2.x.x) > DEBUG_LARGEVAL || STD::abs(ray2.x.y) > DEBUG_LARGEVAL
     || STD::abs(ray2.t.x) > DEBUG_LARGEVAL || STD::abs(ray2.t.y) > DEBUG_LARGEVAL

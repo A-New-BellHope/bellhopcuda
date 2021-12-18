@@ -916,10 +916,10 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
         // all steps leading up to them were of size deltas.
         real sint = ((real)(is + 1) + w) * Beam->deltas;
         
-        if(inflray.ir == 249) {
-            printf("is+1 w x rayt q tau sint %d %g (%g,%g) (%g,%g) %g (%g,%g) %g\n",
-                is+1, w, x.x, x.y, rayt.x, rayt.y, q, tau.real(), tau.imag(), sint);
-        }
+        // if(inflray.ir == 249) {
+        //     printf("is+1 w x rayt q tau sint %d %g (%g,%g) (%g,%g) %g (%g,%g) %g\n",
+        //         is+1, w, x.x, x.y, rayt.x, rayt.y, q, tau.real(), tau.imag(), sint);
+        // }
         
         IncPhaseIfCaustic(inflray, q, false);
         

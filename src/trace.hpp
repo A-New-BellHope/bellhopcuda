@@ -255,6 +255,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     float omega = RC(2.0) * M_PI * freqinfo->freq0;
     vec2 xs = vec2(RC(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
     
+    /*
     // LP: BUG: BELLHOP does not reinitialize these between rays, so their
     // initial state is the final state from the previous ray. Normally, the
     // initial state should not really matter, but in many examples, sources
@@ -296,6 +297,9 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
         // Same thing except xs.x is always 0.
         iSegr = (xs.x <= ssp->Seg.r[1]) ? 1 : 0;
     }
+    */
+    // LP: Changed in BELLHOP to just reinitialize before every ray.
+    iSegz = iSegr = 0;
     cpx ccpx; real crr, crz, czz, rho;
     EvaluateSSP(xs, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSegz, iSegr);
     

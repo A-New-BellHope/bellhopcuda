@@ -9,6 +9,12 @@ fi
 
 run_test () {
     echo $1
+    if [ ! -f "temp/in/$1.env" ]; then
+        echo "temp/in/$1.env does not exist"
+        exit 1
+    fi
+    mkdir -p temp/cxx
+    mkdir -p temp/FORTRAN
     rm -f temp/cxx/$1.*
     rm -f temp/FORTRAN/$1.*
     cp temp/in/$1.* temp/cxx/
