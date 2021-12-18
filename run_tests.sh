@@ -25,7 +25,7 @@ run_test () {
     cxxres=$?
     forres=0
     echo "BELLHOP"
-    forout=$(../thirdparty/at_2020_11_4/Bellhop/bellhop.exe temp/FORTRAN/$1 2>&1)
+    forout=$(../bellhop/Bellhop/bellhop.exe temp/FORTRAN/$1 2>&1)
     if [[ $? != "0" ]]; then forres=1; fi
     if [[ "$forout" == *"STOP Fatal Error"* ]]; then forres=1; fi
 }
