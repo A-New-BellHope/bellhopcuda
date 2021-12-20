@@ -21,6 +21,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef BUILD_CUDA
+#include "UtilsCUDA.cuh"
 #define HOST_DEVICE __host__ __device__
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
@@ -33,10 +34,26 @@
 #define STD std
 #endif
 
+#define NULLSTATEMENT ((void)0)
+#define REQUIRESEMICOLON do{NULLSTATEMENT;} while(false)
+
 #ifdef __CUDA_ARCH__
 #define bail __trap
+#define BASSERT_STR(x) #x
+#define BASSERT_XSTR(x) BASSERT_STR(x)
+#define BASSERT(statement) \
+if(__builtin_expect(!(statement), 0)) { \
+	printf("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
+	__trap(); \
+} REQUIRESEMICOLON
 #else
 #define bail std::abort
+#define BASSERT(statement) \
+if(!(statement)){ \
+	std::cout << "FATAL: Assertion \"" #statement "\" failed in " \
+		<< __FILE__ << " line " << __LINE__ << "\n"; \
+	std::abort(); \
+} REQUIRESEMICOLON
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -28,6 +28,14 @@ endfunction()
 function(prepend OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend to
     set(TEMP "")
     foreach(ITEM ${ARGN})
+        set(TEMP "${TEMP} ${PREFIX}${ITEM}")
+    endforeach()
+    set(${OUT_VAR} "${TEMP}" PARENT_SCOPE)
+endfunction()
+
+function(prependlist OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend to
+    set(TEMP "")
+    foreach(ITEM ${ARGN})
         set(TEMP "${TEMP};${PREFIX}${ITEM}")
     endforeach()
     set(${OUT_VAR} "${TEMP}" PARENT_SCOPE)
@@ -59,4 +67,4 @@ set(COMMON_SOURCE
     trace.hpp
 )
 
-prepend(COMMON_SOURCE "${CMAKE_SOURCE_DIR}/src/" ${COMMON_SOURCE})
+prependlist(COMMON_SOURCE "${CMAKE_SOURCE_DIR}/src/" ${COMMON_SOURCE})
