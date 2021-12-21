@@ -48,7 +48,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &P
     }
     
     if(freqinfo->freqVec != nullptr) deallocate(freqinfo->freqVec);
-    freqinfo->freqVec = allocate<real>(STD::max(3, freqinfo->Nfreq));
+    freqinfo->freqVec = allocate<real>(math::max(3, freqinfo->Nfreq));
     
     if(BroadbandOption == 'B'){
         PRTFile << "Frequencies (Hz)\n";
@@ -79,7 +79,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
     }
     
     if(x != nullptr) deallocate(x);
-    x = allocate<REAL>(STD::max(3, Nx));
+    x = allocate<REAL>(math::max(3, Nx));
     
     PRTFile << Description << " (" << Units << ")\n";
     x[2] = RC(-999.9);

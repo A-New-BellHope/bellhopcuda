@@ -19,11 +19,11 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
     // compression
     
     int32_t n2 = 1;
-    int32_t iSkip = std::max(Nsteps1 / MaxNRayPoints, 1);
+    int32_t iSkip = math::max(Nsteps1 / MaxNRayPoints, 1);
     
     for(int32_t is=1; is<Nsteps1; ++is){
         // ensure that we always write ray points near bdry reflections (works only for flat bdry)
-        if(std::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < 0.2 ||
+        if(math::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < 0.2 ||
                 (is % iSkip) == 0 || is == Nsteps1-1){
             ++n2;
             ray2D[n2-1].x = ray2D[is].x;
@@ -59,15 +59,15 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     bool isTL = (PlotType[0] == 'T' && PlotType[1] == 'L');
     
     int32_t LRecl = 84; //4 for LRecl, 80 for Title
-    LRecl = std::max(LRecl, 2 * freqinfo->Nfreq * (int32_t)sizeof(freqinfo->freqVec[0]));
-    LRecl = std::max(LRecl, Pos->Ntheta * (int32_t)sizeof(Pos->theta[0]));
+    LRecl = math::max(LRecl, 2 * freqinfo->Nfreq * (int32_t)sizeof(freqinfo->freqVec[0]));
+    LRecl = math::max(LRecl, Pos->Ntheta * (int32_t)sizeof(Pos->theta[0]));
     if(!isTL){
-        LRecl = std::max(LRecl, Pos->NSx * (int32_t)sizeof(Pos->Sx[0]));
-        LRecl = std::max(LRecl, Pos->NSy * (int32_t)sizeof(Pos->Sy[0]));
+        LRecl = math::max(LRecl, Pos->NSx * (int32_t)sizeof(Pos->Sx[0]));
+        LRecl = math::max(LRecl, Pos->NSy * (int32_t)sizeof(Pos->Sy[0]));
     }
-    LRecl = std::max(LRecl, Pos->NSz * (int32_t)sizeof(Pos->Sz[0]));
-    LRecl = std::max(LRecl, Pos->NRz * (int32_t)sizeof(Pos->Rz[0]));
-    LRecl = std::max(LRecl, Pos->NRr * (int32_t)sizeof(cpxf));
+    LRecl = math::max(LRecl, Pos->NSz * (int32_t)sizeof(Pos->Sz[0]));
+    LRecl = math::max(LRecl, Pos->NRz * (int32_t)sizeof(Pos->Rz[0]));
+    LRecl = math::max(LRecl, Pos->NRr * (int32_t)sizeof(cpxf));
     
     SHDFile.open(FileName, LRecl);
     if(!SHDFile.good()){

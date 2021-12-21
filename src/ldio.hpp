@@ -446,7 +446,7 @@ public:
         bytesWrittenThisRecord += bytes;
     }
     void write(const char *file, int fline, const std::string &str, int32_t bytes){
-        write(file, fline, str.data(), std::min(bytes, (int32_t)str.size()));
+        write(file, fline, str.data(), math::min(bytes, (int32_t)str.size()));
         for(int32_t b=str.size(); b<bytes; ++b){
             ostr.put(' ');
             ++bytesWrittenThisRecord;

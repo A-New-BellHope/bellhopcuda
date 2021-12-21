@@ -36,8 +36,8 @@ HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
     // linearly search out from the last position, usually only have to move
     // by 1
     int32_t n = bdinfo->NATIPts;
-    IsegTop = STD::max(IsegTop, 0);
-    IsegTop = STD::min(IsegTop, n-2);
+    IsegTop = math::max(IsegTop, 0);
+    IsegTop = math::min(IsegTop, n-2);
     while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x > r) --IsegTop;
     while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x < r) ++IsegTop;
     if(IsegTop < 0 || IsegTop >= n-1){
@@ -61,8 +61,8 @@ HOST_DEVICE inline void GetBotSeg(real r, int32_t &IsegBot, vec2 &rBotSeg,
     // linearly search out from the last position, usually only have to move
     // by 1
     int32_t n = bdinfo->NBTYPts;
-    IsegBot = STD::max(IsegBot, 0);
-    IsegBot = STD::min(IsegBot, n-2);
+    IsegBot = math::max(IsegBot, 0);
+    IsegBot = math::min(IsegBot, n-2);
     while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x > r) --IsegBot;
     while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x < r) ++IsegBot;
     if(IsegBot < 0 || IsegBot >= n-1){

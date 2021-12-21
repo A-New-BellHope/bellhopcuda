@@ -8,6 +8,8 @@
 #include <math.h>
 #include <algorithm>
 #include <locale>
+#include <complex>
+#include <cfloat>
 #include <cctype>
 #include <cstdio>
 #include <iostream>
@@ -21,6 +23,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef BUILD_CUDA
+#include "cuda_runtime.h"
 #include "UtilsCUDA.cuh"
 #define HOST_DEVICE __host__ __device__
 #include <cuda/std/complex>
@@ -29,13 +32,32 @@
 #define STD cuda::std
 #else
 #define HOST_DEVICE
-#include <complex>
-#include <cfloat>
 #define STD std
 #endif
 
 #define NULLSTATEMENT ((void)0)
 #define REQUIRESEMICOLON do{NULLSTATEMENT;} while(false)
+
+/**
+ * Returns a pointer to only the last portion of the source filename.
+ * This works perfectly correctly on GPU, but it consumes many registers,
+ * which are often evaluated once at the beginning and left in registers
+ * through the whole kernel.
+*/
+/*HOST_DEVICE*/ inline const char *SOURCE_FILENAME(const char *file){
+    static const char *const tag = "/bellhopcuda/";
+    static const int taglen = 13;
+    const char *x = file;
+    for(; *x; ++x){
+        int i=0;
+        for(; i<taglen && x[i]; ++i){
+            if(x[i] != tag[i]) break;
+        }
+        if(i==taglen) break;
+    }
+    if(*x) return x+taglen;
+    return file;
+}
 
 #ifdef __CUDA_ARCH__
 #define bail __trap
@@ -51,7 +73,7 @@ if(__builtin_expect(!(statement), 0)) { \
 #define BASSERT(statement) \
 if(!(statement)){ \
 	std::cout << "FATAL: Assertion \"" #statement "\" failed in " \
-		<< __FILE__ << " line " << __LINE__ << "\n"; \
+		<< SOURCE_FILENAME(__FILE__) << " line " << __LINE__ << "\n"; \
 	std::abort(); \
 } REQUIRESEMICOLON
 #endif
@@ -84,7 +106,7 @@ using real = double;
 
 using cpx = STD::complex<real>;
 using cpxf = STD::complex<float>; // for uAllSources
-constexpr cpx J = cpx(RC(0.0), RC(1.0));
+#define J cpx(RC(0.0), RC(1.0))
 HOST_DEVICE constexpr inline cpxf Cpx2Cpxf(const cpx &c){
 	return cpxf((float)c.real(), (float)c.imag());
 }
@@ -142,8 +164,70 @@ inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
 	return s;
 }
 
-template<typename REAL> inline REAL spacing(REAL v){
+template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v){
 	return STD::abs(STD::nextafter(v, (REAL)(0.0f)) - v);
+}
+
+namespace math {
+	//Intrinsic/optimized math functions on device, or normal ones on host.
+	//http://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__INTRINSIC__SINGLE.html
+	//http://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__SINGLE.html
+	#ifdef __CUDA_ARCH__
+	#define DEFINE_MATH_FUNC_1(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
+		__device__ inline float BASE(const float &a) { return DEV_F(a); } \
+		__device__ inline double BASE(const double &a) { return DEV_D(a); }
+	#define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
+		__device__ inline float BASE(const float &a, const float &b) { return DEV_F(a, b); } \
+		__device__ inline double BASE(const double &a, const double &b) { return DEV_D(a, b); }
+	#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
+		__device__ inline int32_t BASE(const int32_t &a, const int32_t &b) { return DEV(a, b); } \
+		__device__ inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return DEV(a, b); } \
+		__device__ inline size_t BASE(const size_t &a, const size_t &b) { return DEV(a, b); }
+	#else
+	#define DEFINE_MATH_FUNC_1(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
+		inline float BASE(const float &a) { return HOST_F(a); } \
+		inline double BASE(const double &a) { return HOST_D(a); }
+    #define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
+        inline float BASE(const float &a, const float &b) { return HOST_F(a, b); } \
+        inline double BASE(const double &a, const double &b) { return HOST_D(a, b); }
+	#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
+		inline int32_t BASE(const int32_t &a, const int32_t &b) { return HOST(a, b); } \
+		inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return HOST(a, b); } \
+		inline size_t BASE(const size_t &a, const size_t &b) { return HOST(a, b); }
+    #endif
+
+    #ifdef WIN32
+    //These are provided as a GCC extension, but not by MSVC. But, __exp10f is a
+    //device intrinsic, so an equivalent host function must exist.
+    inline float internal_exp10f(float f) { return ::pow(10.0f, f); }
+    inline double internal_exp10d(double d) { return ::pow(10.0, d); }
+    #else
+    #define internal_exp10f ::exp10
+    #define internal_exp10d ::exp10
+    #endif
+
+	/*
+    DEFINE_MATH_FUNC_1(abs, fabsf, std::abs, fabs, std::abs)
+	*/
+    DEFINE_MATH_FUNC_2(max, fmaxf, std::max, fmax, std::max)
+    DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
+	DEFINE_MATH_FUNC_INT_2(max, ::max, std::max)
+	DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
+	/*
+	DEFINE_MATH_FUNC_1(floor, floorf, std::floor, ::floor, std::floor)
+	DEFINE_MATH_FUNC_1(ceil, ceilf, std::ceil, ::ceil, std::ceil)
+	DEFINE_MATH_FUNC_2(fmod, fmodf, std::fmod, fmod, std::fmod)
+	DEFINE_MATH_FUNC_1(sqrt, __fsqrt_rn, std::sqrt, __dsqrt_rn, std::sqrt)
+	DEFINE_MATH_FUNC_1(rsqrt, __frsqrt_rn, 1.0f / std::sqrt, 1.0 / __dsqrt_rn, 1.0 / std::sqrt)
+	DEFINE_MATH_FUNC_1(log2, __log2f, std::log2, log2, std::log2)
+	DEFINE_MATH_FUNC_1(exp2, exp2f, std::exp2, exp2, std::exp2)
+	DEFINE_MATH_FUNC_1(log10, __log10f, std::log10, log10, std::log10)
+	DEFINE_MATH_FUNC_1(exp10, __exp10f, internal_exp10f, ::exp10, internal_exp10d)
+	DEFINE_MATH_FUNC_2(pow, __powf, std::pow, ::pow, std::pow)
+	DEFINE_MATH_FUNC_1(sin, __sinf, std::sin, ::sin, std::sin)
+	DEFINE_MATH_FUNC_1(cos, __cosf, std::cos, ::cos, std::cos)
+	DEFINE_MATH_FUNC_2(atan2, atan2f, std::atan2, ::atan2, std::atan2)
+	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,27 +268,6 @@ static inline std::string trim_copy(std::string s) {
     return s;
 }
 
-/**
- * Returns a pointer to only the last portion of the source filename.
- * This works perfectly correctly on GPU, but it consumes many registers,
- * which are often evaluated once at the beginning and left in registers
- * through the whole kernel.
-*/
-HOST_DEVICE inline const char *SOURCE_FILENAME(const char *file){
-    static const char *const tag = "/bellhopcuda/";
-    static const int taglen = 13;
-    const char *x = file;
-    for(; *x; ++x){
-        int i=0;
-        for(; i<taglen && x[i]; ++i){
-            if(x[i] != tag[i]) break;
-        }
-        if(i==taglen) break;
-    }
-    if(*x) return x+taglen;
-    return file;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //CUDA memory
 ////////////////////////////////////////////////////////////////////////////////
@@ -238,7 +301,9 @@ template<typename T> inline void Sort(T *arr, size_t n){
 	std::sort(arr, arr + n);
 }
 template<> inline void Sort(cpx *arr, size_t n){
-	std::sort(arr, arr + n, [](const cpx &a, const cpx &b){
+    //Workaround because both libstdc++ and libcu++ provide swap
+    std::complex<real> *arr2 = reinterpret_cast<std::complex<real> *>(arr);
+	std::sort(arr2, arr2 + n, [](const std::complex<real> &a, const std::complex<real> &b){
 		return a.real() > b.real(); // Based on order of decreasing real part
 	});
 }
@@ -369,7 +434,7 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ofstrea
 {
     constexpr int32_t NEcho = 10;
     PRTFile << std::setprecision(6);
-    for(int32_t i=0; i<std::min(Nv, NEcho); ++i) PRTFile << std::setw(14) << v[i] << " ";
+    for(int32_t i=0; i<math::min(Nv, NEcho); ++i) PRTFile << std::setw(14) << v[i] << " ";
     if(Nv > NEcho) PRTFile << "... " << std::setw(14) << v[Nv-1];
     PRTFile << "\n";
 }
@@ -386,74 +451,3 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
         }
     }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//Copied from a different project
-////////////////////////////////////////////////////////////////////////////////
-
-#if 0
-namespace math {
-	//Intrinsic/optimized math functions on device, or normal ones on host.
-	//http://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__INTRINSIC__SINGLE.html
-	//http://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__SINGLE.html
-	#ifdef __CUDA_ARCH__
-	#define DEFINE_MATH_FUNC_1(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-		__device__ inline float BASE(const float &a) { return DEV_F(a); } \
-		__device__ inline double BASE(const double &a) { return DEV_D(a); }
-	#define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-		__device__ inline float BASE(const float &a, const float &b) { return DEV_F(a, b); } \
-		__device__ inline double BASE(const double &a, const double &b) { return DEV_D(a, b); }
-	#else
-	#define DEFINE_MATH_FUNC_1(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-		inline float BASE(const float &a) { return HOST_F(a); } \
-		inline double BASE(const double &a) { return HOST_D(a); }
-    #define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-        inline float BASE(const float &a, const float &b) { return HOST_F(a, b); } \
-        inline double BASE(const double &a, const double &b) { return HOST_D(a, b); }
-    #endif
-
-    #ifdef WIN32
-    //These are provided as a GCC extension, but not by MSVC. But, __exp10f is a
-    //device intrinsic, so an equivalent host function must exist.
-    inline float internal_exp10f(float f) { return ::pow(10.0f, f); }
-    inline double internal_exp10d(double d) { return ::pow(10.0, d); }
-    #else
-    #define internal_exp10f ::exp10
-    #define internal_exp10d ::exp10
-    #endif
-
-    DEFINE_MATH_FUNC_1(abs, fabsf, std::abs, fabs, std::abs)
-    DEFINE_MATH_FUNC_2(max, fmaxf, std::max, fmax, std::max)
-    DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
-	DEFINE_MATH_FUNC_1(floor, floorf, std::floor, ::floor, std::floor)
-	DEFINE_MATH_FUNC_1(ceil, ceilf, std::ceil, ::ceil, std::ceil)
-	DEFINE_MATH_FUNC_2(fmod, fmodf, std::fmod, fmod, std::fmod)
-	DEFINE_MATH_FUNC_1(sqrt, __fsqrt_rn, std::sqrt, __dsqrt_rn, std::sqrt)
-	DEFINE_MATH_FUNC_1(rsqrt, __frsqrt_rn, 1.0f / std::sqrt, 1.0 / __dsqrt_rn, 1.0 / std::sqrt)
-	DEFINE_MATH_FUNC_1(log2, __log2f, std::log2, log2, std::log2)
-	DEFINE_MATH_FUNC_1(exp2, exp2f, std::exp2, exp2, std::exp2)
-	DEFINE_MATH_FUNC_1(log10, __log10f, std::log10, log10, std::log10)
-	DEFINE_MATH_FUNC_1(exp10, __exp10f, internal_exp10f, ::exp10, internal_exp10d)
-	DEFINE_MATH_FUNC_2(pow, __powf, std::pow, ::pow, std::pow)
-	DEFINE_MATH_FUNC_1(sin, __sinf, std::sin, ::sin, std::sin)
-	DEFINE_MATH_FUNC_1(cos, __cosf, std::cos, ::cos, std::cos)
-	DEFINE_MATH_FUNC_2(atan2, atan2f, std::atan2, ::atan2, std::atan2)
-
-    //No math functions for complex on device.
-    template<typename f> HOST_DEVICE inline std::complex<f> abs(std::complex<f> v){
-        #ifdef __CUDA_ARCH__
-        return sqrt(v.real() * v.real() + v.imag() * v.imag());
-        #else
-        return std::abs(v);
-        #endif
-    }
-    template<typename f> HOST_DEVICE inline std::complex<f> sqrt(std::complex<f> v){
-        #ifdef __CUDA_ARCH__
-        f mag = abs(v);
-        
-        #else
-        return std::sqrt(v);
-        #endif
-    }
-}
-#endif

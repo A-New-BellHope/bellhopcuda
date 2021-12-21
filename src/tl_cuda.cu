@@ -31,11 +31,11 @@ __global__ void TLModeKernel(cpxf *uAllSources_,
         
         real SrcDeclAngle;
         MainTLMode(isrc, ialpha, SrcDeclAngle, uAllSources_,
-            Bdry_, bdinfo_, refl_, ssp_, Pos_, Angles_, freqinfo_, Beam_, beaminfo_);
+            ConstBdry_, bdinfo_, refl_, ssp_, Pos_, Angles_, freqinfo_, Beam_, beaminfo_);
     }
 }
 
-int d_warp, d_maxthreads, d_multiprocs;
+int m_gpu, d_warp, d_maxthreads, d_multiprocs;
 void setupGPU()
 {
     //Print info about all GPUs and which one is selected
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
         InitTLMode(uAllSources, Pos, Beam);
         
         TLModeKernel<<<d_multiprocs,d_maxthreads>>>(uAllSources, 
-            ConstBdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
         
         //std::cout << "Output\n";
         FinalizeTLMode(uAllSources, SHDFile, ssp, Pos, Angles, freqinfo, Beam);

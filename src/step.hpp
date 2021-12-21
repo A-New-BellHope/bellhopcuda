@@ -73,12 +73,12 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     }
     
     // top or bottom segment crossing in range
-    rSeg.x = STD::max(rTopSeg.x, rBotSeg.x);
-    rSeg.y = STD::min(rTopSeg.y, rBotSeg.y);
+    rSeg.x = math::max(rTopSeg.x, rBotSeg.x);
+    rSeg.y = math::min(rTopSeg.y, rBotSeg.y);
     
     if(ssp->Type == 'Q'){
-        rSeg.x = STD::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
-        rSeg.y = STD::min(rSeg.y, ssp->Seg.r[iSegr0+1]);
+        rSeg.x = math::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
+        rSeg.y = math::min(rSeg.y, ssp->Seg.r[iSegr0+1]);
     }
     
     h4 = REAL_MAX;
@@ -92,7 +92,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     
     //printf("ReduceStep2D h h1 h2 h3 h4 %g %g %g %g %g\n", h, h1, h2, h3, h4);
     // take limit set by shortest distance to a crossing
-    h = STD::min(h, STD::min(h1, STD::min(h2, STD::min(h3, h4))));
+    h = math::min(h, math::min(h1, math::min(h2, math::min(h3, h4))));
     if(h < RC(1.0e-4) * Beam->deltas){ // is it taking an infinitesimal step?
         h = RC(1.0e-5) * Beam->deltas; // make sure we make some motion
         ++iSmallStepCtr; // keep a count of the number of sequential small steps

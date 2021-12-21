@@ -202,9 +202,9 @@ HOST_DEVICE inline real fprime_interior(real del1, real del2, real fprime)
     if(del1 * del2 > RC(0.0)){
         // adjacent secant slopes have the same sign, enforce monotonicity
         if(del1 > RC(0.0)){
-            return STD::min(STD::max(fprime, RC(0.0)), RC(3.0) * STD::min(del1, del2));
+            return math::min(math::max(fprime, RC(0.0)), RC(3.0) * math::min(del1, del2));
         }else{
-            return STD::max(STD::min(fprime, RC(0.0)), RC(3.0) * STD::max(del1, del2));
+            return math::max(math::min(fprime, RC(0.0)), RC(3.0) * math::max(del1, del2));
         }
     }else{
         // force the interpolant to have an extrema here

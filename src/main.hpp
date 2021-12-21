@@ -160,7 +160,7 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
 switch(Beam->RunType[0]){
 case 'A':
 case 'a':
-    arrinfo->MaxNArr = std::max(ArrivalsStorage / (inflinfo->NRz_per_range * Pos->NRr), MinNArr);
+    arrinfo->MaxNArr = math::max(ArrivalsStorage / (inflinfo->NRz_per_range * Pos->NRr), MinNArr);
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
     break;
 default:

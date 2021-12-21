@@ -10,4 +10,5 @@ add_executable(bellhopcuda ${COMMON_SOURCE}
 )
 
 target_compile_definitions(bellhopcuda PUBLIC BUILD_CUDA=1)
+target_include_directories(bellhopcuda PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 bellhop_setup_target(bellhopcuda)

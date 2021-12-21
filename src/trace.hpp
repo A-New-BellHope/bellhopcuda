@@ -200,7 +200,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
                 ddelta = a * (cco / (cksbd * b)
                     - (RC(1.0) + (cco / ssi)) / cksbd
                     - RC(2.0) * SQ(co) * (SQ(hs.rho) - RC(1.0)) / (cksbd * d) );
-                rddelta = -delta.real();
+                rddelta = -ddelta.real();
                 sddelta = rddelta / STD::abs(rddelta);
                 
                 // next 3 lines have an update by Diana McCammon to allow a sloping bottom
@@ -315,7 +315,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
     
     int32_t ibp = BinarySearchLEQ(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
-    ibp = STD::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
+    ibp = math::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
     
     // linear interpolation to get amplitude
     real s = (SrcDeclAngle - beaminfo->SrcBmPat[2*ibp+0]) / (beaminfo->SrcBmPat[2*(ibp+1)+0] - beaminfo->SrcBmPat[2*ibp+0]);

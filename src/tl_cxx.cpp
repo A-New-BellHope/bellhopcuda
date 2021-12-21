@@ -115,7 +115,7 @@ int main(int argc, char **argv)
         Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);   
      
     std::vector<std::thread> threads;
-    uint32_t cores = singlethread ? 1u : std::max(std::thread::hardware_concurrency(), 1u);
+    uint32_t cores = singlethread ? 1u : math::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
     
     if(Beam->RunType[0] == 'R'){

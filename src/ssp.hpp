@@ -254,8 +254,8 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
     // s1 = proportional distance of x.x in range
     delta_r = ssp->Seg.r[iSegr+1] - ssp->Seg.r[iSegr];
     s1 = (x.x - ssp->Seg.r[iSegr]) / delta_r;
-    s1 = STD::min(s1, RC(1.0)); // force piecewise constant extrapolation for points outside the box
-    s1 = STD::max(s1, RC(0.0)); // "
+    s1 = math::min(s1, RC(1.0)); // force piecewise constant extrapolation for points outside the box
+    s1 = math::max(s1, RC(0.0)); // "
     
     real c = (RC(1.0) - s1) * c1 + s1 * c2;
     

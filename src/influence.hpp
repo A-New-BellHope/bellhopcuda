@@ -285,7 +285,7 @@ HOST_DEVICE inline real BuggyFinalPhase(const ray2DPt &point,
 HOST_DEVICE inline int32_t RToIR(real r, const Position *Pos)
 {
     // mbp: should be ", -1);"? [LP: for computation of ir1 / irA]
-    return STD::max(STD::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0);
+    return math::max(math::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0);
 }
 
 HOST_DEVICE inline void Compute_N_R_IR(real &n, real &r, int32_t &ir,
@@ -587,7 +587,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     
     for(int32_t ir=irA+1; ir<=irB; ++ir){
         real w, c;
-        vec2 x, rayt;
+        vec2 x;
         cpx q, tau, gamma, cnst;                
         w     = (Pos->Rr[ir] - rA) / (rB - rA);
         x     = point0.x   + w * (point1.x   - point0.x);
@@ -706,7 +706,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
         
         // *** Compute contributions to bracketted receivers ***
         
-        for(int32_t ir = STD::min(irA, irB) + 1; ir <= STD::max(irA, irB); ++ir){
+        for(int32_t ir = math::min(irA, irB) + 1; ir <= math::max(irA, irB); ++ir){
             w = (Pos->Rr[ir] - rA) / (rB - rA);
             n = STD::abs(nA + w * (nB - nA));
             q = point0.q.x + w * dq; // interpolated amplitude
@@ -760,8 +760,8 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     // what if never satistified?
     // what if there is a single receiver (ir = -1 possible)
     // LP: This implementation has been adjusted to handle these cases.
-    int32_t ir = BinarySearchGT(Pos->Rr, Pos->NRr, 1, 0, STD::min(rA, rB));
-    if(Pos->Rr[ir] <= STD::min(rA, rB)) return true; // not "bracketted"
+    int32_t ir = BinarySearchGT(Pos->Rr, Pos->NRr, 1, 0, math::min(rA, rB));
+    if(Pos->Rr[ir] <= math::min(rA, rB)) return true; // not "bracketted"
     
     x_ray = point0.x;
     
@@ -786,12 +786,12 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     IncPhaseIfCaustic(inflray, q, true);
     inflray.qOld = q;
     
-    sigma = STD::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) / 
+    sigma = math::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) / 
         (inflray.q0 * STD::abs(rayt.x)); // beam radius projected onto vertical line
     if(isGaussian){
         // calculate beam width
         lambda    = point0.c / inflray.freq0;
-        sigma     = STD::max(sigma, STD::min(RC(0.2) * inflray.freq0 * point1.tau.real(), M_PI * lambda));
+        sigma     = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), M_PI * lambda));
         RadiusMax = BeamWindow * sigma;
     }else{
         RadiusMax = sigma;
@@ -799,8 +799,8 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     
     // depth limits of beam
     if(STD::abs(rayt.x) > RC(0.5)){ // shallow angle ray
-        zmin = STD::min(point0.x.y, point1.x.y) - RadiusMax;
-        zmax = STD::max(point0.x.y, point1.x.y) + RadiusMax;
+        zmin = math::min(point0.x.y, point1.x.y) - RadiusMax;
+        zmax = math::max(point0.x.y, point1.x.y) + RadiusMax;
     }else{ // steep angle ray
         zmin = -REAL_MAX;
         zmax =  REAL_MAX;
@@ -814,7 +814,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
         // is Rr[ir] contained in [rA, rB)? Then compute beam influence
         // LP: Because of the new setup and always incrementing regardless of
         // which direction the ray goes, we only have to check this side.
-        if(Pos->Rr[ir] >= STD::max(rA, rB)) break;
+        if(Pos->Rr[ir] >= math::max(rA, rB)) break;
         
         //printf("ir %d\n", ir+1);
         ++inflray.testNumIters;
@@ -833,7 +833,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
             sigma = STD::abs(q / inflray.q0); // beam radius
             real beamWCompare;
             if(isGaussian){
-                sigma = STD::max(sigma, STD::min(RC(0.2) * inflray.freq0 * point1.tau.real(), M_PI * lambda)); // min pi * lambda, unless near
+                sigma = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), M_PI * lambda)); // min pi * lambda, unless near
                 beamWCompare = BeamWindow * sigma;
             }else{
                 RadiusMax = sigma;
