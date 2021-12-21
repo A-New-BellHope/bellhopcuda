@@ -129,8 +129,11 @@ int main(int argc, char **argv)
         InitTLMode(uAllSources, Pos, Beam);
         
         //std::cout << "Run\n";
+        Stopwatch sw;
+        sw.tick();
         for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(TLModeWorker));
         for(uint32_t i=0; i<cores; ++i) threads[i].join();
+        sw.tock();
         
         //std::cout << "Output\n";
         FinalizeTLMode(uAllSources, SHDFile, ssp, Pos, Angles, freqinfo, Beam);

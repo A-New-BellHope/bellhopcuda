@@ -8,7 +8,8 @@
 bin/
 build/
 build_windows/
-test/cxx/
+test/cxx1/
+test/cxxmulti/
 test/cuda/
 test/FORTRAN/
 .vs/

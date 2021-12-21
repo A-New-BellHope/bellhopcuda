@@ -19,10 +19,7 @@ thresh_abs_alarm = 1e-5
 thresh_rel_print = 1e-4
 thresh_rel_alarm = 1e-2
 
-cxxfile = 'temp/cxx/{}.shd'.format(sys.argv[1])
-forfile = 'temp/FORTRAN/{}.shd'.format(sys.argv[1])
-
-with open(cxxfile, 'rb') as cxxf, open(forfile, 'rb') as forf:
+def compare_files(cxxf, forf):
     cxxdata = cxxf.read()
     fordata = forf.read()
     if len(cxxdata) != len(fordata):
@@ -136,3 +133,21 @@ with open(cxxfile, 'rb') as cxxf, open(forfile, 'rb') as forf:
         print('\nand {} more extremely large error(s)'.format(errors - maxerrors))
     if errors > 0:
         sys.exit(1)
+
+
+cxx1file = 'test/cxx1/{}.shd'.format(sys.argv[1])
+cxxmultifile = 'test/cxxmulti/{}.shd'.format(sys.argv[1])
+cudafile = 'test/cuda/{}.shd'.format(sys.argv[1])
+forfile = 'test/FORTRAN/{}.shd'.format(sys.argv[1])
+
+with open(cxx1file, 'rb') as cxxf, open(forfile, 'rb') as forf:
+    print('bellhopcxx single-threaded:')
+    compare_files(cxxf, forf)
+
+with open(cxxmultifile, 'rb') as cxxf, open(forfile, 'rb') as forf:
+    print('bellhopcxx multi-threaded:')
+    compare_files(cxxf, forf)
+
+with open(cudafile, 'rb') as cxxf, open(forfile, 'rb') as forf:
+    print('bellhopcuda:')
+    compare_files(cxxf, forf)

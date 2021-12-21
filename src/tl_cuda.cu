@@ -20,7 +20,9 @@ BeamInfo *beaminfo;
 
 cpxf *uAllSources;
 
-__global__ void TLModeKernel(cpxf *uAllSources_, 
+__global__ void 
+__launch_bounds__(512, 1)
+TLModeKernel(cpxf *uAllSources_, 
     const BdryType *ConstBdry_, const BdryInfo *bdinfo_, const ReflectionInfo *refl_,
     const SSPStructure *ssp_, const Position *Pos_, const AnglesStructure *Angles_,
     const FreqInfo *freqinfo_, const BeamStructure *Beam_, const BeamInfo *beaminfo_)
@@ -85,8 +87,12 @@ int main(int argc, char **argv)
         // TL mode
         InitTLMode(uAllSources, Pos, Beam);
         
-        TLModeKernel<<<d_multiprocs,d_maxthreads>>>(uAllSources, 
+        Stopwatch sw;
+        sw.tick();
+        TLModeKernel<<<d_multiprocs,512>>>(uAllSources, 
             Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
+        syncAndCheckKernelErrors("TLModeKernel");
+        sw.tock();
         
         //std::cout << "Output\n";
         FinalizeTLMode(uAllSources, SHDFile, ssp, Pos, Angles, freqinfo, Beam);

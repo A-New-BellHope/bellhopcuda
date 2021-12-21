@@ -9,23 +9,34 @@ fi
 
 run_test () {
     echo $1
-    if [ ! -f "temp/in/$1.env" ]; then
-        echo "temp/in/$1.env does not exist"
+    if [ ! -f "test/in/$1.env" ]; then
+        echo "test/in/$1.env does not exist"
         exit 1
     fi
-    mkdir -p temp/cxx
-    mkdir -p temp/FORTRAN
-    rm -f temp/cxx/$1.*
-    rm -f temp/FORTRAN/$1.*
-    cp temp/in/$1.* temp/cxx/
-    cp temp/in/$1.* temp/FORTRAN/
-    echo "bellhopcxx"
-    ./bin/bellhopcxx -1 temp/cxx/$1
-    #./bin/bellhopcxx temp/cxx/$1
-    cxxres=$?
+    mkdir -p test/cxx1
+    mkdir -p test/cxxmulti
+    mkdir -p test/cuda
+    mkdir -p test/FORTRAN
+    rm -f test/cxx1/$1.*
+    rm -f test/cxxmulti/$1.*
+    rm -f test/cuda/$1.*
+    rm -f test/FORTRAN/$1.*
+    cp test/in/$1.* test/cxx1/
+    cp test/in/$1.* test/cxxmulti/
+    cp test/in/$1.* test/cuda/
+    cp test/in/$1.* test/FORTRAN/
+    echo "bellhopcxx single-threaded"
+    ./bin/bellhopcxx -1 test/cxx1/$1
+    cxx1res=$?
+    echo "bellhopcxx multi-threaded"
+    ./bin/bellhopcxx test/cxxmulti/$1
+    cxxmultires=$?
+    echo "bellhopcuda"
+    ./bin/bellhopcuda test/cuda/$1
+    cudares=$?
     forres=0
     echo "BELLHOP"
-    forout=$(../bellhop/Bellhop/bellhop.exe temp/FORTRAN/$1 2>&1)
+    forout=$(time ../bellhop/Bellhop/bellhop.exe test/FORTRAN/$1 2>&1)
     if [[ $? != "0" ]]; then forres=1; fi
     if [[ "$forout" == *"STOP Fatal Error"* ]]; then forres=1; fi
 }
@@ -35,13 +46,19 @@ while read -u 10 line || [[ -n $line ]]; do
         continue
     fi
     run_test $line
-    if [[ $cxxres != "0" ]]; then
-        echo "$line: bellhopcxx failed"
+    if [[ $cxx1res != "0" ]]; then
+        echo "$line: bellhopcxx single-threaded failed"
+    fi
+    if [[ $cxxmultires != "0" ]]; then
+        echo "$line: bellhopcxx multi-threaded failed"
+    fi
+    if [[ $cudares != "0" ]]; then
+        echo "$line: bellhopcuda failed"
     fi
     if [[ $forres != "0" ]]; then
         echo "$line: BELLHOP failed"
     fi
-    if [[ $cxxres != "0" || $forres != "0" ]]; then
+    if [[ $cxx1res != "0" || $cxxmultires != "0" || $cudares != "0" || $forres != "0" ]]; then
         exit 1
     fi
 done 10<${1}_pass.txt
@@ -51,13 +68,19 @@ while read -u 11 line || [[ -n $line ]]; do
         continue
     fi
     run_test $line
-    if [[ $cxxres == "0" ]]; then
-        echo "$line: bellhopcxx failed to fail"
+    if [[ $cxx1res == "0" ]]; then
+        echo "$line: bellhopcxx single-threaded failed to fail"
+    fi
+    if [[ $cxxmultires == "0" ]]; then
+        echo "$line: bellhopcxx multi-threaded failed to fail"
+    fi
+    if [[ $cudares == "0" ]]; then
+        echo "$line: bellhopcuda failed to fail"
     fi
     if [[ $forres == "0" ]]; then
         echo "$line: BELLHOP failed to fail"
     fi
-    if [[ $cxxres == "0" || $forres == "0" ]]; then
+    if [[ $cxx1res == "0" || $cxxmultires == "0" || $cudares == "0" || $forres == "0" ]]; then
         exit 1
     fi
 done 11<${1}_fail.txt

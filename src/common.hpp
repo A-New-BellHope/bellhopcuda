@@ -7,7 +7,6 @@
 #define _USE_MATH_DEFINES 1 //must be before anything which includes math.h
 #include <math.h>
 #include <algorithm>
-#include <locale>
 #include <complex>
 #include <cfloat>
 #include <cctype>
@@ -17,6 +16,8 @@
 #include <iomanip>
 #include <cstring>
 #include <string>
+#include <locale>
+#include <chrono>
 
 ////////////////////////////////////////////////////////////////////////////////
 //Select which standard library
@@ -451,3 +452,25 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
         }
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//Timing
+////////////////////////////////////////////////////////////////////////////////
+
+class Stopwatch
+{
+public:
+    Stopwatch() {}
+    inline void tick() {
+        tstart = std::chrono::high_resolution_clock::now();
+    }
+    inline void tock() {
+        using namespace std::chrono;
+        high_resolution_clock::time_point tend = high_resolution_clock::now();
+        double dt = (duration_cast<duration<double>>(tend - tstart)).count();
+        dt *= 1000.0;
+        std::cout << dt << " ms\n";
+    }
+private:
+    std::chrono::high_resolution_clock::time_point tstart;
+};
