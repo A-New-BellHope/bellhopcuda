@@ -1,13 +1,60 @@
-//MunkB_Coh_onebeam
-//MunkB_Coh_twobeams
-//MunkB_Coh_morebeams
-//MunkB_Coh_lotsofwork
-//MunkB_Coh_lotsofwork2
-MunkB_Coh_lotsofwork3
-//MunkB_Coh
-//MunkB_Coh_gb
-//MunkB_Coh_SGB_twobeams
-//MunkB_Coh_SGB
-//MunkB_Coh_cpp
-//MunkB_Coh_CervenyC
-//MunkB_Coh_CervenyR
+//Coherent, results match
+GulfB_ri_gb
+MunkB_Coh
+MunkB_Coh_onebeam
+MunkB_Coh_twobeams
+MunkB_Coh_morebeams
+MunkB_Coh_lotsofwork
+MunkB_Coh_lotsofwork2
+////MunkB_Coh_lotsofwork3 probably passes, didn't want to rerun
+MunkB_Coh_SGB
+MunkB_Coh_SGB_twobeams
+MunkB_Coh_gb
+MunkB_gb
+Munk_shearB
+lower_half_gbt
+sductB_gb
+//
+//Coherent, results do not match
+arcticB_cpp
+arcticB_gb
+blockB_gb
+calibB_Cerveny
+calibB_gb
+DickinsB
+DickinsB_oneBeam
+DickinsCervenyB
+DickinsFlatB
+EllipseTLGB
+EllipseTLGeom
+free_gbtB
+freeLine_gbtB
+freeLine_ParaxialB
+freePoint_ParaxialB
+GulfB_rd_gb
+GulfB_ri_Cerveny
+MunkB_Coh_CervenyC
+MunkB_Coh_CervenyR
+MunkB_Coh_cpp
+MunkB_gbt
+MunkB_OneBeam
+Munk
+ParaBotTLGB
+step
+aetB
+aetB_TL
+aet_VLA_B
+//
+//Close to matching
+calibBgrad_gb
+freePointB
+freePoint_gbtB
+LloydLine_gbtB
+LloydPoint_gbtB
+//
+//Semi-coherent, results do not match
+MunkB_Semi_gb
+//
+//Incoherent, results do not match
+MunkB_Inc_gb
+free_gbtB_Inc

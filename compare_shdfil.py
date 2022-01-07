@@ -47,12 +47,18 @@ def compare_files(cxxf, forf):
     NSz = read_rec_int(fordata, 2, 4)
     NRz = read_rec_int(fordata, 2, 5)
     NRr = read_rec_int(fordata, 2, 6)
+    irre = read_rec_int(fordata, 1, 0)
     assert NSz == read_rec_int(cxxdata, 2, 4)
     assert NRz == read_rec_int(cxxdata, 2, 5)
     assert NRr == read_rec_int(cxxdata, 2, 6)
+    assert irre == read_rec_int(cxxdata, 1, 0)
     assert NRr * 2 <= reclen
-    if len(cxxdata) != NSz * NRz * reclen * 4 + 4 * 10 * reclen:
-        print('NSz {} NRz {} NRr {} reclen {}'.format(NSz, NRz, NRr, reclen))
+    irre = (irre == 0x65727269) #'irre' (gular)
+    rcvrgridsz = reclen * (1 if irre else NRz)
+    filesz = NSz * rcvrgridsz * 4 + 4 * 10 * reclen
+    if len(cxxdata) != filesz:
+        print('NSz {} NRz {} NRr {} reclen {} rcvrgridsz {} irregular {}\nPred filesz {} actual {}'.format(
+            NSz, NRz, NRr, reclen, rcvrgridsz, irre, filesz, len(cxxdata)))
         raise RuntimeError('Invalid file size')
     
     errors = 0
