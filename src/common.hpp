@@ -31,9 +31,11 @@
 #include <cuda/std/cfloat>
 //libcu++
 #define STD cuda::std
+#define PROGRAMNAME "bellhopcuda"
 #else
 #define HOST_DEVICE
 #define STD std
+#define PROGRAMNAME "bellhopcxx"
 #endif
 
 #define NULLSTATEMENT ((void)0)
@@ -88,6 +90,7 @@ using real = float;
 #define REAL_MAX FLT_MAX
 #define REAL_EPSILON FLT_EPSILON
 #define REAL_MINPOS FLT_MIN
+#define REAL_PI ((float)M_PI)
 //Must be below abs(bit_cast<float>(0xFEFEFEFEu) == -1.69e38f)
 #define DEBUG_LARGEVAL (1.0e30)
 //#define DEBUG_LARGEVAL (1.0e15)
@@ -99,6 +102,7 @@ using real = double;
 #define REAL_MAX DBL_MAX
 #define REAL_EPSILON DBL_EPSILON
 #define REAL_MINPOS DBL_MIN
+#define REAL_PI M_PI
 //Must be below abs(bit_cast<double>(0xFEFEFEFEFEFEFEFEull) == -5.31e303)
 #define DEBUG_LARGEVAL (1.0e250)
 //#define DEBUG_LARGEVAL (1.0e15)
@@ -130,8 +134,8 @@ using vec3 = glm::vec<3, real, glm::defaultp>;
 
 #define SQ(a) ((a) * (a)) //Square
 #define CUBE(a) ((a) * (a) * (a))
-constexpr real RadDeg = RC(180.0) / M_PI;
-constexpr real DegRad = M_PI / RC(180.0);
+constexpr real RadDeg = RC(180.0) / REAL_PI;
+constexpr real DegRad = REAL_PI / RC(180.0);
 
 inline bool isInt(std::string str, bool allowNegative = true){
 	if(str.empty()) return false;

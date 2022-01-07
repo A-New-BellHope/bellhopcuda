@@ -148,7 +148,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
     
     if(BotRC == 'P'){
         std::cout << "Internal reflections not supported by BELLHOP and therefore "
-            "not supported by bellhopcuda\n";
+            "not supported by " PROGRAMNAME "\n";
         std::abort();
     }
 }

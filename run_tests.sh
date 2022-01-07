@@ -7,6 +7,11 @@ if [ -z $1 ]; then
     exit 1
 fi
 
+ignore=0
+if [[ $2 == "ignore" ]]; then
+    ignore=1
+fi
+
 run_test () {
     echo $1
     if [ ! -f "test/in/$1.env" ]; then
@@ -59,7 +64,9 @@ while read -u 10 line || [[ -n $line ]]; do
         echo "$line: BELLHOP failed"
     fi
     if [[ $cxx1res != "0" || $cxxmultires != "0" || $cudares != "0" || $forres != "0" ]]; then
-        exit 1
+        if [[ $ignore != "1" ]]; then
+            exit 1
+        fi
     fi
 done 10<${1}_pass.txt
 
@@ -81,7 +88,9 @@ while read -u 11 line || [[ -n $line ]]; do
         echo "$line: BELLHOP failed to fail"
     fi
     if [[ $cxx1res == "0" || $cxxmultires == "0" || $cudares == "0" || $forres == "0" ]]; then
-        exit 1
+        if [[ $ignore != "1" ]]; then
+            exit 1
+        fi
     fi
 done 11<${1}_fail.txt
 

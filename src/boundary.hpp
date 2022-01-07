@@ -466,7 +466,7 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         // the term vr / 1000 converts vr to units of m per ms 
         alphaR = vr * RC(1500.0);
         alphaI = alpha2_f * (vr / RC(1000.0)) * RC(1500.0) * 
-            STD::log(RC(10.0)) / (RC(40.0) * M_PI); // loss parameter Sect. IV., Eq. (4) of handbook
+            STD::log(RC(10.0)) / (RC(40.0) * REAL_PI); // loss parameter Sect. IV., Eq. (4) of handbook
  
         hs.cP  = crci(zTemp, alphaR, alphaI, freq, freq, {'L', ' '}, betaPowerLaw, fT, atten, PRTFile);
         hs.cS  = RC(0.0);

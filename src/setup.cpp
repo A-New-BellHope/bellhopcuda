@@ -81,7 +81,7 @@ void setup(std::string FileRoot,
     
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
-        Title = "bellhopcuda- Calibration case with envfil passed as parameters\n";
+        Title = PROGRAMNAME "- Calibration case with envfil passed as parameters\n";
         freqinfo->freq0 = RC(250.0);
         // NMedia variable is not used by BELLHOP
         

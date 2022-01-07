@@ -39,7 +39,7 @@ inline void ReadRayElevationAngles(real freq, real Depth,
             // assumes also a full 360 degree angular spread of rays
             // Should check which Depth is used here, in case where there is a variable bathymetry
             real d_theta_recommended = STD::atan(Depth / (RC(10.0) * Pos->Rr[Pos->NRr-1]));
-            Angles->Nalpha = math::max((int)(M_PI / d_theta_recommended), Angles->Nalpha);
+            Angles->Nalpha = math::max((int)(REAL_PI / d_theta_recommended), Angles->Nalpha);
         }
     }
     

@@ -50,7 +50,7 @@ inline real Franc_Garr(real f, const AttenInfo *atten){
     if(atten->t < RC(20.0)){
         a3 = RC(4.937e-4) - RC(2.59e-5) * atten->t + RC(9.11e-7) * SQ(atten->t) - RC(1.5e-8) * CUBE(atten->t);
     }else{
-        a3 = RC(3.964e-4) RC(-1.146e-5) * atten->t + RC(1.45e-7) * SQ(atten->t) - RC(6.5e-10) * CUBE(atten->t);
+        a3 = RC(3.964e-4) - RC(1.146e-5) * atten->t + RC(1.45e-7) * SQ(atten->t) - RC(6.5e-10) * CUBE(atten->t);
     }
     
     return a1 * p1 * (f1 * SQ(f)) / (SQ(f1) + SQ(f)) 
@@ -89,7 +89,7 @@ inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&
     real f2, omega, alphaT, Thorp, a, fg;
     cpx ret;
     
-    omega = RC(2.0) * M_PI * freq;
+    omega = RC(2.0) * REAL_PI * freq;
     
     // Convert to Nepers/m
     alphaT = RC(0.0);

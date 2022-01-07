@@ -85,7 +85,7 @@ HOST_DEVICE inline void ScalePressure(real Dalpha, real c, float *r,
     for(int32_t ir=0; ir<Nr; ++ir){
         real factor;
         if(RunType[3] == 'X'){ // line source
-            factor = RC(-4.0) * STD::sqrt(M_PI) * cnst;
+            factor = RC(-4.0) * STD::sqrt(REAL_PI) * cnst;
         }else{ // point source
             if(r[ir] == 0.0f){
                 factor = RC(0.0); // avoid /0 at origin, return pressure = 0
@@ -154,7 +154,7 @@ HOST_DEVICE inline void ApplyContribution(real cnst, real w,
         real v = STD::pow(cnst * STD::exp((omega * delay).imag()), RC(2.0) * w);
         if(Beam->Type[0] == 'B'){
             // Gaussian beam
-            v *= STD::sqrt(RC(2.0) * M_PI);
+            v *= STD::sqrt(RC(2.0) * REAL_PI);
         }
         AtomicAddCpx(u, cpxf((float)v, 0.0f));
     }
@@ -218,8 +218,8 @@ HOST_DEVICE inline cpx PickEpsilon(char BeamType0, char BeamType1, real omega,
         epsilonOpt = J * RC(0.5) * omega * SQ(halfwidth);
         break;
     case 'b':
-        printf("bellhopcuda: Geo Gaussian beams in ray-cent. coords. not "
-            "implemented in BELLHOP (and therefore not in bellhopcuda)\n");
+        printf(PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
+            "implemented in BELLHOP (and therefore not in " PROGRAMNAME ")\n");
         bail();
         break;
     case 'S':
@@ -267,7 +267,7 @@ HOST_DEVICE inline bool IsAtCaustic(const InfluenceRayInfo &inflray, real q, boo
  */
 HOST_DEVICE inline void IncPhaseIfCaustic(InfluenceRayInfo &inflray, real q, bool qleq0)
 {
-    if(IsAtCaustic(inflray, q, qleq0)) inflray.phase += M_PI * RC(0.5);
+    if(IsAtCaustic(inflray, q, qleq0)) inflray.phase += REAL_PI * RC(0.5);
 }
 
 /**
@@ -278,7 +278,7 @@ HOST_DEVICE inline real BuggyFinalPhase(const ray2DPt &point,
     const InfluenceRayInfo &inflray, real q)
 {
     real phaseInt = point.Phase + inflray.phase;
-    if(IsAtCaustic(inflray, q, true)) phaseInt = inflray.phase + M_PI * RC(0.5);
+    if(IsAtCaustic(inflray, q, true)) phaseInt = inflray.phase + REAL_PI * RC(0.5);
     return phaseInt;
 }
 
@@ -329,7 +329,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
             point0.c, gradc, alpha, Angles->Dalpha, Beam->rLoop, Beam->epsMultiplier);
     }
     inflray.freq0 = freqinfo->freq0;
-    inflray.omega = RC(2.0) * M_PI * inflray.freq0;
+    inflray.omega = RC(2.0) * REAL_PI * inflray.freq0;
     // LP: The 5x version is changed to 50x on both codepaths before it is used.
     // inflray.RadMax = RC(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
     inflray.RadMax = RC(50.0) * point0.c / freqinfo->freq0; // 50 wavelength max radius
@@ -791,7 +791,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     if(isGaussian){
         // calculate beam width
         lambda    = point0.c / inflray.freq0;
-        sigma     = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), M_PI * lambda));
+        sigma     = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
         RadiusMax = BeamWindow * sigma;
     }else{
         RadiusMax = sigma;
@@ -833,7 +833,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
             sigma = STD::abs(q / inflray.q0); // beam radius
             real beamWCompare;
             if(isGaussian){
-                sigma = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), M_PI * lambda)); // min pi * lambda, unless near
+                sigma = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
                 beamWCompare = BeamWindow * sigma;
             }else{
                 RadiusMax = sigma;
@@ -851,7 +851,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                 cnst  = inflray.Ratio1 * STD::sqrt(point1.c / STD::abs(q)) * point1.Amp;
                 if(isGaussian){
                     // sqrt( 2 * pi ) represents a sum of Gaussians in free space
-                    cnst /= STD::sqrt(RC(2.0) * M_PI);
+                    cnst /= STD::sqrt(RC(2.0) * REAL_PI);
                     a = STD::abs(inflray.q0 / q);
                     w = STD::exp(RC(-0.5) * SQ(n / sigma)) / (sigma * a); // Gaussian decay
                 }else{
@@ -889,7 +889,7 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
     
     const real beta = RC(0.98); // Beam Factor
     real a = RC(-4.0) * STD::log(beta) / SQ(inflray.Dalpha);
-    real cn = inflray.Dalpha * STD::sqrt(a / M_PI);
+    real cn = inflray.Dalpha * STD::sqrt(a / REAL_PI);
     real rA = point0.x.x;
     
     real rB = point1.x.x;

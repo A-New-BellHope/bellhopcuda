@@ -54,7 +54,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     cpx kx, kz, kzP, kzS, kzP2, kzS2, mu, f, g, y2, y4, Refl; // for tabulated reflection coef.
     cpx ch, a, b, d, sb, delta, ddelta; // for beam shift
     ReflectionCoef RInt;
-    real omega = RC(2.0) * M_PI * freq;
+    real omega = RC(2.0) * REAL_PI * freq;
     
     Tg = glm::dot(oldPoint.t, tBdry); // component of ray tangent, along boundary
     Th = glm::dot(oldPoint.t, nBdry); // component of ray tangent, normal to boundary
@@ -110,7 +110,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
         newPoint.Phase = oldPoint.Phase;
     }else if(hs.bc == 'V'){ // vacuum
         newPoint.Amp   = oldPoint.Amp;
-        newPoint.Phase = oldPoint.Phase + M_PI;
+        newPoint.Phase = oldPoint.Phase + REAL_PI;
     }else if(hs.bc == 'F'){ // file
         RInt.theta = RadDeg * STD::abs(STD::atan2(Th, Tg)); // angle of incidence (relative to normal to bathymetry)
         if(RInt.theta > RC(90.0)) RInt.theta = RC(180.0) - RInt.theta; // reflection coefficient is symmetric about 90 degrees
@@ -252,7 +252,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
 {
     // LP: This part from BellhopCore
     
-    float omega = RC(2.0) * M_PI * freqinfo->freq0;
+    float omega = RC(2.0) * REAL_PI * freqinfo->freq0;
     vec2 xs = vec2(RC(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
     
     /*
@@ -308,7 +308,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
     
     if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && ialpha == 0){
-        printf("Warning in bellhopcuda : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
+        printf("Warning in " PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
     }
     
     real alpha = Angles->alpha[ialpha]; // initial angle
@@ -476,7 +476,7 @@ HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int3
         Nsteps = is + 1;
         return true;
     }else if(is >= MaxN - 3){
-        printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
+        //printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
         Nsteps = is;
         return true;
     }

@@ -38,7 +38,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            std::cout << "bellhopcuda - ReadEnvironment: Unable to open the SSP file\n";
+            std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
             std::abort();
         }
         } break;
@@ -48,7 +48,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            std::cout << "bellhopcuda - ReadEnvironment: Unable to open the SSP file\n";
+            std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
         }
         } break;*/
     case 'A':
@@ -232,19 +232,19 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     real Sigma, Depth;
     char PlotType[10];
     
-    PRTFile << "bellhopcuda\n\n";
+    PRTFile << PROGRAMNAME "\n\n";
     
     // Open the environmental file
     LDIFile ENVFile(FileRoot + ".env");
     if(!ENVFile.Good()){
         PRTFile << "ENVFile = " << FileRoot << ".env\n";
-        std::cout << "bellhopcuda - ReadEnvironment: Unable to open the environmental file\n";
+        std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the environmental file\n";
         std::abort();
     }
     
     // Prepend model name to title
     LIST(ENVFile); ENVFile.Read(Title);
-    Title = "bellhopcuda- " + Title;
+    Title = PROGRAMNAME "- " + Title;
     
     PRTFile << Title << "\n";
     

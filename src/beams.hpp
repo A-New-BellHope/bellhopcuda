@@ -60,7 +60,7 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
     //monotonically increasing.
     if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)){
         std::cout << "Source beam pattern angles are not monotonic. This was not "
-            << "a requirement in BELLHOP but has been added to bellhopcuda "
+            << "a requirement in BELLHOP but has been added to " PROGRAMNAME " "
             << "because BELLHOP gave nonsense results if they were not.\n";
         std::abort();
     }

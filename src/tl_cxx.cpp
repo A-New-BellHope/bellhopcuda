@@ -41,7 +41,7 @@ void RayModeWorker()
         memset(ray2D, 0xFE, MaxN*sizeof(ray2DPt)); //Set to garbage values for debugging
         
         real SrcDeclAngle;
-        int32_t Nsteps;
+        int32_t Nsteps = -1; //compiler claims may not be initialized, but heuristics wrong
         MainRayMode(isrc, ialpha, SrcDeclAngle, ray2D, Nsteps, 
             Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
         
