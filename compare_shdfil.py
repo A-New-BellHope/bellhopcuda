@@ -93,10 +93,10 @@ def compare_files(cxxf, forf):
             reli = absi / abs(ffi) if ffi != 0 else absi
         # If the absolute error is miniscule, it doesn't matter what the relative
         # or ULP error are
-        if absr < 1e-10:
+        if absr < 5e-9:
             ulpr = 0
             relr = 0.0
-        if absi < 1e-10:
+        if absi < 5e-9:
             ulpi = 0
             reli = 0.0
         #

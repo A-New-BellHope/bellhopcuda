@@ -1,5 +1,7 @@
-//Coherent, results match
-GulfB_ri_gb
+//
+//Coherent, results match. Geom hat cart, geom Gaussian cart, or SGB
+//
+//Geom hat cart:
 MunkB_Coh
 MunkB_Coh_onebeam
 MunkB_Coh_twobeams
@@ -7,45 +9,64 @@ MunkB_Coh_morebeams
 MunkB_Coh_lotsofwork
 MunkB_Coh_lotsofwork2
 ////MunkB_Coh_lotsofwork3 probably passes, didn't want to rerun
-MunkB_Coh_SGB
-MunkB_Coh_SGB_twobeams
+Munk_shearB
+//
+//Geom Gaussian cart:
+DickinsB_oneBeam
+GulfB_ri_gb
 MunkB_Coh_gb
 MunkB_gb
-Munk_shearB
+MunkB_OneBeam
 lower_half_gbt
 sductB_gb
 //
+//SGB:
+MunkB_Coh_SGB
+MunkB_Coh_SGB_twobeams
+//
+//
 //Coherent, results do not match
-arcticB_cpp
-arcticB_gb
-blockB_gb
+//
+//Cerveny cart:
 calibB_Cerveny
-calibB_gb
-DickinsB
-DickinsB_oneBeam
+MunkB_Coh_CervenyC
+MunkB_Coh_cpp
+//
+//Cerveny ray-centered:
+arcticB_cpp
 DickinsCervenyB
-DickinsFlatB
-EllipseTLGB
-EllipseTLGeom
-free_gbtB
-freeLine_gbtB
 freeLine_ParaxialB
 freePoint_ParaxialB
-GulfB_rd_gb
 GulfB_ri_Cerveny
-MunkB_Coh_CervenyC
 MunkB_Coh_CervenyR
-MunkB_Coh_cpp
 MunkB_gbt
-MunkB_OneBeam
-Munk
+//
+//Geom Gaussian cart:
+arcticB_gb
+blockB_gb
+calibB_gb
+DickinsB
+DickinsFlatB
+EllipseTLGB
+free_gbtB
+freeLine_gbtB
+GulfB_rd_gb
 ParaBotTLGB
 step
 aetB
-aetB_TL
 aet_VLA_B
 //
+//Geom hat cart:
+EllipseTLGeom
+Munk
+//
+//Geom hat ray-centered:
+aetB_TL
+//
+//
+//
 //Close to matching
+//
 calibBgrad_gb
 freePointB
 freePoint_gbtB

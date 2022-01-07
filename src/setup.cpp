@@ -72,8 +72,11 @@ void setup(std::string FileRoot,
     Pos->NSy = 1;
     Angles->Nalpha = 0;
     Angles->Nbeta = 1;
-    Angles->iSingle_alpha = -1; //LP: not a typo; this is an index, one less than the
-    Angles->iSingle_beta = -1; //start of the array, which in Fortran is 0 but C++ is -1
+    //LP: not a typo; this is an index, one less than the start of the array,
+    //which in Fortran (and in the env file!) is 0. This gets converted to 0-
+    //indexed when it is used.
+    Angles->iSingle_alpha = 0;
+    Angles->iSingle_beta = 0;
     //freqinfo: none
     Beam->epsMultiplier = RC(1.0);
     memcpy(Beam->Type, "G S ", 4);

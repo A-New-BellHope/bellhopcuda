@@ -9,9 +9,9 @@
 HOST_DEVICE inline bool GetJobIndices(int32_t &isrc, int32_t &ialpha, int32_t job,
     const Position *Pos, const AnglesStructure *Angles)
 {
-    if(Angles->iSingle_alpha >= 0){
+    if(Angles->iSingle_alpha >= 1){
         isrc = job;
-        ialpha = Angles->iSingle_alpha;
+        ialpha = Angles->iSingle_alpha - 1; //iSingle_alpha is 1-indexed because how defined in env file
     }else{
         isrc = job / Angles->Nalpha;
         ialpha = job % Angles->Nalpha;
