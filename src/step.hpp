@@ -101,6 +101,13 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     }
 }
 
+HOST_DEVICE inline void StepSnapTo(real &x, real target){
+    if(STD::abs((x - target) / x) < REAL_REL_SNAP){
+        printf("Snapping to %g\n", target);
+        x = target;
+    }
+}
+
 /**
  * Does a single step along the ray
  */
@@ -119,9 +126,14 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     real crr2, crz2, czz2;
     real h, halfh, hw0, hw1, rm, rn, cnjump, csjump, w0, w1, rho;
     
-    // printf("\nray0 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
-    //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y);
+    printf("\nray0 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+        ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y);
     // printf("iSegz iSegr %d %d\n", iSegz, iSegr);
+    
+    if(ray0.x.x > 420.0){
+        printf("Enough\n");
+        bail();
+    }
     
     // The numerical integrator used here is a version of the polygon (a.k.a. midpoint, leapfrog, or Box method), and similar
     // to the Heun (second order Runge-Kutta method).
@@ -209,7 +221,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
         Beam, ssp, h, iSmallStepCtr);
         
     // printf("urayt1 (%g,%g) out h 2 %g\n", urayt1.x, urayt1.y, h);
-        
+    
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RC(2.0) * halfh);
     w0  = RC(1.0) - w1;
@@ -224,9 +236,9 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray2.q   = ray0.q   + hw0 * ccpx0.real() * ray0.p + hw1 * ccpx1.real() * ray1.p;
     ray2.tau = ray0.tau + hw0 / ccpx0                 + hw1 / ccpx1;
     
-    // printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
-    //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
-    //     ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
+    printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+        ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
+        ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
     
     if(STD::abs(ray2.x.x) > DEBUG_LARGEVAL || STD::abs(ray2.x.y) > DEBUG_LARGEVAL
     || STD::abs(ray2.t.x) > DEBUG_LARGEVAL || STD::abs(ray2.t.y) > DEBUG_LARGEVAL
@@ -240,6 +252,53 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray2.Phase     = ray0.Phase;
     ray2.NumTopBnc = ray0.NumTopBnc;
     ray2.NumBotBnc = ray0.NumBotBnc;
+    
+    // ReduceStep2D aims to put the position exactly on an interface. However,
+    // since it is not modifying the position directly, but computing a step
+    // size which is then used to modify the position, rounding errors may cause
+    // the final position to be slightly before or after the interface. If
+    // before, the next (very small) step takes the ray over the interface; if
+    // after, no extra small step is needed. Since rounding errors are
+    // effectively random, the resulting trajectory receives or doesn't receive
+    // an extra step randomly. While the extra step is very small, it slightly
+    // changes all the values after it, potentially leading to divergence later.
+    // So, if there is an interface very close, snap to it.
+    if(STD::abs(urayt0.y) > REAL_EPSILON || STD::abs(urayt1.y) > REAL_EPSILON){
+        // Ray has some depth movement component
+        StepSnapTo(ray2.x.y, ssp->z[iSegz0]);
+        StepSnapTo(ray2.x.y, ssp->z[iSegz0+1]);
+    }
+    if(STD::abs(glm::dot(Topn, ray2.x - Topx)) < REAL_REL_SNAP){
+        // On the top surface. If the top surface is slanted, doing a correction
+        // here won't necessarily be any more accurate than the original
+        // computation. But if it's flat, like usually, we want the exact top
+        // depth value.
+        if(STD::abs(Topn.x) < REAL_EPSILON){
+            ray2.x.y = Topx.y;
+            printf("Snapped at top (%g,%g)\n", ray2.x.x, ray2.x.y);
+        }
+    }
+    if(STD::abs(glm::dot(Botn, ray2.x - Botx)) < REAL_REL_SNAP){
+        // On the bottom surface. If the bottom surface is slanted, doing a
+        // correction here won't necessarily be any more accurate than the
+        // original computation. But if it's flat, like usually, we want the
+        // exact bottom depth value.
+        if(STD::abs(Botn.x) < REAL_EPSILON){
+            ray2.x.y = Botx.y;
+            printf("Snapped at bottom (%g,%g)\n", ray2.x.x, ray2.x.y);
+        }
+    }
+    if(STD::abs(urayt0.x) > REAL_EPSILON || STD::abs(urayt1.x) > REAL_EPSILON){
+        // Ray has some range movement component
+        StepSnapTo(ray2.x.x, rTopSeg.x); // top seg minimum
+        StepSnapTo(ray2.x.x, rTopSeg.y); // top seg maximum
+        StepSnapTo(ray2.x.x, rBotSeg.x); // bot seg minimum
+        StepSnapTo(ray2.x.x, rBotSeg.y); // bot seg maximum
+        if(ssp->Type == 'Q'){
+            StepSnapTo(ray2.x.x, ssp->Seg.r[iSegr0]);
+            StepSnapTo(ray2.x.x, ssp->Seg.r[iSegr0+1]);
+        }
+    }
     
     // If we crossed an interface, apply jump condition
 

@@ -91,6 +91,7 @@ using real = float;
 #define REAL_EPSILON FLT_EPSILON
 #define REAL_MINPOS FLT_MIN
 #define REAL_PI ((float)M_PI)
+#define REAL_REL_SNAP (1.0e-5f)
 //Must be below abs(bit_cast<float>(0xFEFEFEFEu) == -1.69e38f)
 #define DEBUG_LARGEVAL (1.0e30)
 //#define DEBUG_LARGEVAL (1.0e15)
@@ -103,6 +104,7 @@ using real = double;
 #define REAL_EPSILON DBL_EPSILON
 #define REAL_MINPOS DBL_MIN
 #define REAL_PI M_PI
+#define REAL_REL_SNAP (1.0e-6f)
 //Must be below abs(bit_cast<double>(0xFEFEFEFEFEFEFEFEull) == -5.31e303)
 #define DEBUG_LARGEVAL (1.0e250)
 //#define DEBUG_LARGEVAL (1.0e15)
