@@ -45,15 +45,16 @@ struct BdryType {
 };
 
 
-#define SSP_FN_ARGS const vec2 &x, cpx &ccpx, vec2 &gradc, \
+#define SSP_FN_ARGS const vec2 &x, const vec2 &t, cpx &ccpx, vec2 &gradc, \
     real &crr, real &crz, real &czz, real &rho, real freq, \
     const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr
-#define SSP_CALL_ARGS x, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
+#define SSP_CALL_ARGS x, t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
 #define SSP_INIT_ARGS vec2 x, const real &fT, \
     LDIFile &ENVFile, std::ofstream &PRTFile, std::string FileRoot, \
     SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo
 #define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo
 
+#if 0
 HOST_DEVICE inline void UpdateDepthSegment(const vec2 &x,
     const SSPStructure *ssp, int32_t &iSegz)
 {
@@ -127,6 +128,41 @@ HOST_DEVICE inline void UpdateRangeSegment(const vec2 &x,
     // Fast version replaces the above two lines:
     //while(x.x > ssp->Seg.r[iSegr+1] && iSegr < ssp->Nr-2) ++iSegr;
 }
+#endif
+
+HOST_DEVICE inline void UpdateDepthSegmentT(const vec2 &x, const vec2 &t,
+    const SSPStructure *ssp, int32_t &iSegz)
+{
+    //LP: Handles edge cases based on which direction the ray is going. If the
+    //ray takes a small step in the direction of t, it will remain in the same
+    //segment as it is now.
+    if(t.y >= RC(0.0)){
+        //ssp->z[iSegz] <= x.y < ssp->z[iSegz+1]
+        while(x.y < ssp->z[iSegz] && iSegz > 0) --iSegz;
+        while(x.y >= ssp->z[iSegz+1] && iSegz < ssp->NPts-2) ++iSegz;
+    }else{
+        //ssp->z[iSegz] < x.y <= ssp->z[iSegz+1]
+        while(x.y > ssp->z[iSegz+1] && iSegz < ssp->NPts-2) ++iSegz;
+        while(x.y <= ssp->z[iSegz] && iSegz > 0) --iSegz;
+    }
+}
+
+HOST_DEVICE inline void UpdateRangeSegmentT(const vec2 &x, const vec2 &t,
+    const SSPStructure *ssp, int32_t &iSegr)
+{
+    //LP: Handles edge cases based on which direction the ray is going. If the
+    //ray takes a small step in the direction of t, it will remain in the same
+    //segment as it is now.
+    if(t.x >= RC(0.0)){
+        //ssp->Seg.r[iSegr] <= x.x < ssp->Seg.r[iSegr+1]
+        while(x.x < ssp->Seg.r[iSegr] && iSegr > 0) --iSegr;
+        while(x.x >= ssp->Seg.r[iSegr+1] && iSegr < ssp->Nr-2) ++iSegr;
+    }else{
+        //ssp->Seg.r[iSegr] < x.x <= ssp->Seg.r[iSegr+1]
+        while(x.x > ssp->Seg.r[iSegr+1] && iSegr < ssp->Nr-2) ++iSegr;
+        while(x.x <= ssp->Seg.r[iSegr] && iSegr > 0) --iSegr;
+    }
+}
 
 HOST_DEVICE inline real LinInterpDensity(const vec2 &x,
     const SSPStructure *ssp, const int32_t &iSegz, real &rho)
@@ -141,7 +177,7 @@ HOST_DEVICE inline real LinInterpDensity(const vec2 &x,
  */
 HOST_DEVICE inline void n2Linear(SSP_FN_ARGS)
 {
-    UpdateDepthSegment(x, ssp, iSegz);
+    UpdateDepthSegmentT(x, t, ssp, iSegz);
     real w = LinInterpDensity(x, ssp, iSegz, rho);
     
     ccpx = RC(1.0) / STD::sqrt((RC(1.0) - w) * ssp->n2[iSegz] + w * ssp->n2[iSegz+1]);
@@ -157,7 +193,7 @@ HOST_DEVICE inline void n2Linear(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cLinear(SSP_FN_ARGS)
 {
-    UpdateDepthSegment(x, ssp, iSegz);
+    UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
     ccpx = ssp->c[iSegz] + (x.y - ssp->z[iSegz]) * ssp->cz[iSegz];
@@ -171,7 +207,7 @@ HOST_DEVICE inline void cLinear(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
 {
-    UpdateDepthSegment(x, ssp, iSegz);
+    UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
     real xt = x.y - ssp->z[iSegz];
@@ -201,7 +237,7 @@ HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cCubic(SSP_FN_ARGS)
 {
-    UpdateDepthSegment(x, ssp, iSegz);
+    UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
     real hSpline = x.y - ssp->z[iSegz];
@@ -231,8 +267,8 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
         bail();
     }
     
-    UpdateDepthSegment(x, ssp, iSegz);
-    UpdateRangeSegment(x, ssp, iSegr);
+    UpdateDepthSegmentT(x, t, ssp, iSegz);
+    UpdateRangeSegmentT(x, t, ssp, iSegr);
     LinInterpDensity(x, ssp, iSegz, rho);
     if(iSegz >= ssp->Nz - 1 || iSegr >= ssp->Nr - 1){
         printf("iSeg error in Quad: z %d/%d r %d/%d\n",
@@ -311,10 +347,6 @@ HOST_DEVICE inline void Analytic(SSP_FN_ARGS)
 
 HOST_DEVICE inline void EvaluateSSP(SSP_FN_ARGS)
 {
-    /*
-    vec3 gradc_3d, x3;
-    real cxx, cyy, cxy, cxz, cyz;
-    */
     switch(ssp->Type){
     case 'N': // N2-linear profile option
         n2Linear(SSP_CALL_ARGS); break;
@@ -339,8 +371,8 @@ HOST_DEVICE inline void EvaluateSSP(SSP_FN_ARGS)
     }
 }
 
-HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, cpx &ccpx, real freq,
-    const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr)
+HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx,
+    real freq, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr)
 {
     vec2 gradc;
     real crr, crz, czz, rho;

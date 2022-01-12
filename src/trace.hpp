@@ -68,7 +68,9 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     // Calculate the change in curvature
     // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
     
-    EvaluateSSP(oldPoint.x, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr); // just to get c [LP: ccpx.real()]
+    // just to get c 
+    // LP: ccpx.real(); also, this is wrong, it is also using gradc
+    EvaluateSSP(oldPoint.x, oldPoint.t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr);
     
     // incident unit ray tangent and normal
     rayt = ccpx.real() * oldPoint.t; // unit tangent to ray
@@ -300,8 +302,13 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     */
     // LP: Changed in BELLHOP to just reinitialize before every ray.
     iSegz = iSegr = 0;
+    
+    real alpha = Angles->alpha[ialpha]; // initial angle
+    SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
+    
     cpx ccpx; real crr, crz, czz, rho;
-    EvaluateSSP(xs, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSegz, iSegr);
+    vec2 tinit = vec2(STD::cos(alpha), STD::sin(alpha));
+    EvaluateSSP(xs, tinit, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSegz, iSegr);
     
     // Are there enough beams?
     real DalphaOpt = STD::sqrt(ccpx.real() / (RC(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
@@ -310,9 +317,6 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && ialpha == 0){
         printf("Warning in " PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
     }
-    
-    real alpha = Angles->alpha[ialpha]; // initial angle
-    SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
     
     int32_t ibp = BinarySearchLEQ(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
     ibp = math::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
@@ -331,7 +335,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
         /*.NumTopBnc =*/ 0,
         /*.NumBotBnc =*/ 0,
         /*.x         =*/ xs,
-        /*.t         =*/ vec2(STD::cos(alpha), STD::sin(alpha)) / ccpx.real(),
+        /*.t         =*/ tinit / ccpx.real(),
         /*.p         =*/ vec2(RC(1.0), RC(0.0)),
         /*.q         =*/ vec2(RC(0.0), RC(1.0)),
         /*.c         =*/ ccpx.real(),
@@ -344,8 +348,8 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     if(Beam->RunType[1] == 'G') point0.q = vec2(RC(0.0), RC(0.0));
     
     IsegTop = 0; IsegBot = 0;
-    GetTopSeg(xs.x, IsegTop, rTopSeg, bdinfo); // identify the top    segment above the source
-    GetBotSeg(xs.x, IsegBot, rBotSeg, bdinfo); // identify the bottom segment below the source
+    GetTopSeg(xs.x, point0.t.x, IsegTop, rTopSeg, bdinfo); // identify the top    segment above the source
+    GetBotSeg(xs.x, point0.t.x, IsegBot, rBotSeg, bdinfo); // identify the bottom segment below the source
     
     // convert range-dependent geoacoustic parameters from user to program units
     // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and rho
@@ -392,14 +396,16 @@ HOST_DEVICE inline int32_t RayUpdate(
         freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr);
     
     // New altimetry segment?
-    if(point1.x.x < rTopSeg.x || point1.x.x > rTopSeg.y){
-        GetTopSeg(point1.x.x, IsegTop, rTopSeg, bdinfo);
+    if(    point1.x.x < rTopSeg.x || (point1.x.x == rTopSeg.x && point1.t.x < RC(0.0))
+        || point1.x.x > rTopSeg.y || (point1.x.x == rTopSeg.y && point1.t.x >= RC(0.0))){
+        GetTopSeg(point1.x.x, point1.t.x, IsegTop, rTopSeg, bdinfo);
         if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs); // grab the geoacoustic info for the new segment
     }
     
     // New bathymetry segment?
-    if(point1.x.x < rBotSeg.x || point1.x.x > rBotSeg.y){
-        GetBotSeg(point1.x.x, IsegBot, rBotSeg, bdinfo);
+    if(    point1.x.x < rBotSeg.x || (point1.x.x == rBotSeg.x && point1.t.x < RC(0.0))
+        || point1.x.x > rBotSeg.y || (point1.x.x == rBotSeg.y && point1.t.x >= RC(0.0))){
+        GetBotSeg(point1.x.x, point1.t.x, IsegBot, rBotSeg, bdinfo);
         if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
     }
     

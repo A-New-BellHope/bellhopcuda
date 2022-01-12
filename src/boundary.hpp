@@ -27,9 +27,12 @@ constexpr int32_t Bdry_Number_to_Echo = 21;
 /**
  * Get the Top segment info (index and range interval) for range, r
  *
+ * LP: t: range component of ray tangent. Endpoints of segments are handled so
+ * that if the ray moves slightly along its current direction, it will remain
+ * in the same segment.
  * rTopSeg: segment limits in range
  */
-HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
+HOST_DEVICE inline void GetTopSeg(real r, real t, int32_t &IsegTop, vec2 &rTopSeg,
     const BdryInfo *bdinfo)
 {
     // LP: bdinfo->Top.x is checked for being monotonic at load time, so we can
@@ -38,8 +41,13 @@ HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
     int32_t n = bdinfo->NATIPts;
     IsegTop = math::max(IsegTop, 0);
     IsegTop = math::min(IsegTop, n-2);
-    while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x > r) --IsegTop;
-    while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x < r) ++IsegTop;
+    if(t >= RC(0.0)){
+        while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x > r) --IsegTop;
+        while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x <= r) ++IsegTop;
+    }else{
+        while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x < r) ++IsegTop;
+        while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x >= r) --IsegTop;
+    }
     if(IsegTop < 0 || IsegTop >= n-1){
         // IsegTop MUST LIE IN [0, NATIPts-2]
         printf("Error: GetTopSeg: Top altimetry undefined above the ray, r=%g\n", r);
@@ -52,9 +60,12 @@ HOST_DEVICE inline void GetTopSeg(real r, int32_t &IsegTop, vec2 &rTopSeg,
 /**
  * Get the Bottom segment info (index and range interval) for range, r
  *
+ * LP: t: range component of ray tangent. Endpoints of segments are handled so
+ * that if the ray moves slightly along its current direction, it will remain
+ * in the same segment.
  * rBotSeg: segment limits in range
  */
-HOST_DEVICE inline void GetBotSeg(real r, int32_t &IsegBot, vec2 &rBotSeg,
+HOST_DEVICE inline void GetBotSeg(real r, real t, int32_t &IsegBot, vec2 &rBotSeg,
     const BdryInfo *bdinfo)
 {
     // LP: bdinfo->Bot.x is checked for being monotonic at load time, so we can
@@ -63,8 +74,13 @@ HOST_DEVICE inline void GetBotSeg(real r, int32_t &IsegBot, vec2 &rBotSeg,
     int32_t n = bdinfo->NBTYPts;
     IsegBot = math::max(IsegBot, 0);
     IsegBot = math::min(IsegBot, n-2);
-    while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x > r) --IsegBot;
-    while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x < r) ++IsegBot;
+    if(t >= RC(0.0)){
+        while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x > r) --IsegBot;
+        while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x <= r) ++IsegBot;
+    }else{
+        while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x < r) ++IsegBot;
+        while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x >= r) --IsegBot;
+    }
     if(IsegBot < 0 || IsegBot >= n-1){
         // IsegBot MUST LIE IN [0, NBTYPts-2]
         printf("Error: GetBotSeg: Bottom bathymetry undefined below the source, r=%g\n", r);
@@ -72,6 +88,7 @@ HOST_DEVICE inline void GetBotSeg(real r, int32_t &IsegBot, vec2 &rBotSeg,
     }
     rBotSeg.x = bdinfo->Bot[IsegBot].x.x;
     rBotSeg.y = bdinfo->Bot[IsegBot+1].x.x;
+    printf("IsegBot %d rBotSeg (%g : %g)\n", IsegBot, rBotSeg.x, rBotSeg.y);
 }
 
 /**

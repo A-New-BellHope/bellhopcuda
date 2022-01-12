@@ -553,7 +553,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
     cpx ccpx; vec2 gradc; real crr, crz, czz, rho;
-    EvaluateSSP(point1.x, ccpx, gradc, crr, crz, czz, rho, inflray.freq0, ssp, iSegz, iSegr);
+    EvaluateSSP(point1.x, point1.t, ccpx, gradc, crr, crz, czz, rho, inflray.freq0, ssp, iSegz, iSegr);
     
     real csq = SQ(ccpx.real());
     real cS = glm::dot(gradc, rayt);

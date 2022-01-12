@@ -77,7 +77,8 @@ inline void FinalizeTLMode(cpxf *&uAllSources, DirectOFile &SHDFile,
     for(int32_t isrc=0; isrc<Pos->NSz; ++isrc){
         cpx ccpx;
         int32_t iSegz = 0, iSegr = 0;
-        EvaluateSSPCOnly(vec2(RC(0.0), Pos->Sz[isrc]), ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
+        EvaluateSSPCOnly(vec2(RC(0.0), Pos->Sz[isrc]), vec2(RC(1.0), RC(0.0)),
+            ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
         ScalePressure(Angles->Dalpha, ccpx.real(), Pos->Rr, 
             &uAllSources[isrc * NRz_per_range * Pos->NRr], 
             NRz_per_range, Pos->NRr, Beam->RunType, freqinfo->freq0);
