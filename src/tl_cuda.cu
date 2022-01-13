@@ -47,6 +47,11 @@ void setupGPU()
     cudaDeviceProp cudaProperties;
     for(int g=0; g<num_gpus; ++g){
         checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
+        if(g == m_gpu){
+            std::cout << "CUDA device: " << cudaProperties.name << " / compute "
+                << cudaProperties.major << "." << cudaProperties.minor << "\n";
+        }
+        /*
         std::cout << ((g == m_gpu) ? "--> " : "    ");
         std::cout << "GPU " << g << ": " << cudaProperties.name << ", compute SM " 
             << cudaProperties.major << "." << cudaProperties.minor << "\n";
@@ -58,6 +63,7 @@ void setupGPU()
             << cudaProperties.warpSize << ", "
             << cudaProperties.maxThreadsPerBlock << ", "
             << cudaProperties.multiProcessorCount << "\n";
+        */
     }
     
     //Store properties about used GPU

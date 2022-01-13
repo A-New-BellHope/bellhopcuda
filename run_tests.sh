@@ -3,14 +3,54 @@
 #set -x
 
 if [ -z $1 ]; then
-    echo "Usage: ./run_tests.sh ray_tests"
+    echo "Usage: ./run_tests.sh tl_match"
     exit 1
 fi
 
 ignore=0
-if [[ $2 == "ignore" ]]; then
+if [[ $2 == "ignore" || $3 == "ignore" ]]; then
     ignore=1
 fi
+
+desiredresult=0
+failedmsg="failed"
+if [[ $2 == "shouldfail" ]]; then
+    desiredresult=1
+    failedmsg="failed to fail"
+fi
+
+check_fail () {
+    i=$1
+    if [[ $i != "0" ]]; then
+        i=1
+    fi
+    if [[ $i != $desiredresult ]]; then
+        echo "$3: $2 $failedmsg"
+        if [[ $ignore != "1" ]]; then
+            exit
+        fi
+    fi
+}
+
+tldesiredresult=0
+tlfailedmsg="failed to match"
+if [[ $2 == "tlshouldfail" ]]; then
+    tldesiredresult=1
+    tlfailedmsg="were not supposed to match, but they did"
+fi
+
+tl_check_fail () {
+    i=$1
+    if [[ $i != "0" ]]; then
+        i=1
+    fi
+    if [[ $i != $tldesiredresult ]]; then
+        echo "$2: TL results $tlfailedmsg"
+        if [[ $ignore != "1" ]]; then
+            exit
+        fi
+    fi
+}
 
 run_test () {
     echo $1
@@ -30,20 +70,27 @@ run_test () {
     cp test/in/$1.* test/cxxmulti/
     cp test/in/$1.* test/cuda/
     cp test/in/$1.* test/FORTRAN/
-    echo "bellhopcxx single-threaded"
+    runname="bellhopcxx single-threaded"
+    echo $runname
     ./bin/bellhopcxx -1 test/cxx1/$1
-    cxx1res=$?
-    echo "bellhopcxx multi-threaded"
+    check_fail $? $runname $1
+    runname="bellhopcxx multi-threaded"
+    echo $runname
     ./bin/bellhopcxx test/cxxmulti/$1
-    cxxmultires=$?
-    echo "bellhopcuda"
+    check_fail $? $runname $1
+    runname="bellhopcuda"
+    echo $runname
     ./bin/bellhopcuda test/cuda/$1
-    cudares=$?
+    check_fail $? $runname $1
     forres=0
-    echo "BELLHOP"
+    runname="BELLHOP"
+    echo $runname
     forout=$(time ../bellhop/Bellhop/bellhop.exe test/FORTRAN/$1 2>&1)
     if [[ $? != "0" ]]; then forres=1; fi
     if [[ "$forout" == *"STOP Fatal Error"* ]]; then forres=1; fi
+    check_fail $forres $runname
+    python3 compare_shdfil.py $1
+    tl_check_fail $? $1
 }
 
 while read -u 10 line || [[ -n $line ]]; do
@@ -51,48 +98,7 @@ while read -u 10 line || [[ -n $line ]]; do
         continue
     fi
     run_test $line
-    if [[ $cxx1res != "0" ]]; then
-        echo "$line: bellhopcxx single-threaded failed"
-    fi
-    if [[ $cxxmultires != "0" ]]; then
-        echo "$line: bellhopcxx multi-threaded failed"
-    fi
-    if [[ $cudares != "0" ]]; then
-        echo "$line: bellhopcuda failed"
-    fi
-    if [[ $forres != "0" ]]; then
-        echo "$line: BELLHOP failed"
-    fi
-    if [[ $cxx1res != "0" || $cxxmultires != "0" || $cudares != "0" || $forres != "0" ]]; then
-        if [[ $ignore != "1" ]]; then
-            exit 1
-        fi
-    fi
-done 10<${1}_pass.txt
-
-while read -u 11 line || [[ -n $line ]]; do
-    if [[ $line == //* ]]; then
-        continue
-    fi
-    run_test $line
-    if [[ $cxx1res == "0" ]]; then
-        echo "$line: bellhopcxx single-threaded failed to fail"
-    fi
-    if [[ $cxxmultires == "0" ]]; then
-        echo "$line: bellhopcxx multi-threaded failed to fail"
-    fi
-    if [[ $cudares == "0" ]]; then
-        echo "$line: bellhopcuda failed to fail"
-    fi
-    if [[ $forres == "0" ]]; then
-        echo "$line: BELLHOP failed to fail"
-    fi
-    if [[ $cxx1res == "0" || $cxxmultires == "0" || $cudares == "0" || $forres == "0" ]]; then
-        if [[ $ignore != "1" ]]; then
-            exit 1
-        fi
-    fi
-done 11<${1}_fail.txt
+done 10<${1}.txt
 
 echo "============================"
 echo "Tests completed successfully"
