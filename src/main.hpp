@@ -136,17 +136,18 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
             //printf("Step_Influence terminated ray\n");
             break;
         }
+        ++is;
         if(dStep == 2){
             if(!Step_Influence(point1, point2, inflray, is, u, 
                 ConstBdry, ssp, iSegz, iSegr, Pos, Beam)) break;
             point0 = point2;
+            ++is;
         }else if(dStep == 1){
             point0 = point1;
         }else{
             printf("Invalid dStep: %d\n", dStep);
             bail();
         }
-        is += dStep;
         if(RayTerminate(point0, Nsteps, is, DistBegTop, DistBegBot,
             DistEndTop, DistEndBot, Beam)) break;
         //if(is >= 20) break;

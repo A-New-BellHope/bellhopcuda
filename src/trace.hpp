@@ -390,10 +390,10 @@ HOST_DEVICE inline int32_t RayUpdate(
     const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     int32_t numRaySteps = 1;
-    
+    bool topRefl, botRefl;
     Step2D(point0, point1, bdinfo->Top[IsegTop].x, bdinfo->Top[IsegTop].n,
         bdinfo->Bot[IsegBot].x, bdinfo->Bot[IsegBot].n, rTopSeg, rBotSeg, 
-        freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr);
+        freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr, topRefl, botRefl);
     
     // New altimetry segment?
     if(    point1.x.x < rTopSeg.x || (point1.x.x == rTopSeg.x && point1.t.x < RC(0.0))
@@ -419,10 +419,9 @@ HOST_DEVICE inline int32_t RayUpdate(
         dEndTop, dEndBot,
         bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
     
-    bool topRefl = DistBegTop > RC(0.0) && DistEndTop <= RC(0.0); // test top reflection
-    bool botRefl = DistBegBot > RC(0.0) && DistEndBot <= RC(0.0); // test bottom reflection
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl){
+        // printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
         vec2 dEnd = topRefl ? dEndTop : dEndBot;
         BdryPtFull *bd0 = topRefl ? &bdinfo->Top[IsegTop] : &bdinfo->Bot[IsegBot];
         BdryPtFull *bd1 = &bd0[1]; // LP: next segment

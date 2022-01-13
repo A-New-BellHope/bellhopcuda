@@ -390,8 +390,17 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
     // LP: For Cerveny
     inflray.kmah = 1;
     
-    // LP: For SGB
-    inflray.ir = 0;
+    if(Beam->Type[0] == 'S'){
+        // LP: For SGB
+        inflray.ir = 0;
+    }else if(Beam->Type[0] == 'B' || Beam->Type[0] == 'G'){
+        // LP: For GeoHat and Gaussian
+        // what if never satistified?
+        // what if there is a single receiver (ir = -1 possible)
+        // LP: ir is always valid, even if it means not meeting the condition.
+        inflray.ir = BinarySearchGT(Pos->Rr, Pos->NRr, 1, 0, point0.x.x); // find index of first receiver to the right of rA
+        if(point0.t.x < RC(0.0) && inflray.ir > 0) --inflray.ir; // if ray is left-traveling, get the first receiver to the left of rA
+    }
     
     // LP: For Cerveny cart
     // TODO: Cannot initialize correctly for now
@@ -749,21 +758,15 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     real rA, rB, RcvrDeclAngle;
     real rlen, q, s, n, cnst, w, phaseInt, RadiusMax, zmin, zmax, sigma, lambda, a, dqds;
     cpx dtauds, delay;
+    int32_t irTT;
     
-    rA = inflray.x.x;
+    rA = inflray.x.x; // LP: This is different from point0.x.x due to early return for duplicate points.
     rB = point1.x.x;
+    x_ray = point0.x;
     
     //if(is == 0) printf("influence tau (%g,%g)\n", point0.tau.real(), point0.tau.imag());
     //printf("influence tau (%g,%g)\n", point1.tau.real(), point1.tau.imag());
     //if(point1.tau.real() > RC(1.0)) bail();
-    
-    // what if never satistified?
-    // what if there is a single receiver (ir = -1 possible)
-    // LP: This implementation has been adjusted to handle these cases.
-    int32_t ir = BinarySearchGT(Pos->Rr, Pos->NRr, 1, 0, math::min(rA, rB));
-    if(Pos->Rr[ir] <= math::min(rA, rB)) return true; // not "bracketted"
-    
-    x_ray = point0.x;
     
     // compute normalized tangent (compute it because we need to measure the step length)
     rayt = point1.x - point0.x;
@@ -809,66 +812,76 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     //printf("step %d rA %f rB %f\n", is+2, rA, rB);
     
     // compute beam influence for this segment of the ray
-    for(; ir<Pos->NRr; ++ir){
+    while(true){
+        // printf("is %d ir %d\n", is, inflray.ir);
         
         // is Rr[ir] contained in [rA, rB)? Then compute beam influence
         // LP: Because of the new setup and always incrementing regardless of
         // which direction the ray goes, we only have to check this side.
-        if(Pos->Rr[ir] >= math::max(rA, rB)) break;
-        
-        //printf("ir %d\n", ir+1);
-        ++inflray.testNumIters;
-        
-        for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
-            if(Beam->RunType[4] == 'I'){
-                x_rcvr = vec2(Pos->Rr[ir], Pos->Rz[ir]); // irregular grid
-            }else{
-                x_rcvr = vec2(Pos->Rr[ir], Pos->Rz[iz]); // rectilinear grid
-            }
-            if(x_rcvr.y < zmin || x_rcvr.y > zmax) continue;
+        if(Pos->Rr[inflray.ir] >= math::min(rA, rB) && Pos->Rr[inflray.ir] < math::max(rA, rB)){
+            // printf("  rA %g rB %g\n", rA, rB);
             
-            s     = glm::dot(x_rcvr - x_ray, rayt) / rlen; // proportional distance along ray
-            n     = STD::abs(glm::dot(x_rcvr - x_ray, rayn)); // normal distance to ray
-            q     = point0.q.x + s * dqds; // interpolated amplitude
-            sigma = STD::abs(q / inflray.q0); // beam radius
-            real beamWCompare;
-            if(isGaussian){
-                sigma = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
-                beamWCompare = BeamWindow * sigma;
-            }else{
-                RadiusMax = sigma;
-                beamWCompare = RadiusMax;
-            }
+            //printf("ir %d\n", inflray.ir+1);
+            //++inflray.testNumIters;
             
-            if(n < beamWCompare){ // Within beam window?
-                delay = point0.tau + s * dtauds; // interpolated delay
-                if(STD::abs(q) == RC(0.0)){
-                    vec2 dx = x_rcvr - x_ray;
-                    printf("Divide by q=zero, point0.q.x %f, s %f, dqds %f, iz %d, ir %d, is %d, rayt (%f,%f), rlen %f, x_rcvr - x_ray (%f,%f), x_ray (%f,%f)\n",
-                        point0.q.x, s, dqds, iz, ir, is, rayt.x, rayt.y, rlen, dx.x, dx.y, x_ray.x, x_ray.y);
-                    bail();
-                }
-                cnst  = inflray.Ratio1 * STD::sqrt(point1.c / STD::abs(q)) * point1.Amp;
-                if(isGaussian){
-                    // sqrt( 2 * pi ) represents a sum of Gaussians in free space
-                    cnst /= STD::sqrt(RC(2.0) * REAL_PI);
-                    a = STD::abs(inflray.q0 / q);
-                    w = STD::exp(RC(-0.5) * SQ(n / sigma)) / (sigma * a); // Gaussian decay
+            for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
+                if(Beam->RunType[4] == 'I'){
+                    x_rcvr = vec2(Pos->Rr[inflray.ir], Pos->Rz[inflray.ir]); // irregular grid
                 }else{
-                    w = (RadiusMax - n) / RadiusMax; // hat function: 1 on center, 0 on edge
+                    x_rcvr = vec2(Pos->Rr[inflray.ir], Pos->Rz[iz]); // rectilinear grid
                 }
-                phaseInt = BuggyFinalPhase((isGaussian ? point1 : point0), inflray, q);
+                if(x_rcvr.y < zmin || x_rcvr.y > zmax) continue;
                 
-                //if(iz == 100 && ir == 5){
-                //    printf("isect iz 100 ir 5 %g\n", point1.tau.real());
-                //}
-                //printf("%f ", phaseInt);
+                s     = glm::dot(x_rcvr - x_ray, rayt) / rlen; // proportional distance along ray
+                n     = STD::abs(glm::dot(x_rcvr - x_ray, rayn)); // normal distance to ray
+                q     = point0.q.x + s * dqds; // interpolated amplitude
+                sigma = STD::abs(q / inflray.q0); // beam radius
+                real beamWCompare;
+                if(isGaussian){
+                    sigma = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
+                    beamWCompare = BeamWindow * sigma;
+                }else{
+                    RadiusMax = sigma;
+                    beamWCompare = RadiusMax;
+                }
                 
-                ApplyContribution(cnst, w, inflray.omega, 
-                    delay, phaseInt, inflray.SrcDeclAngle, RcvrDeclAngle,
-                    &u[iz*Pos->NRr+ir], Beam);
+                if(n < beamWCompare){ // Within beam window?
+                    delay = point0.tau + s * dtauds; // interpolated delay
+                    if(STD::abs(q) == RC(0.0)){
+                        vec2 dx = x_rcvr - x_ray;
+                        printf("Divide by q=zero, point0.q.x %f, s %f, dqds %f, iz %d, ir %d, is %d, rayt (%f,%f), rlen %f, x_rcvr - x_ray (%f,%f), x_ray (%f,%f)\n",
+                            point0.q.x, s, dqds, iz, inflray.ir, is, rayt.x, rayt.y, rlen, dx.x, dx.y, x_ray.x, x_ray.y);
+                        bail();
+                    }
+                    cnst  = inflray.Ratio1 * STD::sqrt(point1.c / STD::abs(q)) * point1.Amp;
+                    if(isGaussian){
+                        // sqrt( 2 * pi ) represents a sum of Gaussians in free space
+                        cnst /= STD::sqrt(RC(2.0) * REAL_PI);
+                        a = STD::abs(inflray.q0 / q);
+                        w = STD::exp(RC(-0.5) * SQ(n / sigma)) / (sigma * a); // Gaussian decay
+                    }else{
+                        w = (RadiusMax - n) / RadiusMax; // hat function: 1 on center, 0 on edge
+                    }
+                    phaseInt = BuggyFinalPhase((isGaussian ? point1 : point0), inflray, q);
+                    
+                    ApplyContribution(cnst, w, inflray.omega, 
+                        delay, phaseInt, inflray.SrcDeclAngle, RcvrDeclAngle,
+                        &u[iz*Pos->NRr+inflray.ir], Beam);
+                }
             }
         }
+        
+        // receiver not bracketted; bump receiver index, inflray.ir, towards rB
+        if(rB > Pos->Rr[inflray.ir]){
+            if(inflray.ir >= Pos->NRr - 1) break; // go to next step on ray
+            irTT = inflray.ir + 1; // bump right
+            if(Pos->Rr[irTT] >= rB) break; // go to next step on ray
+        }else{
+            if(inflray.ir <= 0) break; // go to next step on ray
+            irTT = inflray.ir - 1; // bump right
+            if(Pos->Rr[irTT] <= rB) break; // go to next step on ray
+        }
+        inflray.ir = irTT;
     }
     
     inflray.x = point1.x;

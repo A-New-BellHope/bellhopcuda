@@ -88,7 +88,6 @@ HOST_DEVICE inline void GetBotSeg(real r, real t, int32_t &IsegBot, vec2 &rBotSe
     }
     rBotSeg.x = bdinfo->Bot[IsegBot].x.x;
     rBotSeg.y = bdinfo->Bot[IsegBot+1].x.x;
-    printf("IsegBot %d rBotSeg (%g : %g)\n", IsegBot, rBotSeg.x, rBotSeg.y);
 }
 
 /**
