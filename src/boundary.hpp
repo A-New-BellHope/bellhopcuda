@@ -389,13 +389,9 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
  * freq: frequency [LP: :( ]
  */
 inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs,
-    LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten)
+    LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten,  HSInfo &RecycledHS)
 {
     real Mz, vr, alpha2_f; // values related to grain size
-    
-    real alphaR = RC(1500.0), betaR = RC(0.0), alphaI = RC(0.0), betaI = RC(0.0), rhoR = RC(1.0);
-    TODO; //These are only the correct initial values for top, but not for bottom!
-    //For bottom they use whatever was in the lowest SSP segment.
     real zTemp;
     
     // Echo to PRTFile user's choice of boundary condition
@@ -426,45 +422,45 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
     
     if(hs.bc == 'A'){ // *** Half-space properties ***
         zTemp = RC(0.0);
-        LIST(ENVFile); ENVFile.Read(zTemp); ENVFile.Read(alphaR);
-        ENVFile.Read(betaR); ENVFile.Read(rhoR);
-        ENVFile.Read(alphaI); ENVFile.Read(betaI);
+        LIST(ENVFile); ENVFile.Read(zTemp); ENVFile.Read(RecycledHS.alphaR);
+        ENVFile.Read(RecycledHS.betaR); ENVFile.Read(RecycledHS.rho);
+        ENVFile.Read(RecycledHS.alphaI); ENVFile.Read(RecycledHS.betaI);
         PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " "
-            << std::setw(10) << alphaR << " " << std::setw(10) << betaR << " "
-            << std::setw(6) << rhoR << " " << std::setprecision(4) 
-            << std::setw(10) << alphaI << " " << std::setw(10) << betaI << "\n";
+            << std::setw(10) << RecycledHS.alphaR << " " << std::setw(10) << RecycledHS.betaR << " "
+            << std::setw(6) << RecycledHS.rho << " " << std::setprecision(4) 
+            << std::setw(10) << RecycledHS.alphaI << " " << std::setw(10) << RecycledHS.betaI << "\n";
         // dummy parameters for a layer with a general power law for attenuation
         // these are not in play because the AttenUnit for this is not allowed yet
         //freq0         = freq;
         //betaPowerLaw  = RC(1.0); //LP: Default is 1.0, this is the only other place it's set (also to 1.0).
         fT            = RC(1000.0);
         
-        hs.cP  = crci(zTemp, alphaR, alphaI, freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
-        hs.cS  = crci(zTemp, betaR,  betaI,  freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
-        printf("%g %g %g %g %c%c %g %g\n", zTemp, alphaR, alphaI, freq,
-            AttenUnit[0], AttenUnit[1], betaPowerLaw, fT);
-        printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
+        hs.cP  = crci(zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
+        hs.cS  = crci(zTemp, RecycledHS.betaR,  RecycledHS.betaI,  freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
+        // printf("%g %g %g %g %c%c %g %g\n", zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq,
+        //     AttenUnit[0], AttenUnit[1], betaPowerLaw, fT);
+        // printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
         
-        hs.rho = rhoR;
+        hs.rho = RecycledHS.rho;
     }else if(hs.bc == 'G'){ // *** Grain size (formulas from UW-APL HF Handbook)
         
         // These formulas are from the UW-APL Handbook
         // The code is taken from older Matlab and is unnecesarily verbose
         // vr   is the sound speed ratio
-        // rhoR is the density ratio
+        // rho is the density ratio
         LIST(ENVFile); ENVFile.Read(zTemp); ENVFile.Read(Mz);
         PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " "
             << std::setw(10) << Mz << "\n";
         
         if(Mz >= RC(-1.0) && Mz < RC(1.0)){
-            vr   = RC(0.002709) * SQ(Mz) - RC(0.056452) * Mz + RC(1.2778);
-            rhoR = RC(0.007797) * SQ(Mz) - RC(0.17057)  * Mz + RC(2.3139);
+            vr             = RC(0.002709) * SQ(Mz) - RC(0.056452) * Mz + RC(1.2778);
+            RecycledHS.rho = RC(0.007797) * SQ(Mz) - RC(0.17057)  * Mz + RC(2.3139);
         }else if(Mz >= RC(1.0) && Mz < RC(5.3)){
-            vr   = RC(-0.0014881) * CUBE(Mz) + RC(0.0213937) * SQ(Mz) - RC(0.1382798) * Mz + RC(1.3425);
-            rhoR = RC(-0.0165406) * CUBE(Mz) + RC(0.2290201) * SQ(Mz) - RC(1.1069031) * Mz + RC(3.0455);
+            vr             = RC(-0.0014881) * CUBE(Mz) + RC(0.0213937) * SQ(Mz) - RC(0.1382798) * Mz + RC(1.3425);
+            RecycledHS.rho = RC(-0.0165406) * CUBE(Mz) + RC(0.2290201) * SQ(Mz) - RC(1.1069031) * Mz + RC(3.0455);
         }else{
-            vr   = RC(-0.0024324) * Mz + RC(1.0019);
-            rhoR = RC(-0.0012973) * Mz + RC(1.1565);
+            vr             = RC(-0.0024324) * Mz + RC(1.0019);
+            RecycledHS.rho = RC(-0.0012973) * Mz + RC(1.1565);
         }
         
         if(Mz >= RC(-1.0) && Mz < RC(0.0)){
@@ -485,12 +481,12 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         // !! following uses a reference sound speed of 1500 ???
         // !! should be sound speed in the water, just above the sediment
         // the term vr / 1000 converts vr to units of m per ms 
-        alphaR = vr * RC(1500.0);
-        alphaI = alpha2_f * (vr / RC(1000.0)) * RC(1500.0) * 
+        RecycledHS.alphaR = vr * RC(1500.0);
+        RecycledHS.alphaI = alpha2_f * (vr / RC(1000.0)) * RC(1500.0) * 
             STD::log(RC(10.0)) / (RC(40.0) * REAL_PI); // loss parameter Sect. IV., Eq. (4) of handbook
  
-        hs.cP  = crci(zTemp, alphaR, alphaI, freq, freq, {'L', ' '}, betaPowerLaw, fT, atten, PRTFile);
+        hs.cP  = crci(zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, {'L', ' '}, betaPowerLaw, fT, atten, PRTFile);
         hs.cS  = RC(0.0);
-        hs.rho = rhoR;
+        hs.rho = RecycledHS.rho;
     }
 }

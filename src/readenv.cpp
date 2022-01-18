@@ -222,7 +222,8 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
 
 void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     std::string &Title, real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
-    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam)
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
+    HSInfo &RecycledHS)
 {
     //const real c0 = RC(1500.0); //LP: unused
     int32_t NPts, NMedia;
@@ -265,7 +266,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     
     if(Bdry->Top.hs.bc == 'A') PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
     
-    TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Top.hs, ENVFile, PRTFile, atten);
+    TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Top.hs, ENVFile, PRTFile, atten, RecycledHS);
     
     // ****** Read in ocean SSP data ******
     
@@ -307,7 +308,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     }
     
     Bdry->Bot.hs.bc = Bdry->Bot.hs.Opt[0];
-    TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Bot.hs, ENVFile, PRTFile, atten);
+    TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Bot.hs, ENVFile, PRTFile, atten, RecycledHS);
     
     // *** source and receiver locations ***
     

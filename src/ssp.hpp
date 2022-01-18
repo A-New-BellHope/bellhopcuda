@@ -51,8 +51,8 @@ struct BdryType {
 #define SSP_CALL_ARGS x, t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
 #define SSP_INIT_ARGS vec2 x, const real &fT, \
     LDIFile &ENVFile, std::ofstream &PRTFile, std::string FileRoot, \
-    SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo
-#define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo
+    SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
+#define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
 
 #if 0
 HOST_DEVICE inline void UpdateDepthSegment(const vec2 &x,

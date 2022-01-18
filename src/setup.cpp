@@ -29,6 +29,7 @@ void setup(std::string FileRoot,
     freqinfo = allocate<FreqInfo>();
     Beam = allocate<BeamStructure>();
     beaminfo = allocate<BeamInfo>();
+    HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
     
     // Set pointers to null because BELLHOP checks if some of them are allocated
     // before allocating them
@@ -81,6 +82,11 @@ void setup(std::string FileRoot,
     Beam->epsMultiplier = RC(1.0);
     memcpy(Beam->Type, "G S ", 4);
     //beaminfo: none
+    RecycledHS.alphaR = RC(1500.0);
+    RecycledHS.betaR = RC(0.0);
+    RecycledHS.alphaI = RC(0.0);
+    RecycledHS.betaI = RC(0.0);
+    RecycledHS.rho = RC(1.0);
     
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
@@ -161,7 +167,7 @@ void setup(std::string FileRoot,
             STD::pow(RC(10.0), beaminfo->SrcBmPat[i*2+1] / RC(20.0)); // convert dB to linear scale !!!
     }else{
         ReadEnvironment(FileRoot, PRTFile, Title, fT, Bdry,
-            ssp, atten, Pos, Angles, freqinfo, Beam);
+            ssp, atten, Pos, Angles, freqinfo, Beam, RecycledHS);
         ReadATI(FileRoot, Bdry->Top.hs.Opt[4], Bdry->Top.hs.Depth, PRTFile, bdinfo); // AlTImetry
         ReadBTY(FileRoot, Bdry->Bot.hs.Opt[1], Bdry->Bot.hs.Depth, PRTFile, bdinfo); // BaThYmetry
         ReadReflectionCoefficient(FileRoot, Bdry->Bot.hs.Opt[0], Bdry->Top.hs.Opt[1], PRTFile, refl); // (top and bottom)
