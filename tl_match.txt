@@ -11,11 +11,13 @@ MunkB_Coh_morebeams
 Munk_shearB
 //
 //Geom Gaussian cart:
+arcticB_gb
 calibBgrad_gb
 DickinsB
 DickinsB_oneBeam
 DickinsFlatB
 EllipseTLGB
+free_gbtB
 freePointB
 freePoint_gbtB
 GulfB_ri_gb

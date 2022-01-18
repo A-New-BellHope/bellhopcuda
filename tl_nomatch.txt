@@ -18,14 +18,10 @@ MunkB_gbt
 //
 //Geom Gaussian cart:
 aet_VLA_B
-arcticB_gb
 blockB_gb
 calibB_gb
-free_gbtB
 freeLine_gbtB
 LloydLine_gbtB
-//
-//
 //
 //
 //
