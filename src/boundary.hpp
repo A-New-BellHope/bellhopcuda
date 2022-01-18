@@ -394,6 +394,8 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
     real Mz, vr, alpha2_f; // values related to grain size
     
     real alphaR = RC(1500.0), betaR = RC(0.0), alphaI = RC(0.0), betaI = RC(0.0), rhoR = RC(1.0);
+    TODO; //These are only the correct initial values for top, but not for bottom!
+    //For bottom they use whatever was in the lowest SSP segment.
     real zTemp;
     
     // Echo to PRTFile user's choice of boundary condition
@@ -439,6 +441,9 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         
         hs.cP  = crci(zTemp, alphaR, alphaI, freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
         hs.cS  = crci(zTemp, betaR,  betaI,  freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
+        printf("%g %g %g %g %c%c %g %g\n", zTemp, alphaR, alphaI, freq,
+            AttenUnit[0], AttenUnit[1], betaPowerLaw, fT);
+        printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
         
         hs.rho = rhoR;
     }else if(hs.bc == 'G'){ // *** Grain size (formulas from UW-APL HF Handbook)

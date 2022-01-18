@@ -149,6 +149,11 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
         }
         
         Refl = -(rho * f - J * kz * g) / (rho * f + J * kz * g); // complex reflection coef.
+        printf("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
+            hs.cP.real(), hs.cP.imag(), hs.rho);
+        printf("kx kz f g Refl (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
+            kx.real(), kx.imag(), kz.real(), kz.imag(), f.real(), f.imag(),
+            g.real(), g.imag(), Refl.real(), Refl.imag());
         
         if(STD::abs(Refl) < RC(1.0e-5)){ // kill a ray that has lost its energy in reflection
             newPoint.Amp   = RC(0.0);
@@ -220,6 +225,8 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
         printf("Reflect2D: Unknown boundary condition type\n");
         bail();
     }
+    
+    printf("Reflection amp changed from to %g %g\n", oldPoint.Amp, newPoint.Amp);
 }
 
 /**
@@ -354,11 +361,14 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     // convert range-dependent geoacoustic parameters from user to program units
     // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and rho
     // from the current segment in bdinfo. rho is read from files in ReadATI and
-    // Read BTY, and cP and cS are computed in core_setup. bc, which is also read
+    // ReadBTY, and cP and cS are computed in core_setup. bc, which is also read
     // by Reflect2D, is never set in bdinfo and is left alone from ConstBdry.
     Bdry = *ConstBdry;
     if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs);
     if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs);
+    printf("btyType cP top bot %c%c (%g,%g) (%g,%g)\n", bdinfo->btyType[0], bdinfo->btyType[1],
+        Bdry.Top.hs.cP.real(), Bdry.Top.hs.cP.imag(),
+        Bdry.Bot.hs.cP.real(), Bdry.Bot.hs.cP.imag());
     
     vec2 dEndTop_temp, dEndBot_temp;
     Distances2D(point0.x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, 
@@ -468,20 +478,18 @@ HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int3
     //bool backward = ray2D[is+1].t.x < 0; // this last test kills off a backward traveling ray
     if(leftbox || lostenergy || escapedboundaries // || backward
     ){
-        /*
         if(leftbox){
             printf("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
         }else if(lostenergy){
-            printf("Ray energy dropped to %g\n", ray2D[is+1].Amp);
+            printf("Ray energy dropped to %g\n", point.Amp);
         }else{
             printf("Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g DistEndBot %g\n",
                 DistBegTop, DistEndTop, DistBegBot, DistEndBot);
         }
-        */
         Nsteps = is + 1;
         return true;
     }else if(is >= MaxN - 3){
-        //printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
+        printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
         Nsteps = is;
         return true;
     }
