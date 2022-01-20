@@ -1,4 +1,11 @@
 //
+//Semi-coherent, results do not match
+MunkB_Semi_gb
+//
+//Incoherent, results do not match
+MunkB_Inc_gb
+free_gbtB_Inc
+//
 //Coherent, results do not match
 //
 //
@@ -16,18 +23,9 @@ GulfB_ri_Cerveny
 MunkB_Coh_CervenyR
 MunkB_gbt
 //
+//
 //Geom Gaussian cart:
 aet_VLA_B
-blockB_gb
 calibB_gb
-freeLine_gbtB
 LloydLine_gbtB
 //
-//
-//
-//Semi-coherent, results do not match
-MunkB_Semi_gb
-//
-//Incoherent, results do not match
-MunkB_Inc_gb
-free_gbtB_Inc
