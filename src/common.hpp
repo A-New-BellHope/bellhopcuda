@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <complex>
 #include <cfloat>
+#include <cfenv>
 #include <cctype>
 #include <cstdio>
 #include <iostream>
@@ -441,9 +442,21 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ofstrea
 {
     constexpr int32_t NEcho = 10;
     PRTFile << std::setprecision(6);
-    for(int32_t i=0; i<math::min(Nv, NEcho); ++i) PRTFile << std::setw(14) << v[i] << " ";
+    for(int32_t i=0, r=0; i<math::min(Nv, NEcho); ++i){
+        PRTFile << std::setw(14) << v[i] << " ";
+        ++r;
+        if(r == 5){
+            r = 0;
+            PRTFile << "\n";
+        }
+    }
     if(Nv > NEcho) PRTFile << "... " << std::setw(14) << v[Nv-1];
     PRTFile << "\n";
+    /*
+    PRTFile << std::setprecision(12);
+    for(int32_t i=0; i<Nv; ++i) PRTFile << std::setw(20) << v[i] << "\n";
+    PRTFile << "\n";
+    */
 }
 
 template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
@@ -454,7 +467,13 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
             if(STD::abs(x[1] - (REAL)(-999.9f)) < (REAL)(0.1f)) x[1] = x[0];
             REAL deltax = (x[1] - x[0]) / (REAL)(Nx - 1);
             REAL x0 = x[0];
-            for(int32_t i=0; i<Nx; ++i) x[i] = x0 + (REAL)i * deltax;
+            for(int32_t i=0; i<Nx; ++i){
+                // LP: gfortran emits AVX-512 FMA instructions here. Without an
+                // FMA, the resulting receiver range positions are slightly
+                // different at bondaries, leading to inconsistencies later
+                //x[i] = x0 + (REAL)i * deltax;
+                x[i] = STD::fma((REAL)i, deltax, x0);
+            }
         }
     }
 }

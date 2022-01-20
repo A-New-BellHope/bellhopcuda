@@ -128,7 +128,7 @@ HOST_DEVICE inline void ApplyContribution(real cnst, real w,
             cnst, w, omega, delay.real(), delay.imag(), phaseInt);
         bail();
     }
-    //printf("%f\n", cnst);
+    // printf("cnst w delay %g %g %g\n", cnst, w, delay.real());
     switch(Beam->RunType[0]){
     case 'E':
         // eigenrays
@@ -797,6 +797,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
         sigma     = math::max(sigma, math::min(RC(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
         RadiusMax = BeamWindow * sigma;
     }else{
+        lambda    = RC(0.0); // LP: compiler incorrectly complains maybe uninitialized
         RadiusMax = sigma;
     }
     
@@ -878,7 +879,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
             if(Pos->Rr[irTT] >= rB) break; // go to next step on ray
         }else{
             if(inflray.ir <= 0) break; // go to next step on ray
-            irTT = inflray.ir - 1; // bump right
+            irTT = inflray.ir - 1; // bump left
             if(Pos->Rr[irTT] <= rB) break; // go to next step on ray
         }
         inflray.ir = irTT;
