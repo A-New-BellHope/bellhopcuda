@@ -10,7 +10,7 @@ constexpr int32_t MaxBioLayers = 200;
 struct AttenInfo {
     int32_t NBioLayers;
     bioStructure bio[MaxBioLayers];
-    real t, Salinity, pH, z_bar, fg;
+    real t, Salinity, pH, z_bar, fg; // Francois-Garrison volume attenuation; temperature, salinity, ...
 };
 
 /**
@@ -33,24 +33,24 @@ struct AttenInfo {
 inline real Franc_Garr(real f, const AttenInfo *atten){
     real c, a1, a2, a3, p1, p2, p3, f1, f2;
     
-    c = RC(1412.0) + RC(3.21) * atten->t + RC(1.19) * atten->Salinity + RC(0.0167) * atten->z_bar;
+    c = FL(1412.0) + FL(3.21) * atten->t + FL(1.19) * atten->Salinity + FL(0.0167) * atten->z_bar;
 
     // Boric acid contribution
-    a1 = RC(8.86) / c * STD::pow(RC(10.0), RC(0.78) * atten->pH - RC(5.0));
-    p1 = RC(1.0);
-    f1 = RC(2.8) * STD::sqrt(atten->Salinity / 35) * STD::pow(RC(1.0), RC(4.0) - RC(1245.0) / (atten->t + RC(273.0)));
+    a1 = FL(8.86) / c * STD::pow(FL(10.0), FL(0.78) * atten->pH - FL(5.0));
+    p1 = FL(1.0);
+    f1 = FL(2.8) * STD::sqrt(atten->Salinity / 35) * STD::pow(FL(1.0), FL(4.0) - FL(1245.0) / (atten->t + FL(273.0)));
 
     // Magnesium sulfate contribution
-    a2 = RC(21.44) * atten->Salinity / c * (RC(1.0) + RC(0.025) * atten->t);
-    p2 = RC(1.0) - RC(1.37e-4) * atten->z_bar + RC(6.2e-9) * SQ(atten->z_bar);
-    f2 = RC(8.17) * STD::pow(RC(10.0), RC(8.0) - RC(1990.0) / (atten->t + 273)) / (RC(1.0) + RC(0.0018) * (atten->Salinity - RC(35.0)));
+    a2 = FL(21.44) * atten->Salinity / c * (FL(1.0) + FL(0.025) * atten->t);
+    p2 = FL(1.0) - RL(1.37e-4) * atten->z_bar + RL(6.2e-9) * SQ(atten->z_bar);
+    f2 = FL(8.17) * STD::pow(FL(10.0), FL(8.0) - FL(1990.0) / (atten->t + 273)) / (FL(1.0) + FL(0.0018) * (atten->Salinity - FL(35.0)));
 
     // Viscosity
-    p3 = RC(1.0) - RC(3.83e-5) * atten->z_bar + RC(4.9e-10) * SQ(atten->z_bar);
-    if(atten->t < RC(20.0)){
-        a3 = RC(4.937e-4) - RC(2.59e-5) * atten->t + RC(9.11e-7) * SQ(atten->t) - RC(1.5e-8) * CUBE(atten->t);
+    p3 = FL(1.0) - RL(3.83e-5) * atten->z_bar + RL(4.9e-10) * SQ(atten->z_bar);
+    if(atten->t < FL(20.0)){
+        a3 = RL(4.937e-4) - RL(2.59e-5) * atten->t + RL(9.11e-7) * SQ(atten->t) - RL(1.5e-8) * CUBE(atten->t);
     }else{
-        a3 = RC(3.964e-4) - RC(1.146e-5) * atten->t + RC(1.45e-7) * SQ(atten->t) - RC(6.5e-10) * CUBE(atten->t);
+        a3 = RL(3.964e-4) - RL(1.146e-5) * atten->t + RL(1.45e-7) * SQ(atten->t) - RL(6.5e-10) * CUBE(atten->t);
     }
     
     return a1 * p1 * (f1 * SQ(f)) / (SQ(f1) + SQ(f)) 
@@ -89,36 +89,36 @@ inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&
     real f2, omega, alphaT, Thorp, a, fg;
     cpx ret;
     
-    omega = RC(2.0) * REAL_PI * freq;
+    omega = FL(2.0) * REAL_PI * freq;
     
     // Convert to Nepers/m
-    alphaT = RC(0.0);
+    alphaT = FL(0.0);
     switch(AttenUnit[0]){
     case 'N':
         alphaT = alpha; break;
     case 'M': // dB/m
-        alphaT = alpha / RC(8.6858896); break;
+        alphaT = alpha / RL(8.6858896); break;
     case 'm': // dB/m with power law
-        alphaT = alpha / RC(8.6858896);
+        alphaT = alpha / RL(8.6858896);
         if(freq < fT){ // frequency raised to the power beta
             alphaT *= STD::pow(freq / freq0, beta);
         }else{ // linear in frequency
-            alphaT *= (freq / freq0) * STD::pow(fT / freq0, beta - RC(1.0));
+            alphaT *= (freq / freq0) * STD::pow(fT / freq0, beta - FL(1.0));
         }
         break;
     case 'F': // dB/(m kHz)
-        alphaT = alpha * freq / RC(8685.8896); break;
+        alphaT = alpha * freq / RL(8685.8896); break;
     case 'W': // dB/wavelength
-        if(c != RC(0.0)) alphaT = alpha * freq / (RC(8.6858896) * c);
+        if(c != FL(0.0)) alphaT = alpha * freq / (RL(8.6858896) * c);
         // The following lines give f^1.25 frequency dependence
-        // real FAC = STD::sqrt(STD::sqrt(freq / RC(50.0)));
-        // if(c != RC(0.0)) alphaT = FAC * alpha * freq / (RC(8.6858896) * c);
+        // real FAC = STD::sqrt(STD::sqrt(freq / FL(50.0)));
+        // if(c != FL(0.0)) alphaT = FAC * alpha * freq / (RL(8.6858896) * c);
         break;
     case 'Q': // Quality factor
-        if(c * alpha != RC(0.0)) alphaT = omega / (RC(2.0) * c * alpha);
+        if(c * alpha != FL(0.0)) alphaT = omega / (FL(2.0) * c * alpha);
         break;
     case 'L': // loss parameter
-        if(c != RC(0.0)) alphaT = alpha * omega / c;
+        if(c != FL(0.0)) alphaT = alpha * omega / c;
         break;
     }
     
@@ -126,23 +126,23 @@ inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&
     
     switch(AttenUnit[1]){
     case 'T':
-        f2 = SQ(freq / RC(1000.0));
+        f2 = SQ(freq / FL(1000.0));
         
         // Original formula from Thorp 1967
-        // Thorp = RC(40.0) * f2 / (RC(4100.0) + f2) + RC(0.1) * f2 / (RC(1.0) + f2);   // dB/kyard
-        // Thorp /= RC(914.4);                 // dB / m
-        // Thorp /= RC(8.6858896);             // Nepers / m
+        // Thorp = FL(40.0) * f2 / (FL(4100.0) + f2) + FL(0.1) * f2 / (FL(1.0) + f2);   // dB/kyard
+        // Thorp /= RL(914.4);                 // dB / m
+        // Thorp /= RL(8.6858896);             // Nepers / m
         
         // Updated formula from JKPS Eq. 1.34
-        Thorp = RC(3.3e-3) + RC(0.11) * f2 / (RC(1.0) + f2) + 
-            RC(44.0) * f2 / (RC(4100.0) + f2) + RC(3e-4) * f2; // dB/km
-        Thorp /= RC(8685.8896); // Nepers / m
+        Thorp = FL(3.3e-3) + FL(0.11) * f2 / (FL(1.0) + f2) + 
+            FL(44.0) * f2 / (FL(4100.0) + f2) + FL(3e-4) * f2; // dB/km
+        Thorp /= FL(8685.8896); // Nepers / m
  
         alphaT += Thorp;
         break;
     case 'F': // Francois-Garrison
-        fg = Franc_Garr(freq / RC(1000.0), atten); // dB/km
-        fg /= RC(8685.8896); // Nepers / m
+        fg = Franc_Garr(freq / FL(1000.0), atten); // dB/km
+        fg /= FL(8685.8896); // Nepers / m
         alphaT += fg;
         break;
     case 'B': // biological attenuation per Orest Diachok
@@ -150,7 +150,7 @@ inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&
             if(z >= atten->bio[iBio].z1 && z <= atten->bio[iBio].z2){
                 a = atten->bio[iBio].a0 / (SQ(1.0 - SQ(atten->bio[iBio].f0) / SQ(freq))
                     + 1.0 / SQ(atten->bio[iBio].q)); // dB/km
-                a /= RC(8685.8896); // Nepers / m
+                a /= FL(8685.8896); // Nepers / m
                 alphaT += a;
             }
         }

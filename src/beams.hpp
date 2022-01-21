@@ -49,8 +49,8 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
     }else{
         beaminfo->NSBPPts = 2;
         beaminfo->SrcBmPat = allocate<real>(2*2);
-        beaminfo->SrcBmPat[0*2+0] = RC(-180.0); beaminfo->SrcBmPat[0*2+1] = RC(0.0);
-        beaminfo->SrcBmPat[1*2+0] = RC( 180.0); beaminfo->SrcBmPat[1*2+1] = RC(0.0);
+        beaminfo->SrcBmPat[0*2+0] = FL(-180.0); beaminfo->SrcBmPat[0*2+1] = FL(0.0);
+        beaminfo->SrcBmPat[1*2+0] = FL( 180.0); beaminfo->SrcBmPat[1*2+1] = FL(0.0);
     }
     
     //LP: BUG: BELLHOP does not require that the angles are monotonically
@@ -67,7 +67,7 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
     
     // convert dB to linear scale
     for(int32_t i=0; i<beaminfo->NSBPPts; ++i) beaminfo->SrcBmPat[i*2+1] = 
-        STD::pow(RC(10.0), beaminfo->SrcBmPat[i*2+1] / RC(20.0));
+        STD::pow(FL(10.0), beaminfo->SrcBmPat[i*2+1] / FL(20.0));
 }
 
 /**
@@ -85,7 +85,7 @@ inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
     PRTFile << "Maximum ray depth, Box.z  = " << std::setw(11) << Beam->Box.z << " m\n";
     PRTFile << "Maximum ray range, Box.r  = " << std::setw(11) << Beam->Box.r << "km\n";
     
-    Beam->Box.r *= RC(1000.0); // convert km to m
+    Beam->Box.r *= FL(1000.0); // convert km to m
     
     // *** Beam characteristics ***
     

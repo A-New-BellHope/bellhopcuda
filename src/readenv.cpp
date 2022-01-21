@@ -277,10 +277,10 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
         PRTFile << "Analytic SSP option\n";
         // following is hokey, should be set in Analytic routine
         ssp->NPts = 2;
-        ssp->z[0] = RC(0.0);
+        ssp->z[0] = FL(0.0);
         ssp->z[1] = Bdry->Bot.hs.Depth;
     }else{
-        x = vec2(RC(0.0), Bdry->Bot.hs.Depth);
+        x = vec2(RL(0.0), Bdry->Bot.hs.Depth);
         InitializeSSP(SSP_CALL_INIT_ARGS);
     }
     

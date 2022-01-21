@@ -352,12 +352,12 @@ public:
                 << r;
             return *this;
         }
-        bool sci = r != RC(0.0) && (std::abs(r) < RC(0.1) || std::abs(r) >= RC(1.0e6));
+        bool sci = r != RL(0.0) && (std::abs(r) < RL(0.1) || std::abs(r) >= RL(1.0e6));
         int32_t w = rwidth;
-        if(r < RC(0.0)){
+        if(r < RL(0.0)){
             ostr << "-";
             r = -r;
-        }else if(sci || r >= RC(1.0) || r == RC(0.0)){
+        }else if(sci || r >= RL(1.0) || r == RL(0.0)){
             ostr << " ";
         }
         --w;

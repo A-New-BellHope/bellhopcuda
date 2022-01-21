@@ -93,28 +93,47 @@ using real = float;
 #define REAL_MINPOS FLT_MIN
 #define REAL_PI ((float)M_PI)
 #define REAL_REL_SNAP (1.0e-5f)
-//Must be below abs(bit_cast<float>(0xFEFEFEFEu) == -1.69e38f)
-#define DEBUG_LARGEVAL (1.0e30)
-//#define DEBUG_LARGEVAL (1.0e15)
-//Real constant: transforms 2.0 into 2.0f. This is needed on CUDA or else
-//unwanted double-precision instructions may be emitted.
-#define RC(a) (a##f)
+// Must be below abs(bit_cast<float>(0xFEFEFEFEu) == -1.69e38f)
+#define DEBUG_LARGEVAL (1.0e30f)
+// #define DEBUG_LARGEVAL (1.0e15f)
 #else
 using real = double;
 #define REAL_MAX DBL_MAX
 #define REAL_EPSILON DBL_EPSILON
 #define REAL_MINPOS DBL_MIN
 #define REAL_PI M_PI
-#define REAL_REL_SNAP (1.0e-6f)
+#define REAL_REL_SNAP (1.0e-6)
 //Must be below abs(bit_cast<double>(0xFEFEFEFEFEFEFEFEull) == -5.31e303)
 #define DEBUG_LARGEVAL (1.0e250)
 //#define DEBUG_LARGEVAL (1.0e15)
-#define RC(a) a
 #endif
+
+// BELLHOP uses mostly normal REAL literals, which are float despite most of the
+// program using REAL*8 (double. It occasionally uses double-precision literals
+// (look like 1.6D-9). For values exactly expressible in both types, e.g. 0.0,
+// 1.0, 2.0, 37.0, 0.375, it doesn't matter which type the literal is--except
+// that when running in float mode, double-precision literals may cause the
+// entire expression to be promoted to double, causing extremely slow double-
+// precision instructions to be emitted on CUDA. However, for values not
+// expressable as float, e.g. 0.1, the literal type changes the result:
+// double d = bar(); float f = foo();
+// assert(d * 0.1 == d * 0.1f); //will fail for nearly all d
+// assert((float)(f * 0.1) == f * 0.1f); //will fail for some f
+//
+// "Real literal"
+#ifdef USE_FLOATS
+#define RL(a) (a##f)
+#else
+#define RL(a) a
+#endif
+// "Float literal"--This macro is not actually needed, values could just be
+// always written as e.g. 0.1f, but this way, every floating-point literal
+// shoudl have one or the other macro on it, making it easier to spot errors.
+#define FL(a) (a##f)
 
 using cpx = STD::complex<real>;
 using cpxf = STD::complex<float>; // for uAllSources
-#define J cpx(RC(0.0), RC(1.0))
+#define J cpx(RL(0.0), RL(1.0))
 HOST_DEVICE constexpr inline cpxf Cpx2Cpxf(const cpx &c){
 	return cpxf((float)c.real(), (float)c.imag());
 }
@@ -137,8 +156,8 @@ using vec3 = glm::vec<3, real, glm::defaultp>;
 
 #define SQ(a) ((a) * (a)) //Square
 #define CUBE(a) ((a) * (a) * (a))
-constexpr real RadDeg = RC(180.0) / REAL_PI;
-constexpr real DegRad = REAL_PI / RC(180.0);
+constexpr real RadDeg = RL(180.0) / REAL_PI;
+constexpr real DegRad = REAL_PI / RL(180.0);
 
 inline bool isInt(std::string str, bool allowNegative = true){
 	if(str.empty()) return false;

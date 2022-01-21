@@ -42,15 +42,15 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
     
     if(thetaIntr < r[iLeft].theta){
         // iRight = 1;
-        RInt.r   = RC(0.0); // r[iLeft].r
-        RInt.phi = RC(0.0); // r[iLeft].phi
+        RInt.r   = FL(0.0); // r[iLeft].r
+        RInt.phi = FL(0.0); // r[iLeft].phi
         printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
             "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
             thetaIntr, r[iLeft].theta);
     }else if(thetaIntr > r[iRight].theta){
         // iLeft = NPts - 2;
-        RInt.r   = RC(0.0); // r[iRight].r
-        RInt.phi = RC(0.0); // r[iRight].phi
+        RInt.r   = FL(0.0); // r[iRight].r
+        RInt.phi = FL(0.0); // r[iRight].phi
         // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
         //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
         //     thetaIntr, r[iRight].theta);
@@ -69,8 +69,8 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
         // Linear interpolation for reflection coef
         
         alpha    = (RInt.theta - r[iLeft].theta) / (r[iRight].theta - r[iLeft].theta);
-        RInt.r   = (RC(1.0) - alpha) * r[iLeft].r   + alpha * r[iRight].r;
-        RInt.phi = (RC(1.0) - alpha) * r[iLeft].phi + alpha * r[iRight].phi;
+        RInt.r   = (FL(1.0) - alpha) * r[iLeft].r   + alpha * r[iRight].r;
+        RInt.phi = (FL(1.0) - alpha) * r[iLeft].phi + alpha * r[iRight].phi;
     }
 }
 

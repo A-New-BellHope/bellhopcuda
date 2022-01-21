@@ -245,8 +245,8 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     real crr2, crz2, czz2;
     real h, halfh, rm, rn, cnjump, csjump, w0, w1, rho;
     
-    // printf("\nray0 x t p q amp (%g,%g) (%g,%g) (%g,%g) (%g,%g) %g\n", 
-    //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.Amp);
+    // printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
+    //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
     // printf("iSegz iSegr %d %d\n", iSegz, iSegr);
     
     // if(ray0.x.x > 420.0){

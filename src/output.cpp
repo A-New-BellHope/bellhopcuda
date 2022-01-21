@@ -23,7 +23,7 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
     
     for(int32_t is=1; is<Nsteps1; ++is){
         // ensure that we always write ray points near bdry reflections (works only for flat bdry)
-        if(math::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < 0.2 ||
+        if(math::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < FL(0.2) ||
                 (is % iSkip) == 0 || is == Nsteps1-1){
             ++n2;
             ray2D[n2-1].x = ray2D[is].x;
@@ -178,7 +178,7 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
         #undef RS
         break;
     default:
-        atten = RC(0.0);
+        atten = FL(0.0);
         
         // following to set PlotType has alread been done in READIN if that was used for input
         switch(Beam->RunType[4]){

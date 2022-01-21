@@ -22,7 +22,7 @@ constexpr int32_t Bdry_Number_to_Echo = 21;
 
 // Unfortunately, can't be a constexpr as sqrt is not constexpr in C++14 without
 // GNU extensions, and can't be a variable for CUDA
-#define BdryInfinity (STD::sqrt(REAL_MAX) / RC(1.0e5))
+#define BdryInfinity (STD::sqrt(REAL_MAX) / RL(1.0e5))
 
 /**
  * Get the Top segment info (index and range interval) for range, r
@@ -41,7 +41,7 @@ HOST_DEVICE inline void GetTopSeg(real r, real t, int32_t &IsegTop, vec2 &rTopSe
     int32_t n = bdinfo->NATIPts;
     IsegTop = math::max(IsegTop, 0);
     IsegTop = math::min(IsegTop, n-2);
-    if(t >= RC(0.0)){
+    if(t >= FL(0.0)){
         while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x > r) --IsegTop;
         while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x <= r) ++IsegTop;
     }else{
@@ -74,7 +74,7 @@ HOST_DEVICE inline void GetBotSeg(real r, real t, int32_t &IsegBot, vec2 &rBotSe
     int32_t n = bdinfo->NBTYPts;
     IsegBot = math::max(IsegBot, 0);
     IsegBot = math::min(IsegBot, n-2);
-    if(t >= RC(0.0)){
+    if(t >= FL(0.0)){
         while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x > r) --IsegBot;
         while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x <= r) ++IsegBot;
     }else{
@@ -133,14 +133,14 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
     for(int32_t ii=0; ii<NPts-1; ++ii){
         Bdry[ii].t  = Bdry[ii+1].x - Bdry[ii].x;
         Bdry[ii].Dx = Bdry[ii].t[1] / Bdry[ii].t[0]; // first derivative
-        // std::cout << "Dx, t " << Bdry[ii].Dx << " " << Bdry[ii].x << " " << (RC(1.0) / (Bdry[ii].x[1] / RC(500.0)) << "\n";
+        // std::cout << "Dx, t " << Bdry[ii].Dx << " " << Bdry[ii].x << " " << (FL(1.0) / (Bdry[ii].x[1] / FL(500.0)) << "\n";
         
         // normalize the tangent vector
         Bdry[ii].Len = glm::length(Bdry[ii].t);
-        Bdry[ii].t  *= RC(1.0) / Bdry[ii].Len;
+        Bdry[ii].t  /= Bdry[ii].Len;
         
-        Bdry[ii].n[0] = (isTop ? RC(1.0) : RC(-1.0)) * Bdry[ii].t[1];
-        Bdry[ii].n[1] = (isTop ? RC(-1.0) : RC(1.0)) * Bdry[ii].t[0];
+        Bdry[ii].n[0] = (isTop ? RL(1.0) : RL(-1.0)) * Bdry[ii].t[1];
+        Bdry[ii].n[1] = (isTop ? RL(-1.0) : RL(1.0)) * Bdry[ii].t[0];
     }
     
     if(CurvilinearFlag == 'C'){
@@ -148,16 +148,16 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
         // averaging two centered differences is equivalent to forming a single centered difference of two steps ...
         for(int32_t ii=1; ii<NPts-1; ++ii){
             sss = Bdry[ii-1].Len / (Bdry[ii-1].Len + Bdry[ii].Len);
-            sss = RC(0.5); //LP: ???
-            Bdry[ii].Nodet = (RC(1.0) - sss) * Bdry[ii-1].t + sss * Bdry[ii].t;
+            sss = FL(0.5); //LP: ???
+            Bdry[ii].Nodet = (FL(1.0) - sss) * Bdry[ii-1].t + sss * Bdry[ii].t;
         }
         
-        Bdry[0     ].Nodet = vec2(RC(1.0), RC(0.0)); // tangent left-end  node
-        Bdry[NPts-1].Nodet = vec2(RC(1.0), RC(0.0)); // tangent right-end node
+        Bdry[0     ].Nodet = vec2(FL(1.0), FL(0.0)); // tangent left-end  node
+        Bdry[NPts-1].Nodet = vec2(FL(1.0), FL(0.0)); // tangent right-end node
         
         for(int32_t ii=0; ii<NPts; ++ii){
-            Bdry[ii].Noden[0] = (isTop ? RC(1.0) : RC(-1.0)) * Bdry[ii].Nodet[1];
-            Bdry[ii].Noden[1] = (isTop ? RC(-1.0) : RC(1.0)) * Bdry[ii].Nodet[0];
+            Bdry[ii].Noden[0] = (isTop ? RL(1.0) : RL(-1.0)) * Bdry[ii].Nodet[1];
+            Bdry[ii].Noden[1] = (isTop ? RL(-1.0) : RL(1.0)) * Bdry[ii].Nodet[0];
         }
         
         // compute curvature in each segment
@@ -171,15 +171,15 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
                              (Bdry[ii+1].x[0] - Bdry[ii].x[0]); 
             Bdry[ii].Dss   = Bdry[ii].Dxx * CUBE(Bdry[ii].t[0]); // derivative in direction of tangent
             //std::cout << "kappa, Dss, Dxx " << Bdry[ii].kappa << " " << Bdry[ii].Dss << " " << Bdry[ii].Dxx
-            //    << " " << RC(1.0) / ((RC(8.0) / SQ(RC(1000.0))) * CUBE(STD::abs(Bdry[ii].x[1])))
+            //    << " " << FL(1.0) / ((FL(8.0) / SQ(FL(1000.0))) * CUBE(STD::abs(Bdry[ii].x[1])))
             //    << " " << Bdry[ii].x[1] << " "
-            //    << RC(-1.0) / (RC(4.0) * CUBE(Bdry[ii].x[1]) / RC(1000000.0))
+            //    << FL(-1.0) / (FL(4.0) * CUBE(Bdry[ii].x[1]) / FL(1000000.0))
             //    << " " << Bdry[ii].x[1] << "\n";
             
             Bdry[ii].kappa = Bdry[ii].Dss; // over-ride kappa !!!!!
         }
     }else{
-        for(int32_t i=0; i<NPts; ++i) Bdry[i].kappa = RC(0.0);
+        for(int32_t i=0; i<NPts; ++i) Bdry[i].kappa = FL(0.0);
     }
 }
 
@@ -259,13 +259,13 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         }
         
         // Convert ranges in km to m
-        for(int32_t i=0; i<bdinfo->NATIPts; ++i) bdinfo->Top[i].x[0] *= RC(1000.0);
+        for(int32_t i=0; i<bdinfo->NATIPts; ++i) bdinfo->Top[i].x[0] *= FL(1000.0);
         
         }break;
     default:
         bdinfo->Top = allocate<BdryPtFull>(2);
-        bdinfo->Top[0].x = vec2(-STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
-        bdinfo->Top[1].x = vec2( STD::sqrt(REAL_MAX) / RC(1.0e5), DepthT);
+        bdinfo->Top[0].x = vec2(-STD::sqrt(REAL_MAX) / FL(1.0e5), DepthT);
+        bdinfo->Top[1].x = vec2( STD::sqrt(REAL_MAX) / FL(1.0e5), DepthT);
     }
     
     ComputeBdryTangentNormal(bdinfo->Top, true, bdinfo);
@@ -365,7 +365,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         }
         
         // Convert ranges in km to m
-        for(int32_t i=0; i<bdinfo->NBTYPts; ++i) bdinfo->Bot[i].x[0] *= RC(1000.0);
+        for(int32_t i=0; i<bdinfo->NBTYPts; ++i) bdinfo->Bot[i].x[0] *= FL(1000.0);
         
         }break;
     default:
@@ -408,9 +408,9 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
     case 'F':
         PRTFile << "    FILE used for reflection loss\n"; break;
     case 'W':
-        PRTFile << "    Writing an IRC file\n"; break;
+        PRTFile << "    Writing an IFL file\n"; break;
     case 'P':
-        PRTFile << "    reading PRECALCULATED IRC\n"; break;
+        PRTFile << "    reading PRECALCULATED IFL\n"; break;
     default:
        std::cout << "TopBot: Unknown boundary condition type\n";
        std::abort();
@@ -418,10 +418,10 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
     
     // ****** Read in BC parameters depending on particular choice ******
     
-    hs.cP = hs.cS = hs.rho = RC(0.0);
+    hs.cP = hs.cS = hs.rho = FL(0.0);
     
     if(hs.bc == 'A'){ // *** Half-space properties ***
-        zTemp = RC(0.0);
+        zTemp = FL(0.0);
         LIST(ENVFile); ENVFile.Read(zTemp); ENVFile.Read(RecycledHS.alphaR);
         ENVFile.Read(RecycledHS.betaR); ENVFile.Read(RecycledHS.rho);
         ENVFile.Read(RecycledHS.alphaI); ENVFile.Read(RecycledHS.betaI);
@@ -432,8 +432,8 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         // dummy parameters for a layer with a general power law for attenuation
         // these are not in play because the AttenUnit for this is not allowed yet
         //freq0         = freq;
-        //betaPowerLaw  = RC(1.0); //LP: Default is 1.0, this is the only other place it's set (also to 1.0).
-        fT            = RC(1000.0);
+        //betaPowerLaw  = FL(1.0); //LP: Default is 1.0, this is the only other place it's set (also to 1.0).
+        fT            = FL(1000.0);
         
         hs.cP  = crci(zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
         hs.cS  = crci(zTemp, RecycledHS.betaR,  RecycledHS.betaI,  freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
@@ -452,41 +452,41 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " "
             << std::setw(10) << Mz << "\n";
         
-        if(Mz >= RC(-1.0) && Mz < RC(1.0)){
-            vr             = RC(0.002709) * SQ(Mz) - RC(0.056452) * Mz + RC(1.2778);
-            RecycledHS.rho = RC(0.007797) * SQ(Mz) - RC(0.17057)  * Mz + RC(2.3139);
-        }else if(Mz >= RC(1.0) && Mz < RC(5.3)){
-            vr             = RC(-0.0014881) * CUBE(Mz) + RC(0.0213937) * SQ(Mz) - RC(0.1382798) * Mz + RC(1.3425);
-            RecycledHS.rho = RC(-0.0165406) * CUBE(Mz) + RC(0.2290201) * SQ(Mz) - RC(1.1069031) * Mz + RC(3.0455);
+        if(Mz >= FL(-1.0) && Mz < FL(1.0)){
+            vr             = FL(0.002709) * SQ(Mz) - FL(0.056452) * Mz + FL(1.2778);
+            RecycledHS.rho = FL(0.007797) * SQ(Mz) - FL(0.17057)  * Mz + FL(2.3139);
+        }else if(Mz >= FL(1.0) && Mz < FL(5.3)){
+            vr             = FL(-0.0014881) * CUBE(Mz) + FL(0.0213937) * SQ(Mz) - FL(0.1382798) * Mz + FL(1.3425);
+            RecycledHS.rho = FL(-0.0165406) * CUBE(Mz) + FL(0.2290201) * SQ(Mz) - FL(1.1069031) * Mz + FL(3.0455);
         }else{
-            vr             = RC(-0.0024324) * Mz + RC(1.0019);
-            RecycledHS.rho = RC(-0.0012973) * Mz + RC(1.1565);
+            vr             = FL(-0.0024324) * Mz + FL(1.0019);
+            RecycledHS.rho = FL(-0.0012973) * Mz + FL(1.1565);
         }
         
-        if(Mz >= RC(-1.0) && Mz < RC(0.0)){
-            alpha2_f = RC(0.4556);
-        }else if(Mz >= RC(0.0) && Mz < RC(2.6)){
-            alpha2_f = RC(0.4556) + RC(0.0245) * Mz;
-        }else if(Mz >= RC(2.6) && Mz < RC(4.5)){
-            alpha2_f = RC(0.1978) + RC(0.1245) * Mz;
-        }else if(Mz >= RC(4.5) && Mz < RC(6.0)){
-            alpha2_f = RC(8.0399) - RC(2.5228) * Mz + RC(0.20098) * SQ(Mz);
-        }else if(Mz >= RC(6.0) && Mz < RC(9.5)){
-            alpha2_f = RC(0.9431) - RC(0.2041) * Mz + RC(0.0117) * SQ(Mz);
+        if(Mz >= FL(-1.0) && Mz < FL(0.0)){
+            alpha2_f = FL(0.4556);
+        }else if(Mz >= FL(0.0) && Mz < FL(2.6)){
+            alpha2_f = FL(0.4556) + FL(0.0245) * Mz;
+        }else if(Mz >= FL(2.6) && Mz < FL(4.5)){
+            alpha2_f = FL(0.1978) + FL(0.1245) * Mz;
+        }else if(Mz >= FL(4.5) && Mz < FL(6.0)){
+            alpha2_f = FL(8.0399) - FL(2.5228) * Mz + FL(0.20098) * SQ(Mz);
+        }else if(Mz >= FL(6.0) && Mz < FL(9.5)){
+            alpha2_f = FL(0.9431) - FL(0.2041) * Mz + FL(0.0117) * SQ(Mz);
         }else{
-            alpha2_f =  RC(0.0601);
+            alpha2_f =  FL(0.0601);
         }
         
         // AttenUnit = 'L';  // loss parameter
         // !! following uses a reference sound speed of 1500 ???
         // !! should be sound speed in the water, just above the sediment
         // the term vr / 1000 converts vr to units of m per ms 
-        RecycledHS.alphaR = vr * RC(1500.0);
-        RecycledHS.alphaI = alpha2_f * (vr / RC(1000.0)) * RC(1500.0) * 
-            STD::log(RC(10.0)) / (RC(40.0) * REAL_PI); // loss parameter Sect. IV., Eq. (4) of handbook
+        RecycledHS.alphaR = vr * FL(1500.0);
+        RecycledHS.alphaI = alpha2_f * (vr / FL(1000.0)) * FL(1500.0) * 
+            STD::log(FL(10.0)) / (FL(40.0) * REAL_PI); // loss parameter Sect. IV., Eq. (4) of handbook
  
         hs.cP  = crci(zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, {'L', ' '}, betaPowerLaw, fT, atten, PRTFile);
-        hs.cS  = RC(0.0);
+        hs.cS  = FL(0.0);
         hs.rho = RecycledHS.rho;
     }
 }

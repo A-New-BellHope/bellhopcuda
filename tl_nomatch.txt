@@ -1,11 +1,3 @@
-//
-//Semi-coherent, results do not match
-MunkB_Semi_gb
-//
-//Incoherent, results do not match
-MunkB_Inc_gb
-free_gbtB_Inc
-//
 //Coherent, results do not match
 //
 //
@@ -28,4 +20,12 @@ MunkB_gbt
 aet_VLA_B
 calibB_gb
 LloydLine_gbtB
+//
+//
+//Semi-coherent, results do not match
+MunkB_Semi_gb
+//
+//Incoherent, results do not match
+MunkB_Inc_gb
+free_gbtB_Inc
 //

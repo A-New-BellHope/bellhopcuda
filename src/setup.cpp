@@ -65,10 +65,10 @@ void setup(std::string FileRoot,
     memcpy(bdinfo->btyType, "LS", 2);
     //refl: none
     //ssp: none
-    atten->t = RC(20.0);
-    atten->Salinity = RC(35.0);
-    atten->pH = RC(8.0);
-    atten->z_bar = RC(0.0);
+    atten->t = FL(20.0);
+    atten->Salinity = FL(35.0);
+    atten->pH = FL(8.0);
+    atten->z_bar = FL(0.0);
     Pos->NSx = 1;
     Pos->NSy = 1;
     Angles->Nalpha = 0;

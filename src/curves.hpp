@@ -25,7 +25,7 @@
  *  C(2,1), C(2,N) = BOUNDARY CONDITION INFORMATION.  SPECIFICALLY,
  *      IBCBEG = 0 IMPLIES NO BOUNDARY CONDITION AT TAU(1) IS GIVEN.
  *            IN THIS CASE, THE "NOT-A-KNOT" CONDITION IS USED, IE THE
- *            JUMP IN THE 3-RD DERIVATIVE ACROSS TAU(2) IS FORCED TO 0.,
+ *            JUMP IN THE 3-RD DERIVATIVE ACROSS TAU(2) IS FOFLED TO 0.,
  *            THUS THE 1-ST AND 2-ND POLYNOMIAL PIECES ARE MADE TO
  *            COINCIDE.
  *      IBCBEG = 1 IMPLIES THAT THE SLOPE AT TAU(1) IS SET EQUAL TO C(2,1)
@@ -66,7 +66,7 @@ HOST_DEVICE inline void cSpline(const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx 
     int32_t l = n - 1;
     
     for(int32_t m=1; m<n; ++m){
-        c3[m] = cpx(tau[m] - tau[m-1], RC(0.0));
+        c3[m] = cpx(tau[m] - tau[m-1], FL(0.0));
         c4[m] = (c1[m] - c1[m-1]) / c3[m];
     }
     
@@ -76,28 +76,28 @@ HOST_DEVICE inline void cSpline(const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx 
         if(n > 2){                  // N > 2
             c4[0] = c3[2];
             c3[0] = c3[1] + c3[2];
-            c2[0] = ((c3[1] + RC(2.0)*c3[0])*c4[1]*c3[2] +
+            c2[0] = ((c3[1] + FL(2.0)*c3[0])*c4[1]*c3[2] +
                 SQ(c3[1]) * c4[2]) / c3[0];
         }else{                      // N = 2
-            c4[0] = cpx(RC(1.0), RC(0.0));
-            c3[0] = cpx(RC(1.0), RC(0.0));
-            c2[0] = RC(2.0) * c4[1];
+            c4[0] = cpx(FL(1.0), FL(0.0));
+            c3[0] = cpx(FL(1.0), FL(0.0));
+            c2[0] = FL(2.0) * c4[1];
         }
     }else if(ibcbeg == 1){          // IBCBEG = 1
-        c4[0] = cpx(RC(1.0), RC(0.0));
-        c3[0] = cpx(RC(0.0), RC(0.0));
+        c4[0] = cpx(FL(1.0), FL(0.0));
+        c3[0] = cpx(FL(0.0), FL(0.0));
     }else if(ibcbeg == 2){          // IBCBEG = 2
-        c4[0] = cpx(RC(2.0), RC(0.0));
-        c3[0] = cpx(RC(1.0), RC(0.0));
-        c2[0] = RC(3.0)*c4[1] - c2[0]*c3[1]*RC(0.5);
+        c4[0] = cpx(FL(2.0), FL(0.0));
+        c3[0] = cpx(FL(1.0), FL(0.0));
+        c2[0] = FL(3.0)*c4[1] - c2[0]*c3[1]*FL(0.5);
     }
     
     // * RUNNING CALCULATIONS TO N-1 - LOOP IS NOT EXECUTED IF N = 2 *
     
     for(int32_t m=1; m<l; ++m){
         g = -c3[m+1] / c4[m-1];
-        c2[m] = g*c2[m-1] + RC(3.0)*(c3[m]*c4[m+1] + c3[m+1]*c4[m]);
-        c4[m] = g*c3[m-1] + RC(2.0)*(c3[m] + c3[m+1]);
+        c2[m] = g*c2[m-1] + FL(3.0)*(c3[m]*c4[m+1] + c3[m+1]*c4[m]);
+        c4[m] = g*c3[m-1] + FL(2.0)*(c3[m] + c3[m+1]);
     }
     
     // * ENDING BOUNDARY CONDITION SECTION *
@@ -107,20 +107,20 @@ HOST_DEVICE inline void cSpline(const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx 
             if(n == 2 && ibcbeg == 0){
                 c2[n-1] = c4[n-1];
             }else if((n == 3 && ibcbeg == 0) || n == 2){
-                c2[n-1] = RC(2.0) * c4[n-1];
-                c4[n-1] = cpx(RC(1.0), RC(0.0));
-                g = RC(1.0) / -c4[n-2];
+                c2[n-1] = FL(2.0) * c4[n-1];
+                c4[n-1] = cpx(FL(1.0), FL(0.0));
+                g = FL(1.0) / -c4[n-2];
             }else{
                 g = c3[n-2] + c3[n-1];
-                c2[n-1] = ((c3[n-1] + RC(2.0)*g) * c4[n-1]*c3[n-2] +
+                c2[n-1] = ((c3[n-1] + FL(2.0)*g) * c4[n-1]*c3[n-2] +
                     SQ(c3[n-1]) * (c1[n-2]-c1[n-3]) / c3[n-2]) / g;
                 g = -g / c4[n-2];
                 c4[n-1] = c3[n-2];
             }
         }else if(ibcend == 2){
-            c2[n-1] = RC(3.0) * c4[n-1] + c2[n-1]*c3[n-1]*RC(0.5);
-            c4[n-1] = cpx(RC(2.0), RC(0.0));
-            g = RC(1.0) / -c4[n-2];
+            c2[n-1] = FL(3.0) * c4[n-1] + c2[n-1]*c3[n-1]*FL(0.5);
+            c4[n-1] = cpx(FL(2.0), FL(0.0));
+            g = FL(1.0) / -c4[n-2];
         }
         
         if(ibcbeg > 0 || n > 2){
@@ -140,9 +140,9 @@ HOST_DEVICE inline void cSpline(const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx 
     for(int32_t i=1; i<n; ++i){
         dtau = c3[i];
         divdf1 = (c1[i]-c1[i-1]) / dtau;
-        divdf3 = c2[i-1] + c2[i] - RC(2.0)*divdf1;
-        c3[i-1] = RC(2.0) * (divdf1-c2[i-1]-divdf3) / dtau;
-        c4[i-1] = (divdf3/dtau) * (RC(6.0)/dtau);
+        divdf3 = c2[i-1] + c2[i] - FL(2.0)*divdf1;
+        c3[i-1] = FL(2.0) * (divdf1-c2[i-1]-divdf3) / dtau;
+        c4[i-1] = (divdf3/dtau) * (FL(6.0)/dtau);
     }
     
     // * ADD THE CURVATURE AT THE LAST POINT IN THE THIRD POSITION OF THE 
@@ -154,11 +154,11 @@ HOST_DEVICE inline void cSpline(const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx 
     //   THE LAST NODE.  MEAN VALUE IS CALCULATED AS THE INTEGRAL OVER THE 
     //   INTERVAL DIVIDED BY THE LENGTH OF THE INTERVAL. *
     
-    c4[n-1] = cpx(RC(0.0), RC(0.0));
+    c4[n-1] = cpx(FL(0.0), FL(0.0));
     for(int32_t i=0; i<l; ++i){   // INTEGRATE OVER THE INTERVAL
         dtau = tau[i+1] - tau[i];
-        c4[n-1] += dtau*(c1[i] + dtau*(c2[i]*RC(0.5) +
-            dtau*(c3[i]/RC(6.0) + dtau*c4[i]/RC(24.0))));
+        c4[n-1] += dtau*(c1[i] + dtau*(c2[i]*FL(0.5) +
+            dtau*(c3[i]/FL(6.0) + dtau*c4[i]/FL(24.0))));
     }
     c4[n-1] /= tau[n-1] - tau[0]; // DIVIDE BY LENGTH OF INTERVAL
 }
@@ -172,7 +172,7 @@ HOST_DEVICE inline void cSpline(const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx 
 HOST_DEVICE inline void SplineALL(const cpx &c1, const cpx &c2, const cpx &c3,
     const cpx &c4, real h, cpx &f, cpx &fx, cpx &fxx)
 {
-    constexpr real half = RC(0.5), sixth = RC(1.0) / RC(6.0);
+    constexpr float half = FL(0.5), sixth = FL(1.0) / FL(6.0);
     
     f   = c1 + h * (c2 + h * (half * c3 + sixth * h * c4));
     fx  = c2 + h * (c3 + h *  half * c4);
@@ -199,27 +199,27 @@ HOST_DEVICE inline void h_del(const real *x, const cpx *y, int32_t ix,
  */
 HOST_DEVICE inline real fprime_interior(real del1, real del2, real fprime)
 {
-    if(del1 * del2 > RC(0.0)){
+    if(del1 * del2 > FL(0.0)){
         // adjacent secant slopes have the same sign, enforce monotonicity
-        if(del1 > RC(0.0)){
-            return math::min(math::max(fprime, RC(0.0)), RC(3.0) * math::min(del1, del2));
+        if(del1 > FL(0.0)){
+            return math::min(math::max(fprime, RL(0.0)), RL(3.0) * math::min(del1, del2));
         }else{
-            return math::max(math::min(fprime, RC(0.0)), RC(3.0) * math::max(del1, del2));
+            return math::max(math::min(fprime, RL(0.0)), RL(3.0) * math::max(del1, del2));
         }
     }else{
         // force the interpolant to have an extrema here
-        return RC(0.0);
+        return RL(0.0);
     }
 }
 
 HOST_DEVICE inline real fprime_left_end(real del1, real del2, real fprime)
 {
-    if(del1 * fprime <= RC(0.0)){
+    if(del1 * fprime <= RL(0.0)){
         // set derivative to zero if the sign differs from sign of secant slope
-        return RC(0.0);
-    }else if((del1 * del2 <= RC(0.0)) && (STD::abs(fprime) > STD::abs(RC(3.0) * del1))){
+        return FL(0.0);
+    }else if((del1 * del2 <= RL(0.0)) && (STD::abs(fprime) > STD::abs(RL(3.0) * del1))){
         // adjust derivative value to enforce monotonicity
-        return RC(3.0) * del1;
+        return RL(3.0) * del1;
     }else{
         return fprime;
     }
@@ -228,7 +228,8 @@ HOST_DEVICE inline real fprime_left_end(real del1, real del2, real fprime)
 /**
  * This is essentially the same as fprime_left_end( del2, del1, fprime )
  * Written separately for clarity
- * LP: How is writing the code twice more clear? It is exactly that.
+ * LP: How is writing the code twice more clear? It is exactly, not merely
+ * essentially, the same.
  */
 HOST_DEVICE inline real fprime_right_end(real del1, real del2, real fprime)
 {
@@ -292,8 +293,8 @@ HOST_DEVICE inline void pchip(const real *x, const cpx *y, int32_t n,
         
         PolyCoef1[0] = y[0];
         PolyCoef2[0] = (y[1] - y[0]) / (x[1] - x[0]);
-        PolyCoef3[0] = RC(0.0);
-        PolyCoef4[0] = RC(0.0);
+        PolyCoef3[0] = RL(0.0);
+        PolyCoef4[0] = RL(0.0);
         
     }else{
         
@@ -304,13 +305,13 @@ HOST_DEVICE inline void pchip(const real *x, const cpx *y, int32_t n,
         // left endpoint (non-centered 3-point difference formula)
         
         h_del(x, y, 1, h1, h2, del1, del2);
-        fprimeT = ((RC(2.0) * h1 + h2) * del1 - h1 * del2) / (h1 + h2);
+        fprimeT = ((RL(2.0) * h1 + h2) * del1 - h1 * del2) / (h1 + h2);
         PolyCoef2[0] = fprime_left_end_Cmplx(del1, del2, fprimeT);
         
         // right endpoint (non-centered 3-point difference formula)
         
         h_del(x, y, n-2, h1, h2, del1, del2);
-        fprimeT = (-h2 * del1 + (h1 + RC(2.0) * h2) * del2) / (h1 + h2);
+        fprimeT = (-h2 * del1 + (h1 + RL(2.0) * h2) * del2) / (h1 + h2);
         PolyCoef2[n-1] = fprime_right_end_Cmplx(del1, del2, fprimeT);
         
         // compute coefficients of the cubic spline interpolating polynomial
@@ -343,8 +344,8 @@ HOST_DEVICE inline void pchip(const real *x, const cpx *y, int32_t n,
             f1prime = PolyCoef2[ix];
             f2prime = PolyCoef2[ix+1];
             
-            PolyCoef3[ix] = (RC(3.0) * (f2 - f1) - h * (RC(2.0) * f1prime + f2prime)) / SQ(h);
-            PolyCoef4[ix] = (h * (f1prime + f2prime) - RC(2.0) * (f2 - f1)) / CUBE(h);
+            PolyCoef3[ix] = (RL(3.0) * (f2 - f1) - h * (RL(2.0) * f1prime + f2prime)) / SQ(h);
+            PolyCoef4[ix] = (h * (f1prime + f2prime) - RL(2.0) * (f2 - f1)) / CUBE(h);
         }
     }
 }
