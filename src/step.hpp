@@ -16,7 +16,7 @@ struct ray2DPt {
     cpx tau;
 };
 
-#define INFINITESIMAL_STEP_SIZE (RC(1e-6))
+#define INFINITESIMAL_STEP_SIZE (RL(1e-6))
 
 /**
  * calculate a reduced step size, h, that lands on any points where the environment changes
@@ -274,7 +274,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     */
     
     csq0      = SQ(ccpx0.real());
-    cnn0_csq0 = crr0 * SQ(ray0.t.y) - RC(2.0) * crz0 * ray0.t.x * ray0.t.y + czz0 * SQ(ray0.t.x);
+    cnn0_csq0 = crr0 * SQ(ray0.t.y) - FL(2.0) * crz0 * ray0.t.x * ray0.t.y + czz0 * SQ(ray0.t.x);
     iSegz0    = iSegz; // make note of current layer
     iSegr0    = iSegr;
     
@@ -289,7 +289,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     
     // printf("out h %g\n", h);
     
-    halfh = RC(0.5) * h; // first step of the modified polygon method is a half step
+    halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
     ray1.x = ray0.x + halfh * urayt0;
     ray1.t = ray0.t - halfh * gradc0 / csq0;
@@ -332,7 +332,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     }
     */
     csq1      = SQ(ccpx1.real());
-    cnn1_csq1 = crr1 * SQ(ray1.t.y) - RC(2.0) * crz1 * ray1.t.x * ray1.t.y + czz1 * SQ(ray1.t.x);
+    cnn1_csq1 = crr1 * SQ(ray1.t.y) - FL(2.0) * crz1 * ray1.t.x * ray1.t.y + czz1 * SQ(ray1.t.x);
     
     // The Munk test case with a horizontally launched ray caused problems.
     // The ray vertexes on an interface and can ping-pong around that interface.
@@ -348,8 +348,8 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
         Beam, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
-    w1  = h / (RC(2.0) * halfh);
-    w0  = RC(1.0) - w1;
+    w1  = h / (RL(2.0) * halfh);
+    w0  = RL(1.0) - w1;
     // printf("w1 %g w0 %g\n", w1, w0);
     vec2 urayt2   =  w0 * urayt0                + w1 * urayt1;
     vec2 unitdt   = -w0 * gradc0 / csq0         - w1 * gradc1 / csq1;
@@ -411,7 +411,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
             rm = -ray2.t.y / ray2.t.x; // this is tan( alpha ) where alpha is the angle of incidence
         }                                // LP: The case where it crosses in depth and range simultaneously is not handled.
         
-        rn = rm * (RC(2.0) * cnjump - rm * csjump) / ccpx2.real();
+        rn = rm * (FL(2.0) * cnjump - rm * csjump) / ccpx2.real();
         ray2.p = ray2.p - ray2.q * rn;
     }
 }

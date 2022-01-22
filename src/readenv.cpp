@@ -225,7 +225,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
     HSInfo &RecycledHS)
 {
-    //const real c0 = RC(1500.0); //LP: unused
+    //const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;
     real ZMin, ZMax;
     vec2 x, gradc;
@@ -317,8 +317,8 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     ZMin = Bdry->Top.hs.Depth;
     ZMax = Bdry->Bot.hs.Depth;
     // not sure why I had this
-    // ReadSzRz(ZMin + RC(100.0) * spacing(ZMin),
-    //     ZMax - RC(100.0) * spacing(ZMax), 
+    // ReadSzRz(ZMin + FL(100.0) * spacing(ZMin),
+    //     ZMax - FL(100.0) * spacing(ZMax), 
     //     ENVFile, PRTFile);
     ReadSzRz(ZMin, ZMax, ENVFile, PRTFile, Pos);
     ReadRcvrRanges(ENVFile, PRTFile, Pos);

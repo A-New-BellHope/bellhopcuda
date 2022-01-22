@@ -18,7 +18,7 @@ inline void ReadRayElevationAngles(real freq, real Depth,
     LDIFile &ENVFile, std::ofstream &PRTFile,
     AnglesStructure *Angles, Position *Pos)
 {
-    constexpr real c0 = RC(1500.0);
+    constexpr real c0 = FL(1500.0);
     
     if(TopOpt[5] == 'I'){
         // option to trace a single beam

@@ -128,7 +128,7 @@ using real = double;
 #endif
 // "Float literal"--This macro is not actually needed, values could just be
 // always written as e.g. 0.1f, but this way, every floating-point literal
-// shoudl have one or the other macro on it, making it easier to spot errors.
+// should have one or the other macro on it, making it easier to spot errors.
 #define FL(a) (a##f)
 
 using cpx = STD::complex<real>;
@@ -137,6 +137,26 @@ using cpxf = STD::complex<float>; // for uAllSources
 HOST_DEVICE constexpr inline cpxf Cpx2Cpxf(const cpx &c){
 	return cpxf((float)c.real(), (float)c.imag());
 }
+
+//CUDA::std::cpx<double> does not like operators being applied with float
+//literals, due to template type deduction issues.
+#ifndef USE_FLOATS
+HOST_DEVICE constexpr inline cpx operator-(float a, const cpx &b){
+    return cpx(a - b.real(), -b.imag());
+}
+HOST_DEVICE constexpr inline cpx operator*(const cpx &a, float b){
+    return cpx(a.real() * b, a.imag() * b);
+}
+HOST_DEVICE constexpr inline cpx operator*(float a, const cpx &b){
+    return cpx(a * b.real(), a * b.imag());
+}
+HOST_DEVICE constexpr inline cpx operator/(const cpx &a, float b){
+    return cpx(a.real() / b, a.imag() / b);
+}
+HOST_DEVICE inline cpx operator/(float a, const cpx &b){
+    return (double)a / b;
+}
+#endif
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -452,8 +472,8 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGT(REAL *arr,
  */
 template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *angles,
 	int32_t &n){
-	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], 360.0f))
-            < 10.0f * spacing(1.0f))
+	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], FL(360.0)))
+            < FL(10.0) * spacing(RL(1.0)))
         --n;
 }
 
@@ -482,8 +502,9 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 {
     if(Nx >= 3){
 		// mbp: testing for equality here is dangerous
-        if(STD::abs(x[2] - (REAL)(-999.9f)) < (REAL)(0.1f)){ 
-            if(STD::abs(x[1] - (REAL)(-999.9f)) < (REAL)(0.1f)) x[1] = x[0];
+        // LP: Changed to avoid test for equality
+        if(STD::abs(x[2] - (REAL)(-999.9f)) < (REAL)(0.01f)){ 
+            if(STD::abs(x[1] - (REAL)(-999.9f)) < (REAL)(0.01f)) x[1] = x[0];
             REAL deltax = (x[1] - x[0]) / (REAL)(Nx - 1);
             REAL x0 = x[0];
             for(int32_t i=0; i<Nx; ++i){

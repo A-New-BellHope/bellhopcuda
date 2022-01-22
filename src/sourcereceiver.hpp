@@ -52,7 +52,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &P
     
     if(BroadbandOption == 'B'){
         PRTFile << "Frequencies (Hz)\n";
-        freqinfo->freqVec[2] = RC(-999.9);
+        freqinfo->freqVec[2] = FL(-999.9);
         LIST(ENVFile); ENVFile.Read(freqinfo->freqVec, freqinfo->Nfreq);
         SubTab(freqinfo->freqVec, freqinfo->Nfreq);
         EchoVector(freqinfo->freqVec, freqinfo->Nfreq, PRTFile);
@@ -82,7 +82,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
     x = allocate<REAL>(math::max(3, Nx));
     
     PRTFile << Description << " (" << Units << ")\n";
-    x[2] = RC(-999.9);
+    x[2] = FL(-999.9);
     LIST(ENVFile); ENVFile.Read(x, Nx);
     
     SubTab(x, Nx);
@@ -94,7 +94,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
     // Vectors in km should be converted to m for internal use
     trim(Units);
     if(Units.length() >= 2){
-        if(Units.substr(0, 2) == "km") for(int32_t i=0; i<Nx; ++i) x[i] *= RC(1000.0);
+        if(Units.substr(0, 2) == "km") for(int32_t i=0; i<Nx; ++i) x[i] *= FL(1000.0);
     }
 }
 
@@ -111,8 +111,8 @@ inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ofstream &PRTFile,
         ReadVector(Pos->NSy, Pos->Sy, "source   y-coordinates, Sy", "km", ENVFile, PRTFile);
     }else{
         Pos->Sx = allocate<float>(1); Pos->Sy = allocate<float>(1);
-        Pos->Sx[0] = RC(0.0);
-        Pos->Sy[0] = RC(0.0);
+        Pos->Sx[0] = FL(0.0);
+        Pos->Sy[0] = FL(0.0);
     }
 }
 
@@ -183,7 +183,7 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, std::ofstream &PRTFile,
     ReadVector(Pos->NRr, Pos->Rr, "Receiver ranges, Rr", "km", ENVFile, PRTFile);
     
     // calculate range spacing
-    Pos->Delta_r = RC(0.0);
+    Pos->Delta_r = FL(0.0);
     if(Pos->NRr != 1) Pos->Delta_r = Pos->Rr[Pos->NRr-1] - Pos->Rr[Pos->NRr-2];
     
     if(!monotonic(Pos->Rr, Pos->NRr)){
@@ -200,7 +200,7 @@ inline void ReadRcvrBearings(LDIFile &ENVFile, std::ofstream &PRTFile,
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);
     
     // calculate angular spacing
-    Pos->Delta_theta = RC(0.0);
+    Pos->Delta_theta = FL(0.0);
     if(Pos->Ntheta != 1) Pos->Delta_theta = Pos->theta[Pos->Ntheta-1] - Pos->theta[Pos->Ntheta-2];
     
     if(!monotonic(Pos->theta, Pos->Ntheta)){

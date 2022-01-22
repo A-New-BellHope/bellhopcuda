@@ -54,7 +54,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     cpx kx, kz, kzP, kzS, kzP2, kzS2, mu, f, g, y2, y4, Refl; // for tabulated reflection coef.
     cpx ch, a, b, d, sb, delta, ddelta; // for beam shift
     ReflectionCoef RInt;
-    real omega = RC(2.0) * REAL_PI * freq;
+    real omega = FL(2.0) * REAL_PI * freq;
     
     Tg = glm::dot(oldPoint.t, tBdry); // component of ray tangent, along boundary
     Th = glm::dot(oldPoint.t, nBdry); // component of ray tangent, normal to boundary
@@ -63,7 +63,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     newPoint.NumTopBnc = oldPoint.NumTopBnc + (isTop ? 1 : 0);
     newPoint.NumBotBnc = oldPoint.NumBotBnc + (isTop ? 0 : 1);
     newPoint.x         = oldPoint.x;
-    newPoint.t         = oldPoint.t - RC(2.0) * Th * nBdry; // changing the ray direction
+    newPoint.t         = oldPoint.t - FL(2.0) * Th * nBdry; // changing the ray direction
     
     // Calculate the change in curvature
     // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
@@ -80,7 +80,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     rayt_tilde = ccpx.real() * newPoint.t;         // unit tangent to ray
     rayn_tilde = -vec2(-rayt_tilde.y, rayt_tilde.x); // unit normal  to ray
     
-    rn = RC(2.0) * kappa / SQ(ccpx.real()) / Th; // boundary curvature correction
+    rn = FL(2.0) * kappa / SQ(ccpx.real()) / Th; // boundary curvature correction
     
     // get the jumps (this could be simplified, e.g. jump in rayt is roughly 2 * Th * nbdry
     cnjump = -glm::dot(gradc, rayn_tilde - rayn);
@@ -92,12 +92,12 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     }
     
     rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
-    rn = rn + rm * (RC(2.0) * cnjump - rm * csjump) / SQ(ccpx.real());
+    rn = rn + rm * (FL(2.0) * cnjump - rm * csjump) / SQ(ccpx.real());
     
     if(Beam->Type[2] == 'D'){
-        rn = RC(2.0) * rn;
+        rn = FL(2.0) * rn;
     }else if(Beam->Type[2] == 'Z'){
-        rn = RC(0.0);
+        rn = FL(0.0);
     }
     
     newPoint.c   = ccpx.real();
@@ -115,7 +115,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
         newPoint.Phase = oldPoint.Phase + REAL_PI;
     }else if(hs.bc == 'F'){ // file
         RInt.theta = RadDeg * STD::abs(STD::atan2(Th, Tg)); // angle of incidence (relative to normal to bathymetry)
-        if(RInt.theta > RC(90.0)) RInt.theta = RC(180.0) - RInt.theta; // reflection coefficient is symmetric about 90 degrees
+        if(RInt.theta > FL(90.0)) RInt.theta = FL(180.0) - RInt.theta; // reflection coefficient is symmetric about 90 degrees
         InterpolateReflectionCoefficient(RInt, RefC, Npts);
         newPoint.Amp   = oldPoint.Amp * RInt.r;
         newPoint.Phase = oldPoint.Phase + RInt.phi;
@@ -126,14 +126,14 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
         
         // notation below is a bit mis-leading
         // kzS, kzP is really what I called gamma in other codes, and differs by a factor of +/- i
-        if(hs.cS.real() > RC(0.0)){
+        if(hs.cS.real() > FL(0.0)){
             kzS2 = kx2 - SQ(omega / hs.cS);
             kzP2 = kx2 - SQ(omega / hs.cP);
             kzS  = STD::sqrt(kzS2);
             kzP  = STD::sqrt(kzP2);
             mu   = hs.rho * SQ(hs.cS);
             
-            y2 = (SQ(kzS2 + kx2) - RC(4.0) * kzS * kzP * kx2) * mu;
+            y2 = (SQ(kzS2 + kx2) - FL(4.0) * kzS * kzP * kx2) * mu;
             y4 = kzP * (kx2 - kzS2);
             
             f = SQ(omega) * y4;
@@ -143,7 +143,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
             
             // Intel and GFortran compilers return different branches of the SQRT for negative reals
             // LP: looks like this just means we want the positive branch
-            if(kzP.real() == RC(0.0) && kzP.imag() < RC(0.0)) kzP = -kzP;
+            if(kzP.real() == RL(0.0) && kzP.imag() < RL(0.0)) kzP = -kzP;
             f = kzP;
             g = hs.rho;
         }
@@ -157,8 +157,8 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
             g.real(), g.imag(), Refl.real(), Refl.imag());
         */
         
-        if(STD::abs(Refl) < RC(1.0e-5)){ // kill a ray that has lost its energy in reflection
-            newPoint.Amp   = RC(0.0);
+        if(STD::abs(Refl) < FL(1.0e-5)){ // kill a ray that has lost its energy in reflection
+            newPoint.Amp   = FL(0.0);
             newPoint.Phase = oldPoint.Phase;
         }else{
             newPoint.Amp   = STD::abs(Refl) * oldPoint.Amp;
@@ -167,11 +167,11 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
             // compute beam-displacement Tindle, Eq. (14)
             // needs a correction to beam-width as well ...
             // LP: most of these variables don't exist, likely very old code
-            // if(kz2Sq.real() < RC(0.0)){
-            //     rhoW = RC(1.0); // density of water
+            // if(kz2Sq.real() < FL(0.0)){
+            //     rhoW = FL(1.0); // density of water
             //     rhoWSq = rhoW * rhoW;
             //     rhoHSSq = rhoHS * rhoHS;
-            //     delta = RC(2.0) * gk * rhoW * rhoS * (kz1Sq - kz2Sq) /
+            //     delta = FL(2.0) * gk * rhoW * rhoS * (kz1Sq - kz2Sq) /
             //         (kz1 * i * kz2 *
             //             (-rhoWSq * kz2Sq + rhoHSSq * kz1Sq));
             //     rv[is+1] = rv[is+1] + delta;
@@ -183,17 +183,17 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
                 si = oldPoint.t.y * oldPoint.c;
                 ck = omega / oldPoint.c;
                 
-                a   = RC(2.0) * hs.rho * (RC(1.0) - SQ(ch));
+                a   = FL(2.0) * hs.rho * (FL(1.0) - SQ(ch));
                 b   = SQ(co) - SQ(ch);
                 d   = SQ(hs.rho) * SQ(si) + b;
                 sb  = STD::sqrt(b);
                 cco = SQ(co);
                 ssi = SQ(si);
                 
-                if(si != RC(0.0)){
+                if(si != FL(0.0)){
                     delta = a * co / si / (ck * sb * d); // Do we need an abs() on this???
                 }else{
-                    delta = RC(0.0);
+                    delta = FL(0.0);
                 }
                 
                 pdelta = delta.real() / (oldPoint.c / co);
@@ -203,12 +203,12 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
                 // that it may not be correct.
                 // Here is the original version with the weird spacing:
                 // ddelta = -a / (ck*sb*d) - a*cco / ssi / (ck*sb*d) + a*cco / (ck*b*sb*d)
-                //     -a*co / si / (ck*sb*d*d) * (RC(2.0)* SQ(hs.rho) *si*co-RC(2.0)*co*si);
+                //     -a*co / si / (ck*sb*d*d) * (FL(2.0)* SQ(hs.rho) *si*co-FL(2.0)*co*si);
                 // Here is a version with things factored better:
                 cpx cksbd = ck * sb * d;
                 ddelta = a * (cco / (cksbd * b)
-                    - (RC(1.0) + (cco / ssi)) / cksbd
-                    - RC(2.0) * SQ(co) * (SQ(hs.rho) - RC(1.0)) / (cksbd * d) );
+                    - (RL(1.0) + (cco / ssi)) / cksbd
+                    - FL(2.0) * SQ(co) * (SQ(hs.rho) - RL(1.0)) / (cksbd * d) );
                 rddelta = -ddelta.real();
                 sddelta = rddelta / STD::abs(rddelta);
                 
@@ -263,52 +263,9 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
 {
     // LP: This part from BellhopCore
     
-    float omega = RC(2.0) * REAL_PI * freqinfo->freq0;
-    vec2 xs = vec2(RC(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
+    float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
+    vec2 xs = vec2(FL(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
     
-    /*
-    // LP: BUG: BELLHOP does not reinitialize these between rays, so their
-    // initial state is the final state from the previous ray. Normally, the
-    // initial state should not really matter, but in many examples, sources
-    // are exactly on a boundary. Due to some greater-than-or-equal-to
-    // versus greater-than signs, BELLHOP only searches for a new segment when
-    // the point is strictly outside the current segment, but when searching
-    // it uses a half-open interval. This means that if the initial state is
-    // 0, it will stay with segment 0 for the first step, but if the initial
-    // state is nonzero, it will move to segment 1 for the first step. This 
-    // means there may or may not be one extra very small step at the beginning,
-    // depending on what happened in previous rays.
-    // Normally, this extra step would change very little about the results,
-    // but in TL SGB mode, there is *another* bug (acknowledged by mbp) that
-    // all steps are assumed to be of the default step size. Thus, adding one
-    // extra very small step actually means adding one full-size step, which
-    // substantially changes the results.
-    // In bellhopcxx / bellhopcuda, we *cannot* have one ray's initial state be
-    // dependent on another's final state, because they are processed in 
-    // parallel (besides this being physically absurd). So instead, we assume
-    // that ray 0 has properly initialized states, but all later rays get
-    // initial states which are different from their correct segment, and so
-    // they move and use the half-open search. This still does not match 100%
-    // though, since hypothetically one ray could end in the same segment as the
-    // next one starts, leading to the fully closed interval being used in
-    // BELLHOP and possibly edge cases being different.
-    if((isrc == 0 && ialpha == 0) || ssp->NPts <= 1){
-        iSegz = 0;
-    }else{
-        // This will always be the wrong initial state (and therefore cause a
-        // move using the half-open interval, like BELLHOP) unless xs.y == 
-        // ssp->z[1], in which case it will be 1 but also not cause a move and
-        // therefore stay 1. This should always produce results matching BELLHOP
-        // as long as the previous ray really did end in some higher segment.
-        iSegz = (xs.y <= ssp->z[1]) ? 1 : 0;
-    }
-    if((isrc == 0 && ialpha == 0) || ssp->Nr <= 1){
-        iSegr = 0;
-    }else{
-        // Same thing except xs.x is always 0.
-        iSegr = (xs.x <= ssp->Seg.r[1]) ? 1 : 0;
-    }
-    */
     // LP: Changed in BELLHOP to just reinitialize before every ray.
     iSegz = iSegr = 0;
     
@@ -320,7 +277,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     EvaluateSSP(xs, tinit, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSegz, iSegr);
     
     // Are there enough beams?
-    real DalphaOpt = STD::sqrt(ccpx.real() / (RC(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
+    real DalphaOpt = STD::sqrt(ccpx.real() / (FL(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
     int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
     
     if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && ialpha == 0){
@@ -332,11 +289,11 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     
     // linear interpolation to get amplitude
     real s = (SrcDeclAngle - beaminfo->SrcBmPat[2*ibp+0]) / (beaminfo->SrcBmPat[2*(ibp+1)+0] - beaminfo->SrcBmPat[2*ibp+0]);
-    float Amp0 = (RC(1.0) - s) * beaminfo->SrcBmPat[2*ibp+1] + s * beaminfo->SrcBmPat[2*(ibp+1)+1]; // initial amplitude
+    float Amp0 = (FL(1.0) - s) * beaminfo->SrcBmPat[2*ibp+1] + s * beaminfo->SrcBmPat[2*(ibp+1)+1]; // initial amplitude
     
     // Lloyd mirror pattern for semi-coherent option
     if(Beam->RunType[0] == 'S')
-        Amp0 *= STD::sqrt(RC(2.0)) * STD::abs(STD::sin(omega / ccpx.real() * xs.y * STD::sin(alpha)));
+        Amp0 *= STD::sqrt(FL(2.0)) * STD::abs(STD::sin(omega / ccpx.real() * xs.y * STD::sin(alpha)));
         
     // LP: This part from TraceRay2D
     
@@ -345,16 +302,16 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
         /*.NumBotBnc =*/ 0,
         /*.x         =*/ xs,
         /*.t         =*/ tinit / ccpx.real(),
-        /*.p         =*/ vec2(RC(1.0), RC(0.0)),
-        /*.q         =*/ vec2(RC(0.0), RC(1.0)),
+        /*.p         =*/ vec2(FL(1.0), FL(0.0)),
+        /*.q         =*/ vec2(FL(0.0), FL(1.0)),
         /*.c         =*/ ccpx.real(),
         /*.Amp       =*/ Amp0,
-        /*.Phase     =*/ RC(0.0),
-        /*.tau       =*/ cpx(RC(0.0), RC(0.0)),
+        /*.Phase     =*/ FL(0.0),
+        /*.tau       =*/ cpx(FL(0.0), FL(0.0)),
     };
     // second component of qv is not used in geometric beam tracing
     // set I.C. to 0 in hopes of saving run time
-    if(Beam->RunType[1] == 'G') point0.q = vec2(RC(0.0), RC(0.0));
+    if(Beam->RunType[1] == 'G') point0.q = vec2(FL(0.0), FL(0.0));
     
     IsegTop = 0; IsegBot = 0;
     GetTopSeg(xs.x, point0.t.x, IsegTop, rTopSeg, bdinfo); // identify the top    segment above the source
@@ -377,7 +334,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
         dEndTop_temp, dEndBot_temp,
         bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistBegTop, DistBegBot);
         
-    if(DistBegTop <= RC(0.0) || DistBegBot <= RC(0.0)){
+    if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)){
         printf("Terminating the ray trace because the source is on or outside the boundaries\n");
         // printf("xs (%g,%g) Bot.x (%g,%g) Bot.n (%g,%g) DistBegBot %g\n",
         //     xs.x, xs.y,
@@ -408,15 +365,15 @@ HOST_DEVICE inline int32_t RayUpdate(
         freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr, topRefl, botRefl);
     
     // New altimetry segment?
-    if(    point1.x.x < rTopSeg.x || (point1.x.x == rTopSeg.x && point1.t.x < RC(0.0))
-        || point1.x.x > rTopSeg.y || (point1.x.x == rTopSeg.y && point1.t.x >= RC(0.0))){
+    if(    point1.x.x < rTopSeg.x || (point1.x.x == rTopSeg.x && point1.t.x < FL(0.0))
+        || point1.x.x > rTopSeg.y || (point1.x.x == rTopSeg.y && point1.t.x >= FL(0.0))){
         GetTopSeg(point1.x.x, point1.t.x, IsegTop, rTopSeg, bdinfo);
         if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs); // grab the geoacoustic info for the new segment
     }
     
     // New bathymetry segment?
-    if(    point1.x.x < rBotSeg.x || (point1.x.x == rBotSeg.x && point1.t.x < RC(0.0))
-        || point1.x.x > rBotSeg.y || (point1.x.x == rBotSeg.y && point1.t.x >= RC(0.0))){
+    if(    point1.x.x < rBotSeg.x || (point1.x.x == rBotSeg.x && point1.t.x < FL(0.0))
+        || point1.x.x > rBotSeg.y || (point1.x.x == rBotSeg.y && point1.t.x >= FL(0.0))){
         GetBotSeg(point1.x.x, point1.t.x, IsegBot, rBotSeg, bdinfo);
         if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
     }
@@ -441,8 +398,8 @@ HOST_DEVICE inline int32_t RayUpdate(
         // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
         if((topRefl ? bdinfo->atiType[0] : bdinfo->btyType[0]) == 'C'){
             real sss = glm::dot(dEnd, bd0->t) / bd0->Len; // proportional distance along segment
-            nInt = (RC(1.0) - sss) * bd0->Noden + sss * bd1->Noden;
-            tInt = (RC(1.0) - sss) * bd0->Nodet + sss * bd1->Nodet;
+            nInt = (FL(1.0) - sss) * bd0->Noden + sss * bd1->Noden;
+            tInt = (FL(1.0) - sss) * bd0->Nodet + sss * bd1->Nodet;
         }else{
             nInt = bd0->n; // normal is constant in a segment
             tInt = bd0->t;
@@ -474,9 +431,9 @@ HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int3
 {
     bool leftbox = STD::abs(point.x.x) > Beam->Box.r ||
                    STD::abs(point.x.y) > Beam->Box.z;
-    bool lostenergy = point.Amp < RC(0.005);
-    bool escapedboundaries = (DistBegTop < RC(0.0) && DistEndTop < RC(0.0)) ||
-                             (DistBegBot < RC(0.0) && DistEndBot < RC(0.0));
+    bool lostenergy = point.Amp < FL(0.005);
+    bool escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0)) ||
+                             (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
     //bool backward = ray2D[is+1].t.x < 0; // this last test kills off a backward traveling ray
     if(leftbox || lostenergy || escapedboundaries // || backward
     ){

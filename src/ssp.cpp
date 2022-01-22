@@ -40,9 +40,9 @@ void ReadSSP(READ_SSP_ARGS)
                                    (ssp->z[iz] - ssp->z[iz-1]);
         
         // Did we read the last point?
-        if(std::abs(ssp->z[iz] - Depth) < RC(100.0) * REAL_EPSILON){
+        if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
             // LP: Gradient at iz is uninitialized.
-            ssp->cz[iz] = cpx(RC(5.5555555e30), RC(-3.3333333e29)); // LP: debugging
+            ssp->cz[iz] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP: debugging
             
             ssp->Nz = ssp->NPts;
             if(ssp->NPts == 1){
@@ -66,7 +66,7 @@ void Initn2Linear(SSP_INIT_ARGS)
     real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     
-    for(int32_t i=0; i<ssp->NPts; ++i) ssp->n2[i] = RC(1.0) / SQ(ssp->c[i]);
+    for(int32_t i=0; i<ssp->NPts; ++i) ssp->n2[i] = FL(1.0) / SQ(ssp->c[i]);
     
     // compute gradient, n2z
     for(int32_t iz=1; iz<ssp->NPts; ++iz){
@@ -135,7 +135,7 @@ void InitQuad(SSP_INIT_ARGS)
     for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->Seg.r[i] << " ";
     PRTFile << "\n";
     
-    for(int32_t i=0; i<ssp->Nr; ++i) ssp->Seg.r[i] *= RC(1000.0); // convert km to m
+    for(int32_t i=0; i<ssp->Nr; ++i) ssp->Seg.r[i] *= FL(1000.0); // convert km to m
     
     PRTFile << "\nSound speed matrix:\n";
     PRTFile << " Depth (m )     Soundspeed (m/s)\n";
@@ -175,7 +175,7 @@ void InitializeSSP(SSP_INIT_ARGS)
     /* case 'H':
         // this is called by BELLHOP3D only once, during READIN
         // possibly the logic should be changed to call EvaluateSSP2D or 3D
-        x3 = vec3(RC(0.0), RC(0.0), x.y);
+        x3 = vec3(RL(0.0), RL(0.0), x.y);
         InitHexahedral(x3, freq, ssp); break; */
     case 'A': // Analytic profile option
         break; //LP: No init for analytic.
