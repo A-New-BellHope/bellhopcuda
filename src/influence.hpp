@@ -290,6 +290,20 @@ HOST_DEVICE inline int32_t RToIR(real r, const Position *Pos)
     return math::max(math::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0);
 }
 
+HOST_DEVICE inline real FlipBeamForImage(real xy, int32_t image, const BdryType *Bdry)
+{
+    if(image == 1){ // True beam
+        return xy;
+    }else if(image == 2){ // Surface-reflected beam
+        return FL(2.0) * Bdry->Top.hs.Depth - xy;
+    }else if(image == 3){ // Bottom-reflected beam
+        return FL(2.0) * Bdry->Bot.hs.Depth - xy;
+    }else{
+        printf("Image index %d must be 1, 2, or 3\n", image);
+        bail();
+    }
+}
+
 HOST_DEVICE inline void Compute_N_R_IR(real &n, real &r, int32_t &ir,
     real xx, real xy, real zn, real rn, real zR, const Position *Pos)
 {
@@ -326,10 +340,6 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
     const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
-    if(Beam->Type[0] == 'R' || Beam->Type[0] == 'C'){
-        inflray.epsilon = PickEpsilon(Beam->Type[0], Beam->Type[1], inflray.omega,
-            point0.c, gradc, alpha, Angles->Dalpha, Beam->rLoop, Beam->epsMultiplier);
-    }
     inflray.freq0 = freqinfo->freq0;
     inflray.omega = FL(2.0) * REAL_PI * inflray.freq0;
     // LP: The 5x version is changed to 50x on both codepaths before it is used.
@@ -352,6 +362,11 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
         }
     }else{
         inflray.Ratio1 = RL(1.0); // line source
+    }
+    if(Beam->Type[0] == 'R' || Beam->Type[0] == 'C'){
+        inflray.epsilon = PickEpsilon(Beam->Type[0], Beam->Type[1], inflray.omega,
+            point0.c, gradc, alpha, Angles->Dalpha, Beam->rLoop, Beam->epsMultiplier);
+        // printf("Picked epsilon (%20.17f,%20.17f)\n", inflray.epsilon.real(), inflray.epsilon.imag());
     }
     
     // LP: For all except Cerveny
@@ -460,27 +475,13 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
         zR = Pos->Rz[iz];
         
         for(int32_t image=1; image <= Beam->Nimage; ++image){
-            real tempz = point1.x.y;
-            real temprn = rn;
-            // LP: BUG: The original code inverted rn for beam 2 and inverted it
-            // again for beam 3, meaning that if Beam->Nimage is set to 2, rn will
-            // be inverted for every other step.
-            if(image == 1){ // True beam
-                (void)0;
-            }else if(image == 2){ // Surface-reflected beam
-                tempz = FL(2.0) * Bdry->Top.hs.Depth - tempz;
-                temprn = -temprn;
-            }else if(image == 3){ // Bottom-reflected beam
-                tempz = FL(2.0) * Bdry->Bot.hs.Depth - tempz;
-            }else{
-                printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
-                bail();
-            }
+            real Polarity = (image == 2) ? RL(-1.0) : RL(1.0);
             real nA, rA, nB, rB;
             int32_t ir1, ir2; // LP: mbp switches from A/B naming to 1/2 here.
-            Compute_N_R_IR(nB, rB, ir2, point1.x.x, tempz, zn, temprn, zR, Pos);
-            Compute_N_R_IR(nA, rA, ir1, inflray.x.x, inflray.x.y, inflray.zn, 
-                inflray.rn, zR, Pos);
+            Compute_N_R_IR(nB, rB, ir2, point1.x.x, FlipBeamForImage(point1.x.y, image, Bdry),
+                zn, rn * Polarity, zR, Pos);
+            Compute_N_R_IR(nA, rA, ir1, inflray.x.x, FlipBeamForImage(inflray.x.y, image, Bdry),
+                inflray.zn, inflray.rn * Polarity, zR, Pos);
             
             if(inflray.lastValid && ir1 < ir2){
                 for(int32_t ir=ir1+1; ir<=ir2; ++ir){
@@ -506,6 +507,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                         cpx P_s = -J * inflray.omega / c         * contri;
                         switch(Beam->Component){
                         case 'P': // pressure
+                            break;
                         case 'V': // vertical component
                             contri = c * (P_n * point1.t.x + P_s * point1.t.y);
                             break;
@@ -524,6 +526,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                             contri = contri * STD::conj(contri);
                         }
                         
+                        // printf("iz ir is contri %d %d %d (%20.17f,%20.17f)\n", iz, ir, is, contri.real(), contri.imag());
                         AtomicAddCpx(&u[iz*Pos->NRr+ir], Cpx2Cpxf(
                             Hermite(n, inflray.RadMax, FL(2.0) * inflray.RadMax) * contri));
                     }
@@ -804,7 +807,10 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     }
     
     // depth limits of beam
-    if(STD::abs(rayt.x) > FL(0.5)){ // shallow angle ray
+    // LP: For rays shot at exactly 60 degrees, they will hit this edge case.
+    // This is a sharp edge--the handling on each side of this edge may be
+    // significantly different. So, moved the edge away from the round number.
+    if(STD::abs(rayt.x) > FL(0.50001)){ // shallow angle ray
         zmin = math::min(point0.x.y, point1.x.y) - RadiusMax;
         zmax = math::max(point0.x.y, point1.x.y) + RadiusMax;
     }else{ // steep angle ray
@@ -822,7 +828,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
         // LP: Because of the new setup and always incrementing regardless of
         // which direction the ray goes, we only have to check this side.
         if(Pos->Rr[inflray.ir] >= math::min(rA, rB) && Pos->Rr[inflray.ir] < math::max(rA, rB)){
-            // printf("  rA %g rB %g\n", rA, rB);
+            // printf("  rA %20.17f rB %20.17f\n", rA, rB);
             
             //printf("ir %d\n", inflray.ir+1);
             //++inflray.testNumIters;
@@ -849,9 +855,9 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                 }
                 
                 if(n < beamWCompare){ // Within beam window?
-                    if(inflray.ir >= 18 && inflray.ir <= 22){
-                        printf("    iz sigma tau %d %g %20.17f\n", iz, sigma, point1.tau.real());
-                    }
+                    // if(inflray.ir >= 0 && inflray.ir <= 2){
+                    //     printf("    iz n sigma %d %20.17f %20.17f\n", iz, n, sigma);
+                    // }
                     delay = point0.tau + s * dtauds; // interpolated delay
                     if(STD::abs(q) == RL(0.0)){
                         vec2 dx = x_rcvr - x_ray;

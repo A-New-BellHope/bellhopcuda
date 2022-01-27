@@ -6,15 +6,6 @@ calibB_Cerveny
 MunkB_Coh_CervenyC
 MunkB_Coh_cpp
 //
-//Cerveny ray-centered:
-arcticB_cpp
-DickinsCervenyB
-freeLine_ParaxialB
-freePoint_ParaxialB
-GulfB_ri_Cerveny
-MunkB_Coh_CervenyR
-MunkB_gbt
-//
 //
 //Geom Gaussian cart:
 aet_VLA_B

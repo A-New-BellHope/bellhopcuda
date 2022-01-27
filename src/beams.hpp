@@ -151,6 +151,11 @@ inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
             PRTFile << "Range for choosing beam width " << Beam->rLoop << "\n";
             
             // Images, windows
+            // LP: These values are not initialized if not written in the file,
+            // and Component is not always written in the test env files.
+            Beam->Nimage = 1;
+            Beam->iBeamWindow = 4;
+            Beam->Component = 'P';
             LIST(ENVFile); ENVFile.Read(Beam->Nimage); ENVFile.Read(Beam->iBeamWindow); ENVFile.Read(Beam->Component);
             PRTFile << "\nNumber of images, Nimage  = " << Beam->Nimage << "\n";
             PRTFile << "Beam windowing parameter  = " << Beam->iBeamWindow << "\n";

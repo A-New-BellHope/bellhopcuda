@@ -286,9 +286,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // reduce h to land on boundary
     ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
         Beam, ssp, h, iSmallStepCtr);
-    
-    // printf("out h %g\n", h);
-    
+    // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
     ray1.x = ray0.x + halfh * urayt0;
@@ -296,7 +294,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray1.p = ray0.p - halfh * cnn0_csq0    * ray0.q;
     ray1.q = ray0.q + halfh * ccpx0.real() * ray0.p;
     
-    // printf("ray1 x t p q (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    // printf("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
     //   ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     /*
@@ -350,7 +348,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RL(2.0) * halfh);
     w0  = RL(1.0) - w1;
-    // printf("w1 %g w0 %g\n", w1, w0);
+    // printf("w1 %20.17f w0 %20.17f\n", w1, w0);
     vec2 urayt2   =  w0 * urayt0                + w1 * urayt1;
     vec2 unitdt   = -w0 * gradc0 / csq0         - w1 * gradc1 / csq1;
     vec2 unitdp   = -w0 * cnn0_csq0    * ray0.q - w1 * cnn1_csq1    * ray1.q;
