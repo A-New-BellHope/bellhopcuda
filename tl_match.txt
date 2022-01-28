@@ -1,5 +1,5 @@
 //
-//Coherent, results match
+//Coherent
 //
 //Cerveny ray-centered:
 arcticB_cpp
@@ -51,3 +51,11 @@ step
 MunkB_Coh_SGB
 MunkB_Coh_SGB_twobeams
 // 
+//
+//Semi-coherent
+MunkB_Semi_gb
+//
+//
+//Incoherent
+free_gbtB_Inc
+MunkB_Inc_gb

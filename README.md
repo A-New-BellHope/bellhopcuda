@@ -7,18 +7,11 @@ and `STD` macros faciliate this; most of the code transparently uses either.
 
 Also, bellhopcuda is set up to be built with single-precision or double-
 precision. The `real` type is the selected type (float or double) and the `cpx`
-type is complex numbers of this same precision. The `RC` macro ("real constant")
-transforms floating-point literals to the appropriate precision, by adding `f`
-if in single-precision mode. Due to C/C++ type casting rules which generally
-require floating-point arithmetic to be performed in the widest type of the
-input values, if a double-precision literal is used in a CUDA kernel, CUDA may
-emit double-precision instructions around this literal and destroy the kernel
-performance. Strictly speaking, this may not be needed in all cases (e.g.
-`float f = 0.0;` and `f *= 2.0;` will probably not emit double-precision
-instructions, as the results should always be bitwise identical whether the
-operations were performed in 32-bit precision or performed in 64-bit precision
-and then typecasted), but for consistency it should be used on every floating-
-point literal.
+type is complex numbers of this same precision. The `RL` ("real literal") and
+`FL` ("float literal") macros transform floating-point literals to the
+appropriate precision, by adding `f` if in single-precision mode. See further
+discussion of literal types and the impact on correctness and performance in
+`src/common.hpp`.
 
 ## Comments
 Unattributed comments in all translated code are copied directly from the original

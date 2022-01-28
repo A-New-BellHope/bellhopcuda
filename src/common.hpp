@@ -109,7 +109,7 @@ using real = double;
 #endif
 
 // BELLHOP uses mostly normal REAL literals, which are float despite most of the
-// program using REAL*8 (double. It occasionally uses double-precision literals
+// program using REAL*8 (double). It occasionally uses double-precision literals
 // (look like 1.6D-9). For values exactly expressible in both types, e.g. 0.0,
 // 1.0, 2.0, 37.0, 0.375, it doesn't matter which type the literal is--except
 // that when running in float mode, double-precision literals may cause the
@@ -117,7 +117,7 @@ using real = double;
 // precision instructions to be emitted on CUDA. However, for values not
 // expressable as float, e.g. 0.1, the literal type changes the result:
 // double d = bar(); float f = foo();
-// assert(d * 0.1 == d * 0.1f); //will fail for nearly all d
+// assert(d * 0.1 == d * 0.1f); //will fail for all d except 0, inf, etc.
 // assert((float)(f * 0.1) == f * 0.1f); //will fail for some f
 //
 // "Real literal"

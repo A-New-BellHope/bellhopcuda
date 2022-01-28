@@ -153,7 +153,8 @@ HOST_DEVICE inline void ApplyContribution(real cnst, real w,
         break;
     default:
         // incoherent/semicoherent TL
-        real v = STD::pow(cnst * STD::exp((omega * delay).imag()), FL(2.0) * w);
+        real v = cnst * STD::exp((omega * delay).imag());
+        v = SQ(v) * w;
         if(Beam->Type[0] == 'B'){
             // Gaussian beam
             v *= STD::sqrt(FL(2.0) * REAL_PI);
