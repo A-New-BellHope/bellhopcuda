@@ -119,7 +119,8 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
         DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
         Bdry, ConstBdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) return;
     
-    Init_Influence(inflray, point0, Angles->alpha[ialpha], gradc, Pos, Angles, freqinfo, Beam);
+    Init_Influence(inflray, point0, Angles->alpha[ialpha], gradc, Pos, ssp,
+        iSegz, iSegr, Angles, freqinfo, Beam);
     
     cpxf *u = &uAllSources[isrc * inflray.NRz_per_range * Pos->NRr];
     int32_t iSmallStepCtr = 0;

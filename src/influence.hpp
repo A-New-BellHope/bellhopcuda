@@ -333,12 +333,40 @@ HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
     qB = point.q.x + eps * point.q.y;
 }
 
+/**
+ * Form gamma
+ */
+HOST_DEVICE inline cpx Compute_gamma(const ray2DPt &point, const cpx &pB, const cpx &qB,
+    const InfluenceRayInfo &inflray, const SSPStructure *ssp,
+    int32_t &iSegz, int32_t &iSegr)
+{
+    vec2 rayt = point.c * point.t; // unit tangent
+    vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
+    
+    cpx ccpx; vec2 gradc; real crr, crz, czz, rho;
+    EvaluateSSP(point.x, point.t, ccpx, gradc, crr, crz, czz, rho, inflray.freq0, ssp, iSegz, iSegr);
+    
+    real csq = SQ(ccpx.real());
+    real cS = glm::dot(gradc, rayt);
+    real cN = glm::dot(gradc, rayn);
+    
+    real Tr = rayt.x;
+    real Tz = rayt.y;
+    
+    if(qB != RL(0.0)){
+        return FL(0.5) * (pB / qB * SQ(Tr) + 
+            FL(2.0) * cN / csq * Tz * Tr - cS / csq * SQ(Tz));
+    }else{
+        return FL(0.0);
+    }
+}
+
 // 
 
 HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
     const ray2DPt &point0, real alpha, vec2 gradc,
-    const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam)
+    const Position *Pos, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr,
+    const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     inflray.freq0 = freqinfo->freq0;
     inflray.omega = FL(2.0) * REAL_PI * inflray.freq0;
@@ -419,9 +447,15 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
         if(point0.t.x < RL(0.0) && inflray.ir > 0) --inflray.ir; // if ray is left-traveling, get the first receiver to the left of rA
     }
     
-    // LP: For Cerveny cart
-    // TODO: Cannot initialize correctly for now
-    inflray.gamma = cpx(RL(1000000.0), RL(1000000.0));
+    if(Beam->Type[0] == 'C'){
+        // LP: For Cerveny cart
+        cpx eps0, pB0, qB0;
+        Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
+        inflray.gamma = Compute_gamma(point0, pB0, qB0, inflray, ssp, iSegz, iSegr);
+    }else{
+        // LP: not used
+        inflray.gamma = RL(0.0);
+    }
     
     inflray.testNumIters = 0;
 }
@@ -543,7 +577,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
 }
 
 /**
- * Paraxial (Cerveny-style) beams in ray-centered coordinates
+ * Paraxial (Cerveny-style) beams in Cartesian coordinates
  */
 HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
@@ -563,31 +597,20 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     
     // Form gamma and KMAH index
     // Treatment of KMAH index is incorrect for 'Cerveny' style beam width BeamType
-    vec2 rayt = point1.c * point1.t; // unit tangent
-    vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
-    cpx ccpx; vec2 gradc; real crr, crz, czz, rho;
-    EvaluateSSP(point1.x, point1.t, ccpx, gradc, crr, crz, czz, rho, inflray.freq0, ssp, iSegz, iSegr);
-    
-    real csq = SQ(ccpx.real());
-    real cS = glm::dot(gradc, rayt);
-    real cN = glm::dot(gradc, rayn);
-    
-    real Tr = rayt.x;
-    real Tz = rayt.y;
-    
-    // LP: TODO: the initialization of this is broken
-    gamma1 = FL(0.0);
-    if(qB1 != RL(0.0)) gamma1 = FL(0.5) * (pB1 / qB1 * SQ(Tr) + 
-        FL(2.0) * cN / csq * Tz * Tr - cS / csq * SQ(Tz));
     gamma0 = inflray.gamma;
+    gamma1 = Compute_gamma(point1, pB1, qB1, inflray, ssp, iSegz, iSegr);
     inflray.gamma = gamma1;
         
     int32_t old_kmah = inflray.kmah;
     BranchCut(qB0, qB1, Beam->Type, inflray.kmah);
     
-    if(is < 2) return true; // LP: Skips the first valid pair, which here would be is=1.
-    if(point1.x.x > Pos->Rr[Pos->NRr-1]) return false; // LP: Terminates ray
+    if(is == 0) return true; // LP: Skips the first valid pair.
+    // LP: Terminates ray. BUG: Assumes rays may never travel left.
+    if(point1.x.x > Pos->Rr[Pos->NRr-1]){
+        // printf("Ray is to the right of last receiver, stopping trace\n");
+        return false;
+    }
     real rA = point0.x.x;
     real rB = point1.x.x;
     if(IsDuplicatePoint(point0, point1)) return true; // don't process duplicate points
@@ -598,10 +621,11 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     int32_t irB = RToIR(rB, Pos);
     
     if(irA >= irB) return true;
+    // printf("is, ir range %d %d %d\n", is, irA, irB);
     
     for(int32_t ir=irA+1; ir<=irB; ++ir){
         real w, c;
-        vec2 x;
+        vec2 x, rayt;
         cpx q, tau, gamma, cnst;                
         w     = (Pos->Rr[ir] - rA) / (rB - rA);
         x     = point0.x   + w * (point1.x   - point0.x);
@@ -642,11 +666,13 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
                     printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
                     bail();
                 }
-                if(inflray.omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2)
+                if(inflray.omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2){
                     contri += Polarity * point1.Amp * 
                         Hermite(deltaz, inflray.RadMax, FL(2.0) * inflray.RadMax) *
                         STD::exp(-J * (inflray.omega * (
                             tau + rayt.y * deltaz + gamma * SQ(deltaz)) - point1.Phase));
+                    // printf("is ir iz contri %d %d %d (%g,%g)\n", is, ir, iz, contri.real(), contri.imag());
+                }
             }
             
             if(Beam->RunType[0] == 'C'){ // coherent
