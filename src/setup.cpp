@@ -9,7 +9,7 @@ void setup(std::string FileRoot,
     std::string &Title, real &fT,
     BdryType *&Bdry, BdryInfo *&bdinfo, ReflectionInfo *&refl, SSPStructure *&ssp,
     AttenInfo *&atten, Position *&Pos, AnglesStructure *&Angles, FreqInfo *&freqinfo, 
-    BeamStructure *&Beam, BeamInfo *&beaminfo, EigenInfo *&eigen)
+    BeamStructure *&Beam, BeamInfo *&beaminfo, EigenInfo *&eigen, ArrInfo *&arrinfo)
 {
     PRTFile.open(FileRoot + ".prt");
     if(!PRTFile.good()){
@@ -30,6 +30,7 @@ void setup(std::string FileRoot,
     Beam = allocate<BeamStructure>();
     beaminfo = allocate<BeamInfo>();
     eigen = allocate<EigenInfo>();
+    arrinfo = allocate<ArrInfo>();
     HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
     
     // Set pointers to null because BELLHOP checks if some of them are allocated
@@ -57,6 +58,8 @@ void setup(std::string FileRoot,
     freqinfo->freqVec = nullptr;
     beaminfo->SrcBmPat = nullptr;
     eigen->hits = nullptr;
+    arrinfo->Arr = nullptr;
+    arrinfo->NArr = nullptr;
     
     // Fill in default / "constructor" data
     fT = RL(1.0e20);
@@ -86,6 +89,7 @@ void setup(std::string FileRoot,
     //beaminfo: none
     eigen->neigen = 0;
     eigen->memsize = 0;
+    arrinfo->MaxNArr = 1;
     RecycledHS.alphaR = FL(1500.0);
     RecycledHS.betaR = FL(0.0);
     RecycledHS.alphaI = FL(0.0);

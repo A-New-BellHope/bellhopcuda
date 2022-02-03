@@ -156,30 +156,3 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     
     //printf("Nsteps %d\n", Nsteps);
 }
-
-//TODO 
-/*
-
-switch(Beam->RunType[0]){
-case 'A':
-case 'a':
-    arrinfo->MaxNArr = math::max(ArrivalsStorage / (inflinfo->NRz_per_range * Pos->NRr), MinNArr);
-    PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
-    break;
-default:
-    arrinfo->MaxNArr = 1;
-    arrinfo->arr = allocate<TODO>(inflinfo->NRz_per_range * Pos->NRr * 1);
-    arrinfo->NArr = allocate<int32_t>(inflinfo->NRz_per_range * Pos->NRr);
-}
-
-memset(arrinfo->NArr, 0, inflinfo->NRz_per_range * Pos->NRr * sizeof(int32_t));
-
-switch(Beam->RunType[0]){
-
-case 'A':
-case 'a':
-    // Arrivals calculation, zero out arrival matrix
-    memset(arrinfo->Narr, 0, TODO);
-    break;
-}
-*/
