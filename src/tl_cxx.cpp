@@ -22,13 +22,14 @@ AnglesStructure *Angles;
 FreqInfo *freqinfo;
 BeamStructure *Beam;
 BeamInfo *beaminfo;
+EigenInfo *eigen;
 
-std::atomic<int32_t> jobID;
+static std::atomic<int32_t> jobID;
 
 
 // Ray mode
 
-std::mutex rayfilemutex;
+static std::mutex rayfilemutex;
 
 void RayModeWorker()
 {
@@ -41,20 +42,14 @@ void RayModeWorker()
         memset(ray2D, 0xFE, MaxN*sizeof(ray2DPt)); //Set to garbage values for debugging
         
         real SrcDeclAngle;
-        int32_t Nsteps = -1; //compiler claims may not be initialized, but heuristics wrong
-        MainRayMode(isrc, ialpha, SrcDeclAngle, ray2D, Nsteps, 
+        int32_t Nsteps = -1;
+        MainRayMode(isrc, ialpha, SrcDeclAngle, ray2D, Nsteps,
             Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
         
-        if(Beam->RunType[0] == 'R'){
-            // Write the ray trajectory to RAYFile
-            rayfilemutex.lock();
-            WriteRay2D(SrcDeclAngle, Nsteps, RAYFile, Bdry, ray2D);
-            rayfilemutex.unlock();
-        }else{
-            // Compute the contribution to the field
-            std::cout << "TODO Influence not yet implemented\n";
-            std::abort();
-        }
+        // Write the ray trajectory to RAYFile
+        rayfilemutex.lock();
+        WriteRay2D(SrcDeclAngle, Nsteps, RAYFile, Bdry, ray2D);
+        rayfilemutex.unlock();
     }
     delete[] ray2D;
 }
@@ -63,7 +58,7 @@ void RayModeWorker()
 
 cpxf *uAllSources;
 
-void TLModeWorker()
+void FieldModesWorker()
 {
     while(true){
         int32_t job = jobID++;
@@ -71,8 +66,8 @@ void TLModeWorker()
         if(!GetJobIndices(isrc, ialpha, job, Pos, Angles)) break;
         
         real SrcDeclAngle;
-        MainTLMode(isrc, ialpha, SrcDeclAngle, uAllSources,
-            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
+        MainFieldModes(isrc, ialpha, SrcDeclAngle, uAllSources,
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen);
     }
 }
 
@@ -109,10 +104,9 @@ int main(int argc, char **argv)
         std::cout << "Must provide FileRoot as command-line parameter\n";
         std::abort();
     }
-    //std::cout << "Setup\n";
     
     setup(FileRoot, PRTFile, RAYFile, ARRFile, SHDFile, Title, fT,
-        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);   
+        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen);   
      
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : math::max(std::thread::hardware_concurrency(), 1u);
@@ -128,15 +122,26 @@ int main(int argc, char **argv)
         // TL mode
         InitTLMode(uAllSources, Pos, Beam);
         
-        //std::cout << "Run\n";
         Stopwatch sw;
         sw.tick();
-        for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(TLModeWorker));
+        for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(FieldModesWorker));
         for(uint32_t i=0; i<cores; ++i) threads[i].join();
         sw.tock();
         
-        //std::cout << "Output\n";
         FinalizeTLMode(uAllSources, SHDFile, ssp, Pos, Angles, freqinfo, Beam);
+    }else if(Beam->RunType[0] == 'E'){
+        // Eigenrays mode
+        InitEigenMode(eigen);
+        uAllSources = nullptr;
+        
+        Stopwatch sw;
+        sw.tick();
+        for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(FieldModesWorker));
+        for(uint32_t i=0; i<cores; ++i) threads[i].join();
+        sw.tock();
+        
+        FinalizeEigenMode(Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam,
+            beaminfo, eigen, RAYFile, singlethread);
     }else{
         std::cout << "Not yet implemented RunType " << Beam->RunType[0] << "\n";
         std::abort();

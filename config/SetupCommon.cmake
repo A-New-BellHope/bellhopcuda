@@ -50,6 +50,8 @@ set(COMMON_SOURCE
     boundary.hpp
     common.hpp
     curves.hpp
+    eigenrays.cpp
+    eigenrays.hpp
     influence.hpp
     ldio.hpp
     main.hpp

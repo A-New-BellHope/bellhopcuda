@@ -51,6 +51,10 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(RayTerminate(ray2D[is], Nsteps, is, DistBegTop, DistBegBot,
             DistEndTop, DistEndBot, Beam)) break;
+        if(Nsteps >= 0 && is > Nsteps){
+            Nsteps = is + 1;
+            break;
+        }
     }
 }
 
@@ -95,13 +99,14 @@ inline void FinalizeTLMode(cpxf *&uAllSources, DirectOFile &SHDFile,
 }
 
 /**
- * Main ray tracing function for TL / field output modes.
+ * Main ray tracing function for TL, eigen, and arrivals runs.
  */
-HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
+HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
     cpxf *uAllSources,
     const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
+    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
+    EigenInfo *eigen)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     int32_t IsegTop, IsegBot, iSegz, iSegr;
@@ -111,16 +116,12 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
     ray2DPt point0, point1, point2;
     InfluenceRayInfo inflray;
     
-    //if(ialpha != 489) return;
-    
-    //printf("isrc %d ialpha %d\n", isrc, ialpha);
-    
     if(!RayInit(isrc, ialpha, SrcDeclAngle, point0, gradc,
         DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
         Bdry, ConstBdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) return;
     
-    Init_Influence(inflray, point0, Angles->alpha[ialpha], gradc, Pos, ssp,
-        iSegz, iSegr, Angles, freqinfo, Beam);
+    Init_Influence(inflray, point0, isrc, ialpha, Angles->alpha[ialpha], gradc,
+        Pos, ssp, iSegz, iSegr, Angles, freqinfo, Beam);
     
     cpxf *u = &uAllSources[isrc * inflray.NRz_per_range * Pos->NRr];
     int32_t iSmallStepCtr = 0;
@@ -133,14 +134,14 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
             IsegTop, IsegBot, rTopSeg, rBotSeg, iSmallStepCtr, iSegz, iSegr,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(!Step_Influence(point0, point1, inflray, is, u, 
-            ConstBdry, ssp, iSegz, iSegr, Pos, Beam)){
+            ConstBdry, ssp, iSegz, iSegr, Pos, Beam, eigen)){
             //printf("Step_Influence terminated ray\n");
             break;
         }
         ++is;
         if(dStep == 2){
             if(!Step_Influence(point1, point2, inflray, is, u, 
-                ConstBdry, ssp, iSegz, iSegr, Pos, Beam)) break;
+                ConstBdry, ssp, iSegz, iSegr, Pos, Beam, eigen)) break;
             point0 = point2;
             ++is;
         }else if(dStep == 1){
@@ -151,7 +152,6 @@ HOST_DEVICE inline void MainTLMode(int32_t isrc, int32_t ialpha, real &SrcDeclAn
         }
         if(RayTerminate(point0, Nsteps, is, DistBegTop, DistBegBot,
             DistEndTop, DistEndBot, Beam)) break;
-        //if(is >= 20) break;
     }
     
     //printf("Nsteps %d\n", Nsteps);

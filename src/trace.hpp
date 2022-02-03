@@ -261,8 +261,12 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
 {
-    // LP: This part from BellhopCore
+    if(isrc < 0 || ialpha < 0 || isrc >= Pos->NSz || ialpha >= Angles->Nalpha){
+        printf("Invalid isrc %d ialpha %d\n", isrc, ialpha);
+        bail();
+    }
     
+    // LP: This part from BellhopCore
     float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
     vec2 xs = vec2(FL(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
     

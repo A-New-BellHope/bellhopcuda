@@ -17,23 +17,26 @@ AnglesStructure *Angles;
 FreqInfo *freqinfo;
 BeamStructure *Beam;
 BeamInfo *beaminfo;
+EigenInfo *eigen;
 
 cpxf *uAllSources;
 
 __global__ void 
 __launch_bounds__(512, 1)
-TLModeKernel(cpxf *uAllSources_, 
+FieldModesKernel(cpxf *uAllSources_, 
     const BdryType *ConstBdry_, const BdryInfo *bdinfo_, const ReflectionInfo *refl_,
     const SSPStructure *ssp_, const Position *Pos_, const AnglesStructure *Angles_,
-    const FreqInfo *freqinfo_, const BeamStructure *Beam_, const BeamInfo *beaminfo_)
+    const FreqInfo *freqinfo_, const BeamStructure *Beam_, const BeamInfo *beaminfo_,
+    EigenInfo *eigen_)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
         int32_t isrc, ialpha;
         if(!GetJobIndices(isrc, ialpha, job, Pos_, Angles_)) break;
         
         real SrcDeclAngle;
-        MainTLMode(isrc, ialpha, SrcDeclAngle, uAllSources_,
-            ConstBdry_, bdinfo_, refl_, ssp_, Pos_, Angles_, freqinfo_, Beam_, beaminfo_);
+        MainFieldModes(isrc, ialpha, SrcDeclAngle, uAllSources_,
+            ConstBdry_, bdinfo_, refl_, ssp_, Pos_, Angles_, freqinfo_, Beam_,
+            beaminfo_, eigen_);
     }
 }
 
@@ -84,7 +87,7 @@ int main(int argc, char **argv)
     
     setupGPU();
     setup(FileRoot, PRTFile, RAYFile, ARRFile, SHDFile, Title, fT,
-        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);   
+        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen);   
     
     if(Beam->RunType[0] == 'R'){
         std::cout << "Ray runs not implemented in CUDA\n";
@@ -95,13 +98,26 @@ int main(int argc, char **argv)
         
         Stopwatch sw;
         sw.tick();
-        TLModeKernel<<<d_multiprocs,512>>>(uAllSources, 
-            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
-        syncAndCheckKernelErrors("TLModeKernel");
+        FieldModesKernel<<<d_multiprocs,512>>>(uAllSources, 
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen);
+        syncAndCheckKernelErrors("FieldModesKernel");
         sw.tock();
         
-        //std::cout << "Output\n";
         FinalizeTLMode(uAllSources, SHDFile, ssp, Pos, Angles, freqinfo, Beam);
+    }else if(Beam->RunType[0] == 'E'){
+        // Eigenrays mode
+        InitEigenMode(eigen);
+        uAllSources = nullptr;
+        
+        Stopwatch sw;
+        sw.tick();
+        FieldModesKernel<<<d_multiprocs,512>>>(uAllSources, 
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen);
+        syncAndCheckKernelErrors("FieldModesKernel");
+        sw.tock();
+        
+        FinalizeEigenMode(Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam,
+            beaminfo, eigen, RAYFile, false);
     }else{
         std::cout << "Not yet implemented RunType " << Beam->RunType[0] << "\n";
         std::abort();

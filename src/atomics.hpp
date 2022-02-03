@@ -115,3 +115,14 @@ template<typename REAL> HOST_DEVICE inline void AtomicAddCpx(STD::complex<REAL> 
     AtomicAddReal(&reinterpret_cast<REAL(&)[2]>(*ptr)[0], v.real());
     AtomicAddReal(&reinterpret_cast<REAL(&)[2]>(*ptr)[1], v.imag());
 }
+
+HOST_DEVICE inline uint32_t AtomicFetchAdd(uint32_t *ptr, uint32_t val)
+{
+    #ifdef __CUDA_ARCH__
+    return atomicAdd(ptr, val);
+    #elif defined(__GNUC__)
+    return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
+    #elif defined(_MSC_VER)
+    return InterlockedExchangeAdd(ptr, val);
+    #endif
+}

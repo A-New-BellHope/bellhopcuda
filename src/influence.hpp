@@ -19,6 +19,7 @@ struct InfluenceRayInfo {
     cpx gamma;
     int32_t testNumIters;
     // LP: Constants.
+    int32_t isrc, ialpha; // LP: Uniquely identifies the beam
     real q0;
     cpx epsilon; // beam constant
     real freq0, omega;
@@ -120,9 +121,10 @@ HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
         (q1 > FL(0.0) && q2 <= FL(0.0)) ) kmah = -kmah;
 }
 
-HOST_DEVICE inline void ApplyContribution(real cnst, real w,
-    real omega, cpx delay, real phaseInt, real SrcDeclAngle, real RcvrDeclAngle,
-    cpxf *u, const BeamStructure *Beam)
+HOST_DEVICE inline void ApplyContribution(
+    cpxf *u, real cnst, real w, real omega, cpx delay, real phaseInt,
+    real SrcDeclAngle, real RcvrDeclAngle, int32_t ir, int32_t iz, int32_t is,
+    const InfluenceRayInfo &inflray, const BeamStructure *Beam, EigenInfo *eigen)
 {
     if(!STD::isfinite(cnst) || !STD::isfinite(w) || !STD::isfinite(omega) 
         || !STD::isfinite(delay.real()) || !STD::isfinite(delay.imag()) || !STD::isfinite(phaseInt)){
@@ -134,9 +136,7 @@ HOST_DEVICE inline void ApplyContribution(real cnst, real w,
     switch(Beam->RunType[0]){
     case 'E':
         // eigenrays
-        printf("Eigenrays not yet supported\n");
-        bail();
-        //WriteRay2D(SrcDeclAngle, is);
+        RecordEigenHit(ir, iz, inflray.isrc, inflray.ialpha, is, eigen);
         break;
     case 'A':
     case 'a':
@@ -365,10 +365,12 @@ HOST_DEVICE inline cpx Compute_gamma(const ray2DPt &point, const cpx &pB, const 
 // 
 
 HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
-    const ray2DPt &point0, real alpha, vec2 gradc,
+    const ray2DPt &point0, int32_t isrc, int32_t ialpha, real alpha, vec2 gradc,
     const Position *Pos, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr,
     const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
+    inflray.isrc = isrc;
+    inflray.ialpha = ialpha;
     inflray.freq0 = freqinfo->freq0;
     inflray.omega = FL(2.0) * REAL_PI * inflray.freq0;
     // LP: The 5x version is changed to 50x on both codepaths before it is used.
@@ -695,7 +697,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
 HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
     int32_t is, cpxf *u, 
-    const Position *Pos, const BeamStructure *Beam)
+    const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen)
 {
     real RcvrDeclAngle;
     real dq, q, w, n, l, cnst, phaseInt;
@@ -759,9 +761,10 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
                 w     = (l - n) / l; // hat function: 1 on center, 0 on edge
                 phaseInt = BuggyFinalPhase(point0, inflray, q);
                 
-                ApplyContribution(cnst, w, inflray.omega, 
-                    delay, phaseInt, inflray.SrcDeclAngle, RcvrDeclAngle,
-                    &u[iz*Pos->NRr+ir], Beam);
+                ApplyContribution(&u[iz*Pos->NRr+ir], 
+                    cnst, w, inflray.omega, delay, phaseInt,
+                    inflray.SrcDeclAngle, RcvrDeclAngle, ir, iz, is, inflray,
+                    Beam, eigen);
             }
         }
     }
@@ -782,7 +785,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     bool isGaussian, 
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
     int32_t is, cpxf *u, 
-    const Position *Pos, const BeamStructure *Beam)
+    const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen)
 {
     const int32_t BeamWindow = 4; // beam window: kills beams outside e**(-0.5 * ibwin**2 )
     
@@ -903,9 +906,10 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                     }
                     phaseInt = BuggyFinalPhase((isGaussian ? point1 : point0), inflray, q);
                     
-                    ApplyContribution(cnst, w, inflray.omega, 
-                        delay, phaseInt, inflray.SrcDeclAngle, RcvrDeclAngle,
-                        &u[iz*Pos->NRr+inflray.ir], Beam);
+                    ApplyContribution(&u[iz*Pos->NRr+inflray.ir],
+                        cnst, w, inflray.omega, delay, phaseInt,
+                        inflray.SrcDeclAngle, RcvrDeclAngle, inflray.ir, iz, is,
+                        inflray, Beam, eigen);
                 }
             }
         }
@@ -933,7 +937,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
 HOST_DEVICE inline bool Step_InfluenceSGB(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
     int32_t is, cpxf *u,
-    const Position *Pos, const BeamStructure *Beam)
+    const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen)
 {
     real w;
     vec2 x, rayt;
@@ -981,11 +985,9 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
             //real Adeltaz = STD::abs(deltaz);
             //if(Adeltaz < inflray.RadMax){
                 if(Beam->RunType[0] == 'E'){ // eigenrays
-                    printf("Eigenrays not yet supported\n");
-                    bail();
-                    //WriteRay2D(inflray.SrcDeclAngle, is);
+                    RecordEigenHit(inflray.ir, iz, inflray.isrc, inflray.ialpha, is, eigen);
                 }else{ // coherent TL
-                    // LP: BUG: It may be incoherent or semi-coherent.
+                    // LP: BUG: It may be incoherent, semi-coherent, or arrivals.
                     real cpa = STD::abs(deltaz * (rB - rA)) / STD::sqrt(SQ(rB - rA) 
                         + SQ(point1.x.y - point0.x.y));
                     real ds = STD::sqrt(SQ(deltaz) - SQ(cpa));
@@ -1017,13 +1019,13 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
 }
 
 /**
- * LP: Returns whether to continue the ray, which is always true except in SGB.
+ * LP: Returns whether to continue the ray.
  */
 HOST_DEVICE inline bool Step_Influence(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
     int32_t is, cpxf *u,
     const BdryType *Bdry, const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr, 
-    const Position *Pos, const BeamStructure *Beam)
+    const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen)
 {
     switch(Beam->Type[0]){
     case 'R': return Step_InfluenceCervenyRayCen(
@@ -1031,11 +1033,11 @@ HOST_DEVICE inline bool Step_Influence(
     case 'C': return Step_InfluenceCervenyCart(
             point0, point1, inflray, is, u, Bdry, ssp, iSegz, iSegr, Pos, Beam);
     case 'g': return Step_InfluenceGeoHatRayCen(
-            point0, point1, inflray, is, u, Pos, Beam);
+            point0, point1, inflray, is, u, Pos, Beam, eigen);
     case 'S': return Step_InfluenceSGB(
-            point0, point1, inflray, is, u, Pos, Beam);
+            point0, point1, inflray, is, u, Pos, Beam, eigen);
     case 'B':
     default:  return Step_InfluenceGeoHatOrGaussianCart(Beam->Type[0] == 'B',
-            point0, point1, inflray, is, u, Pos, Beam);
+            point0, point1, inflray, is, u, Pos, Beam, eigen);
     }
 }
