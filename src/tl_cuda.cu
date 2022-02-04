@@ -2,7 +2,7 @@
 #include "main.hpp"
 #include "output.hpp"
 
-std::ofstream PRTFile, ARRFile;
+std::ofstream PRTFile;
 LDOFile RAYFile;
 DirectOFile SHDFile;
 std::string Title;
@@ -86,8 +86,9 @@ int main(int argc, char **argv)
     std::string FileRoot = argv[1];
     
     setupGPU();
-    setup(FileRoot, PRTFile, RAYFile, ARRFile, SHDFile, Title, fT,
+    setup(FileRoot, PRTFile, RAYFile, SHDFile, Title, fT,
         Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen);   
+    InitCommon(Pos, Beam);
     
     if(Beam->RunType[0] == 'R'){
         std::cout << "Ray runs not implemented in CUDA\n";

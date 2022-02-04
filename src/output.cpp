@@ -109,10 +109,9 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
 void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
     const BdryType *Bdry, const Position *Pos, const AnglesStructure *Angles, 
     const FreqInfo *freqinfo, const BeamStructure *Beam,
-    LDOFile &RAYFile, std::ofstream &ARRFile, DirectOFile &SHDFile)
+    LDOFile &RAYFile, DirectOFile &SHDFile)
 {
     real atten;
-    float freq;
     std::string PlotType;
     
     switch(Beam->RunType[0]){
@@ -131,51 +130,11 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
         break;
     case 'A':
         // arrival file in ascii format
-        ARRFile.open(FileRoot + ".arr");
-        
-        ARRFile << (ThreeD ? "'3D'" : "'2D'") << "\n";
-        
-        ARRFile << freqinfo->freq0 << "\n";
-        
-        // write source locations
-        
-        if(ThreeD){
-            ARRFile << Pos->NSx; for(int32_t i=0; i<Pos->NSx; ++i) ARRFile << " " << Pos->Sx[i]; ARRFile << "\n";
-            ARRFile << Pos->NSy; for(int32_t i=0; i<Pos->NSy; ++i) ARRFile << " " << Pos->Sy[i]; ARRFile << "\n";
-        }
-        ARRFile << Pos->NSz; for(int32_t i=0; i<Pos->NSz; ++i) ARRFile << " " << Pos->Sz[i]; ARRFile << "\n";
-        
-        // write receiver locations
-        ARRFile << Pos->NRz; for(int32_t i=0; i<Pos->NRz; ++i) ARRFile << " " << Pos->Rz[i]; ARRFile << "\n";
-        ARRFile << Pos->NRr; for(int32_t i=0; i<Pos->NRr; ++i) ARRFile << " " << Pos->Rr[i]; ARRFile << "\n";
-        if(ThreeD){
-            ARRFile << Pos->Ntheta; for(int32_t i=0; i<Pos->Ntheta; ++i) ARRFile << " " << Pos->theta[i]; ARRFile << "\n";
-        }
+        // LP: Moved to WriteArrivals
         break;
     case 'a':
         // arrival file in binary format
-        ARRFile.open(FileRoot + ".arr");
-        
-        ARRFile.write((ThreeD ? "'3D'" : "'2D'"), 4);
-        
-        freq = freqinfo->freq0; ARRFile.write((char*)&freq, 4);
-        
-        // write source locations
-        
-        #define RS sizeof(real)
-        if(ThreeD){
-            ARRFile.write((char*)&Pos->NSx, 4); for(int32_t i=0; i<Pos->NSx; ++i) ARRFile.write((char*)&Pos->Sx[i], RS);
-            ARRFile.write((char*)&Pos->NSy, 4); for(int32_t i=0; i<Pos->NSy; ++i) ARRFile.write((char*)&Pos->Sy[i], RS);
-        }
-        ARRFile.write((char*)&Pos->NSz, 4); for(int32_t i=0; i<Pos->NSz; ++i) ARRFile.write((char*)&Pos->Sz[i], RS);
-        
-        // write receiver locations
-        ARRFile.write((char*)&Pos->NRz, 4); for(int32_t i=0; i<Pos->NRz; ++i) ARRFile.write((char*)&Pos->Rz[i], RS);
-        ARRFile.write((char*)&Pos->NRr, 4); for(int32_t i=0; i<Pos->NRr; ++i) ARRFile.write((char*)&Pos->Rr[i], RS);
-        if(ThreeD){
-            ARRFile.write((char*)&Pos->Ntheta, 4); for(int32_t i=0; i<Pos->Ntheta; ++i) ARRFile.write((char*)&Pos->theta[i], RS);
-        }
-        #undef RS
+        // LP: Moved to WriteArrivals
         break;
     default:
         atten = FL(0.0);

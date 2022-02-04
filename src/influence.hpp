@@ -24,7 +24,7 @@ struct InfluenceRayInfo {
     cpx epsilon; // beam constant
     real freq0, omega;
     real RadMax;
-    int32_t iBeamWindow2, NRz_per_range;
+    int32_t iBeamWindow2;
     real SrcDeclAngle; // take-off angle in degrees
     real Dalpha; // angular spacing
     real Ratio1; // scale factor (point source vs. line source)
@@ -377,7 +377,6 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
     // inflray.RadMax = FL(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
     inflray.RadMax = FL(50.0) * point0.c / freqinfo->freq0; // 50 wavelength max radius
     inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
-    inflray.NRz_per_range = Compute_NRz_per_range(Pos, Beam);
     inflray.SrcDeclAngle = RadDeg * alpha;
     inflray.Dalpha = Angles->Dalpha;
     if(Beam->RunType[3] == 'R'){
@@ -508,7 +507,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     int32_t old_kmah = inflray.kmah;
     BranchCut(qB0, qB1, Beam->Type, inflray.kmah);
     
-    for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
+    for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
         zR = Pos->Rz[iz];
         
         for(int32_t image=1; image <= Beam->Nimage; ++image){
@@ -650,7 +649,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
         BranchCut(qB0, q, Beam->Type, kmah);
         if(kmah < 0) cnst = -cnst;
         
-        for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
+        for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
             zR = Pos->Rz[iz];
             
             cpx contri = FL(0.0);
@@ -728,7 +727,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
     
     real scaledAmp = inflray.Ratio1 * STD::sqrt(point1.c) * point1.Amp;
     
-    for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
+    for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
         real zR = Pos->Rz[iz];
         
         if(!inflray.lastValid){
@@ -863,7 +862,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
             //printf("ir %d\n", inflray.ir+1);
             //++inflray.testNumIters;
             
-            for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
+            for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
                 if(Beam->RunType[4] == 'I'){
                     x_rcvr = vec2(Pos->Rr[inflray.ir], Pos->Rz[inflray.ir]); // irregular grid
                 }else{
@@ -979,7 +978,7 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
         
         IncPhaseIfCaustic(inflray, q, false);
         
-        for(int32_t iz=0; iz<inflray.NRz_per_range; ++iz){
+        for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
             real deltaz = Pos->Rz[iz] - x.y; // ray to rcvr distance
             //LP: This is commented out, but seems very important to have.
             //real Adeltaz = STD::abs(deltaz);

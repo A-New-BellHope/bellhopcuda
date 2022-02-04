@@ -5,7 +5,7 @@
 constexpr bool Init_Inline = false;
 
 void setup(std::string FileRoot, 
-    std::ofstream &PRTFile, LDOFile &RAYFile, std::ofstream &ARRFile, DirectOFile &SHDFile,
+    std::ofstream &PRTFile, LDOFile &RAYFile, DirectOFile &SHDFile,
     std::string &Title, real &fT,
     BdryType *&Bdry, BdryInfo *&bdinfo, ReflectionInfo *&refl, SSPStructure *&ssp,
     AttenInfo *&atten, Position *&Pos, AnglesStructure *&Angles, FreqInfo *&freqinfo, 
@@ -208,7 +208,7 @@ void setup(std::string FileRoot,
     }
     
     OpenOutputFiles(FileRoot, false, Title, Bdry, Pos, Angles, freqinfo, Beam,
-        RAYFile, ARRFile, SHDFile);
+        RAYFile, SHDFile);
     
     if(Beam->deltas == FL(0.0)){
         Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth) / FL(10.0); // Automatic step size selection

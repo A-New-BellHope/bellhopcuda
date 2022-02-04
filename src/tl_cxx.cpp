@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-std::ofstream PRTFile, ARRFile;
+std::ofstream PRTFile;
 LDOFile RAYFile;
 DirectOFile SHDFile;
 std::string Title;
@@ -105,8 +105,9 @@ int main(int argc, char **argv)
         std::abort();
     }
     
-    setup(FileRoot, PRTFile, RAYFile, ARRFile, SHDFile, Title, fT,
-        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen);   
+    setup(FileRoot, PRTFile, RAYFile, SHDFile, Title, fT,
+        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen);
+    InitCommon(Pos, Beam);
      
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : math::max(std::thread::hardware_concurrency(), 1u);

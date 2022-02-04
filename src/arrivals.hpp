@@ -22,15 +22,18 @@ constexpr int32_t ArrivalsStorage = 20000000, MinNArr = 10;
  * ADDs the amplitude and delay for an ARRival into a matrix of same.
  * Extra logic included to keep only the strongest arrivals.
  */
-HOST_DEVICE inline void AddArr(real omega, int32_t id, int32_t ir, real Amp,
-    real Phase, cpx delay, real SrcDeclAngle, real RcvrDeclAngle,
+HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
+    real Amp, real Phase, cpx delay, real SrcDeclAngle, real RcvrDeclAngle,
     int32_t NumTopBnc, int32_t NumBotBnc,
     const ArrInfo *arrinfo, const Position *Pos)
 {
     const float PhaseTol = FL(0.05); // arrivals with essentially the same phase are grouped into one
-    Arrival *baseArr = &arrinfo->Arr[(id * Pos->NRr + ir) * arrinfo->MaxNArr];
     
-    int32_t Nt = arrinfo->NArr[id*Pos->NRr+ir]; // # of arrivals
+    int32_t base = (isrc * Pos->NRz_per_range + id) * Pos->NRr + ir;
+    Arrival *baseArr = &arrinfo->Arr[base * arrinfo->MaxNArr];
+    int32_t *baseNArr = &arrinfo->NArr[base];
+    
+    int32_t Nt = *baseNArr; // # of arrivals
     bool NewRay = true;
     
     // Is this the second bracketting ray of a pair?
@@ -45,18 +48,17 @@ HOST_DEVICE inline void AddArr(real omega, int32_t id, int32_t ir, real Amp,
     
     if(NewRay){
         int32_t iArr;
-        TODO; // how to adapt this algorithm for multithreaded?
         if(Nt >= arrinfo->MaxNArr){ // space [LP: NOT] available to add an arrival?
             iArr = TODO; // no: replace weakest arrival
             if(Amp <= baseArr[iArr].a) return;
         }else{
             iArr = Nt;
-            arrinfo->NArr[id*Pos->NRr+ir] = Nt + 1; // # of arrivals
+            *baseNArr = Nt + 1; // # of arrivals
         }
-        baseArr[iArr].A          = (float)Amp; // amplitude
-        baseArr[iArr].Phase      = (float)Phase; // phase
-        baseArr[iArr].delay      = Cpx2Cpxf(delay); // delay time
-        baseArr[iArr].SrcDeclAngle = (float)SrcDeclAngle; // angle
+        baseArr[iArr].A             = (float)Amp; // amplitude
+        baseArr[iArr].Phase         = (float)Phase; // phase
+        baseArr[iArr].delay         = Cpx2Cpxf(delay); // delay time
+        baseArr[iArr].SrcDeclAngle  = (float)SrcDeclAngle; // angle
         baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle [LP: :( ]
         baseArr[iArr].NTopBnc       = NumTopBnc; // Number of top    bounces
         baseArr[iArr].NBotBnc       = NumBotBnc; //   "       bottom
@@ -78,14 +80,14 @@ HOST_DEVICE inline void AddArr(real omega, int32_t id, int32_t ir, real Amp,
 inline void InitArrivalsMode(ArrInfo *arrinfo, 
     const Position *Pos, const BeamStructure *Beam, LDOFile &PRTFile)
 {
-    int32_t NRz_per_range = Compute_NRz_per_range(Pos, Beam);
-    int32_t nzr = NRz_per_range * Pos->NRr;
+    int32_t nzr = Pos->NRz_per_range * Pos->NRr;
     arrinfo->MaxNArr = math::max(ArrivalsStorage / nzr, MinNArr);
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
-    arrinfo->Arr = allocate<Arrival>(nzr * arrinfo->MaxNArr);
-    arrinfo->NArr = allocate<int32_t>(nzr);
-    memset(arrinfo->NArr, 0, nzr * sizeof(int32_t));
-    TODO; //this below is per source
-    // Arrivals calculation, zero out arrival matrix
-    memset(arrinfo->Narr, 0, nzr * arrinfo->MaxNArr * sizeof);
+    arrinfo->Arr = allocate<Arrival>(Pos->NSz * nzr * arrinfo->MaxNArr);
+    arrinfo->NArr = allocate<int32_t>(Pos->NSz * nzr);
+    memset(arrinfo->NArr, 0, Pos->NSz * nzr * sizeof(int32_t));
+    memset(arrinfo->Narr, 0, Pos->NSz * nzr * arrinfo->MaxNArr * sizeof(Arrival));
 }
+
+void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
+    const BeamStructure *Beam, std::string FileRoot, bool ThreeD);

@@ -4,6 +4,7 @@
 
 struct Position {
     int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
+    int32_t NRz_per_range;
     real Delta_r, Delta_theta;
     int32_t *iSz, *iRz;
     // LP: These are really floats, not reals.
@@ -17,16 +18,6 @@ struct FreqInfo {
     int32_t Nfreq; // number of frequencies
     real *freqVec; // frequency vector for braodband runs
 };
-
-HOST_DEVICE inline int32_t Compute_NRz_per_range(const Position *Pos,
-    const BeamStructure *Beam)
-{
-    if(Beam->RunType[4] == 'I'){
-        return 1; // irregular grid
-    }else{
-        return Pos->NRz; // rectilinear grid
-    }
-}
 
 /**
  * Optionally reads a vector of source frequencies for a broadband run

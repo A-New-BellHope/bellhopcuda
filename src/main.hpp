@@ -64,8 +64,7 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
 inline void InitTLMode(cpxf *&uAllSources, const Position *Pos,
     const BeamStructure *Beam)
 {
-    int32_t NRz_per_range = Compute_NRz_per_range(Pos, Beam);
-    size_t n = Pos->NSz * NRz_per_range * Pos->NRr;
+    size_t n = Pos->NSz * Pos->NRz_per_range * Pos->NRr;
     uAllSources = allocate<cpxf>(n);
     memset(uAllSources, 0, n * sizeof(cpxf));
 }
@@ -77,20 +76,19 @@ inline void FinalizeTLMode(cpxf *&uAllSources, DirectOFile &SHDFile,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
-    int32_t NRz_per_range = Compute_NRz_per_range(Pos, Beam);
     for(int32_t isrc=0; isrc<Pos->NSz; ++isrc){
         cpx ccpx;
         int32_t iSegz = 0, iSegr = 0;
         EvaluateSSPCOnly(vec2(RL(0.0), Pos->Sz[isrc]), vec2(RL(1.0), RL(0.0)),
             ccpx, freqinfo->freq0, ssp, iSegz, iSegr);
         ScalePressure(Angles->Dalpha, ccpx.real(), Pos->Rr, 
-            &uAllSources[isrc * NRz_per_range * Pos->NRr], 
-            NRz_per_range, Pos->NRr, Beam->RunType, freqinfo->freq0);
-        int32_t IRec = 10 + NRz_per_range * isrc;
-        for(int32_t Irz1 = 0; Irz1 < NRz_per_range; ++Irz1){
+            &uAllSources[isrc * Pos->NRz_per_range * Pos->NRr], 
+            Pos->NRz_per_range, Pos->NRr, Beam->RunType, freqinfo->freq0);
+        int32_t IRec = 10 + Pos->NRz_per_range * isrc;
+        for(int32_t Irz1 = 0; Irz1 < Pos->NRz_per_range; ++Irz1){
             SHDFile.rec(IRec);
             for(int32_t r=0; r < Pos->NRr; ++r){
-                DOFWRITEV(SHDFile, uAllSources[(isrc * NRz_per_range + Irz1) * Pos->NRr + r]);
+                DOFWRITEV(SHDFile, uAllSources[(isrc * Pos->NRz_per_range + Irz1) * Pos->NRr + r]);
             }
             ++IRec;
         }
@@ -123,7 +121,7 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     Init_Influence(inflray, point0, isrc, ialpha, Angles->alpha[ialpha], gradc,
         Pos, ssp, iSegz, iSegr, Angles, freqinfo, Beam);
     
-    cpxf *u = &uAllSources[isrc * inflray.NRz_per_range * Pos->NRr];
+    cpxf *u = &uAllSources[isrc * Pos->NRz_per_range * Pos->NRr];
     int32_t iSmallStepCtr = 0;
     int32_t is = 0; // index for a step along the ray
     int32_t Nsteps = 0; // not actually needed in TL mode, debugging only
