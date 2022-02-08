@@ -18,6 +18,7 @@ FreqInfo *freqinfo;
 BeamStructure *Beam;
 BeamInfo *beaminfo;
 EigenInfo *eigen;
+ArrInfo *arrinfo;
 
 cpxf *uAllSources;
 
@@ -27,7 +28,7 @@ FieldModesKernel(cpxf *uAllSources_,
     const BdryType *ConstBdry_, const BdryInfo *bdinfo_, const ReflectionInfo *refl_,
     const SSPStructure *ssp_, const Position *Pos_, const AnglesStructure *Angles_,
     const FreqInfo *freqinfo_, const BeamStructure *Beam_, const BeamInfo *beaminfo_,
-    EigenInfo *eigen_)
+    EigenInfo *eigen_, const ArrInfo *arrinfo_)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
         int32_t isrc, ialpha;
@@ -36,7 +37,7 @@ FieldModesKernel(cpxf *uAllSources_,
         real SrcDeclAngle;
         MainFieldModes(isrc, ialpha, SrcDeclAngle, uAllSources_,
             ConstBdry_, bdinfo_, refl_, ssp_, Pos_, Angles_, freqinfo_, Beam_,
-            beaminfo_, eigen_);
+            beaminfo_, eigen_, arrinfo_);
     }
 }
 
@@ -87,7 +88,7 @@ int main(int argc, char **argv)
     
     setupGPU();
     setup(FileRoot, PRTFile, RAYFile, SHDFile, Title, fT,
-        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen);   
+        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen, arrinfo);   
     InitCommon(Pos, Beam);
     
     if(Beam->RunType[0] == 'R'){
@@ -100,7 +101,7 @@ int main(int argc, char **argv)
         Stopwatch sw;
         sw.tick();
         FieldModesKernel<<<d_multiprocs,512>>>(uAllSources, 
-            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen);
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen, arrinfo);
         syncAndCheckKernelErrors("FieldModesKernel");
         sw.tock();
         
@@ -113,12 +114,25 @@ int main(int argc, char **argv)
         Stopwatch sw;
         sw.tick();
         FieldModesKernel<<<d_multiprocs,512>>>(uAllSources, 
-            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen);
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen, arrinfo);
         syncAndCheckKernelErrors("FieldModesKernel");
         sw.tock();
         
         FinalizeEigenMode(Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam,
             beaminfo, eigen, RAYFile, false);
+    }else if(Beam->RunType[0] == 'A' || Beam->RunType[0] == 'a'){
+        // Arrivals mode
+        InitArrivalsMode(arrinfo, false, Pos, Beam, PRTFile);
+        uAllSources = nullptr;
+        
+        Stopwatch sw;
+        sw.tick();
+        FieldModesKernel<<<d_multiprocs,512>>>(uAllSources, 
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen, arrinfo);
+        syncAndCheckKernelErrors("FieldModesKernel");
+        sw.tock();
+        
+        WriteArrivals(arrinfo, Pos, freqinfo, Beam, FileRoot, false);
     }else{
         std::cout << "Not yet implemented RunType " << Beam->RunType[0] << "\n";
         std::abort();

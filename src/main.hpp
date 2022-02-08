@@ -1,6 +1,7 @@
 #pragma once
 #include "trace.hpp"
 #include "influence.hpp"
+#include "bino.hpp"
 
 /**
  * Returns whether the job should continue.
@@ -104,7 +105,7 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
-    EigenInfo *eigen)
+    EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     int32_t IsegTop, IsegBot, iSegz, iSegr;
@@ -132,14 +133,14 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
             IsegTop, IsegBot, rTopSeg, rBotSeg, iSmallStepCtr, iSegz, iSegr,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(!Step_Influence(point0, point1, inflray, is, u, 
-            ConstBdry, ssp, iSegz, iSegr, Pos, Beam, eigen)){
+            ConstBdry, ssp, iSegz, iSegr, Pos, Beam, eigen, arrinfo)){
             //printf("Step_Influence terminated ray\n");
             break;
         }
         ++is;
         if(dStep == 2){
             if(!Step_Influence(point1, point2, inflray, is, u, 
-                ConstBdry, ssp, iSegz, iSegr, Pos, Beam, eigen)) break;
+                ConstBdry, ssp, iSegz, iSegr, Pos, Beam, eigen, arrinfo)) break;
             point0 = point2;
             ++is;
         }else if(dStep == 1){

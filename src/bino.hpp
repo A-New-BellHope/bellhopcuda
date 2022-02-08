@@ -64,7 +64,7 @@ private:
  */
 class UnformattedOFile {
 public:
-    UnformattedOFile() : recl(-1), recstart(-1) {}
+    UnformattedOFile() : recstart(-1), recl(-1) {}
     ~UnformattedOFile() {
         if(ostr.is_open()){
             FinishRecord();
@@ -84,12 +84,12 @@ public:
     
     template<typename T> void write(T v){
         ostr.write((const char*)&v, sizeof(T));
-        reclen += sizeof(T);
+        recl += sizeof(T);
     }
     
     template<typename T> void write(T *arr, size_t n){
         for(size_t i=0; i<n; ++i) ostr.write((const char*)&arr[i], sizeof(T));
-        reclen += n * sizeof(T);
+        recl += n * sizeof(T);
     }
     
 private:
@@ -99,7 +99,7 @@ private:
         ostr.write((const char*)&recl, 4);
         ostr.seekp(recstart+4+recl);
         ostr.write((const char*)&recl, 4);
-        recstart += reclen + 8;
+        recstart += recl + 8;
         recl = 0;
     }
     

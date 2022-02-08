@@ -23,6 +23,7 @@ FreqInfo *freqinfo;
 BeamStructure *Beam;
 BeamInfo *beaminfo;
 EigenInfo *eigen;
+ArrInfo *arrinfo;
 
 static std::atomic<int32_t> jobID;
 
@@ -67,7 +68,7 @@ void FieldModesWorker()
         
         real SrcDeclAngle;
         MainFieldModes(isrc, ialpha, SrcDeclAngle, uAllSources,
-            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen);
+            Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen, arrinfo);
     }
 }
 
@@ -106,7 +107,7 @@ int main(int argc, char **argv)
     }
     
     setup(FileRoot, PRTFile, RAYFile, SHDFile, Title, fT,
-        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen);
+        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen, arrinfo);
     InitCommon(Pos, Beam);
      
     std::vector<std::thread> threads;
@@ -143,6 +144,18 @@ int main(int argc, char **argv)
         
         FinalizeEigenMode(Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam,
             beaminfo, eigen, RAYFile, singlethread);
+    }else if(Beam->RunType[0] == 'A' || Beam->RunType[0] == 'a'){
+        // Arrivals mode
+        InitArrivalsMode(arrinfo, singlethread, Pos, Beam, PRTFile);
+        uAllSources = nullptr;
+        
+        Stopwatch sw;
+        sw.tick();
+        for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(FieldModesWorker));
+        for(uint32_t i=0; i<cores; ++i) threads[i].join();
+        sw.tock();
+        
+        WriteArrivals(arrinfo, Pos, freqinfo, Beam, FileRoot, false);
     }else{
         std::cout << "Not yet implemented RunType " << Beam->RunType[0] << "\n";
         std::abort();

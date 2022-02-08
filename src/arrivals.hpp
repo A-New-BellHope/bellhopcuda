@@ -1,5 +1,8 @@
 #pragma once
 #include "common.hpp"
+#include "atomics.hpp"
+#include "sourcereceiver.hpp"
+#include "beams.hpp"
 
 struct Arrival {
     int32_t NTopBnc, NBotBnc;
@@ -14,9 +17,23 @@ struct ArrInfo {
     Arrival *Arr;
     int32_t *NArr;
     int32_t MaxNArr;
+    bool singlethread;
 };
 
-constexpr int32_t ArrivalsStorage = 20000000, MinNArr = 10;
+/**
+ * Is this the second bracketting ray [LP: step] of a pair?
+ * If so, we want to combine the arrivals to conserve space.
+ * (test this by seeing if the arrival time is close to the previous one)
+ * (also need that the phase is about the same to make sure surface and direct paths are not joined)
+ */
+HOST_DEVICE inline bool IsSecondStepOfPair(real omega, real Phase, cpx delay,
+    Arrival *baseArr, int32_t Nt)
+{
+    const float PhaseTol = FL(0.05); // arrivals with essentially the same phase are grouped into one
+    return Nt >= 1 && 
+        omega * STD::abs(Cpx2Cpxf(delay) - baseArr[Nt-1].delay) < PhaseTol &&
+        STD::abs(baseArr[Nt-1].Phase - Phase) < PhaseTol;
+}
 
 /**
  * ADDs the amplitude and delay for an ARRival into a matrix of same.
@@ -27,67 +44,93 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
     int32_t NumTopBnc, int32_t NumBotBnc,
     const ArrInfo *arrinfo, const Position *Pos)
 {
-    const float PhaseTol = FL(0.05); // arrivals with essentially the same phase are grouped into one
-    
-    int32_t base = (isrc * Pos->NRz_per_range + id) * Pos->NRr + ir;
+    size_t base = (isrc * Pos->NRz_per_range + id) * Pos->NRr + ir;
     Arrival *baseArr = &arrinfo->Arr[base * arrinfo->MaxNArr];
     int32_t *baseNArr = &arrinfo->NArr[base];
+    int32_t Nt;
     
-    int32_t Nt = *baseNArr; // # of arrivals
-    bool NewRay = true;
+    if(arrinfo->singlethread){
+        // LP: Besides this algorithm being virtually impossible to adapt for
+        // multithreading, there is a more fundamental problem with it: it does
+        // not have any handling for the case where the current arrival is the
+        // second step of a pair, but the storage is full and the first step of
+        // the pair got stored in some slot other than the last one. It will
+        // only consider the last ray in storage as a candidate for the first
+        // half of the pair. This means that whether a given pair is
+        // successfully paired or not depends on the number of arrivals before
+        // that pair, which is arbitrary and independent of the current pair.
     
-    // Is this the second bracketting ray of a pair?
-    // If so, we want to combine the arrivals to conserve space.
-    // (test this by seeing if the arrival time is close to the previous one)
-    // (also need that the phase is about the same to make sure surface and direct paths are not joined)
-    
-    if(Nt >= 1){
-        if(omega * STD::abs(delay - baseArr[Nt-1].delay) < PhaseTol &&
-            STD::abs(baseArr[Nt-1].phase - Phase) < PhaseTol) NewRay = false;
-    }
-    
-    if(NewRay){
-        int32_t iArr;
-        if(Nt >= arrinfo->MaxNArr){ // space [LP: NOT] available to add an arrival?
-            iArr = TODO; // no: replace weakest arrival
-            if(Amp <= baseArr[iArr].a) return;
-        }else{
-            iArr = Nt;
-            *baseNArr = Nt + 1; // # of arrivals
+        Nt = *baseNArr; // # of arrivals
+        
+        if(!IsSecondStepOfPair(omega, Phase, delay, baseArr, Nt)){
+            int32_t iArr;
+            if(Nt >= arrinfo->MaxNArr){ // space [LP: NOT] available to add an arrival?
+                // no: replace weakest arrival
+                iArr = -1;
+                real weakest = Amp;
+                for(Nt=0; Nt<arrinfo->MaxNArr; ++Nt){
+                    if(baseArr[Nt].a < weakest){
+                        weakest = baseArr[Nt].a;
+                        iArr = Nt;
+                    }
+                }
+                if(iArr < 0) return; // LP: current arrival is weaker than all stored
+            }else{
+                iArr = Nt;
+                *baseNArr = Nt + 1; // # of arrivals
+            }
+            baseArr[iArr].a             = (float)Amp; // amplitude
+            baseArr[iArr].Phase         = (float)Phase; // phase
+            baseArr[iArr].delay         = Cpx2Cpxf(delay); // delay time
+            baseArr[iArr].SrcDeclAngle  = (float)SrcDeclAngle; // angle
+            baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle [LP: :( ]
+            baseArr[iArr].NTopBnc       = NumTopBnc; // Number of top    bounces
+            baseArr[iArr].NBotBnc       = NumBotBnc; //   "       bottom
+        }else{ // not a new ray
+            // PhaseArr[<base> + Nt-1] = PhaseArr[<base> + Nt-1] // LP: ???
+            
+            // calculate weightings of old ray information vs. new, based on amplitude of the arrival
+            float AmpTot = baseArr[Nt-1].a + (float)Amp;
+            float w1 = baseArr[Nt-1].a / AmpTot;
+            float w2 = (float)Amp / AmpTot;
+            
+            baseArr[Nt-1].delay         = w1 * baseArr[Nt-1].delay         + w2 * Cpx2Cpxf(delay); // weighted sum
+            baseArr[Nt-1].a             = AmpTot;
+            baseArr[Nt-1].SrcDeclAngle  = w1 * baseArr[Nt-1].SrcDeclAngle  + w2 * (float)SrcDeclAngle;
+            baseArr[Nt-1].RcvrDeclAngle = w1 * baseArr[Nt-1].RcvrDeclAngle + w2 * (float)RcvrDeclAngle;
         }
-        baseArr[iArr].A             = (float)Amp; // amplitude
-        baseArr[iArr].Phase         = (float)Phase; // phase
-        baseArr[iArr].delay         = Cpx2Cpxf(delay); // delay time
-        baseArr[iArr].SrcDeclAngle  = (float)SrcDeclAngle; // angle
-        baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle [LP: :( ]
-        baseArr[iArr].NTopBnc       = NumTopBnc; // Number of top    bounces
-        baseArr[iArr].NBotBnc       = NumBotBnc; //   "       bottom
-    }else{ // not a new ray
-        // PhaseArr[<base> + Nt-1] = PhaseArr[<base> + Nt-1] // LP: ???
         
-        // calculate weightings of old ray information vs. new, based on amplitude of the arrival
-        float AmpTot = baseArr[Nt-1].a + (float)Amp;
-        float w1 = baseArr[Nt-1].a / AmpTot;
-        float w2 = (float)Amp / AmpTot;
-        
-        baseArr[Nt-1].delay         = w1 * baseArr[Nt-1].delay         + w2 * Cpx2Cpxf(delay); // weighted sum
-        baseArr[Nt-1].a             = AmpTot;
-        baseArr[Nt-1].SrcDeclAngle  = w1 * baseArr[Nt-1].SrcDeclAngle  + w2 * (float)SrcDeclAngle;
-        baseArr[Nt-1].RcvrDeclAngle = w1 * baseArr[Nt-1].RcvrDeclAngle + w2 * (float)RcvrDeclAngle;
+    }else{
+        // LP: For multithreading mode, some mutex scheme would be needed to
+        // guarantee correct access to previously written data, which would
+        // destroy the performance on GPU. So just write the first 
+        // arrinfo->MaxNArr arrivals and give up.
+        Nt = AtomicFetchAdd(baseNArr, 1);
+        if(Nt >= arrinfo->MaxNArr) return;
+        baseArr[Nt].a             = (float)Amp; // amplitude
+        baseArr[Nt].Phase         = (float)Phase; // phase
+        baseArr[Nt].delay         = Cpx2Cpxf(delay); // delay time
+        baseArr[Nt].SrcDeclAngle  = (float)SrcDeclAngle; // angle
+        baseArr[Nt].RcvrDeclAngle = (float)RcvrDeclAngle; // angle [LP: :( ]
+        baseArr[Nt].NTopBnc       = NumTopBnc; // Number of top    bounces
+        baseArr[Nt].NBotBnc       = NumBotBnc; //   "       bottom
     }
 }
 
-inline void InitArrivalsMode(ArrInfo *arrinfo, 
-    const Position *Pos, const BeamStructure *Beam, LDOFile &PRTFile)
+inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
+    const Position *Pos, const BeamStructure *Beam, std::ofstream &PRTFile)
 {
-    int32_t nzr = Pos->NRz_per_range * Pos->NRr;
+    arrinfo->singlethread = singlethread;
+    size_t nzr = Pos->NRz_per_range * Pos->NRr;
+    const size_t ArrivalsStorage = singlethread ? 20000000 : 50000000;
+    const size_t MinNArr = 10;
     arrinfo->MaxNArr = math::max(ArrivalsStorage / nzr, MinNArr);
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
-    arrinfo->Arr = allocate<Arrival>(Pos->NSz * nzr * arrinfo->MaxNArr);
-    arrinfo->NArr = allocate<int32_t>(Pos->NSz * nzr);
-    memset(arrinfo->NArr, 0, Pos->NSz * nzr * sizeof(int32_t));
-    memset(arrinfo->Narr, 0, Pos->NSz * nzr * arrinfo->MaxNArr * sizeof(Arrival));
+    arrinfo->Arr  = allocate<Arrival>((size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr);
+    arrinfo->NArr = allocate<int32_t>((size_t)Pos->NSz * nzr);
+    memset(arrinfo->Arr,  0, (size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
+    memset(arrinfo->NArr, 0, (size_t)Pos->NSz * nzr * sizeof(int32_t));
 }
 
 void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
-    const BeamStructure *Beam, std::string FileRoot, bool ThreeD);
+    const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD);

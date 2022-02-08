@@ -1,5 +1,15 @@
 #!/bin/bash
 
+echo "Arrivals:"
+find ../bellhop/tests -name "*.env" | while read f; do
+    res=$(sed -n '10,$s|^'\''[Aa][^3/]*'\''|&|p' $f)
+    if [ -n "$res" ]; then
+        echo "$f: $res"
+    fi
+done
+
+exit
+
 echo "Eigenray:"
 find ../bellhop/tests -name "*.env" | while read f; do
     res=$(sed -n '10,$s|^'\''E[^3/]*'\''|&|p' $f)
@@ -9,14 +19,6 @@ find ../bellhop/tests -name "*.env" | while read f; do
 done
 
 exit
-
-echo "Arrivals:"
-find ../bellhop/tests -name "*.env" | while read f; do
-    res=$(sed -n '10,$s|^'\''[Aa][^3/]*'\''|&|p' $f)
-    if [ -n "$res" ]; then
-        echo "$f: $res"
-    fi
-done
 
 echo "Ray:"
 find ../bellhop/tests -name "*.env" | while read f; do

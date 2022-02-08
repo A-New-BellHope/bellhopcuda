@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "bino.hpp"
 #include "boundary.hpp"
 #include "refcoef.hpp"
 #include "ssp.hpp"
@@ -8,13 +9,14 @@
 #include "angles.hpp"
 #include "beams.hpp"
 #include "eigenrays.hpp"
+#include "arrivals.hpp"
 
 void setup(std::string FileRoot, 
     std::ofstream &PRTFile, LDOFile &RAYFile, DirectOFile &SHDFile,
     std::string &Title, real &fT,
     BdryType *&Bdry, BdryInfo *&bdinfo, ReflectionInfo *&refl, SSPStructure *&ssp,
     AttenInfo *&atten, Position *&Pos, AnglesStructure *&Angles, FreqInfo *&freqinfo, 
-    BeamStructure *&Beam, BeamInfo *&beaminfo, EigenInfo *&eigen);
+    BeamStructure *&Beam, BeamInfo *&beaminfo, EigenInfo *&eigen, ArrInfo *&arrinfo);
     
 /**
  * Call after changing parameters (or setup), and before the init for your

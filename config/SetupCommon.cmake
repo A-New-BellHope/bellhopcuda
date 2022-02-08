@@ -43,6 +43,7 @@ endfunction()
 
 set(COMMON_SOURCE
     angles.hpp
+    arrivals.cpp
     arrivals.hpp
     atomics.hpp
     attenuation.hpp

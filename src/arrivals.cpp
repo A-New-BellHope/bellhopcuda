@@ -2,7 +2,7 @@
 #include "bino.hpp"
 
 void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
-    const BeamStructure *Beam, std::string FileRoot, bool ThreeD)
+    const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD)
 {
     bool isAscii;
     LDOFile AARRFile;
@@ -59,7 +59,7 @@ void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
         int32_t maxn = 0;
         for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
             for(int32_t ir=0; ir<Pos->NRr; ++ir){
-                int32_t base = (isrc * Pos->NRz_per_range + id) * Pos->NRr + ir;
+                int32_t base = (isrc * Pos->NRz_per_range + iz) * Pos->NRr + ir;
                 if(arrinfo->NArr[base] > maxn) maxn = arrinfo->NArr[base];
             }
         }
@@ -71,7 +71,7 @@ void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
         
         for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
             for(int32_t ir=0; ir<Pos->NRr; ++ir){
-                int32_t base = (isrc * Pos->NRz_per_range + id) * Pos->NRr + ir;
+                int32_t base = (isrc * Pos->NRz_per_range + iz) * Pos->NRr + ir;
                 real factor;
                 if(Beam->RunType[3] == 'X'){ // line source
                     factor = FL(4.0) * STD::sqrt(REAL_PI);
@@ -90,10 +90,10 @@ void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
                     BARRFile.rec(); BARRFile.write(narr);
                 }
                 
-                for(int32_t iArr=0; iArr<narr; ++iarr){
+                for(int32_t iArr=0; iArr<narr; ++iArr){
                     Arrival *arr = &arrinfo->Arr[base * arrinfo->MaxNArr + iArr];
                     if(isAscii){
-                        AARRFile << (float)factor * arr->A
+                        AARRFile << (float)factor * arr->a
                                  << (float)RadDeg * arr->Phase
                                  << arr->delay.real()
                                  << arr->delay.imag()
@@ -104,7 +104,7 @@ void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
                                  << "\n";
                     }else{
                         BARRFile.rec();
-                        BARRFile.write((float)(factor * arr->A)); // LP: not a typo; cast in different order
+                        BARRFile.write((float)(factor * arr->a)); // LP: not a typo; cast in different order
                         BARRFile.write((float)(RadDeg * arr->Phase)); // compared to ascii version
                         BARRFile.write(arr->delay);
                         BARRFile.write(arr->SrcDeclAngle);
