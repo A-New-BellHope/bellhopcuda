@@ -2,7 +2,7 @@
 
 echo "Arrivals:"
 find ../bellhop/tests -name "*.env" | while read f; do
-    res=$(sed -n '10,$s|^'\''[Aa][^3/]*'\''|&|p' $f)
+    res=$(sed -n '10,$s|^'\''[Aa][^3/~]*'\''[^0]*$|&|p' $f)
     if [ -n "$res" ]; then
         echo "$f: $res"
     fi

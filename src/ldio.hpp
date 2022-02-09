@@ -307,7 +307,7 @@ private:
 
 class LDOFile {
 public:
-    LDOFile() : iwidth(12), rwidth(24) {}
+    LDOFile() : iwidth(12), fwidth(16), dwidth(24) {}
     ~LDOFile(){
         if(ostr.is_open()) ostr.close();
     }
@@ -339,43 +339,14 @@ public:
         return *this;
     }
     
-    void realwidth(int32_t rw) { rwidth = rw; }
-    LDOFile &operator<<(real r){
-        if(rwidth <= 0){
-            ostr << r;
-            return *this;
-        }
-        ostr << "  ";
-        if(!isfinite(r)){
-            ostr << std::setw(rwidth)
-                << std::left
-                << r;
-            return *this;
-        }
-        bool sci = r != RL(0.0) && (std::abs(r) < RL(0.1) || std::abs(r) >= RL(1.0e6));
-        int32_t w = rwidth;
-        if(r < RL(0.0)){
-            ostr << "-";
-            r = -r;
-        }else if(sci || r >= RL(1.0) || r == RL(0.0)){
-            ostr << " ";
-        }
-        --w;
-        if(sci) --w;
-        ostr << std::setprecision(w - 6); //5 for exp, 1 for decimal point
-        if(sci){
-            ostr << std::setiosflags(std::ios_base::uppercase
-                    | std::ios_base::scientific)
-                << std::setw(w + 1)
-                << std::left
-                << r;
-        }else{
-            ostr << std::setiosflags(std::ios_base::showpoint)
-                << std::defaultfloat
-                << std::setw(w - 5)
-                << r;
-            ostr << "     ";
-        }
+    void floatwidth(int32_t fw) { fwidth = fw; }
+    void doublewidth(int32_t dw) { dwidth = dw; }
+    LDOFile &operator<<(float r){
+        writedouble(r, fwidth, 1);
+        return *this;
+    }
+    LDOFile &operator<<(double r){
+        writedouble(r, dwidth, 2);
         return *this;
     }
     
@@ -409,5 +380,43 @@ public:
     
 private:
     std::ofstream ostr;
-    int32_t iwidth, rwidth;
+    int32_t iwidth, fwidth, dwidth;
+    
+    void writedouble(double r, int32_t width, int32_t spacing){
+        if(width <= 0){
+            ostr << r;
+            return;
+        }
+        for(int i=0; i<spacing; ++i) ostr << " ";
+        if(!isfinite(r)){
+            ostr << std::setw(width)
+                << std::left
+                << r;
+            return;
+        }
+        bool sci = r != RL(0.0) && (std::abs(r) < RL(0.1) || std::abs(r) >= RL(1.0e6));
+        int32_t w = width;
+        if(r < RL(0.0)){
+            ostr << "-";
+            r = -r;
+        }else if(sci || r >= RL(1.0) || r == RL(0.0)){
+            ostr << " ";
+        }
+        --w;
+        if(sci) --w;
+        ostr << std::setprecision(w - 6); //5 for exp, 1 for decimal point
+        if(sci){
+            ostr << std::setiosflags(std::ios_base::uppercase
+                    | std::ios_base::scientific)
+                << std::setw(w + 1)
+                << std::left
+                << r;
+        }else{
+            ostr << std::setiosflags(std::ios_base::showpoint)
+                << std::defaultfloat
+                << std::setw(w - 5)
+                << r;
+            ostr << "     ";
+        }
+    }
 };

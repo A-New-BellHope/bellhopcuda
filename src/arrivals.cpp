@@ -12,28 +12,28 @@ void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
         isAscii = true;
         
         AARRFile.open(FileRoot + ".arr");
-        AARRFile << (ThreeD ? "'3D'" : "'2D'") << "\n";
-        AARRFile << freqinfo->freq0 << "\n";
+        AARRFile << (ThreeD ? "3D" : "2D") << '\n';
+        AARRFile << freqinfo->freq0 << '\n';
         
         // write source locations
         if(ThreeD){
-            AARRFile << Pos->NSx; AARRFile.write(Pos->Sx, Pos->NSx); AARRFile << "\n";
-            AARRFile << Pos->NSy; AARRFile.write(Pos->Sy, Pos->NSy); AARRFile << "\n";
+            AARRFile << Pos->NSx; AARRFile.write(Pos->Sx, Pos->NSx); AARRFile << '\n';
+            AARRFile << Pos->NSy; AARRFile.write(Pos->Sy, Pos->NSy); AARRFile << '\n';
         }
-        AARRFile << Pos->NSz; AARRFile.write(Pos->Sz, Pos->NSz); AARRFile << "\n";
+        AARRFile << Pos->NSz; AARRFile.write(Pos->Sz, Pos->NSz); AARRFile << '\n';
         
         // write receiver locations
-        AARRFile << Pos->NRz; AARRFile.write(Pos->Rz, Pos->NRz); AARRFile << "\n";
-        AARRFile << Pos->NRr; AARRFile.write(Pos->Rr, Pos->NRr); AARRFile << "\n";
+        AARRFile << Pos->NRz; AARRFile.write(Pos->Rz, Pos->NRz); AARRFile << '\n';
+        AARRFile << Pos->NRr; AARRFile.write(Pos->Rr, Pos->NRr); AARRFile << '\n';
         if(ThreeD){
-            AARRFile << Pos->Ntheta; AARRFile.write(Pos->theta, Pos->Ntheta); AARRFile << "\n";
+            AARRFile << Pos->Ntheta; AARRFile.write(Pos->theta, Pos->Ntheta); AARRFile << '\n';
         }
         break;
     case 'a': // arrivals calculation, binary
         isAscii = false;
         
         BARRFile.open(FileRoot + ".arr");
-        BARRFile.write((ThreeD ? "'3D'" : "'2D'"), 4);
+        BARRFile.rec(); BARRFile.write((ThreeD ? "'3D'" : "'2D'"), 4);
         BARRFile.rec(); BARRFile.write((float)freqinfo->freq0);
         
         // write source locations
@@ -64,7 +64,7 @@ void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
             }
         }
         if(isAscii){
-            AARRFile << maxn << "\n";
+            AARRFile << maxn << '\n';
         }else{
             BARRFile.rec(); BARRFile.write(maxn);
         }
@@ -85,7 +85,7 @@ void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
                 
                 int32_t narr = arrinfo->NArr[base];
                 if(isAscii){
-                    AARRFile << narr << "\n";
+                    AARRFile << narr << '\n';
                 }else{
                     BARRFile.rec(); BARRFile.write(narr);
                 }
@@ -101,7 +101,7 @@ void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
                                  << arr->RcvrDeclAngle
                                  << arr->NTopBnc
                                  << arr->NBotBnc
-                                 << "\n";
+                                 << '\n';
                     }else{
                         BARRFile.rec();
                         BARRFile.write((float)(factor * arr->a)); // LP: not a typo; cast in different order

@@ -83,18 +83,30 @@ public:
     }
     
     template<typename T> void write(T v){
+        if(recstart < 0){
+            std::cout << "Missing record in UnformattedOFile!\n";
+            bail();
+        }
         ostr.write((const char*)&v, sizeof(T));
         recl += sizeof(T);
     }
     
     template<typename T> void write(T *arr, size_t n){
+        if(recstart < 0){
+            std::cout << "Missing record in UnformattedOFile!\n";
+            bail();
+        }
         for(size_t i=0; i<n; ++i) ostr.write((const char*)&arr[i], sizeof(T));
         recl += n * sizeof(T);
     }
     
 private:
     void FinishRecord() {
-        if(recstart < 0 || recl < 0) return;
+        if(recstart < 0 || recl < 0){
+            recstart = 0;
+            recl = 0;
+            return;
+        }
         ostr.seekp(recstart);
         ostr.write((const char*)&recl, 4);
         ostr.seekp(recstart+4+recl);
