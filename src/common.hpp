@@ -137,6 +137,9 @@ using cpxf = STD::complex<float>; // for uAllSources
 HOST_DEVICE constexpr inline cpxf Cpx2Cpxf(const cpx &c){
 	return cpxf((float)c.real(), (float)c.imag());
 }
+HOST_DEVICE constexpr inline cpx Cpxf2Cpx(const cpxf &c){
+	return cpx((real)c.real(), (real)c.imag());
+}
 
 //CUDA::std::cpx<double> does not like operators being applied with float
 //literals, due to template type deduction issues.

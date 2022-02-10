@@ -31,7 +31,7 @@ HOST_DEVICE inline bool IsSecondStepOfPair(real omega, real Phase, cpx delay,
 {
     const float PhaseTol = FL(0.05); // arrivals with essentially the same phase are grouped into one
     return Nt >= 1 && 
-        omega * STD::abs(Cpx2Cpxf(delay) - baseArr[Nt-1].delay) < PhaseTol &&
+        omega * STD::abs(delay - Cpxf2Cpx(baseArr[Nt-1].delay)) < PhaseTol &&
         STD::abs(baseArr[Nt-1].Phase - Phase) < PhaseTol;
 }
 

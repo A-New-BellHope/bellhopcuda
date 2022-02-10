@@ -307,7 +307,7 @@ private:
 
 class LDOFile {
 public:
-    LDOFile() : iwidth(12), fwidth(16), dwidth(24) {}
+    LDOFile() : iwidth(12), fwidth(15), dwidth(24) {}
     ~LDOFile(){
         if(ostr.is_open()) ostr.close();
     }
@@ -342,11 +342,11 @@ public:
     void floatwidth(int32_t fw) { fwidth = fw; }
     void doublewidth(int32_t dw) { dwidth = dw; }
     LDOFile &operator<<(float r){
-        writedouble(r, fwidth, 1);
+        writedouble(r, fwidth, false);
         return *this;
     }
     LDOFile &operator<<(double r){
-        writedouble(r, dwidth, 2);
+        writedouble(r, dwidth, true);
         return *this;
     }
     
@@ -382,12 +382,12 @@ private:
     std::ofstream ostr;
     int32_t iwidth, fwidth, dwidth;
     
-    void writedouble(double r, int32_t width, int32_t spacing){
+    void writedouble(double r, int32_t width, bool exp3){
         if(width <= 0){
             ostr << r;
             return;
         }
-        for(int i=0; i<spacing; ++i) ostr << " ";
+        ostr << "  ";
         if(!isfinite(r)){
             ostr << std::setw(width)
                 << std::left
@@ -404,11 +404,11 @@ private:
         }
         --w;
         if(sci) --w;
-        ostr << std::setprecision(w - 6); //5 for exp, 1 for decimal point
+        ostr << std::setprecision(exp3 ? (w - 6) : (w - 5)); //5/4 for exp, 1 for decimal point
         if(sci){
             ostr << std::setiosflags(std::ios_base::uppercase
                     | std::ios_base::scientific)
-                << std::setw(w + 1)
+                << std::setw(exp3 ? (w + 1) : w)
                 << std::left
                 << r;
         }else{
@@ -416,7 +416,7 @@ private:
                 << std::defaultfloat
                 << std::setw(w - 5)
                 << r;
-            ostr << "     ";
+            ostr << (exp3 ? "     " : "    ");
         }
     }
 };
