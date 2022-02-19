@@ -217,7 +217,7 @@ HOST_DEVICE inline void Analytic(SSP_FN_ARGS)
     //}else{
     // Homogeneous half-space
     //xt    = FL(2.0) * (FL(5000.0) - unk1) / unk1;
-    //ccpx  = cpx(c0 * (FL(1.0) + unk2 * (xt - FL(1.0) + emxt)), FL(0.0)); // LP: BUG: cimag never set on this codepath
+    //ccpx  = cpx(c0 * (FL(1.0) + unk2 * (xt - FL(1.0) + emxt)), FL(0.0));
     //cz    = FL(0.0);
     //czz   = FL(0.0);
     //}

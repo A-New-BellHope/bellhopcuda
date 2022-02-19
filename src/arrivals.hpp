@@ -5,7 +5,7 @@
 #include "beams.hpp"
 
 /**
- * Is this the second bracketting ray [LP: second step on the same ray] of a pair?
+ * Is this the second step of a pair (on the same ray)?
  * If so, we want to combine the arrivals to conserve space.
  * (test this by seeing if the arrival time is close to the previous one)
  * (also need that the phase is about the same to make sure surface and direct paths are not joined)
@@ -49,8 +49,8 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
         
         if(!IsSecondStepOfPair(omega, Phase, delay, baseArr, Nt)){
             int32_t iArr;
-            if(Nt >= arrinfo->MaxNArr){ // space [LP: NOT] available to add an arrival?
-                // no: replace weakest arrival
+            if(Nt >= arrinfo->MaxNArr){ // space not available to add an arrival?
+                // replace weakest arrival
                 iArr = -1;
                 real weakest = Amp;
                 for(Nt=0; Nt<arrinfo->MaxNArr; ++Nt){
@@ -67,8 +67,8 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
             baseArr[iArr].a             = (float)Amp; // amplitude
             baseArr[iArr].Phase         = (float)Phase; // phase
             baseArr[iArr].delay         = Cpx2Cpxf(delay); // delay time
-            baseArr[iArr].SrcDeclAngle  = (float)SrcDeclAngle; // angle
-            baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle [LP: :( ]
+            baseArr[iArr].SrcDeclAngle  = (float)SrcDeclAngle; // launch angle from source
+            baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle ray reaches receiver
             baseArr[iArr].NTopBnc       = NumTopBnc; // Number of top    bounces
             baseArr[iArr].NBotBnc       = NumBotBnc; //   "       bottom
         }else{ // not a new ray
@@ -95,8 +95,8 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
         baseArr[Nt].a             = (float)Amp; // amplitude
         baseArr[Nt].Phase         = (float)Phase; // phase
         baseArr[Nt].delay         = Cpx2Cpxf(delay); // delay time
-        baseArr[Nt].SrcDeclAngle  = (float)SrcDeclAngle; // angle
-        baseArr[Nt].RcvrDeclAngle = (float)RcvrDeclAngle; // angle [LP: :( ]
+        baseArr[Nt].SrcDeclAngle  = (float)SrcDeclAngle; // launch angle from source
+        baseArr[Nt].RcvrDeclAngle = (float)RcvrDeclAngle; // angle ray reaches receiver
         baseArr[Nt].NTopBnc       = NumTopBnc; // Number of top    bounces
         baseArr[Nt].NBotBnc       = NumBotBnc; //   "       bottom
     }

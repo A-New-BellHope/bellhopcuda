@@ -45,7 +45,7 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
         //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
         //     thetaIntr, r[iRight].theta);
     }else{
-        // Search for bracketting abscissas: Log2( NPts ) stabs required for a bracket
+        // Search for bracketing abscissas: Log2( NPts ) stabs required for a bracket
         
         while(iLeft != iRight - 1){
             iMid = (iLeft + iRight) / 2;
@@ -96,9 +96,6 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             refl->RBot->phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        //LP: BUG: BELLHOP does not deallocate this array first, despite doing
-        //so above.
-        if(refl->RBot != nullptr) deallocate(refl->RBot);
         refl->RBot = allocate<ReflectionCoef>(1);
     }
     
@@ -128,8 +125,6 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             refl->RTop->phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        //LP: BUG: BELLHOP does not deallocate this array first, despite doing
-        //so above.
         if(refl->RTop != nullptr) deallocate(refl->RTop);
         refl->RTop = allocate<ReflectionCoef>(1);
     }

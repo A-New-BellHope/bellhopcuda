@@ -129,7 +129,7 @@ struct AnglesStructure {
 struct FreqInfo {
     real freq0; // Nominal or carrier frequency
     int32_t Nfreq; // number of frequencies
-    real *freqVec; // frequency vector for braodband runs //TODO fix typo
+    real *freqVec; // frequency vector for braoaband runs
 };
 
 ////////////////////////////////////////////////////////////////////////////////

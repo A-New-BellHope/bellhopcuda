@@ -168,7 +168,7 @@ HOST_DEVICE inline void ApplyContribution(
  * gradc: gradient
  * alpha: angular spacing for ray fan
  * rLoop: loop range
- * EpsMultiplier: multiplier [LP: :( ]
+ * EpsMultiplier: multiplier to manually adjust result
  */
 HOST_DEVICE inline cpx PickEpsilon(char BeamType0, char BeamType1, real omega, 
     real c, vec2 gradc, real alpha, real Dalpha, real rLoop, real EpsMultiplier)
@@ -743,7 +743,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
         IncPhaseIfCaustic(inflray, q, true);
         inflray.qOld = q;
         
-        // *** Compute contributions to bracketted receivers ***
+        // *** Compute contributions to bracketed receivers ***
         
         for(int32_t ir = math::min(irA, irB) + 1; ir <= math::max(irA, irB); ++ir){
             w = (Pos->Rr[ir] - rA) / (rB - rA);
@@ -910,7 +910,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
             }
         }
         
-        // receiver not bracketted; bump receiver index, inflray.ir, towards rB
+        // receiver not bracketed; bump receiver index, inflray.ir, towards rB
         if(rB > Pos->Rr[inflray.ir]){
             if(inflray.ir >= Pos->NRr - 1) break; // go to next step on ray
             irTT = inflray.ir + 1; // bump right
@@ -950,7 +950,7 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
     IncPhaseIfCaustic(inflray, q, false);
     inflray.qOld = q;
     
-    // Loop over bracketted receiver ranges
+    // Loop over bracketed receiver ranges
     // LP: BUG: This way of setting up the loop (which matches the FORTRAN
     // implementation) assumes the ray always travels towards positive R, which
     // is not true for certain bathymetries (or for rays simply shot backwards,

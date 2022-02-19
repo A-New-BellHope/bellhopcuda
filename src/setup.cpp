@@ -166,8 +166,6 @@ void setup(std::string FileRoot,
         
         refl->RBot = allocate<ReflectionCoef>(1);
         refl->RTop = allocate<ReflectionCoef>(1);
-        //LP: BUG: On this codepath, BELLHOP never sets refl->NBotPts and
-        //refl->NTopPts, and they don't have any default value.
         refl->NBotPts = refl->NTopPts = 1;
         
         // *** Source Beam Pattern ***

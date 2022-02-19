@@ -49,8 +49,8 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
  * Title: Arbitrary title
  * freq0: Nominal frequency [LP: now in freqinfo]
  * Atten: stabilizing attenuation (for wavenumber integration only)
- * PlotType: [LP: argument description comment present but blank; also never
- * set to "TL" in BELLHOP]
+ * PlotType: If "TL", writes only first and last Sx and Sy [LP: never set to
+ * "TL" in BELLHOP]
  */
 void WriteHeader(DirectOFile &SHDFile, const std::string &FileName, 
     const std::string &Title, float Atten, const std::string &PlotType, 

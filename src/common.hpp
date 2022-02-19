@@ -364,8 +364,6 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ofstrea
 template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 {
     if(Nx >= 3){
-		// mbp: testing for equality here is dangerous
-        // LP: Changed to avoid test for equality
         if(STD::abs(x[2] - (REAL)(-999.9f)) < (REAL)(0.01f)){ 
             if(STD::abs(x[1] - (REAL)(-999.9f)) < (REAL)(0.01f)) x[1] = x[0];
             REAL deltax = (x[1] - x[0]) / (REAL)(Nx - 1);

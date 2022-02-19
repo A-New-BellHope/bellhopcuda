@@ -32,15 +32,8 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
         beaminfo->SrcBmPat[1*2+0] = FL( 180.0); beaminfo->SrcBmPat[1*2+1] = FL(0.0);
     }
     
-    //LP: BUG: BELLHOP does not require that the angles are monotonically
-    //increasing. However, in bellhop.f90:261, it looks for the largest angle
-    //below the target angle and then linearly interpolates between that one and
-    //the next angle in the array. This is only sensible if the angles are
-    //monotonically increasing.
     if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)){
-        std::cout << "Source beam pattern angles are not monotonic. This was not "
-            << "a requirement in BELLHOP but has been added to " PROGRAMNAME " "
-            << "because BELLHOP gave nonsense results if they were not.\n";
+        std::cout << "BELLHOP-ReadPat: Source beam pattern angles are not monotonic\n";
         std::abort();
     }
     

@@ -133,7 +133,7 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
         // averaging two centered differences is equivalent to forming a single centered difference of two steps ...
         for(int32_t ii=1; ii<NPts-1; ++ii){
             sss = Bdry[ii-1].Len / (Bdry[ii-1].Len + Bdry[ii].Len);
-            sss = FL(0.5); //LP: ???
+            sss = FL(0.5); // LP: BUG? Line above is overwritten.
             Bdry[ii].Nodet = (FL(1.0) - sss) * Bdry[ii-1].t + sss * Bdry[ii].t;
         }
         
@@ -146,6 +146,10 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
         }
         
         // compute curvature in each segment
+        // LP: This allocation is not necessary, could just have two variables for
+        // current and next phi. Operating on the whole array can trigger compiler
+        // SIMD parallelism (AVX-512 etc.), but this is unlikely to happen for
+        // atan2, and this is in one-time setup code anyway.
         phi = allocate<real>(NPts);
         // this is the angle at each node
         for(int32_t i=0; i<NPts; ++i) phi[i] = STD::atan2(Bdry[i].Nodet[1], Bdry[i].Nodet[0]);
@@ -163,6 +167,8 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
             
             Bdry[ii].kappa = Bdry[ii].Dss; // over-ride kappa !!!!!
         }
+        
+        deallocate(phi);
     }else{
         for(int32_t i=0; i<NPts; ++i) Bdry[i].kappa = FL(0.0);
     }
@@ -371,7 +377,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
  * Handles top and bottom boundary conditions
  * LP: Moved from readenv.cpp as it relates to boundary conditions.
  * 
- * freq: frequency [LP: :( ]
+ * freq: center / nominal frequency (wideband not supported)
  */
 inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs,
     LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten,  HSInfo &RecycledHS)
