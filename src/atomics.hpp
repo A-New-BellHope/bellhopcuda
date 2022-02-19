@@ -1,5 +1,8 @@
 #pragma once
-#include "common.hpp"
+
+#ifndef _BHC_INCLUDING_COMPONENTS_
+#error "Must be included from common.hpp!"
+#endif
 
 #if __cplusplus < 202002L
 // Pre-C++20 version of bit_cast

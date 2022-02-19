@@ -1,18 +1,6 @@
 #pragma once
 #include "common.hpp"
 
-struct bioStructure {
-    real z1, z2, f0, q, a0;
-};
-
-constexpr int32_t MaxBioLayers = 200;
-
-struct AttenInfo {
-    int32_t NBioLayers;
-    bioStructure bio[MaxBioLayers];
-    real t, Salinity, pH, z_bar, fg; // Francois-Garrison volume attenuation; temperature, salinity, ...
-};
-
 /**
  * Francois Garrison formulas for attenuation
  * Based on a Matlab version by D. Jackson APL-UW

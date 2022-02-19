@@ -1,49 +1,7 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
-#include "curves.hpp"
-#include "attenuation.hpp"
-#include "sourcereceiver.hpp"
-
-constexpr int32_t MaxN = 100000;
-constexpr int32_t MaxSSP = MaxN + 1;
 
 constexpr real betaPowerLaw = FL(1.0);
-
-struct rxyz_vector {
-    real *r, *x, *y, *z;
-};
-
-struct SSPStructure {
-    int32_t NPts, Nr, Nx, Ny, Nz;
-    real z[MaxSSP], rho[MaxSSP];
-    cpx c[MaxSSP], cz[MaxSSP], n2[MaxSSP], n2z[MaxSSP], cSpline[4][MaxSSP];
-    cpx cCoef[4][MaxSSP], CSWork[4][MaxSSP]; // for PCHIP coefs.
-    real *cMat, *czMat, *cMat3, *czMat3;
-    rxyz_vector Seg;
-    char Type;
-    char AttenUnit[2];
-};
-
-struct HSInfo {
-    real alphaR, betaR, alphaI, betaI; // compressional and shear wave speeds/attenuations in user units
-    cpx cP, cS; // P-wave, S-wave speeds
-    real rho, Depth; // density, depth
-    char bc; // Boundary condition type
-    char Opt[6];
-};
-
-/**
- * LP: Compare with BdryPtFull in boundary.hpp.
- */
-struct BdryPtSmall {
-    HSInfo hs;
-};
-
-struct BdryType {
-    BdryPtSmall Top, Bot;
-};
-
 
 #define SSP_FN_ARGS const vec2 &x, const vec2 &t, cpx &ccpx, vec2 &gradc, \
     real &crr, real &crz, real &czz, real &rho, real freq, \

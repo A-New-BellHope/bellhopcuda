@@ -1,22 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
-#include "ssp.hpp"
-
-struct BdryPtFull {
-    vec2 x, t, n; // coordinate, tangent, and outward normal for a segment
-    vec2 Nodet, Noden; // tangent and normal at the node, if the curvilinear option is used
-    real Len, kappa; // length and curvature of a segement
-    real Dx, Dxx, Dss; // first, second derivatives wrt depth; s is along tangent
-    HSInfo hs;
-};
- 
-struct BdryInfo {
-    int32_t NATIPts, NBTYPts;
-    char atiType[2];
-    char btyType[2];
-    BdryPtFull *Top, *Bot;
-};
 
 constexpr int32_t Bdry_Number_to_Echo = 21;
 

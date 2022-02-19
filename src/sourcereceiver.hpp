@@ -1,23 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "beams.hpp"
-
-struct Position {
-    int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
-    int32_t NRz_per_range;
-    real Delta_r, Delta_theta;
-    int32_t *iSz, *iRz;
-    // LP: These are really floats, not reals.
-    float *Sx, *Sy, *Sz; // Source x, y, z coordinates
-    float *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
-    float *theta; // Receiver bearings
-};
-
-struct FreqInfo {
-    real freq0; // Nominal or carrier frequency
-    int32_t Nfreq; // number of frequencies
-    real *freqVec; // frequency vector for braodband runs
-};
 
 /**
  * Optionally reads a vector of source frequencies for a broadband run

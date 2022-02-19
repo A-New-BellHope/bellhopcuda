@@ -1,5 +1,4 @@
 #include "arrivals.hpp"
-#include "bino.hpp"
 
 void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD)

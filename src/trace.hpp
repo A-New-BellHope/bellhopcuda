@@ -1,11 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "boundary.hpp"
-#include "refcoef.hpp"
-#include "ssp.hpp"
-#include "sourcereceiver.hpp"
-#include "angles.hpp"
-#include "beams.hpp"
 #include "step.hpp"
 
 /**

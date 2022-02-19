@@ -1,5 +1,10 @@
 #pragma once
-#include "common.hpp"
+
+#ifndef _BHC_INCLUDING_COMPONENTS_
+#error "Must be included from common.hpp!"
+#endif
+
+#include <fstream>
 
 /**
  * C++ emulation of FORTRAN direct output (binary). Uses a global record length

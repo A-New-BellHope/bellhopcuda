@@ -1,43 +1,17 @@
 #pragma once
 
-////////////////////////////////////////////////////////////////////////////////
-//Common includes
-////////////////////////////////////////////////////////////////////////////////
-
-#define _USE_MATH_DEFINES 1 //must be before anything which includes math.h
-#include <math.h>
-#include <algorithm>
-#include <complex>
-#include <cfloat>
-#include <cfenv>
-#include <cctype>
-#include <cstdio>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <cstring>
-#include <string>
-#include <locale>
-#include <chrono>
-
-////////////////////////////////////////////////////////////////////////////////
-//Select which standard library
-////////////////////////////////////////////////////////////////////////////////
+#include <bhc/bhc.hpp>
 
 #ifdef BUILD_CUDA
-#include "cuda_runtime.h"
 #include "UtilsCUDA.cuh"
-#define HOST_DEVICE __host__ __device__
-#include <cuda/std/complex>
-#include <cuda/std/cfloat>
-//libcu++
-#define STD cuda::std
-#define PROGRAMNAME "bellhopcuda"
-#else
-#define HOST_DEVICE
-#define STD std
-#define PROGRAMNAME "bellhopcxx"
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+//Assertions and debug
+////////////////////////////////////////////////////////////////////////////////
+
+#include <cstdio>
+#include <iostream>
 
 #define NULLSTATEMENT ((void)0)
 #define REQUIRESEMICOLON do{NULLSTATEMENT;} while(false)
@@ -83,104 +57,54 @@ if(!(statement)){ \
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-//Math types
+//Misc real math
 ////////////////////////////////////////////////////////////////////////////////
-
-#ifdef USE_FLOATS
-using real = float;
-#define REAL_MAX FLT_MAX
-#define REAL_EPSILON FLT_EPSILON
-#define REAL_MINPOS FLT_MIN
-#define REAL_PI ((float)M_PI)
-#define REAL_REL_SNAP (1.0e-5f)
-// Must be below abs(bit_cast<float>(0xFEFEFEFEu) == -1.69e38f)
-#define DEBUG_LARGEVAL (1.0e30f)
-// #define DEBUG_LARGEVAL (1.0e15f)
-#else
-using real = double;
-#define REAL_MAX DBL_MAX
-#define REAL_EPSILON DBL_EPSILON
-#define REAL_MINPOS DBL_MIN
-#define REAL_PI M_PI
-#define REAL_REL_SNAP (1.0e-6)
-//Must be below abs(bit_cast<double>(0xFEFEFEFEFEFEFEFEull) == -5.31e303)
-#define DEBUG_LARGEVAL (1.0e250)
-//#define DEBUG_LARGEVAL (1.0e15)
-#endif
-
-// BELLHOP uses mostly normal REAL literals, which are float despite most of the
-// program using REAL*8 (double). It occasionally uses double-precision literals
-// (look like 1.6D-9). For values exactly expressible in both types, e.g. 0.0,
-// 1.0, 2.0, 37.0, 0.375, it doesn't matter which type the literal is--except
-// that when running in float mode, double-precision literals may cause the
-// entire expression to be promoted to double, causing extremely slow double-
-// precision instructions to be emitted on CUDA. However, for values not
-// expressable as float, e.g. 0.1, the literal type changes the result:
-// double d = bar(); float f = foo();
-// assert(d * 0.1 == d * 0.1f); //will fail for all d except 0, inf, etc.
-// assert((float)(f * 0.1) == f * 0.1f); //will fail for some f
-//
-// "Real literal"
-#ifdef USE_FLOATS
-#define RL(a) (a##f)
-#else
-#define RL(a) a
-#endif
-// "Float literal"--This macro is not actually needed, values could just be
-// always written as e.g. 0.1f, but this way, every floating-point literal
-// should have one or the other macro on it, making it easier to spot errors.
-#define FL(a) (a##f)
-
-using cpx = STD::complex<real>;
-using cpxf = STD::complex<float>; // for uAllSources
-#define J cpx(RL(0.0), RL(1.0))
-HOST_DEVICE constexpr inline cpxf Cpx2Cpxf(const cpx &c){
-	return cpxf((float)c.real(), (float)c.imag());
-}
-HOST_DEVICE constexpr inline cpx Cpxf2Cpx(const cpxf &c){
-	return cpx((real)c.real(), (real)c.imag());
-}
-
-//CUDA::std::cpx<double> does not like operators being applied with float
-//literals, due to template type deduction issues.
-#ifndef USE_FLOATS
-HOST_DEVICE constexpr inline cpx operator-(float a, const cpx &b){
-    return cpx(a - b.real(), -b.imag());
-}
-HOST_DEVICE constexpr inline cpx operator*(const cpx &a, float b){
-    return cpx(a.real() * b, a.imag() * b);
-}
-HOST_DEVICE constexpr inline cpx operator*(float a, const cpx &b){
-    return cpx(a * b.real(), a * b.imag());
-}
-HOST_DEVICE constexpr inline cpx operator/(const cpx &a, float b){
-    return cpx(a.real() / b, a.imag() / b);
-}
-HOST_DEVICE inline cpx operator/(float a, const cpx &b){
-    return (double)a / b;
-}
-#endif
-
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
-//#include <glm/vec4.hpp>
-//#include <glm/mat2x2.hpp>
-//#include <glm/mat3x3.hpp>
-//#include <glm/mat4x4.hpp>
-#include <glm/common.hpp>
-#include <glm/geometric.hpp>
-
-using vec2 = glm::vec<2, real, glm::defaultp>;
-using vec3 = glm::vec<3, real, glm::defaultp>;
-// using vec4 = glm::vec<4, real, glm::defaultp>;
-// using mat2 = glm::mat<2, 2, real, glm::defaultp>;
-// using mat3 = glm::mat<3, 3, real, glm::defaultp>;
-// using mat4 = glm::mat<4, 4, real, glm::defaultp>;
 
 #define SQ(a) ((a) * (a)) //Square
 #define CUBE(a) ((a) * (a) * (a))
 constexpr real RadDeg = RL(180.0) / REAL_PI;
 constexpr real DegRad = REAL_PI / RL(180.0);
+
+template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v){
+	return STD::abs(STD::nextafter(v, (REAL)(0.0f)) - v);
+}
+
+namespace math {
+	//max/min are not handled the same way as other math functions by the C++
+    //standard library and therefore also by libcu++. These versions make sure
+    //to use the underlying function with the correct precision.
+	#ifdef __CUDA_ARCH__
+	#define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
+		__device__ inline float BASE(const float &a, const float &b) { return DEV_F(a, b); } \
+		__device__ inline double BASE(const double &a, const double &b) { return DEV_D(a, b); }
+	#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
+		__device__ inline int32_t BASE(const int32_t &a, const int32_t &b) { return DEV(a, b); } \
+		__device__ inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return DEV(a, b); } \
+		__device__ inline size_t BASE(const size_t &a, const size_t &b) { return DEV(a, b); }
+	#else
+    #define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
+        inline float BASE(const float &a, const float &b) { return HOST_F(a, b); } \
+        inline double BASE(const double &a, const double &b) { return HOST_D(a, b); }
+	#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
+		inline int32_t BASE(const int32_t &a, const int32_t &b) { return HOST(a, b); } \
+		inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return HOST(a, b); } \
+		inline size_t BASE(const size_t &a, const size_t &b) { return HOST(a, b); }
+    #endif
+
+    DEFINE_MATH_FUNC_2(max, fmaxf, std::max, fmax, std::max)
+    DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
+	DEFINE_MATH_FUNC_INT_2(max, ::max, std::max)
+	DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//String manipulation
+////////////////////////////////////////////////////////////////////////////////
+
+#include <cctype>
+#include <cstring>
+#include <string>
+#include <locale>
 
 inline bool isInt(std::string str, bool allowNegative = true){
 	if(str.empty()) return false;
@@ -214,75 +138,7 @@ inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
 	return s;
 }
 
-template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v){
-	return STD::abs(STD::nextafter(v, (REAL)(0.0f)) - v);
-}
 
-namespace math {
-	//Intrinsic/optimized math functions on device, or normal ones on host.
-	//http://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__INTRINSIC__SINGLE.html
-	//http://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__SINGLE.html
-	#ifdef __CUDA_ARCH__
-	#define DEFINE_MATH_FUNC_1(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-		__device__ inline float BASE(const float &a) { return DEV_F(a); } \
-		__device__ inline double BASE(const double &a) { return DEV_D(a); }
-	#define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-		__device__ inline float BASE(const float &a, const float &b) { return DEV_F(a, b); } \
-		__device__ inline double BASE(const double &a, const double &b) { return DEV_D(a, b); }
-	#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
-		__device__ inline int32_t BASE(const int32_t &a, const int32_t &b) { return DEV(a, b); } \
-		__device__ inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return DEV(a, b); } \
-		__device__ inline size_t BASE(const size_t &a, const size_t &b) { return DEV(a, b); }
-	#else
-	#define DEFINE_MATH_FUNC_1(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-		inline float BASE(const float &a) { return HOST_F(a); } \
-		inline double BASE(const double &a) { return HOST_D(a); }
-    #define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-        inline float BASE(const float &a, const float &b) { return HOST_F(a, b); } \
-        inline double BASE(const double &a, const double &b) { return HOST_D(a, b); }
-	#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
-		inline int32_t BASE(const int32_t &a, const int32_t &b) { return HOST(a, b); } \
-		inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return HOST(a, b); } \
-		inline size_t BASE(const size_t &a, const size_t &b) { return HOST(a, b); }
-    #endif
-
-    #ifdef WIN32
-    //These are provided as a GCC extension, but not by MSVC. But, __exp10f is a
-    //device intrinsic, so an equivalent host function must exist.
-    inline float internal_exp10f(float f) { return ::pow(10.0f, f); }
-    inline double internal_exp10d(double d) { return ::pow(10.0, d); }
-    #else
-    #define internal_exp10f ::exp10
-    #define internal_exp10d ::exp10
-    #endif
-
-	/*
-    DEFINE_MATH_FUNC_1(abs, fabsf, std::abs, fabs, std::abs)
-	*/
-    DEFINE_MATH_FUNC_2(max, fmaxf, std::max, fmax, std::max)
-    DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
-	DEFINE_MATH_FUNC_INT_2(max, ::max, std::max)
-	DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
-	/*
-	DEFINE_MATH_FUNC_1(floor, floorf, std::floor, ::floor, std::floor)
-	DEFINE_MATH_FUNC_1(ceil, ceilf, std::ceil, ::ceil, std::ceil)
-	DEFINE_MATH_FUNC_2(fmod, fmodf, std::fmod, fmod, std::fmod)
-	DEFINE_MATH_FUNC_1(sqrt, __fsqrt_rn, std::sqrt, __dsqrt_rn, std::sqrt)
-	DEFINE_MATH_FUNC_1(rsqrt, __frsqrt_rn, 1.0f / std::sqrt, 1.0 / __dsqrt_rn, 1.0 / std::sqrt)
-	DEFINE_MATH_FUNC_1(log2, __log2f, std::log2, log2, std::log2)
-	DEFINE_MATH_FUNC_1(exp2, exp2f, std::exp2, exp2, std::exp2)
-	DEFINE_MATH_FUNC_1(log10, __log10f, std::log10, log10, std::log10)
-	DEFINE_MATH_FUNC_1(exp10, __exp10f, internal_exp10f, ::exp10, internal_exp10d)
-	DEFINE_MATH_FUNC_2(pow, __powf, std::pow, ::pow, std::pow)
-	DEFINE_MATH_FUNC_1(sin, __sinf, std::sin, ::sin, std::sin)
-	DEFINE_MATH_FUNC_1(cos, __cosf, std::cos, ::cos, std::cos)
-	DEFINE_MATH_FUNC_2(atan2, atan2f, std::atan2, ::atan2, std::atan2)
-	*/
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//String manipulation
-////////////////////////////////////////////////////////////////////////////////
 
 //Courtesy Evan Teran, https://stackoverflow.com/a/217605
 // trim from start (in place)
@@ -346,6 +202,8 @@ template<typename T> inline void deallocate(T *&ptr){
 ////////////////////////////////////////////////////////////////////////////////
 //Algorithms
 ////////////////////////////////////////////////////////////////////////////////
+
+#include <algorithm>
 
 template<typename T> inline void Sort(T *arr, size_t n){
 	std::sort(arr, arr + n);
@@ -501,6 +359,8 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ofstrea
     */
 }
 
+//#include <cfenv>
+
 template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 {
     if(Nx >= 3){
@@ -525,6 +385,8 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 //Timing
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <chrono>
+
 class Stopwatch
 {
 public:
@@ -542,3 +404,13 @@ public:
 private:
     std::chrono::high_resolution_clock::time_point tstart;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+//Other components
+////////////////////////////////////////////////////////////////////////////////
+
+#define _BHC_INCLUDING_COMPONENTS_ 1
+#include "ldio.hpp"
+#include "bino.hpp"
+#include "atomics.hpp"
+#undef _BHC_INCLUDING_COMPONENTS_

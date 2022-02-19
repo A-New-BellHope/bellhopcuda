@@ -4,7 +4,7 @@ project(bellhopcuda LANGUAGES CXX CUDA)
 include(../SetupCommon.cmake)
 include(SetupCUDA.cmake)
 
-add_executable(bellhopcuda ${COMMON_SOURCE} 
+add_executable(bellhopcuda ${COMMON_INCLUDES} ${COMMON_SOURCE} 
     ${CMAKE_SOURCE_DIR}/src/UtilsCUDA.cuh
     ${CMAKE_SOURCE_DIR}/src/tl_cuda.cu
 )

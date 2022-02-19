@@ -1,15 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
-
-struct ReflectionCoef {
-    real theta, r, phi;
-};
-
-struct ReflectionInfo {
-    int32_t NBotPts, NTopPts;
-    ReflectionCoef *RBot, *RTop;
-};
 
 /**
  * Given an angle RInt%ThetaInt, returns the magnitude and

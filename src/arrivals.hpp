@@ -4,24 +4,8 @@
 #include "sourcereceiver.hpp"
 #include "beams.hpp"
 
-struct Arrival {
-    int32_t NTopBnc, NBotBnc;
-    float SrcDeclAngle, SrcAzimAngle, RcvrDeclAngle, RcvrAzimAngle, a, Phase;
-    cpxf delay;
-};
-
 /**
- * Variables for arrival information
- */
-struct ArrInfo {
-    Arrival *Arr;
-    int32_t *NArr;
-    int32_t MaxNArr;
-    bool singlethread;
-};
-
-/**
- * Is this the second bracketting ray [LP: step] of a pair?
+ * Is this the second bracketting ray [LP: second step on the same ray] of a pair?
  * If so, we want to combine the arrivals to conserve space.
  * (test this by seeing if the arrival time is close to the previous one)
  * (also need that the phase is about the same to make sure surface and direct paths are not joined)
@@ -51,14 +35,15 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
     
     if(arrinfo->singlethread){
         // LP: Besides this algorithm being virtually impossible to adapt for
-        // multithreading, there is a more fundamental problem with it: it does
+        // multithreading, there is a more fundamental BUG with it: it does
         // not have any handling for the case where the current arrival is the
         // second step of a pair, but the storage is full and the first step of
         // the pair got stored in some slot other than the last one. It will
         // only consider the last ray in storage as a candidate for the first
         // half of the pair. This means that whether a given pair is
         // successfully paired or not depends on the number of arrivals before
-        // that pair, which is arbitrary and independent of the current pair.
+        // that pair, which depends on the order rays were computed, which is
+        // arbitrary and non-physical.
     
         Nt = *baseNArr; // # of arrivals
         

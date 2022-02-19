@@ -1,26 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
-
-struct rxyz {
-    real r, x, y, z;
-};
-
-struct BeamStructure {
-    //LP: NSteps moved out of this struct as it's a property of a single beam.
-    int32_t NBeams, Nimage, iBeamWindow;
-    real deltas, epsMultiplier, rLoop;
-    char Component;
-    char Type[4];
-    char RunType[7];
-    rxyz Box;
-};
-
-struct BeamInfo {
-    int32_t NSBPPts;
-    real *SrcBmPat;
-    char SBPFlag;
-};
 
 inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
     BeamInfo *beaminfo)

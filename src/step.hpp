@@ -1,20 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "ssp.hpp"
-#include "beams.hpp"
-
-struct ray2DPt {
-    int32_t NumTopBnc, NumBotBnc;
-    ///ray coordinate, (r,z)
-    vec2 x;
-    ///scaled tangent to the ray (previously (rho, zeta))
-    vec2 t;
-    vec2 p, q;
-    ///c * t would be the unit tangent
-    real c;
-    real Amp, Phase;
-    cpx tau;
-};
 
 #define INFINITESIMAL_STEP_SIZE (RL(1e-6))
 

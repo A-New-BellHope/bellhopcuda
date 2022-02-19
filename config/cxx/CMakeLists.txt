@@ -3,6 +3,8 @@ project(bellhopcxx LANGUAGES CXX)
 
 include(../SetupCommon.cmake)
 
-add_executable(bellhopcxx ${COMMON_SOURCE} ${CMAKE_SOURCE_DIR}/src/tl_cxx.cpp)
+add_executable(bellhopcxx ${COMMON_INCLUDES} ${COMMON_SOURCE} 
+    ${CMAKE_SOURCE_DIR}/src/tl_cxx.cpp
+)
 
 bellhop_setup_target(bellhopcxx)

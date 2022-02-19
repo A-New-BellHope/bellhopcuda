@@ -1,15 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "bino.hpp"
-#include "boundary.hpp"
-#include "refcoef.hpp"
-#include "ssp.hpp"
-#include "attenuation.hpp"
-#include "sourcereceiver.hpp"
-#include "angles.hpp"
-#include "beams.hpp"
-#include "eigenrays.hpp"
-#include "arrivals.hpp"
 
 void setup(std::string FileRoot, 
     std::ofstream &PRTFile, LDOFile &RAYFile, DirectOFile &SHDFile,

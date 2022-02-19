@@ -21,6 +21,7 @@ function(bellhop_setup_target target_name)
     if(USE_FLOAT)
         target_compile_definitions(${target_name} PUBLIC USE_FLOATS=1)
     endif()
+    target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/include")
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
     target_link_libraries(${target_name} Threads::Threads)
 endfunction()
@@ -40,6 +41,14 @@ function(prependlist OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend 
     endforeach()
     set(${OUT_VAR} "${TEMP}" PARENT_SCOPE)
 endfunction()
+
+set(COMMON_INCLUDES
+    bhc.hpp
+    cpx.hpp
+    cxxorcuda.hpp
+    real.hpp
+    structs.hpp
+)
 
 set(COMMON_SOURCE
     angles.hpp
@@ -70,4 +79,5 @@ set(COMMON_SOURCE
     trace.hpp
 )
 
+prependlist(COMMON_INCLUDES "${CMAKE_SOURCE_DIR}/include/bhc/" ${COMMON_INCLUDES})
 prependlist(COMMON_SOURCE "${CMAKE_SOURCE_DIR}/src/" ${COMMON_SOURCE})

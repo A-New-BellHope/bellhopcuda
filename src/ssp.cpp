@@ -1,4 +1,5 @@
 #include "ssp.hpp"
+#include "curves.hpp"
 
 #define READ_SSP_ARGS real Depth, real freq, const real &fT, SSPStructure *ssp, \
     LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS

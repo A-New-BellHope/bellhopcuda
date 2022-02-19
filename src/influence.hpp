@@ -1,11 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "atomics.hpp"
-#include "boundary.hpp"
-#include "ssp.hpp"
-#include "sourcereceiver.hpp"
-#include "angles.hpp"
-#include "beams.hpp"
 #include "step.hpp"
 #include "eigenrays.hpp"
 #include "arrivals.hpp"

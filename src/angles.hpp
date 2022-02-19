@@ -1,13 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
-#include "sourcereceiver.hpp"
-
-struct AnglesStructure {
-    int32_t Nalpha, Nbeta, iSingle_alpha, iSingle_beta;
-    real Dalpha, Dbeta; // angular spacing between beams
-    real *alpha, *beta;
-};
 
 /**
  * LP: RunType was originally length 6 in the FORTRAN, but Beam->RunType was

@@ -1,28 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
-#include "atomics.hpp"
-#include "boundary.hpp"
-#include "refcoef.hpp"
-#include "ssp.hpp"
-#include "sourcereceiver.hpp"
-#include "angles.hpp"
-#include "beams.hpp"
-
-struct EigenHit {
-    // LP: Receiver this hit pertains to
-    int32_t ir, iz;
-    // LP: Identifying info to re-trace this ray
-    int32_t isrc, ialpha;
-    // LP: Number of steps until the ray hit the receiver
-    int32_t is;
-};
-
-struct EigenInfo {
-    uint32_t neigen;
-    uint32_t memsize;
-    EigenHit *hits;
-};
 
 HOST_DEVICE inline void RecordEigenHit(int32_t ir, int32_t iz, 
     int32_t isrc, int32_t ialpha, int32_t is, EigenInfo *eigen)
