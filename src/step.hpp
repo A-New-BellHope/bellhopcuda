@@ -1,5 +1,7 @@
 #pragma once
 #include "common.hpp"
+#include "ssp.hpp"
+#include "boundary.hpp"
 
 #define INFINITESIMAL_STEP_SIZE (RL(1e-6))
 

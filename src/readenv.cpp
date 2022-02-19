@@ -1,4 +1,9 @@
 #include "readenv.hpp"
+#include "boundary.hpp"
+#include "ssp.hpp"
+#include "sourcereceiver.hpp"
+#include "angles.hpp"
+#include "beams.hpp"
 
 /**
  * LP: No function description given.

@@ -1,6 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include "step.hpp"
+#include "refcoef.hpp"
 
 /**
  * Calculates the distances to the boundaries

@@ -1,5 +1,10 @@
 #include "setup.hpp"
 #include "output.hpp"
+#include "readenv.hpp"
+#include "boundary.hpp"
+#include "refcoef.hpp"
+#include "ssp.hpp"
+#include "beams.hpp"
 
 constexpr bool Init_Inline = false;
 

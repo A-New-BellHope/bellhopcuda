@@ -4,9 +4,6 @@
 #error "Must be included from common.hpp!"
 #endif
 
-#include <fstream>
-#include <iomanip>
-
 /**
  * C++ emulation of FORTRAN list-directed input.
  * To use:

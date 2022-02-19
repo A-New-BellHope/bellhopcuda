@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "curves.hpp"
 
 constexpr real betaPowerLaw = FL(1.0);
 

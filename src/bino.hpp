@@ -4,8 +4,6 @@
 #error "Must be included from common.hpp!"
 #endif
 
-#include <fstream>
-
 /**
  * C++ emulation of FORTRAN direct output (binary). Uses a global record length
  * which is not directly encoded in the file (usually user-encoded as the first

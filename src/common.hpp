@@ -2,6 +2,11 @@
 
 #include <bhc/bhc.hpp>
 
+#include <cstdio>
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+
 #ifdef BUILD_CUDA
 #include "UtilsCUDA.cuh"
 #endif
@@ -9,9 +14,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //Assertions and debug
 ////////////////////////////////////////////////////////////////////////////////
-
-#include <cstdio>
-#include <iostream>
 
 #define NULLSTATEMENT ((void)0)
 #define REQUIRESEMICOLON do{NULLSTATEMENT;} while(false)
@@ -138,7 +140,7 @@ inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
 	return s;
 }
 
-
+#include <algorithm>
 
 //Courtesy Evan Teran, https://stackoverflow.com/a/217605
 // trim from start (in place)
@@ -202,8 +204,6 @@ template<typename T> inline void deallocate(T *&ptr){
 ////////////////////////////////////////////////////////////////////////////////
 //Algorithms
 ////////////////////////////////////////////////////////////////////////////////
-
-#include <algorithm>
 
 template<typename T> inline void Sort(T *arr, size_t n){
 	std::sort(arr, arr + n);
