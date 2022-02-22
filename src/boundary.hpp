@@ -177,8 +177,6 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
 inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
     std::ofstream &PRTFile, BdryInfo *bdinfo)
 {
-    //LP: Removed phi, which got allocated but not used. Just to check that
-    //there was enough memory for it to be allocated later? Or bug?
     switch(TopATI){
     case '~':
     case '*':{
@@ -216,9 +214,9 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
             case 'S':
             case ' ':
                 LIST(ATIFile); ATIFile.Read(bdinfo->Top[ii].x);
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts){ // echo some values
-                    //LP: Bug? Even in the Fortran, ii should never equal
-                    //NATIPts as the loop ends at NATIPts-1.
+                // LP: This condition was previously ii == bdinfo->NATIPts - 1,
+                // which will never be satisfied due to the loop bounds
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts - 2){ // echo some values
                     PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << "\n";
                 }
                 break;
@@ -229,7 +227,8 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
                 ATIFile.Read(bdinfo->Top[ii].hs.rho);
                 ATIFile.Read(bdinfo->Top[ii].hs.alphaI);
                 ATIFile.Read(bdinfo->Top[ii].hs.betaI);
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts){ // echo some values
+                // LP: Same change as above
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts - 2){ // echo some values
                     PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << " "
                         << bdinfo->Top[ii].hs.alphaR << " "
                         << bdinfo->Top[ii].hs.betaR << " "
@@ -322,9 +321,9 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             case 'S':
             case ' ':
                 LIST(BTYFile); BTYFile.Read(bdinfo->Bot[ii].x);
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts){ // echo some values
-                    //LP: Bug? Even in the Fortran, ii should never equal
-                    //NBTYPts as the loop ends at NBTYPts-1.
+                // LP: This condition was previously ii == bdinfo->NBTYPts - 1,
+                // which will never be satisfied due to the loop bounds
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts - 2){ // echo some values
                     PRTFile << std::setprecision(3) << bdinfo->Bot[ii].x << "\n";
                 }
                 break;
@@ -335,7 +334,8 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
                 BTYFile.Read(bdinfo->Bot[ii].hs.rho);
                 BTYFile.Read(bdinfo->Bot[ii].hs.alphaI);
                 BTYFile.Read(bdinfo->Bot[ii].hs.betaI);
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts){ // echo some values
+                // LP: Same change as above
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts - 2){ // echo some values
                     PRTFile << std::setprecision(2) << bdinfo->Bot[ii].x << " "
                         << bdinfo->Bot[ii].hs.alphaR << " "
                         << bdinfo->Bot[ii].hs.betaR << " "
