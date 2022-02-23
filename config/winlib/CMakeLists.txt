@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
-project(bellhopcxx LANGUAGES CXX)
+project(bellhopcxxdll LANGUAGES CXX)
 
 include(../SetupCommon.cmake)
 
