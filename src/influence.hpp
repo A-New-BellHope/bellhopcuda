@@ -891,11 +891,13 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
 HOST_DEVICE inline bool Step_InfluenceSGB(
     const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
     int32_t is, cpxf *u,
-    const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen)
+    const Position *Pos, const BeamStructure *Beam,
+    EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     real w;
     vec2 x, rayt;
     cpx tau;
+    real RcvrDeclAngle = RadDeg * STD::atan2(point1.t.y, point1.t.x);
     
     const real beta = FL(0.98); // Beam Factor
     real a = FL(-4.0) * STD::log(beta) / SQ(inflray.Dalpha);
@@ -930,24 +932,27 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
         
         for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
             real deltaz = Pos->Rz[iz] - x.y; // ray to rcvr distance
-            //LP: This is commented out, but seems very important to have.
-            //real Adeltaz = STD::abs(deltaz);
-            //if(Adeltaz < inflray.RadMax){
-                if(Beam->RunType[0] == 'E'){ // eigenrays
-                    RecordEigenHit(inflray.ir, iz, inflray.isrc, inflray.ialpha, is, eigen);
-                }else{ // coherent TL
-                    // LP: BUG: It may be incoherent, semi-coherent, or arrivals.
-                    real cpa = STD::abs(deltaz * (rB - rA)) / STD::sqrt(SQ(rB - rA) 
-                        + SQ(point1.x.y - point0.x.y));
-                    real ds = STD::sqrt(SQ(deltaz) - SQ(cpa));
-                    real sx1 = sint + ds;
-                    real thet = STD::atan(cpa / sx1);
-                    cpx delay = tau + rayt.y * deltaz;
-                    cpx contri = inflray.Ratio1 * cn * point1.Amp * STD::exp(-a * SQ(thet) -
-                        J * (inflray.omega * delay - point1.Phase - inflray.phase)) / STD::sqrt(sx1);
-                    AtomicAddCpx(&u[iz*Pos->NRr + inflray.ir], Cpx2Cpxf(contri));
-                }
-            //}
+            // LP: Reinstated this condition for eigenrays and arrivals, as
+            // without it every ray would be an eigenray / arrival.
+            real Adeltaz = STD::abs(deltaz);
+            if(Adeltaz < inflray.RadMax || Beam->RunType[0] == 'C'
+                    || Beam->RunType[0] == 'I' || Beam->RunType[0] == 'S'){
+                // LP: Changed to use ApplyContribution in order to support 
+                // incoherent, semi-coherent, and arrivals.
+                real cpa = STD::abs(deltaz * (rB - rA)) / STD::sqrt(SQ(rB - rA) 
+                    + SQ(point1.x.y - point0.x.y));
+                real ds = STD::sqrt(SQ(deltaz) - SQ(cpa));
+                real sx1 = sint + ds;
+                real thet = STD::atan(cpa / sx1);
+                cpx delay = tau + rayt.y * deltaz;
+                real cnst = inflray.Ratio1 * cn * point1.Amp / STD::sqrt(sx1);
+                w = STD::exp(-a * SQ(thet));
+                real phaseInt = point1.Phase + inflray.phase;
+                ApplyContribution(&u[iz*Pos->NRr + inflray.ir],
+                    cnst, w, inflray.omega, delay, phaseInt,
+                    inflray.SrcDeclAngle, RcvrDeclAngle, inflray.ir, iz, is,
+                    inflray, point1, Pos, Beam, eigen, arrinfo);
+            }
         }
         
         inflray.qOld = q;
@@ -975,7 +980,7 @@ HOST_DEVICE inline bool Step_Influence(
     case 'g': return Step_InfluenceGeoHatRayCen(
             point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
     case 'S': return Step_InfluenceSGB(
-            point0, point1, inflray, is, u, Pos, Beam, eigen);
+            point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
     case 'B':
     default:  return Step_InfluenceGeoHatOrGaussianCart(Beam->Type[0] == 'B',
             point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);

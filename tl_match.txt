@@ -54,8 +54,10 @@ MunkB_Coh_SGB_twobeams
 //
 //Semi-coherent
 MunkB_Semi_gb
+MunkB_Semi_SGB
 //
 //
 //Incoherent
 free_gbtB_Inc
 MunkB_Inc_gb
+MunkB_Inc_SGB
