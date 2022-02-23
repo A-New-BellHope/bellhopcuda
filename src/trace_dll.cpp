@@ -6,10 +6,10 @@
 
 #define BELLHOPCXX_EXPORTS
 
-#include "setup.hpp"
-#include "trace.hpp"
-#include "output.hpp"
 #include "trace_dll.hpp"
+#include "setup.hpp"
+#include "main.hpp"
+#include "output.hpp"
 
 #include <atomic>
 #include <mutex>
@@ -31,10 +31,12 @@ AnglesStructure* Angles;
 FreqInfo* freqinfo;
 BeamStructure* Beam;
 BeamInfo* beaminfo;
+DirectOFile SHDFile;
+EigenInfo* eigen;
+ArrInfo* arrinfo;
 
 std::atomic<int32_t> rayID;
 std::mutex rayfilemutex;
-
 
 //just dump them
 std::ostream& operator<<(std::ostream& out, const ray2DPt& x) {
@@ -81,7 +83,7 @@ void RayWorker()
 
         real SrcDeclAngle;
         int32_t Nsteps;
-        CoreSingleBeam(is, ialpha, ray2D, SrcDeclAngle, Nsteps,
+        MainRayMode(is, ialpha, SrcDeclAngle, ray2D, Nsteps,
             Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
 
         //{
@@ -105,11 +107,9 @@ int RunBellhop(std::string FileRoot, void * result) {
 
     FileRoot = std::string("d:/Users/oldst/Documents/joe/pong/temp/") + FileRoot;
 
-    //std::cout << " size " << sizeof(ray2DPt) << "\n" << std::flush;
-
-    setup(FileRoot, PRTFile, RAYFile, ARRFile, Title, fT,
-        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo);
-    core_setup(PRTFile, fT, Bdry, bdinfo, atten, Angles, freqinfo, Beam);
+    setup(FileRoot, PRTFile, RAYFile, SHDFile, Title, fT,
+        Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen, arrinfo);
+    InitCommon(Pos, Beam);
 
     rayID = 0;
 

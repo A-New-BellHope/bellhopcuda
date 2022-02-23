@@ -1,4 +1,6 @@
 #pragma once
+#include "setup.hpp"
+#include "main.hpp"
 #include "common.hpp"
 #include "boundary.hpp"
 #include "refcoef.hpp"

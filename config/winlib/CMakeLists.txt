@@ -3,7 +3,7 @@ project(bellhopcxx LANGUAGES CXX)
 
 include(../SetupCommon.cmake)
 
-add_library(bellhopcxxdll SHARED ${COMMON_SOURCE} ${CMAKE_SOURCE_DIR}/src/trace_dll.hpp)
+add_library(bellhopcxxdll SHARED ${COMMON_SOURCE} ${CMAKE_SOURCE_DIR}/src/trace_dll.cpp)
 include(GenerateExportHeader)
 generate_export_header(bellhopcxxdll)
 

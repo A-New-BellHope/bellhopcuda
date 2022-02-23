@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <string>
+
 #ifdef BELLHOPCXX_EXPORTS
 #define BELLHOPCXX_API __declspec(dllexport)
 #else
