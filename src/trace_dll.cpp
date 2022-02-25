@@ -56,56 +56,44 @@ std::ostream& operator<<(std::ostream& out, const ray2DPt& x) {
 //make sure there's enough room for MaxN * Pos->NSz values
 ray2DPt *ray2DAll;
 
+/// <summary>
+/// start on threads for a ray calculation. Mostly copied from tl_cxx.
+/// </summary>
 void RayWorker()
 {
     while (true) {
-        int32_t ray = rayID;
-        int32_t is, ialpha;
+        int32_t ray;
+        //ray = rayID++; //should work, but something is strange with operator++ and atomics
+        //not much cost to mutex the job number (ray).
+        {
+            std::lock_guard<std::mutex> g(rayfilemutex);
+            ray = rayID;
+            rayID += 1;
+        }
         ray2DPt* ray2D = ray2DAll + MaxN * ray;
-        rayID += 1;
-        //{
-        //    std::lock_guard<std::mutex> g(rayfilemutex);
-        //    std::cout << "Starting thread " << ray 
-        //        << " at " << reinterpret_cast<void*>(ray2D) 
-        //        << "\n" << std::flush;
-        //}
-        if (Angles->iSingle_alpha >= 0) {
-            is = ray;
-            ialpha = Angles->iSingle_alpha;
-        }
-        else {
-            is = ray / Angles->Nalpha;
-            ialpha = ray % Angles->Nalpha;
-        }
-        if (is >= Pos->NSz) break;
+        int32_t isrc, ialpha;
+        if (!GetJobIndices(isrc, ialpha, ray, Pos, Angles)) break;
 
         memset(ray2D, 0xFE, MaxN * sizeof(ray2DPt)); //Set to garbage values for debugging
 
         real SrcDeclAngle;
-        int32_t Nsteps;
-        MainRayMode(is, ialpha, SrcDeclAngle, ray2D, Nsteps,
+        int32_t Nsteps = -1;
+        MainRayMode(isrc, ialpha, SrcDeclAngle, ray2D, Nsteps,
             Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo);
-
-        //{
-        //    std::lock_guard<std::mutex> g(rayfilemutex);
-        //    std::cout << "Ending thread " << ray << " angle "
-        //        << is << ": "
-        //        << ray2D[0] << "\n" << std::flush;
-        //}
     }
 }
 
-//-1 on failure
-int RunBellhop(std::string FileRoot, void * result) {
+int RunBellhop(const char* cFileRoot, void * result) {
     ray2DAll = reinterpret_cast<ray2DPt*>(result); //no checking
 
     bool singlethread = false;
+    std::string FileRoot = cFileRoot;
     if (FileRoot.empty()) {
         std::cout << "Must provide FileRoot as command-line parameter\n";
         return -1;
     }
 
-    FileRoot = std::string("d:/Users/oldst/Documents/joe/pong/temp/") + FileRoot;
+    //FileRoot = std::string("d:/Users/oldst/Documents/joe/pong/temp/") + FileRoot;
 
     setup(FileRoot, PRTFile, RAYFile, SHDFile, Title, fT,
         Bdry, bdinfo, refl, ssp, atten, Pos, Angles, freqinfo, Beam, beaminfo, eigen, arrinfo);
