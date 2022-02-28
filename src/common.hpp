@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef _MSC_VER
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 #include <bhc/bhc.hpp>
 
 #include <cstdio>
