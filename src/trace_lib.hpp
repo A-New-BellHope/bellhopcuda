@@ -1,16 +1,20 @@
 //Joe Snider
 //12/14/2021
 //
-//Interface for a test dll (not general)
+//Interface for a test shared library (not general)
 
 #pragma once
 
 #include <string>
 
+#ifdef _WIN32
 #ifdef BELLHOPCXX_EXPORTS
 #define BELLHOPCXX_API __declspec(dllexport)
 #else
 #define BELLHOPCXX_API __declspec(dllimport)
+#endif
+#else
+#define BELLHOPCXX_API
 #endif
 
 /// <summary>

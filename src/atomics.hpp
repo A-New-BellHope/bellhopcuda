@@ -46,10 +46,10 @@ HOST_DEVICE inline void AtomicAddReal(float *ptr, float v)
     atomicAdd(ptr, v);
     #else
     // Have to do compare-and-swap.
-    #ifdef __GNUC__
     int32_t* intptr = (int32_t*)ptr;
     int32_t curint;
-#ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
+    #ifdef __GNUC__
+    #ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
     curint = *intptr;
     #else
     __atomic_load(intptr, &curint, __ATOMIC_RELAXED);
@@ -57,17 +57,15 @@ HOST_DEVICE inline void AtomicAddReal(float *ptr, float v)
     while(!__atomic_compare_exchange_n(intptr, &curint, IntFloatAdd(v, curint), 
         true, __ATOMIC_RELAXED, __ATOMIC_RELAXED));
     #elif defined(_MSC_VER)
-    LONG* intptr = (LONG*)ptr;
-    LONG curint;
-    LONG prevint;
+    int32_t prevint;
     #ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
     curint = *intptr;
     #else
-    curint = InterlockedOr(intptr, 0); //MSVC does not have a pure atomic load.
+    curint = InterlockedOr((LONG*)intptr, 0); //MSVC does not have a pure atomic load.
     #endif
     do{
         prevint = curint;
-        curint = InterlockedCompareExchange(intptr, IntFloatAdd(v, curint), curint);
+        curint = InterlockedCompareExchange((LONG*)intptr, (LONG)IntFloatAdd(v, curint), (LONG)curint);
     }while(curint != prevint);
     #else
     #error "Unrecognized compiler for atomic intrinsics!"

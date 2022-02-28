@@ -1,12 +1,12 @@
 //Joe Snider
 //12/21
 //
-//Testing dll target for the bellhop translation.
+//Testing shared library target for the bellhop translation.
 //Not real general.
 
 #define BELLHOPCXX_EXPORTS
 
-#include "trace_dll.hpp"
+#include "trace_lib.hpp"
 #include "setup.hpp"
 #include "main.hpp"
 #include "output.hpp"
@@ -111,4 +111,3 @@ int RunBellhop(const char* cFileRoot, void * result) {
 
     return rayID;
 }
-
