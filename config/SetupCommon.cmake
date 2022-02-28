@@ -4,6 +4,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON) # ...is required
 set(CMAKE_CXX_EXTENSTIONS OFF) # ...without compiler extensions like gnu++11
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Necessary to build shared libraries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
 # Set default compile flags for each platform
 if(CMAKE_COMPILER_IS_GNUCXX)
