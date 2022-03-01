@@ -1,5 +1,7 @@
 #pragma once
 
+#define BHC_EXPORTS 1
+
 #ifdef _MSC_VER
 #define NOMINMAX
 #include <windows.h>

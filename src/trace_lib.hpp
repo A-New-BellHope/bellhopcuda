@@ -7,16 +7,6 @@
 
 #include <string>
 
-#ifdef _WIN32
-#ifdef BELLHOPCXX_EXPORTS
-#define BELLHOPCXX_API __declspec(dllexport)
-#else
-#define BELLHOPCXX_API __declspec(dllimport)
-#endif
-#else
-#define BELLHOPCXX_API
-#endif
-
 /// <summary>
 /// Run Bellhop on the given file.
 /// TODO: intended primarily for testing and only supports rays.

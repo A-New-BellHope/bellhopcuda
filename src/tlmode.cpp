@@ -1,44 +1,3 @@
-#include "output.hpp"
-
-constexpr int32_t MaxNRayPoints = 500000; // this is the maximum length of the ray vector that is written out
-
-/**
- * Compress the ray data keeping every iSkip point, points near surface or bottom, and last point.
- * Write to RAYFile.
- * 
- * During an eigenray calculation, subsets of the full ray may be passed
- * These have lengths Nsteps1 vs. Nsteps for the entire ray
- * 
- * The 2D version is for ray traces in (r,z) coordinates
- * 
- * alpha0: take-off angle of this ray
- */
-void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
-    const BdryType *Bdry, ray2DPt *ray2D)
-{
-    // compression
-    
-    int32_t n2 = 1;
-    int32_t iSkip = math::max(Nsteps1 / MaxNRayPoints, 1);
-    
-    for(int32_t is=1; is<Nsteps1; ++is){
-        // ensure that we always write ray points near bdry reflections (works only for flat bdry)
-        if(math::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < FL(0.2) ||
-                (is % iSkip) == 0 || is == Nsteps1-1){
-            ++n2;
-            ray2D[n2-1].x = ray2D[is].x;
-        }
-    }
-    
-    // write to ray file
-    
-    RAYFile << alpha0 << '\n';
-    RAYFile << n2 << ray2D[Nsteps1-1].NumTopBnc << ray2D[Nsteps1-1].NumBotBnc << '\n';
-    
-    for(int32_t is=0; is<n2; ++is){
-        RAYFile << ray2D[is].x << '\n';
-    }
-}
 
 /**
  * Write header to disk file
@@ -103,6 +62,7 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     SHDFile.rec(9); DOFWRITE(SHDFile, Pos->Rr, Pos->NRr * sizeof(Pos->Rr[0]));
 }
 
+
 /**
  * Write appropriate header information
  */
@@ -114,19 +74,9 @@ void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
     real atten;
     std::string PlotType;
     
-    switch(Beam->RunType[0]){
-    case 'R':
-    case 'E':
-        // Ray trace or Eigenrays
-        RAYFile.open(FileRoot + ".ray");
-        RAYFile << Title << '\n';
-        RAYFile << freqinfo->freq0 << '\n';
-        RAYFile << Pos->NSx << Pos->NSy << Pos->NSz << '\n';
-        RAYFile << Angles->Nalpha << Angles->Nbeta << '\n';
-        RAYFile << Bdry->Top.hs.Depth << '\n';
-        RAYFile << Bdry->Bot.hs.Depth << '\n';
+    
         
-        RAYFile << (ThreeD ? "xyz" : "rz") << '\n';
+        
         break;
     case 'A':
         // arrival file in ascii format

@@ -2,6 +2,11 @@
 #include "trace.hpp"
 #include "influence.hpp"
 
+HOST_DEVICE inline int32_t GetNumJobs(const Position *Pos, const AnglesStructure *Angles)
+{
+    return Pos->NSz * (Angles->iSingle_alpha >= 1 ? 1 : Angles->Nalpha);
+}
+
 /**
  * Returns whether the job should continue.
  * `is` changed to `isrc` because `is` is used for steps

@@ -219,3 +219,43 @@ struct ray2DPt {
     real Amp, Phase;
     cpx tau;
 };
+
+struct RayResult {
+    ray2DPt *ray2D;
+    real SrcDeclAngle;
+    int32_t Nsteps;
+};
+
+struct RayInfo {
+    ray2DPt *raymem;
+    uint32_t NPoints;
+    uint32_t MaxPoints;
+    RayResult *results;
+    int32_t NRays;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//Meta-structures
+////////////////////////////////////////////////////////////////////////////////
+
+struct bhcParams {
+    const char *Title;
+    real fT;
+    BdryType *Bdry;
+    BdryInfo *bdinfo;
+    ReflectionInfo *refl;
+    SSPStructure *ssp;
+    AttenInfo *atten;
+    Position *Pos;
+    AnglesStructure *Angles;
+    FreqInfo *freqinfo;
+    BeamStructure *Beam;
+    BeamInfo *beaminfo;
+};
+
+struct bhcOutputs {
+    RayInfo *rayinfo;
+    cpxf *uAllSources;
+    EigenInfo *eigen;
+    ArrInfo *arrinfo;
+};

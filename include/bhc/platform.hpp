@@ -24,3 +24,17 @@
 #define STD std
 #define PROGRAMNAME "bellhopcxx"
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+//Shared library setup
+////////////////////////////////////////////////////////////////////////////////
+
+#ifdef _WIN32
+#ifdef BHC_EXPORTS
+#define BHC_API __declspec(dllexport)
+#else
+#define BHC_API __declspec(dllimport)
+#endif
+#else
+#define BHC_API
+#endif

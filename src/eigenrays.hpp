@@ -23,8 +23,5 @@ inline void InitEigenMode(EigenInfo *eigen)
     eigen->hits = allocate<EigenHit>(maxhits);
 }
 
-void FinalizeEigenMode(
-    const BdryType *Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
-    const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
-    const EigenInfo *eigen, LDOFile &RAYFile, bool singlethread);
+void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs, 
+    std::string FileRoot, bool singlethread);

@@ -4,19 +4,12 @@
 #include "output.hpp"
 
 #include <atomic>
-#include <mutex>
 #include <thread>
 #include <vector>
 
 static std::atomic<int32_t> jobID;
 
-static std::mutex rayfilemutex;
-
-void EigenModePostWorker(
-    const BdryType *Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
-    const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
-    const EigenInfo *eigen, LDOFile &RAYFile)
+void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
 {
     ray2DPt *ray2D = new ray2DPt[MaxN];
     while(true){
@@ -47,18 +40,18 @@ void EigenModePostWorker(
     delete[] ray2D;
 }
 
-void FinalizeEigenMode(
-    const BdryType *Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
-    const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
-    const EigenInfo *eigen, LDOFile &RAYFile, bool singlethread)
+void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs, 
+    std::string FileRoot, bool singlethread)
 {
-    std::cout << (int)eigen->neigen << " eigenrays\n";
+    InitRayMode(outputs.rayinfo, params);
+    
+    std::cout << (int)outputs.eigen->neigen << " eigenrays\n";
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : math::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
     for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(EigenModePostWorker,
-        Bdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo, eigen,
-        std::ref(RAYFile)));
+        params, outputs));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
+    
+    FinalizeRayMode(outputs.rayinfo, FileRoot, params);
 }
