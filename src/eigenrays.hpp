@@ -17,7 +17,7 @@ HOST_DEVICE inline void RecordEigenHit(int32_t ir, int32_t iz,
 
 inline void InitEigenMode(EigenInfo *eigen)
 {
-    static const uint32_t maxhits = 1000000u;
+    constexpr uint32_t maxhits = 1000000u;
     eigen->neigen = 0;
     eigen->memsize = maxhits;
     eigen->hits = allocate<EigenHit>(maxhits);

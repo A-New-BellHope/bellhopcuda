@@ -1,8 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "atomics.hpp"
-#include "sourcereceiver.hpp"
-#include "beams.hpp"
 
 /**
  * Is this the second step of a pair (on the same ray)?
@@ -117,5 +114,5 @@ inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
     memset(arrinfo->NArr, 0, (size_t)Pos->NSz * nzr * sizeof(int32_t));
 }
 
-void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
+void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD);

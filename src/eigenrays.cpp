@@ -1,7 +1,5 @@
 #include "eigenrays.hpp"
-#include "step.hpp"
-#include "main.hpp"
-#include "output.hpp"
+#include "raymode.hpp"
 
 #include <atomic>
 #include <thread>

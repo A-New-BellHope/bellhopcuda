@@ -1,4 +1,8 @@
 #include "common.hpp"
+#include "raymode.hpp"
+#include "tlmode.hpp"
+#include "eigenrays.hpp"
+#include "arrivals.hpp"
 
 int main(int argc, char **argv)
 {
@@ -54,7 +58,7 @@ int main(int argc, char **argv)
         FinalizeEigenMode(params, outputs, FileRoot, singlethread);
     }else if(Beam->RunType[0] == 'A' || Beam->RunType[0] == 'a'){
         // Arrivals mode
-        WriteArrivals(outputs.arrinfo, Pos, freqinfo, Beam, FileRoot, false);
+        FinalizeArrivalsMode(outputs.arrinfo, Pos, freqinfo, Beam, FileRoot, false);
     }else{
         std::cout << "Invalid RunType " << Beam->RunType[0] << "\n";
         std::abort();

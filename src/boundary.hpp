@@ -1,6 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include "ssp.hpp"
 #include "attenuation.hpp"
 
 constexpr int32_t Bdry_Number_to_Echo = 21;

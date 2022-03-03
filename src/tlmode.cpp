@@ -1,3 +1,4 @@
+#include "tlmode.hpp"
 
 /**
  * Write header to disk file
@@ -64,40 +65,45 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
 
 
 /**
- * Write appropriate header information
+ * LP: Write TL results
  */
-void OpenOutputFiles(std::string FileRoot, bool ThreeD, std::string Title,
-    const BdryType *Bdry, const Position *Pos, const AnglesStructure *Angles, 
-    const FreqInfo *freqinfo, const BeamStructure *Beam,
-    LDOFile &RAYFile, DirectOFile &SHDFile)
+void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &outputs)
 {
-    real atten;
+    real atten = FL(0.0);
     std::string PlotType;
+    DirectOFile SHDFile;
     
-    
-        
-        
-        break;
-    case 'A':
-        // arrival file in ascii format
-        // LP: Moved to WriteArrivals
-        break;
-    case 'a':
-        // arrival file in binary format
-        // LP: Moved to WriteArrivals
-        break;
+    // following to set PlotType has already been done in READIN if that was used for input
+    switch(Beam->RunType[4]){
+    case 'R':
+        PlotType = "rectilin  "; break;
+    case 'I':
+        PlotType = "irregular "; break;
     default:
-        atten = FL(0.0);
-        
-        // following to set PlotType has alread been done in READIN if that was used for input
-        switch(Beam->RunType[4]){
-        case 'R':
-            PlotType = "rectilin  "; break;
-        case 'I':
-            PlotType = "irregular "; break;
-        default:
-            PlotType = "rectilin  ";
-        }
-        WriteHeader(SHDFile, FileRoot + ".shd", Title, atten, PlotType, Pos, freqinfo);
+        PlotType = "rectilin  ";
     }
+    WriteHeader(SHDFile, FileRoot + ".shd", params.Title, atten, PlotType,
+        params.Pos, params.freqinfo);
+    
+    for(int32_t isrc=0; isrc<params.Pos->NSz; ++isrc){
+        cpx ccpx;
+        int32_t iSegz = 0, iSegr = 0;
+        EvaluateSSPCOnly(vec2(RL(0.0), params.Pos->Sz[isrc]), vec2(RL(1.0), RL(0.0)),
+            ccpx, params.freqinfo->freq0, params.ssp, iSegz, iSegr);
+        ScalePressure(params.Angles->Dalpha, ccpx.real(), params.Pos->Rr, 
+            &outputs.uAllSources[isrc * params.Pos->NRz_per_range * params.Pos->NRr], 
+            params.Pos->NRz_per_range, params.Pos->NRr, params.Beam->RunType,
+            params.freqinfo->freq0);
+        int32_t IRec = 10 + params.Pos->NRz_per_range * isrc;
+        for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1){
+            SHDFile.rec(IRec);
+            for(int32_t r=0; r < params.Pos->NRr; ++r){
+                DOFWRITEV(SHDFile, uAllSources[
+                    (isrc * params.Pos->NRz_per_range + Irz1) * params.Pos->NRr + r]);
+            }
+            ++IRec;
+        }
+    }
+    
+    deallocate(params.uAllSources);
 }

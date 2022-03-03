@@ -1,6 +1,6 @@
 #include "arrivals.hpp"
 
-void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
+void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD)
 {
     bool isAscii;

@@ -1,5 +1,4 @@
-#include "setup.hpp"
-#include "output.hpp"
+#include "common.hpp"
 #include "readenv.hpp"
 #include "boundary.hpp"
 #include "refcoef.hpp"

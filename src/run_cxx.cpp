@@ -1,6 +1,4 @@
 #include "setup.hpp"
-#include "main.hpp"
-#include "output.hpp"
 #include "run.hpp"
 
 #include <atomic>

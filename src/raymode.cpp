@@ -1,4 +1,4 @@
-#include "output.hpp"
+#include "raymode.hpp"
 
 void OpenRAYFile(LDOFile &RAYFile, std::string FileRoot, bool ThreeD, 
     const bhcParams &params)
