@@ -8,7 +8,7 @@
 //Select which standard library
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef BUILD_CUDA
+#ifdef BHC_BUILD_CUDA
 #include "cuda_runtime.h"
 #define HOST_DEVICE __host__ __device__
 //Requires libcu++ 1.4 or higher, which is included in the normal CUDA Toolkit
@@ -30,9 +30,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef _WIN32
-#ifdef BHC_EXPORTS
+#ifdef BHC_CMDLINE
+#define BHC_API
+#elif defined(BHC_EXPORTS)
 #define BHC_API __declspec(dllexport)
-#else
+#else //Users of bellhopcxx / bellhopcuda
 #define BHC_API __declspec(dllimport)
 #endif
 #else

@@ -1,4 +1,3 @@
-#include "setup.hpp"
 #include "run.hpp"
 
 __global__ void 

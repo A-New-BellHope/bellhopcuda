@@ -8,8 +8,10 @@
 #include "real.hpp"
 #include "cpx.hpp"
 #include "structs.hpp"
+#undef _BHC_INCLUDED_
 
-#include <ofstream>
+#include <iostream>
+#include <fstream>
 
 /**
  * Optional PRTFile initialization. You can also use an ostringstream for

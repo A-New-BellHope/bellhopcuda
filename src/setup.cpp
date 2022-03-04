@@ -6,18 +6,18 @@
 #include "beams.hpp"
 #include "run.hpp"
 
-#ifdef BUILD_CUDA
+#ifdef BHC_BUILD_CUDA
 void setupGPU();
-#else
+#endif
 
 constexpr bool Init_Inline = false;
 
 BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &params,
     bhcOutputs &outputs)
 {
-    #ifdef BUILD_CUDA
+    #ifdef BHC_BUILD_CUDA
     setupGPU();
-    #else
+    #endif
 
     // Allocate main structs
     params.Bdry = allocate<BdryType>();

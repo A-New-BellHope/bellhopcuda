@@ -56,7 +56,7 @@ inline bool IsRayCopyMode(const RayInfo *rayinfo)
 }
 
 inline bool RunRay(RayInfo *rayinfo, const bhcParams &params, ray2DPt *localmem,
-    int32_t job, int32_t isrc, int32_t ialpha)
+    int32_t job, int32_t isrc, int32_t ialpha, int32_t &Nsteps)
 {
     ray2DPt *ray2D;
     if(IsRayCopyMode(rayinfo)){
@@ -67,14 +67,13 @@ inline bool RunRay(RayInfo *rayinfo, const bhcParams &params, ray2DPt *localmem,
     memset(ray2D, 0xFE, MaxN * sizeof(ray2DPt)); //Set to garbage values for debugging
     
     real SrcDeclAngle;
-    int32_t Nsteps = -1;
     MainRayMode(isrc, ialpha, SrcDeclAngle, ray2D, Nsteps,
         params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
         params.Angles, params.freqinfo, params.Beam, params.beaminfo);
     
     bool ret = true;
     if(IsRayCopyMode(rayinfo)){
-        uint32_t p = AtomicFetchAdd(&rayinfo->NPoints, Nsteps);
+        uint32_t p = AtomicFetchAdd(&rayinfo->NPoints, (uint32_t)Nsteps);
         if(p + Nsteps > rayinfo->MaxPoints){
             std::cout << "Ran out of memory for rays\n";
             rayinfo->results[job].ray2D = nullptr;

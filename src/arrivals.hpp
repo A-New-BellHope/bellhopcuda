@@ -100,7 +100,7 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
 }
 
 inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
-    const Position *Pos, const BeamStructure *Beam, std::ofstream &PRTFile)
+    const Position *Pos, const BeamStructure *Beam, std::ostream &PRTFile)
 {
     arrinfo->singlethread = singlethread;
     size_t nzr = Pos->NRz_per_range * Pos->NRr;

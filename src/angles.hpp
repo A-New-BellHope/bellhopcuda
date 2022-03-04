@@ -7,7 +7,7 @@
  */
 inline void ReadRayElevationAngles(real freq, real Depth,
     const char (&TopOpt)[6], const char (&RunType)[7],
-    LDIFile &ENVFile, std::ofstream &PRTFile,
+    LDIFile &ENVFile, std::ostream &PRTFile,
     AnglesStructure *Angles, Position *Pos)
 {
     constexpr real c0 = FL(1500.0);

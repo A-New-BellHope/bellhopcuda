@@ -2,6 +2,7 @@
 #include "common.hpp"
 #include "trace.hpp"
 #include "ssp.hpp"
+#include "influence.hpp"
 
 /**
  * for a TL calculation, allocate space for the pressure matrix

@@ -47,7 +47,7 @@ endfunction()
 set(COMMON_INCLUDES
     bhc.hpp
     cpx.hpp
-    cxxorcuda.hpp
+    platform.hpp
     real.hpp
     structs.hpp
 )
@@ -59,6 +59,7 @@ set(COMMON_SOURCE
     atomics.hpp
     attenuation.hpp
     beams.hpp
+    bino.hpp
     boundary.hpp
     common.hpp
     curves.hpp
@@ -66,18 +67,20 @@ set(COMMON_SOURCE
     eigenrays.hpp
     influence.hpp
     ldio.hpp
-    main.hpp
-    output.cpp
-    output.hpp
+    raymode.cpp
+    raymode.hpp
     readenv.cpp
     readenv.hpp
     refcoef.hpp
+    run_cxx.cpp
+    run.hpp
     setup.cpp
-    setup.hpp
     sourcereceiver.hpp
     ssp.cpp
     ssp.hpp
     step.hpp
+    tlmode.cpp
+    tlmode.hpp
     trace.hpp
 )
 

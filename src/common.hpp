@@ -1,7 +1,5 @@
 #pragma once
 
-#define BHC_EXPORTS 1
-
 #ifdef _MSC_VER
 #define NOMINMAX
 #include <windows.h>
@@ -10,11 +8,9 @@
 #include <bhc/bhc.hpp>
 
 #include <cstdio>
-#include <iostream>
-#include <fstream>
 #include <iomanip>
 
-#ifdef BUILD_CUDA
+#ifdef BHC_BUILD_CUDA
 #include "UtilsCUDA.cuh"
 #endif
 
@@ -189,7 +185,7 @@ static inline std::string trim_copy(std::string s) {
 
 template<typename T> inline T* allocate(size_t n=1){
 	T* ret;
-	#ifdef BUILD_CUDA
+	#ifdef BHC_BUILD_CUDA
 		checkCudaErrors(cudaMallocManaged(&ret, n*sizeof(T)));
 	#else
 		ret = new T[n];
@@ -200,7 +196,7 @@ template<typename T> inline T* allocate(size_t n=1){
 }
 
 template<typename T> inline void deallocate(T *&ptr){
-	#ifdef BUILD_CUDA
+	#ifdef BHC_BUILD_CUDA
 		checkCudaErrors(cudaFree(ptr));
 	#else
 		delete[] ptr;
@@ -345,7 +341,7 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *ang
         --n;
 }
 
-template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ofstream &PRTFile)
+template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ostream &PRTFile)
 {
     constexpr int32_t NEcho = 10;
     PRTFile << std::setprecision(6);

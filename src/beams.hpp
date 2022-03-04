@@ -1,7 +1,7 @@
 #pragma once
 #include "common.hpp"
 
-inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
+inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
     BeamInfo *beaminfo)
 {
     if(beaminfo->SBPFlag == '*'){
@@ -45,7 +45,7 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
 /**
  * Limits for tracing beams
  */
-inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
+inline void ReadBeamInfo(LDIFile &ENVFile, std::ostream &PRTFile,
     BeamStructure *Beam)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
