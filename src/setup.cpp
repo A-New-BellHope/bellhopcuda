@@ -30,6 +30,7 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     params.freqinfo = allocate<FreqInfo>();
     params.Beam = allocate<BeamStructure>();
     params.beaminfo = allocate<BeamInfo>();
+    outputs.rayinfo = allocate<RayInfo>();
     outputs.eigen = allocate<EigenInfo>();
     outputs.arrinfo = allocate<ArrInfo>();
     HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
@@ -58,11 +59,12 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     params.Angles->beta = nullptr;
     params.freqinfo->freqVec = nullptr;
     params.beaminfo->SrcBmPat = nullptr;
+    outputs.rayinfo->raymem = nullptr;
+    outputs.rayinfo->results = nullptr;
+    outputs.uAllSources = nullptr;
     outputs.eigen->hits = nullptr;
     outputs.arrinfo->Arr = nullptr;
     outputs.arrinfo->NArr = nullptr;
-    outputs.ray2D = nullptr;
-    outputs.uAllSources = nullptr;
     
     // Fill in default / "constructor" data
     params.fT = RL(1.0e20);
@@ -90,6 +92,9 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     params.Beam->epsMultiplier = FL(1.0);
     memcpy(params.Beam->Type, "G S ", 4);
     //params.beaminfo: none
+    outputs.rayinfo->NPoints = 0;
+    outputs.rayinfo->MaxPoints = 0;
+    outputs.rayinfo->NRays = 0;
     outputs.eigen->neigen = 0;
     outputs.eigen->memsize = 0;
     outputs.arrinfo->MaxNArr = 1;
@@ -101,7 +106,10 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
-        params.Title = PROGRAMNAME "- Calibration case with envfil passed as parameters\n";
+        std::string TempTitle = PROGRAMNAME "- Calibration case with envfil passed as parameters";
+        int32_t l = math::min(sizeof(params.Title) - 1, TempTitle.size());
+        memcpy(params.Title, TempTitle.c_str(), l);
+        params.Title[l] = 0;
         params.freqinfo->freq0 = FL(250.0);
         // NMedia variable is not used by BELLHOP
         
@@ -186,7 +194,7 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     }else{
         ReadEnvironment(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
-            params.Beam, params.RecycledHS);
+            params.Beam, RecycledHS);
         ReadATI(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
             PRTFile, params.bdinfo); // AlTImetry
         ReadBTY(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
@@ -247,7 +255,7 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
             params.bdinfo->Top[iSeg].hs.cS = crci(RL(1.0e20),
                 params.bdinfo->Top[iSeg].hs.betaR,
                 params.bdinfo->Top[iSeg].hs.betaI, 
-                params.reqinfo->freq0, fparams.reqinfo->freq0,
+                params.freqinfo->freq0, params.freqinfo->freq0,
                 {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
         }
     }
@@ -264,7 +272,7 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
             params.bdinfo->Bot[iSeg].hs.cS = crci(RL(1.0e20),
                 params.bdinfo->Bot[iSeg].hs.betaR,
                 params.bdinfo->Bot[iSeg].hs.betaI, 
-                params.reqinfo->freq0, fparams.reqinfo->freq0,
+                params.freqinfo->freq0, params.freqinfo->freq0,
                 {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
         }
     }

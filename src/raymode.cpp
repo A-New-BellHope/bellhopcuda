@@ -66,7 +66,7 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
 void InitRayMode(RayInfo *rayinfo, const bhcParams &params)
 {
     rayinfo->NRays = GetNumJobs(params.Pos, params.Angles);
-    rayinfo->MaxPoints = STD::min((uint32_t)MaxN * (uint32_t)rayinfo->NRays, 100000000u);
+    rayinfo->MaxPoints = math::min((uint32_t)MaxN * (uint32_t)rayinfo->NRays, 100000000u);
     rayinfo->NPoints = 0;
     rayinfo->raymem = new ray2DPt[rayinfo->MaxPoints];
     rayinfo->results = new RayResult[rayinfo->NRays];

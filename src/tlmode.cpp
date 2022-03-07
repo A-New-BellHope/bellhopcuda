@@ -13,7 +13,7 @@
  * "TL" in BELLHOP]
  */
 void WriteHeader(DirectOFile &SHDFile, const std::string &FileName, 
-    const std::string &Title, float Atten, const std::string &PlotType, 
+    const char (&Title)[80], float Atten, const std::string &PlotType, 
     const Position *Pos, const FreqInfo *freqinfo)
 {
     bool isTL = (PlotType[0] == 'T' && PlotType[1] == 'L');
@@ -35,7 +35,7 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
         std::abort();
     }
     LRecl /= 4;
-    SHDFile.rec(0); DOFWRITE(SHDFile, &LRecl, 4); DOFWRITE(SHDFile, Title, 80);
+    SHDFile.rec(0); DOFWRITE(SHDFile, &LRecl, 4); DOFWRITE(SHDFile, std::string(Title), 80);
     SHDFile.rec(1); DOFWRITE(SHDFile, PlotType, 10);
     SHDFile.rec(2);
         DOFWRITEV(SHDFile, freqinfo->Nfreq);
@@ -74,7 +74,7 @@ void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &o
     DirectOFile SHDFile;
     
     // following to set PlotType has already been done in READIN if that was used for input
-    switch(Beam->RunType[4]){
+    switch(params.Beam->RunType[4]){
     case 'R':
         PlotType = "rectilin  "; break;
     case 'I':
@@ -98,12 +98,12 @@ void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &o
         for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1){
             SHDFile.rec(IRec);
             for(int32_t r=0; r < params.Pos->NRr; ++r){
-                DOFWRITEV(SHDFile, uAllSources[
+                DOFWRITEV(SHDFile, outputs.uAllSources[
                     (isrc * params.Pos->NRz_per_range + Irz1) * params.Pos->NRr + r]);
             }
             ++IRec;
         }
     }
     
-    deallocate(params.uAllSources);
+    deallocate(outputs.uAllSources);
 }

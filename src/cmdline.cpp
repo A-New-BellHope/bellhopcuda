@@ -36,31 +36,33 @@ int main(int argc, char **argv)
     }
     
     std::ofstream PRTFile;
-    OpenPRTFile(PRTFile);
+    OpenPRTFile(FileRoot, PRTFile);
     
     bhcParams params;
-    setup(FileRoot, PRTFile, params);
+    bhcOutputs outputs;
+    setup(FileRoot, PRTFile, params, outputs);
     
     Stopwatch sw;
     sw.tick();
-    bchOutputs outputs;
     run(PRTFile, params, outputs, singlethread);
     sw.tock();
     
-    if(Beam->RunType[0] == 'R'){
+    char r = params.Beam->RunType[0];
+    if(r == 'R'){
         // Ray mode
         FinalizeRayMode(outputs.rayinfo, FileRoot, params);
-    }else if(Beam->RunType[0] == 'C' || Beam->RunType[0] == 'S' || Beam->RunType[0] == 'I'){
+    }else if(r == 'C' || r == 'S' || r == 'I'){
         // TL mode
-        FinalizeTLMode(outputs.uAllSources, SHDFile, ssp, Pos, Angles, freqinfo, Beam);
-    }else if(Beam->RunType[0] == 'E'){
+        FinalizeTLMode(FileRoot, params, outputs);
+    }else if(r == 'E'){
         // Eigenrays mode
         FinalizeEigenMode(params, outputs, FileRoot, singlethread);
-    }else if(Beam->RunType[0] == 'A' || Beam->RunType[0] == 'a'){
+    }else if(r == 'A' || r == 'a'){
         // Arrivals mode
-        FinalizeArrivalsMode(outputs.arrinfo, Pos, freqinfo, Beam, FileRoot, false);
+        FinalizeArrivalsMode(outputs.arrinfo, params.Pos, params.freqinfo,
+            params.Beam, FileRoot, false);
     }else{
-        std::cout << "Invalid RunType " << Beam->RunType[0] << "\n";
+        std::cout << "Invalid RunType " << r << "\n";
         std::abort();
     }
 }

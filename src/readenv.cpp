@@ -225,7 +225,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
 }
 
 void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
-    std::string &Title, real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
     HSInfo &RecycledHS)
 {
@@ -248,10 +248,13 @@ void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
     }
     
     // Prepend model name to title
-    LIST(ENVFile); ENVFile.Read(Title);
-    Title = PROGRAMNAME "- " + Title;
-    
-    PRTFile << Title << "\n";
+    std::string TempTitle;
+    LIST(ENVFile); ENVFile.Read(TempTitle);
+    TempTitle = PROGRAMNAME "- " + TempTitle;
+    PRTFile << TempTitle << "\n";
+    int32_t l = math::min(sizeof(Title) - 1, TempTitle.size());
+    memcpy(Title, TempTitle.c_str(), l);
+    Title[l] = 0;
     
     LIST(ENVFile); ENVFile.Read(freqinfo->freq0);
     PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);

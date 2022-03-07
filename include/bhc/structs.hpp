@@ -239,7 +239,7 @@ struct RayInfo {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct bhcParams {
-    const char *Title;
+    char Title[80]; // Size determined by WriteHeader for TL
     real fT;
     BdryType *Bdry;
     BdryInfo *bdinfo;
