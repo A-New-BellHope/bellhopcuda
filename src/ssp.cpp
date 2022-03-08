@@ -130,9 +130,9 @@ void InitQuad(SSP_INIT_ARGS)
         std::abort();
     }
     
-    ssp->cMat  = allocate<real>( ssp->NPts    * ssp->Nr);
-    ssp->czMat = allocate<real>((ssp->NPts-1) * ssp->Nr);
-    ssp->Seg.r = allocate<real>(ssp->Nr);
+    checkallocate(ssp->cMat ,  ssp->NPts    * ssp->Nr);
+    checkallocate(ssp->czMat, (ssp->NPts-1) * ssp->Nr);
+    checkallocate(ssp->Seg.r, ssp->Nr);
     
     LIST(SSPFile); SSPFile.Read(ssp->Seg.r, ssp->Nr);
     PRTFile << "\nProfile ranges (km):\n" << std::setprecision(2);

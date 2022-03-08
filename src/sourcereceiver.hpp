@@ -22,8 +22,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ostream &PR
         }
     }
     
-    if(freqinfo->freqVec != nullptr) deallocate(freqinfo->freqVec);
-    freqinfo->freqVec = allocate<real>(bhc::max(3, freqinfo->Nfreq));
+    checkallocate(freqinfo->freqVec, bhc::max(3, freqinfo->Nfreq));
     
     if(BroadbandOption == 'B'){
         PRTFile << "Frequencies (Hz)\n";
@@ -53,8 +52,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
         std::abort();
     }
     
-    if(x != nullptr) deallocate(x);
-    x = allocate<REAL>(bhc::max(3, Nx));
+    checkallocate(x, bhc::max(3, Nx));
     
     PRTFile << Description << " (" << Units << ")\n";
     x[2] = FL(-999.9);
@@ -85,7 +83,8 @@ inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ostream &PRTFile,
         ReadVector(Pos->NSx, Pos->Sx, "source   x-coordinates, Sx", "km", ENVFile, PRTFile);
         ReadVector(Pos->NSy, Pos->Sy, "source   y-coordinates, Sy", "km", ENVFile, PRTFile);
     }else{
-        Pos->Sx = allocate<float>(1); Pos->Sy = allocate<float>(1);
+        checkallocate(Pos->Sx, 1);
+        checkallocate(Pos->Sy, 1);
         Pos->Sx[0] = FL(0.0);
         Pos->Sy[0] = FL(0.0);
     }
@@ -104,11 +103,10 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ostream &PRTFi
     ReadVector(Pos->NSz, Pos->Sz, "Source   depths, Sz", "m", ENVFile, PRTFile);
     ReadVector(Pos->NRz, Pos->Rz, "Receiver depths, Rz", "m", ENVFile, PRTFile);
     
-    if(Pos->ws != nullptr){ deallocate(Pos->ws); deallocate(Pos->iSz); }
-    Pos->ws = allocate<float>(Pos->NSz); Pos->iSz = allocate<int32_t>(Pos->NSz);
-    
-    if(Pos->wr != nullptr){ deallocate(Pos->wr); deallocate(Pos->iRz); }
-    Pos->wr = allocate<float>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
+    checkallocate(Pos->ws, Pos->NSz);
+    checkallocate(Pos->iSz, Pos->NSz);
+    checkallocate(Pos->wr, Pos->NRz);
+    checkallocate(Pos->iRz, Pos->NRz);
     
     // *** Check for Sz/Rz in upper or lower halfspace ***
     

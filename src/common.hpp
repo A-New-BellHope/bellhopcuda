@@ -312,6 +312,15 @@ template<typename T> inline void deallocate(T *&ptr){
 	ptr = nullptr;
 }
 
+template<typename T> inline void checkdeallocate(T *&ptr){
+    if(ptr != nullptr) deallocate(ptr);
+}
+
+template<typename T> inline void checkallocate(T *&ptr, size_t n=1){
+    if(ptr != nullptr) deallocate(ptr);
+    ptr = allocate<T>(n);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //Algorithms
 ////////////////////////////////////////////////////////////////////////////////

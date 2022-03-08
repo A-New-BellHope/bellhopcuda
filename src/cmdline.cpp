@@ -65,4 +65,6 @@ int main(int argc, char **argv)
         std::cout << "Invalid RunType " << r << "\n";
         std::abort();
     }
+    
+    bhc::finalize(params, outputs);
 }

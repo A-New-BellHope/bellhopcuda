@@ -207,7 +207,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         PRTFile << "Number of altimetry points = " << bdinfo->NATIPts << "\n";
         bdinfo->NATIPts += 2; // we'll be extending the altimetry to infinity to the left and right
         
-        bdinfo->Top = allocate<BdryPtFull>(bdinfo->NATIPts);
+        checkallocate(bdinfo->Top, bdinfo->NATIPts);
         
         PRTFile << "\n Range (km)  Depth (m)\n";
         
@@ -255,7 +255,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         
         }break;
     default:
-        bdinfo->Top = allocate<BdryPtFull>(2);
+        checkallocate(bdinfo->Top, 2);
         bdinfo->Top[0].x = vec2(-STD::sqrt(REAL_MAX) / FL(1.0e5), DepthT);
         bdinfo->Top[1].x = vec2( STD::sqrt(REAL_MAX) / FL(1.0e5), DepthT);
     }
@@ -300,7 +300,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         PRTFile << "Number of bathymetry points = " << bdinfo->NBTYPts << "\n";
         
         bdinfo->NBTYPts += 2; // we'll be extending the bathymetry to infinity to the left and right
-        bdinfo->Bot = allocate<BdryPtFull>(bdinfo->NBTYPts);
+        checkallocate(bdinfo->Bot, bdinfo->NBTYPts);
         
         PRTFile << "\n";
         switch(bdinfo->btyType[1]){
@@ -362,7 +362,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         
         }break;
     default:
-        bdinfo->Bot = allocate<BdryPtFull>(2);
+        checkallocate(bdinfo->Bot, 2);
         bdinfo->Bot[0].x = vec2(-BdryInfinity, DepthB);
         bdinfo->Bot[1].x = vec2( BdryInfinity, DepthB);
     }

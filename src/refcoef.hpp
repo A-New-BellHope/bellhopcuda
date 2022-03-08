@@ -87,8 +87,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
         LIST(BRCFile); BRCFile.Read(refl->NBotPts);
         PRTFile << "Number of points in bottom reflection coefficient = " << refl->NBotPts << "\n";
         
-        if(refl->RBot != nullptr) deallocate(refl->RBot);
-        refl->RBot = allocate<ReflectionCoef>(refl->NBotPts);
+        checkallocate(refl->RBot, refl->NBotPts);
         
         LIST(BRCFile);
         for(int32_t itheta=0; itheta<refl->NBotPts; ++itheta){
@@ -98,7 +97,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             refl->RBot->phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        refl->RBot = allocate<ReflectionCoef>(1);
+        checkallocate(refl->RBot, 1);
     }
     
     // Optionally read in top reflection coefficient
@@ -116,8 +115,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
         LIST(TRCFile); TRCFile.Read(refl->NTopPts);
         PRTFile << "Number of points in top reflection coefficient = " << refl->NTopPts << "\n";
         
-        if(refl->RTop != nullptr) deallocate(refl->RTop);
-        refl->RTop = allocate<ReflectionCoef>(refl->NTopPts);
+        checkallocate(refl->RTop, refl->NTopPts);
         
         LIST(TRCFile);
         for(int32_t itheta=0; itheta<refl->NTopPts; ++itheta){
@@ -127,8 +125,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             refl->RTop->phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        if(refl->RTop != nullptr) deallocate(refl->RTop);
-        refl->RTop = allocate<ReflectionCoef>(1);
+        checkallocate(refl->RTop, 1);
     }
     
     // Optionally read in internal reflection coefficient data

@@ -19,7 +19,7 @@ inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
         LIST(SBPFile); SBPFile.Read(beaminfo->NSBPPts);
         PRTFile << "Number of source beam pattern points " << beaminfo->NSBPPts << "\n";
         
-        beaminfo->SrcBmPat = allocate<real>(beaminfo->NSBPPts * 2);
+        checkallocate(beaminfo->SrcBmPat, beaminfo->NSBPPts * 2);
         
         PRTFile << "\n Angle (degrees)  Power (dB)\n" << std::setprecision(3);
         
@@ -29,7 +29,7 @@ inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
         }
     }else{
         beaminfo->NSBPPts = 2;
-        beaminfo->SrcBmPat = allocate<real>(2*2);
+        checkallocate(beaminfo->SrcBmPat, 2*2);
         beaminfo->SrcBmPat[0*2+0] = FL(-180.0); beaminfo->SrcBmPat[0*2+1] = FL(0.0);
         beaminfo->SrcBmPat[1*2+0] = FL( 180.0); beaminfo->SrcBmPat[1*2+1] = FL(0.0);
     }

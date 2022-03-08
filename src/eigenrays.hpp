@@ -22,7 +22,7 @@ inline void InitEigenMode(EigenInfo *eigen)
     constexpr uint32_t maxhits = 1000000u;
     eigen->neigen = 0;
     eigen->memsize = maxhits;
-    eigen->hits = allocate<EigenHit>(maxhits);
+    checkallocate(eigen->hits, maxhits);
 }
 
 void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs, 

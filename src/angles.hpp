@@ -37,7 +37,7 @@ inline void ReadRayElevationAngles(real freq, real Depth,
         }
     }
     
-    Angles->alpha = allocate<real>(bhc::max(3, Angles->Nalpha));
+    checkallocate(Angles->alpha, bhc::max(3, Angles->Nalpha));
     
     if(Angles->Nalpha > 2) Angles->alpha[2] = FL(-999.9);
     LIST(ENVFile); ENVFile.Read(Angles->alpha, Angles->Nalpha);

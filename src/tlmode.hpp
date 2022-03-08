@@ -13,7 +13,7 @@ inline void InitTLMode(cpxf *&uAllSources, const Position *Pos,
     const BeamStructure *Beam)
 {
     size_t n = Pos->NSz * Pos->NRz_per_range * Pos->NRr;
-    uAllSources = allocate<cpxf>(n);
+    checkallocate(uAllSources, n);
     memset(uAllSources, 0, n * sizeof(cpxf));
 }
 

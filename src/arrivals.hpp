@@ -110,8 +110,8 @@ inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
     const size_t MinNArr = 10;
     arrinfo->MaxNArr = bhc::max(ArrivalsStorage / nzr, MinNArr);
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
-    arrinfo->Arr  = allocate<Arrival>((size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr);
-    arrinfo->NArr = allocate<int32_t>((size_t)Pos->NSz * nzr);
+    checkallocate(arrinfo->Arr , (size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr);
+    checkallocate(arrinfo->NArr, (size_t)Pos->NSz * nzr);
     memset(arrinfo->Arr,  0, (size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
     memset(arrinfo->NArr, 0, (size_t)Pos->NSz * nzr * sizeof(int32_t));
 }

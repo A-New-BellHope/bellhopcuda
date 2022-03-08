@@ -37,8 +37,9 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     outputs.arrinfo = allocate<ArrInfo>();
     HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
     
-    // Set pointers to null because BELLHOP checks if some of them are allocated
-    // before allocating them
+    // Set pointers to null because we always check if they are not null (and
+    // deallocate them if so) before allocating them
+    // IMPORTANT--if changes are made here, make the same changes in finalize
     params.bdinfo->Top = nullptr;
     params.bdinfo->Bot = nullptr;
     params.refl->RBot = nullptr;
@@ -47,6 +48,10 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     params.ssp->czMat = nullptr;
     params.ssp->cMat3 = nullptr;
     params.ssp->czMat3 = nullptr;
+    params.ssp->Seg.r = nullptr;
+    params.ssp->Seg.x = nullptr;
+    params.ssp->Seg.y = nullptr;
+    params.ssp->Seg.z = nullptr;
     params.Pos->iSz = nullptr;
     params.Pos->iRz = nullptr;
     params.Pos->Sx = nullptr;
@@ -284,7 +289,53 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
 
 BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
 {
-#warning TODO finalize not yet implemented!
+    // IMPORTANT--if changes are made here, make the same changes in setup
+    checkdeallocate(params.bdinfo->Top);
+    checkdeallocate(params.bdinfo->Bot);
+    checkdeallocate(params.refl->RBot);
+    checkdeallocate(params.refl->RTop);
+    checkdeallocate(params.ssp->cMat);
+    checkdeallocate(params.ssp->czMat);
+    checkdeallocate(params.ssp->cMat3);
+    checkdeallocate(params.ssp->czMat3);
+    checkdeallocate(params.ssp->Seg.r);
+    checkdeallocate(params.ssp->Seg.x);
+    checkdeallocate(params.ssp->Seg.y);
+    checkdeallocate(params.ssp->Seg.z);
+    checkdeallocate(params.Pos->iSz);
+    checkdeallocate(params.Pos->iRz);
+    checkdeallocate(params.Pos->Sx);
+    checkdeallocate(params.Pos->Sy);
+    checkdeallocate(params.Pos->Sz);
+    checkdeallocate(params.Pos->Rr);
+    checkdeallocate(params.Pos->Rz);
+    checkdeallocate(params.Pos->ws);
+    checkdeallocate(params.Pos->wr);
+    checkdeallocate(params.Pos->theta);
+    checkdeallocate(params.Angles->alpha);
+    checkdeallocate(params.Angles->beta);
+    checkdeallocate(params.freqinfo->freqVec);
+    checkdeallocate(params.beaminfo->SrcBmPat);
+    checkdeallocate(outputs.rayinfo->raymem);
+    checkdeallocate(outputs.rayinfo->results);
+    checkdeallocate(outputs.uAllSources);
+    checkdeallocate(outputs.eigen->hits);
+    checkdeallocate(outputs.arrinfo->Arr);
+    checkdeallocate(outputs.arrinfo->NArr);
+    
+    checkdeallocate(params.Bdry);
+    checkdeallocate(params.bdinfo);
+    checkdeallocate(params.refl);
+    checkdeallocate(params.ssp);
+    checkdeallocate(params.atten);
+    checkdeallocate(params.Pos);
+    checkdeallocate(params.Angles);
+    checkdeallocate(params.freqinfo);
+    checkdeallocate(params.Beam);
+    checkdeallocate(params.beaminfo);
+    checkdeallocate(outputs.rayinfo);
+    checkdeallocate(outputs.eigen);
+    checkdeallocate(outputs.arrinfo);
 }
 
 }
