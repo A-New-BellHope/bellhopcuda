@@ -4,7 +4,7 @@
 #error "This file must be included via #include <bhc/bhc.hpp>!"
 #endif
 
-//TODO: fix "bracketting" / "bracketted"
+namespace bhc {
 
 ////////////////////////////////////////////////////////////////////////////////
 //SSP / Boundary
@@ -259,3 +259,5 @@ struct bhcOutputs {
     EigenInfo *eigen;
     ArrInfo *arrinfo;
 };
+
+}

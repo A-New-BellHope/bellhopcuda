@@ -3,6 +3,8 @@
 #include "eigenrays.hpp"
 #include "arrivals.hpp"
 
+namespace bhc {
+
 struct InfluenceRayInfo {
     // LP: Variables carried over between iterations.
     real phase, qOld;
@@ -209,8 +211,8 @@ HOST_DEVICE inline cpx PickEpsilon(char BeamType0, char BeamType1, real omega,
         epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
         break;
     case 'b':
-        printf(PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
-            "implemented in BELLHOP (and therefore not in " PROGRAMNAME ")\n");
+        printf(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
+            "implemented in BELLHOP (and therefore not in " BHC_PROGRAMNAME ")\n");
         bail();
         break;
     case 'S':
@@ -276,7 +278,7 @@ HOST_DEVICE inline real FinalPhase(const ray2DPt &point,
 HOST_DEVICE inline int32_t RToIR(real r, const Position *Pos)
 {
     // mbp: should be ", -1);"? [LP: for computation of ir1 / irA]
-    return math::max(math::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0);
+    return bhc::max(bhc::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0);
 }
 
 HOST_DEVICE inline real FlipBeamForImage(real xy, int32_t image, const BdryType *Bdry)
@@ -721,7 +723,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
         
         // *** Compute contributions to bracketed receivers ***
         
-        for(int32_t ir = math::min(irA, irB) + 1; ir <= math::max(irA, irB); ++ir){
+        for(int32_t ir = bhc::min(irA, irB) + 1; ir <= bhc::max(irA, irB); ++ir){
             w = (Pos->Rr[ir] - rA) / (rB - rA);
             n = STD::abs(nA + w * (nB - nA));
             q = point0.q.x + w * dq; // interpolated amplitude
@@ -788,12 +790,12 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     IncPhaseIfCaustic(inflray, q, true);
     inflray.qOld = q;
     
-    sigma = math::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) / 
+    sigma = bhc::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) / 
         (inflray.q0 * STD::abs(rayt.x)); // beam radius projected onto vertical line
     if(isGaussian){
         // calculate beam width
         lambda    = point0.c / inflray.freq0;
-        sigma     = math::max(sigma, math::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
+        sigma     = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
         RadiusMax = BeamWindow * sigma;
     }else{
         lambda    = RL(0.0); // LP: compiler incorrectly complains maybe uninitialized
@@ -805,8 +807,8 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     // This is a sharp edge--the handling on each side of this edge may be
     // significantly different. So, moved the edge away from the round number.
     if(STD::abs(rayt.x) > FL(0.50001)){ // shallow angle ray
-        zmin = math::min(point0.x.y, point1.x.y) - RadiusMax;
-        zmax = math::max(point0.x.y, point1.x.y) + RadiusMax;
+        zmin = bhc::min(point0.x.y, point1.x.y) - RadiusMax;
+        zmax = bhc::max(point0.x.y, point1.x.y) + RadiusMax;
     }else{ // steep angle ray
         zmin = -REAL_MAX;
         zmax =  REAL_MAX;
@@ -817,7 +819,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
         // is Rr[ir] contained in [rA, rB)? Then compute beam influence
         // LP: Because of the new setup and always incrementing regardless of
         // which direction the ray goes, we only have to check this side.
-        if(Pos->Rr[inflray.ir] >= math::min(rA, rB) && Pos->Rr[inflray.ir] < math::max(rA, rB)){
+        if(Pos->Rr[inflray.ir] >= bhc::min(rA, rB) && Pos->Rr[inflray.ir] < bhc::max(rA, rB)){
             
             for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
                 if(Beam->RunType[4] == 'I'){
@@ -833,7 +835,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                 sigma = STD::abs(q / inflray.q0); // beam radius
                 real beamWCompare;
                 if(isGaussian){
-                    sigma = math::max(sigma, math::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
+                    sigma = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
                     beamWCompare = BeamWindow * sigma;
                 }else{
                     RadiusMax = sigma;
@@ -984,4 +986,6 @@ HOST_DEVICE inline bool Step_Influence(
     default:  return Step_InfluenceGeoHatOrGaussianCart(Beam->Type[0] == 'B',
             point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
     }
+}
+
 }

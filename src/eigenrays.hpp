@@ -1,6 +1,8 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 HOST_DEVICE inline void RecordEigenHit(int32_t ir, int32_t iz, 
     int32_t isrc, int32_t ialpha, int32_t is, EigenInfo *eigen)
 {
@@ -25,3 +27,5 @@ inline void InitEigenMode(EigenInfo *eigen)
 
 void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs, 
     std::string FileRoot, bool singlethread);
+
+}

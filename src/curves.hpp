@@ -1,6 +1,8 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 /**
  *  TAKEN FROM "A PRACTICAL GUIDE TO SPLINES", BY CARL DE BOOR. 1978.
  *  SPRINGER-VERLAG.  THE INPUT PARAMETER "NDIM" HAS BEEN ADDED TO
@@ -197,9 +199,9 @@ HOST_DEVICE inline real fprime_interior(real del1, real del2, real fprime)
     if(del1 * del2 > FL(0.0)){
         // adjacent secant slopes have the same sign, enforce monotonicity
         if(del1 > FL(0.0)){
-            return math::min(math::max(fprime, RL(0.0)), RL(3.0) * math::min(del1, del2));
+            return bhc::min(bhc::max(fprime, RL(0.0)), RL(3.0) * bhc::min(del1, del2));
         }else{
-            return math::max(math::min(fprime, RL(0.0)), RL(3.0) * math::max(del1, del2));
+            return bhc::max(bhc::min(fprime, RL(0.0)), RL(3.0) * bhc::max(del1, del2));
         }
     }else{
         // force the interpolant to have an extrema here
@@ -341,4 +343,6 @@ HOST_DEVICE inline void pchip(const real *x, const cpx *y, int32_t n,
             PolyCoef4[ix] = (h * (f1prime + f2prime) - RL(2.0) * (f2 - f1)) / CUBE(h);
         }
     }
+}
+
 }

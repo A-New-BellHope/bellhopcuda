@@ -1,5 +1,7 @@
 #include "tlmode.hpp"
 
+namespace bhc {
+
 /**
  * Write header to disk file
  * LP: of a SHDFile ("binary `shade' file (SHDFIL) that contains calculated
@@ -19,15 +21,15 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     bool isTL = (PlotType[0] == 'T' && PlotType[1] == 'L');
     
     int32_t LRecl = 84; //4 for LRecl, 80 for Title
-    LRecl = math::max(LRecl, 2 * freqinfo->Nfreq * (int32_t)sizeof(freqinfo->freqVec[0]));
-    LRecl = math::max(LRecl, Pos->Ntheta * (int32_t)sizeof(Pos->theta[0]));
+    LRecl = bhc::max(LRecl, 2 * freqinfo->Nfreq * (int32_t)sizeof(freqinfo->freqVec[0]));
+    LRecl = bhc::max(LRecl, Pos->Ntheta * (int32_t)sizeof(Pos->theta[0]));
     if(!isTL){
-        LRecl = math::max(LRecl, Pos->NSx * (int32_t)sizeof(Pos->Sx[0]));
-        LRecl = math::max(LRecl, Pos->NSy * (int32_t)sizeof(Pos->Sy[0]));
+        LRecl = bhc::max(LRecl, Pos->NSx * (int32_t)sizeof(Pos->Sx[0]));
+        LRecl = bhc::max(LRecl, Pos->NSy * (int32_t)sizeof(Pos->Sy[0]));
     }
-    LRecl = math::max(LRecl, Pos->NSz * (int32_t)sizeof(Pos->Sz[0]));
-    LRecl = math::max(LRecl, Pos->NRz * (int32_t)sizeof(Pos->Rz[0]));
-    LRecl = math::max(LRecl, Pos->NRr * (int32_t)sizeof(cpxf));
+    LRecl = bhc::max(LRecl, Pos->NSz * (int32_t)sizeof(Pos->Sz[0]));
+    LRecl = bhc::max(LRecl, Pos->NRz * (int32_t)sizeof(Pos->Rz[0]));
+    LRecl = bhc::max(LRecl, Pos->NRr * (int32_t)sizeof(cpxf));
     
     SHDFile.open(FileName, LRecl);
     if(!SHDFile.good()){
@@ -106,4 +108,6 @@ void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &o
     }
     
     deallocate(outputs.uAllSources);
+}
+
 }

@@ -5,6 +5,8 @@
 #include "eigenrays.hpp"
 #include "arrivals.hpp"
 
+namespace bhc {
+
 HOST_DEVICE inline int32_t GetNumJobs(const Position *Pos, const AnglesStructure *Angles)
 {
     return Pos->NSz * (Angles->iSingle_alpha >= 1 ? 1 : Angles->Nalpha);
@@ -51,3 +53,5 @@ inline void InitSelectedMode(std::ostream &PRTFile, const bhcParams &params, bhc
 
 void run_cxx(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
     bool singlethread);
+
+}

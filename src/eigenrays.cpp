@@ -5,6 +5,8 @@
 #include <thread>
 #include <vector>
 
+namespace bhc {
+
 static std::atomic<int32_t> jobID;
 
 void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
@@ -39,11 +41,13 @@ void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs,
     
     std::cout << (int)outputs.eigen->neigen << " eigenrays\n";
     std::vector<std::thread> threads;
-    uint32_t cores = singlethread ? 1u : math::max(std::thread::hardware_concurrency(), 1u);
+    uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
     for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(EigenModePostWorker,
         std::cref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
     
     FinalizeRayMode(outputs.rayinfo, FileRoot, params);
+}
+
 }

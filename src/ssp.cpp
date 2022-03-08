@@ -2,6 +2,8 @@
 #include "curves.hpp"
 #include "boundary.hpp"
 
+namespace bhc {
+
 #define READ_SSP_ARGS real Depth, real freq, const real &fT, SSPStructure *ssp, \
     LDIFile &ENVFile, std::ostream &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS
 #define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, RecycledHS
@@ -185,4 +187,6 @@ void InitializeSSP(SSP_INIT_ARGS)
         printf("InitializeSSP: Invalid profile option %c\n", ssp->Type);
         std::abort();
     }
+}
+
 }

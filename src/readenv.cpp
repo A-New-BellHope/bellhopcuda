@@ -5,6 +5,8 @@
 #include "angles.hpp"
 #include "beams.hpp"
 
+namespace bhc {
+
 /**
  * LP: No function description given.
  * 
@@ -42,7 +44,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
+            std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
             std::abort();
         }
         } break;
@@ -52,7 +54,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
+            std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
         }
         } break;*/
     case 'A':
@@ -237,22 +239,22 @@ void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
     real Sigma, Depth;
     char PlotType[10];
     
-    PRTFile << PROGRAMNAME "\n\n";
+    PRTFile << BHC_PROGRAMNAME "\n\n";
     
     // Open the environmental file
     LDIFile ENVFile(FileRoot + ".env");
     if(!ENVFile.Good()){
         PRTFile << "ENVFile = " << FileRoot << ".env\n";
-        std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the environmental file\n";
+        std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the environmental file\n";
         std::abort();
     }
     
     // Prepend model name to title
     std::string TempTitle;
     LIST(ENVFile); ENVFile.Read(TempTitle);
-    TempTitle = PROGRAMNAME "- " + TempTitle;
+    TempTitle = BHC_PROGRAMNAME "- " + TempTitle;
     PRTFile << TempTitle << "\n";
-    int32_t l = math::min(sizeof(Title) - 1, TempTitle.size());
+    int32_t l = bhc::min(sizeof(Title) - 1, TempTitle.size());
     memcpy(Title, TempTitle.c_str(), l);
     Title[l] = 0;
     
@@ -339,3 +341,5 @@ void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
     //LP: Moved to separate function for clarity and modularity.
     ReadBeamInfo(ENVFile, PRTFile, Beam);
 } 
+
+}

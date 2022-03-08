@@ -1,6 +1,8 @@
 #include "raymode.hpp"
 #include "run.hpp"
 
+namespace bhc {
+
 void OpenRAYFile(LDOFile &RAYFile, std::string FileRoot, bool ThreeD, 
     const bhcParams &params)
 {
@@ -42,11 +44,11 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
     
     constexpr int32_t MaxNRayPoints = 500000; // this is the maximum length of the ray vector that is written out
     int32_t n2 = 1;
-    int32_t iSkip = math::max(Nsteps1 / MaxNRayPoints, 1);
+    int32_t iSkip = bhc::max(Nsteps1 / MaxNRayPoints, 1);
     
     for(int32_t is=1; is<Nsteps1; ++is){
         // ensure that we always write ray points near bdry reflections (works only for flat bdry)
-        if(math::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < FL(0.2) ||
+        if(bhc::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < FL(0.2) ||
                 (is % iSkip) == 0 || is == Nsteps1-1){
             ++n2;
             ray2D[n2-1].x = ray2D[is].x;
@@ -66,7 +68,7 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
 void InitRayMode(RayInfo *rayinfo, const bhcParams &params)
 {
     rayinfo->NRays = GetNumJobs(params.Pos, params.Angles);
-    rayinfo->MaxPoints = math::min((uint32_t)MaxN * (uint32_t)rayinfo->NRays, 100000000u);
+    rayinfo->MaxPoints = bhc::min((uint32_t)MaxN * (uint32_t)rayinfo->NRays, 100000000u);
     rayinfo->NPoints = 0;
     rayinfo->raymem = new ray2DPt[rayinfo->MaxPoints];
     rayinfo->results = new RayResult[rayinfo->NRays];
@@ -82,4 +84,6 @@ void FinalizeRayMode(RayInfo *rayinfo, std::string FileRoot, const bhcParams &pa
         if(res->ray2D == nullptr) continue;
         WriteRay2D(res->SrcDeclAngle, res->Nsteps, RAYFile, params.Bdry, res->ray2D);
     }
+}
+
 }

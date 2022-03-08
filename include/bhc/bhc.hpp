@@ -5,13 +5,14 @@
 
 #define _BHC_INCLUDED_ 1
 #include "platform.hpp"
-#include "real.hpp"
-#include "cpx.hpp"
+#include "math.hpp"
 #include "structs.hpp"
 #undef _BHC_INCLUDED_
 
 #include <iostream>
 #include <fstream>
+
+namespace bhc {
 
 /**
  * Optional PRTFile initialization. You can also use an ostringstream for
@@ -55,4 +56,10 @@ BHC_API void run(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &out
  * Frees memory. You may call run() many times, you do not have to call setup
  * - run - finalize every time.
  */
-//BHC_API void finalize(bhcParams &params, bhcOutputs &outputs); TODO
+BHC_API void finalize(bhcParams &params, bhcOutputs &outputs);
+
+}
+
+#ifdef BHC_UNDEF_STD_AFTER
+#undef STD
+#endif

@@ -1,5 +1,7 @@
 #include "arrivals.hpp"
 
+namespace bhc {
+
 void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD)
 {
@@ -115,4 +117,6 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
             }
         }
     }
+}
+
 }

@@ -6,6 +6,8 @@
 #include "beams.hpp"
 #include "run.hpp"
 
+namespace bhc {
+
 #ifdef BHC_BUILD_CUDA
 void setupGPU();
 #endif
@@ -106,8 +108,8 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
-        std::string TempTitle = PROGRAMNAME "- Calibration case with envfil passed as parameters";
-        int32_t l = math::min(sizeof(params.Title) - 1, TempTitle.size());
+        std::string TempTitle = BHC_PROGRAMNAME "- Calibration case with envfil passed as parameters";
+        int32_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
         memcpy(params.Title, TempTitle.c_str(), l);
         params.Title[l] = 0;
         params.freqinfo->freq0 = FL(250.0);
@@ -278,4 +280,11 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     }
     
     PRTFile << "\n";
+}
+
+BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
+{
+#warning TODO finalize not yet implemented!
+}
+
 }

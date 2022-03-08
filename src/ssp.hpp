@@ -2,6 +2,8 @@
 #include "common.hpp"
 #include "curves.hpp"
 
+namespace bhc {
+
 constexpr real betaPowerLaw = FL(1.0);
 
 #define SSP_FN_ARGS const vec2 &x, const vec2 &t, cpx &ccpx, vec2 &gradc, \
@@ -173,8 +175,8 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
     // s1 = proportional distance of x.x in range
     delta_r = ssp->Seg.r[iSegr+1] - ssp->Seg.r[iSegr];
     s1 = (x.x - ssp->Seg.r[iSegr]) / delta_r;
-    s1 = math::min(s1, RL(1.0)); // force piecewise constant extrapolation for points outside the box
-    s1 = math::max(s1, RL(0.0)); // "
+    s1 = bhc::min(s1, RL(1.0)); // force piecewise constant extrapolation for points outside the box
+    s1 = bhc::max(s1, RL(0.0)); // "
     
     real c = (RL(1.0) - s1) * c1 + s1 * c2;
     
@@ -264,3 +266,4 @@ HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx
 
 void InitializeSSP(SSP_INIT_ARGS);
  
+}

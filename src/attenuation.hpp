@@ -1,6 +1,8 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 /**
  * Francois Garrison formulas for attenuation
  * Based on a Matlab version by D. Jackson APL-UW
@@ -156,4 +158,6 @@ inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&
     }
     
     return ret;
+}
+
 }

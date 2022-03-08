@@ -1,6 +1,8 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 /**
  * Given an angle RInt%ThetaInt, returns the magnitude and
  * phase of the reflection coefficient (RInt%R, RInt%phi).
@@ -133,7 +135,9 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
     
     if(BotRC == 'P'){
         std::cout << "Internal reflections not supported by BELLHOP and therefore "
-            "not supported by " PROGRAMNAME "\n";
+            "not supported by " BHC_PROGRAMNAME "\n";
         std::abort();
     }
+}
+
 }

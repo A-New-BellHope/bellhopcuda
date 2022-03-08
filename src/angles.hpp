@@ -1,6 +1,8 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 /**
  * LP: RunType was originally length 6 in the FORTRAN, but Beam->RunType was
  * being passed to it, which is definitely length 7.
@@ -25,17 +27,17 @@ inline void ReadRayElevationAngles(real freq, real Depth,
         }else{
             // you're letting ME choose? OK: ideas based on an isospeed ocean
             // limit based on phase of adjacent beams at maximum range
-            Angles->Nalpha = math::max((int)(FL(0.3) * Pos->Rr[Pos->NRr-1] * freq / c0), 300);
+            Angles->Nalpha = bhc::max((int)(FL(0.3) * Pos->Rr[Pos->NRr-1] * freq / c0), 300);
             
             // limit based on having beams that are thin with respect to the water depth
             // assumes also a full 360 degree angular spread of rays
             // Should check which Depth is used here, in case where there is a variable bathymetry
             real d_theta_recommended = STD::atan(Depth / (FL(10.0) * Pos->Rr[Pos->NRr-1]));
-            Angles->Nalpha = math::max((int)(REAL_PI / d_theta_recommended), Angles->Nalpha);
+            Angles->Nalpha = bhc::max((int)(REAL_PI / d_theta_recommended), Angles->Nalpha);
         }
     }
     
-    Angles->alpha = allocate<real>(math::max(3, Angles->Nalpha));
+    Angles->alpha = allocate<real>(bhc::max(3, Angles->Nalpha));
     
     if(Angles->Nalpha > 2) Angles->alpha[2] = FL(-999.9);
     LIST(ENVFile); ENVFile.Read(Angles->alpha, Angles->Nalpha);
@@ -63,4 +65,6 @@ inline void ReadRayElevationAngles(real freq, real Depth,
             std::abort();
         }
     }
+}
+
 }

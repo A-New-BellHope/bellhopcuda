@@ -4,6 +4,8 @@
 #include <thread>
 #include <vector>
 
+namespace bhc {
+
 static std::atomic<int32_t> jobID;
 
 // Ray mode
@@ -45,7 +47,7 @@ void run_cxx(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs
 {
     InitSelectedMode(PRTFile, params, outputs, singlethread);
     std::vector<std::thread> threads;
-    uint32_t cores = singlethread ? 1u : math::max(std::thread::hardware_concurrency(), 1u);
+    uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
     for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(
         params.Beam->RunType[0] == 'R' ? RayModeWorker : FieldModesWorker,
@@ -60,3 +62,5 @@ BHC_API void run(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &out
     run_cxx(PRTFile, params, outputs, singlethread);
 }
 #endif
+
+}

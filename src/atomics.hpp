@@ -4,6 +4,8 @@
 #error "Must be included from common.hpp!"
 #endif
 
+namespace bhc {
+
 #if __cplusplus < 202002L
 // Pre-C++20 version of bit_cast
 // from https://en.cppreference.com/w/cpp/numeric/bit_cast
@@ -130,4 +132,6 @@ template<typename INT> HOST_DEVICE inline INT AtomicFetchAdd(INT *ptr, INT val)
     #else
     #error "Unrecognized compiler for atomic intrinsics!"
     #endif
+}
+
 }

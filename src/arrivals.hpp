@@ -1,6 +1,8 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 /**
  * Is this the second step of a pair (on the same ray)?
  * If so, we want to combine the arrivals to conserve space.
@@ -106,7 +108,7 @@ inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
     size_t nzr = Pos->NRz_per_range * Pos->NRr;
     const size_t ArrivalsStorage = singlethread ? 20000000 : 50000000;
     const size_t MinNArr = 10;
-    arrinfo->MaxNArr = math::max(ArrivalsStorage / nzr, MinNArr);
+    arrinfo->MaxNArr = bhc::max(ArrivalsStorage / nzr, MinNArr);
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
     arrinfo->Arr  = allocate<Arrival>((size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr);
     arrinfo->NArr = allocate<int32_t>((size_t)Pos->NSz * nzr);
@@ -116,3 +118,5 @@ inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
 
 void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD);
+
+}

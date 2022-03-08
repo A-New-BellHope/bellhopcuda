@@ -1,6 +1,8 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 /**
  * Optionally reads a vector of source frequencies for a broadband run
  * If the broadband option is not selected, then the input freq (a scalar) is stored in the frequency vector
@@ -21,7 +23,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ostream &PR
     }
     
     if(freqinfo->freqVec != nullptr) deallocate(freqinfo->freqVec);
-    freqinfo->freqVec = allocate<real>(math::max(3, freqinfo->Nfreq));
+    freqinfo->freqVec = allocate<real>(bhc::max(3, freqinfo->Nfreq));
     
     if(BroadbandOption == 'B'){
         PRTFile << "Frequencies (Hz)\n";
@@ -52,7 +54,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
     }
     
     if(x != nullptr) deallocate(x);
-    x = allocate<REAL>(math::max(3, Nx));
+    x = allocate<REAL>(bhc::max(3, Nx));
     
     PRTFile << Description << " (" << Units << ")\n";
     x[2] = FL(-999.9);
@@ -180,4 +182,6 @@ inline void ReadRcvrBearings(LDIFile &ENVFile, std::ostream &PRTFile,
         std::cout << "ReadRcvrBearings: Receiver bearings are not monotonically increasing\n";
         std::abort();
     }
+}
+
 }

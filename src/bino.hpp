@@ -4,6 +4,8 @@
 #error "Must be included from common.hpp!"
 #endif
 
+namespace bhc {
+
 /**
  * C++ emulation of FORTRAN direct output (binary). Uses a global record length
  * which is not directly encoded in the file (usually user-encoded as the first
@@ -43,7 +45,7 @@ public:
         bytesWrittenThisRecord += bytes;
     }
     void write(const char *file, int fline, const std::string &str, int32_t bytes){
-        write(file, fline, str.data(), math::min(bytes, (int32_t)str.size()));
+        write(file, fline, str.data(), bhc::min(bytes, (int32_t)str.size()));
         for(int32_t b=str.size(); b<bytes; ++b){
             ostr.put(' ');
             ++bytesWrittenThisRecord;
@@ -122,3 +124,5 @@ private:
     int32_t recstart;
     int32_t recl;
 };
+
+}

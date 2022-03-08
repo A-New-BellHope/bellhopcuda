@@ -1,5 +1,7 @@
 #include "run.hpp"
 
+namespace bhc {
+
 __global__ void 
 __launch_bounds__(512, 1)
 FieldModesKernel(bhcParams params, bhcOutputs outputs)
@@ -71,4 +73,6 @@ BHC_API void run(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &out
     }else{
         run_cuda(PRTFile, params, outputs);
     }
+}
+
 }

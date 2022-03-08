@@ -1,6 +1,8 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
     BeamInfo *beaminfo)
 {
@@ -140,4 +142,6 @@ inline void ReadBeamInfo(LDIFile &ENVFile, std::ostream &PRTFile,
         
         PRTFile << "\n";
     }
+}
+
 }

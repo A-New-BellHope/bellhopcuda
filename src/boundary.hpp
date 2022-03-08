@@ -3,6 +3,8 @@
 #include "attenuation.hpp"
 #include "ssp.hpp"
 
+namespace bhc {
+
 constexpr int32_t Bdry_Number_to_Echo = 21;
 
 // Unfortunately, can't be a constexpr as sqrt is not constexpr in C++14 without
@@ -24,8 +26,8 @@ HOST_DEVICE inline void GetTopSeg(real r, real t, int32_t &IsegTop, vec2 &rTopSe
     // linearly search out from the last position, usually only have to move
     // by 1
     int32_t n = bdinfo->NATIPts;
-    IsegTop = math::max(IsegTop, 0);
-    IsegTop = math::min(IsegTop, n-2);
+    IsegTop = bhc::max(IsegTop, 0);
+    IsegTop = bhc::min(IsegTop, n-2);
     if(t >= FL(0.0)){
         while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x > r) --IsegTop;
         while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x <= r) ++IsegTop;
@@ -57,8 +59,8 @@ HOST_DEVICE inline void GetBotSeg(real r, real t, int32_t &IsegBot, vec2 &rBotSe
     // linearly search out from the last position, usually only have to move
     // by 1
     int32_t n = bdinfo->NBTYPts;
-    IsegBot = math::max(IsegBot, 0);
-    IsegBot = math::min(IsegBot, n-2);
+    IsegBot = bhc::max(IsegBot, 0);
+    IsegBot = bhc::min(IsegBot, n-2);
     if(t >= FL(0.0)){
         while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x > r) --IsegBot;
         while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x <= r) ++IsegBot;
@@ -480,4 +482,6 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         hs.cS  = FL(0.0);
         hs.rho = RecycledHS.rho;
     }
+}
+
 }

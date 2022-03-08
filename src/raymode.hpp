@@ -2,6 +2,8 @@
 #include "common.hpp"
 #include "trace.hpp"
 
+namespace bhc {
+
 /**
  * Main ray tracing function for ray path output mode.
  */
@@ -89,4 +91,6 @@ inline bool RunRay(RayInfo *rayinfo, const bhcParams &params, ray2DPt *localmem,
     rayinfo->results[job].Nsteps = Nsteps;
     
     return ret;
+}
+
 }

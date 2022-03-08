@@ -3,6 +3,8 @@
 #include "ssp.hpp"
 #include "boundary.hpp"
 
+namespace bhc {
+
 #define INFINITESIMAL_STEP_SIZE (RL(1e-6))
 
 /**
@@ -57,12 +59,12 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     }
     
     // top or bottom segment crossing in range
-    rSeg.x = math::max(rTopSeg.x, rBotSeg.x);
-    rSeg.y = math::min(rTopSeg.y, rBotSeg.y);
+    rSeg.x = bhc::max(rTopSeg.x, rBotSeg.x);
+    rSeg.y = bhc::min(rTopSeg.y, rBotSeg.y);
     
     if(ssp->Type == 'Q'){
-        rSeg.x = math::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
-        rSeg.y = math::min(rSeg.y, ssp->Seg.r[iSegr0+1]);
+        rSeg.x = bhc::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
+        rSeg.y = bhc::min(rSeg.y, ssp->Seg.r[iSegr0+1]);
     }
     
     h4 = REAL_MAX;
@@ -80,7 +82,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     
     //printf("ReduceStep2D h h1 h2 h3 h4 %g %g %g %g %g\n", h, h1, h2, h3, h4);
     // take limit set by shortest distance to a crossing
-    h = math::min(h, math::min(h1, math::min(h2, math::min(h3, h4))));
+    h = bhc::min(h, bhc::min(h1, bhc::min(h2, bhc::min(h3, h4))));
     /*
     if(h == h1){
         printf("Step %g due to Z SSP crossing\n", h);
@@ -167,12 +169,12 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
     }
     
     // top or bottom segment crossing in range
-    rSeg.x = math::max(rTopSeg.x, rBotSeg.x); // lower range bound (not an x value)
-    rSeg.y = math::min(rTopSeg.y, rBotSeg.y); // upper range bound (not a y value)
+    rSeg.x = bhc::max(rTopSeg.x, rBotSeg.x); // lower range bound (not an x value)
+    rSeg.y = bhc::min(rTopSeg.y, rBotSeg.y); // upper range bound (not a y value)
     
     if(ssp->Type == 'Q'){
-        rSeg.x = math::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
-        rSeg.y = math::min(rSeg.y, ssp->Seg.r[iSegr0+1]);
+        rSeg.x = bhc::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
+        rSeg.y = bhc::min(rSeg.y, ssp->Seg.r[iSegr0+1]);
     }
     
     if(STD::abs(urayt.x) > REAL_EPSILON){
@@ -399,4 +401,6 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
         rn = rm * (FL(2.0) * cnjump - rm * csjump) / ccpx2.real();
         ray2.p = ray2.p - ray2.q * rn;
     }
+}
+
 }

@@ -4,6 +4,8 @@
 #error "Must be included from common.hpp!"
 #endif
 
+namespace bhc {
+
 /**
  * C++ emulation of FORTRAN list-directed input.
  * To use:
@@ -423,3 +425,5 @@ private:
         }
     }
 };
+
+}

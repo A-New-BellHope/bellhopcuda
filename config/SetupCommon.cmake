@@ -21,7 +21,7 @@ find_package(Threads)
 
 function(bellhop_setup_target target_name)
     if(USE_FLOAT)
-        target_compile_definitions(${target_name} PUBLIC USE_FLOATS=1)
+        target_compile_definitions(${target_name} PUBLIC BHC_USE_FLOATS=1)
     endif()
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/include")
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
@@ -46,9 +46,8 @@ endfunction()
 
 set(COMMON_INCLUDES
     bhc.hpp
-    cpx.hpp
+    math.hpp
     platform.hpp
-    real.hpp
     structs.hpp
 )
 

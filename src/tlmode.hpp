@@ -4,6 +4,8 @@
 #include "ssp.hpp"
 #include "influence.hpp"
 
+namespace bhc {
+
 /**
  * for a TL calculation, allocate space for the pressure matrix
  */
@@ -74,4 +76,6 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     }
     
     //printf("Nsteps %d\n", Nsteps);
+}
+
 }

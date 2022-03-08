@@ -1,18 +1,56 @@
 #pragma once
 
+#define _USE_MATH_DEFINES 1 //must be before anything which includes math.h
+#include <math.h>
+
 #ifdef _MSC_VER
 #define NOMINMAX
 #include <windows.h>
 #endif
 
-#include <bhc/bhc.hpp>
-
+#include <iostream>
 #include <cstdio>
 #include <iomanip>
+#include <cctype>
+#include <cstring>
+#include <string>
+#include <locale>
+#include <algorithm>
+//#include <cfenv>
+#include <chrono>
+
+#include <glm/common.hpp>
+#include <glm/geometric.hpp>
+
+////////////////////////////////////////////////////////////////////////////////
+//Select which standard library
+////////////////////////////////////////////////////////////////////////////////
 
 #ifdef BHC_BUILD_CUDA
+#include "cuda_runtime.h"
 #include "UtilsCUDA.cuh"
+#define HOST_DEVICE __host__ __device__
+//Requires libcu++ 1.4 or higher, which is included in the normal CUDA Toolkit
+//install since somewhere between CUDA 11.3 and 11.5. (I.e. 11.5 and later has
+//it, 11.2 and earlier does not, not sure about 11.3 and 11.4. You can check by
+//seeing if <cuda_install_dir>/include/cuda/std/complex exists.)
+#include <cuda/std/complex>
+#include <cuda/std/cfloat>
+#define STD cuda::std
+#define BHC_PROGRAMNAME "bellhopcuda"
+#else
+#define HOST_DEVICE
+#define STD std
+#define BHC_PROGRAMNAME "bellhopcxx"
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+//External headers
+////////////////////////////////////////////////////////////////////////////////
+
+#include <bhc/bhc.hpp>
+
+namespace bhc {
 
 ////////////////////////////////////////////////////////////////////////////////
 //Assertions and debug
@@ -62,7 +100,86 @@ if(!(statement)){ \
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-//Misc real math
+//Real types
+////////////////////////////////////////////////////////////////////////////////
+
+#ifdef BHC_USE_FLOATS
+#define REAL_MAX FLT_MAX
+#define REAL_EPSILON FLT_EPSILON
+#define REAL_MINPOS FLT_MIN
+#define REAL_PI ((float)M_PI)
+#define REAL_REL_SNAP (1.0e-5f)
+// Must be below abs(bit_cast<float>(0xFEFEFEFEu) == -1.69e38f)
+#define DEBUG_LARGEVAL (1.0e30f)
+// #define DEBUG_LARGEVAL (1.0e15f)
+#else
+#define REAL_MAX DBL_MAX
+#define REAL_EPSILON DBL_EPSILON
+#define REAL_MINPOS DBL_MIN
+#define REAL_PI M_PI
+#define REAL_REL_SNAP (1.0e-6)
+//Must be below abs(bit_cast<double>(0xFEFEFEFEFEFEFEFEull) == -5.31e303)
+#define DEBUG_LARGEVAL (1.0e250)
+//#define DEBUG_LARGEVAL (1.0e15)
+#endif
+
+// BELLHOP uses mostly normal REAL literals, which are float despite most of the
+// program using REAL*8 (double). It occasionally uses double-precision literals
+// (look like 1.6D-9). For values exactly expressible in both types, e.g. 0.0,
+// 1.0, 2.0, 37.0, 0.375, it doesn't matter which type the literal is--except
+// that when running in float mode, double-precision literals may cause the
+// entire expression to be promoted to double, causing extremely slow double-
+// precision instructions to be emitted on CUDA. However, for values not
+// expressable as float, e.g. 0.1, the literal type changes the result:
+// double d = bar(); float f = foo();
+// assert(d * 0.1 == d * 0.1f); //will fail for all d except 0, inf, etc.
+// assert((float)(f * 0.1) == f * 0.1f); //will fail for some f
+//
+// "Real literal"
+#ifdef BHC_USE_FLOATS
+#define RL(a) (a##f)
+#else
+#define RL(a) a
+#endif
+// "Float literal"--This macro is not actually needed, values could just be
+// always written as e.g. 0.1f, but this way, every floating-point literal
+// should have one or the other macro on it, making it easier to spot errors.
+#define FL(a) (a##f)
+
+////////////////////////////////////////////////////////////////////////////////
+//Complex types
+////////////////////////////////////////////////////////////////////////////////
+
+#define J cpx(RL(0.0), RL(1.0))
+HOST_DEVICE constexpr inline cpxf Cpx2Cpxf(const cpx &c){
+	return cpxf((float)c.real(), (float)c.imag());
+}
+HOST_DEVICE constexpr inline cpx Cpxf2Cpx(const cpxf &c){
+	return cpx((real)c.real(), (real)c.imag());
+}
+
+//CUDA::std::cpx<double> does not like operators being applied with float
+//literals, due to template type deduction issues.
+#ifndef BHC_USE_FLOATS
+HOST_DEVICE constexpr inline cpx operator-(float a, const cpx &b){
+    return cpx(a - b.real(), -b.imag());
+}
+HOST_DEVICE constexpr inline cpx operator*(const cpx &a, float b){
+    return cpx(a.real() * b, a.imag() * b);
+}
+HOST_DEVICE constexpr inline cpx operator*(float a, const cpx &b){
+    return cpx(a * b.real(), a * b.imag());
+}
+HOST_DEVICE constexpr inline cpx operator/(const cpx &a, float b){
+    return cpx(a.real() / b, a.imag() / b);
+}
+HOST_DEVICE inline cpx operator/(float a, const cpx &b){
+    return (double)a / b;
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+//Misc math
 ////////////////////////////////////////////////////////////////////////////////
 
 #define SQ(a) ((a) * (a)) //Square
@@ -74,42 +191,35 @@ template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v){
 	return STD::abs(STD::nextafter(v, (REAL)(0.0f)) - v);
 }
 
-namespace math {
-	//max/min are not handled the same way as other math functions by the C++
-    //standard library and therefore also by libcu++. These versions make sure
-    //to use the underlying function with the correct precision.
-	#ifdef __CUDA_ARCH__
-	#define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-		__device__ inline float BASE(const float &a, const float &b) { return DEV_F(a, b); } \
-		__device__ inline double BASE(const double &a, const double &b) { return DEV_D(a, b); }
-	#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
-		__device__ inline int32_t BASE(const int32_t &a, const int32_t &b) { return DEV(a, b); } \
-		__device__ inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return DEV(a, b); } \
-		__device__ inline size_t BASE(const size_t &a, const size_t &b) { return DEV(a, b); }
-	#else
-    #define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
-        inline float BASE(const float &a, const float &b) { return HOST_F(a, b); } \
-        inline double BASE(const double &a, const double &b) { return HOST_D(a, b); }
-	#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
-		inline int32_t BASE(const int32_t &a, const int32_t &b) { return HOST(a, b); } \
-		inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return HOST(a, b); } \
-		inline size_t BASE(const size_t &a, const size_t &b) { return HOST(a, b); }
-    #endif
+//max/min are not handled the same way as other math functions by the C++
+//standard library and therefore also by libcu++. These versions make sure
+//to use the underlying function with the correct precision.
+#ifdef __CUDA_ARCH__
+#define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
+	__device__ inline float BASE(const float &a, const float &b) { return DEV_F(a, b); } \
+	__device__ inline double BASE(const double &a, const double &b) { return DEV_D(a, b); }
+#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
+	__device__ inline int32_t BASE(const int32_t &a, const int32_t &b) { return DEV(a, b); } \
+	__device__ inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return DEV(a, b); } \
+	__device__ inline size_t BASE(const size_t &a, const size_t &b) { return DEV(a, b); }
+#else
+#define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
+    inline float BASE(const float &a, const float &b) { return HOST_F(a, b); } \
+    inline double BASE(const double &a, const double &b) { return HOST_D(a, b); }
+#define DEFINE_MATH_FUNC_INT_2(BASE, DEV, HOST) \
+	inline int32_t BASE(const int32_t &a, const int32_t &b) { return HOST(a, b); } \
+	inline uint32_t BASE(const uint32_t &a, const uint32_t &b) { return HOST(a, b); } \
+	inline size_t BASE(const size_t &a, const size_t &b) { return HOST(a, b); }
+#endif
 
-    DEFINE_MATH_FUNC_2(max, fmaxf, std::max, fmax, std::max)
-    DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
-	DEFINE_MATH_FUNC_INT_2(max, ::max, std::max)
-	DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
-}
+DEFINE_MATH_FUNC_2(max, fmaxf, std::max, fmax, std::max)
+DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
+DEFINE_MATH_FUNC_INT_2(max, ::max, std::max)
+DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
 
 ////////////////////////////////////////////////////////////////////////////////
 //String manipulation
 ////////////////////////////////////////////////////////////////////////////////
-
-#include <cctype>
-#include <cstring>
-#include <string>
-#include <locale>
 
 inline bool isInt(std::string str, bool allowNegative = true){
 	if(str.empty()) return false;
@@ -142,8 +252,6 @@ inline std::ostream &operator<<(std::ostream &s, const vec2 &v){
 	s << v.x << " " << v.y;
 	return s;
 }
-
-#include <algorithm>
 
 //Courtesy Evan Teran, https://stackoverflow.com/a/217605
 // trim from start (in place)
@@ -345,7 +453,7 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ostream
 {
     constexpr int32_t NEcho = 10;
     PRTFile << std::setprecision(6);
-    for(int32_t i=0, r=0; i<math::min(Nv, NEcho); ++i){
+    for(int32_t i=0, r=0; i<bhc::min(Nv, NEcho); ++i){
         PRTFile << std::setw(14) << v[i] << " ";
         ++r;
         if(r == 5){
@@ -361,8 +469,6 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ostream
     PRTFile << "\n";
     */
 }
-
-//#include <cfenv>
 
 template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 {
@@ -386,8 +492,6 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 //Timing
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <chrono>
-
 class Stopwatch
 {
 public:
@@ -405,6 +509,8 @@ public:
 private:
     std::chrono::high_resolution_clock::time_point tstart;
 };
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //Other components
