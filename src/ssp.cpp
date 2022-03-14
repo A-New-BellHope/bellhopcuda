@@ -67,6 +67,8 @@ void ReadSSP(READ_SSP_ARGS)
 
 void Initn2Linear(SSP_INIT_ARGS)
 {
+    IGNORE_UNUSED(FileRoot);
+    
     real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     
@@ -81,12 +83,16 @@ void Initn2Linear(SSP_INIT_ARGS)
 
 void InitcLinear(SSP_INIT_ARGS)
 {
+    IGNORE_UNUSED(FileRoot);
+    
     real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
 }
 
 void InitcPCHIP(SSP_INIT_ARGS)
 {
+    IGNORE_UNUSED(FileRoot);
+    
     real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     
@@ -100,6 +106,8 @@ void InitcPCHIP(SSP_INIT_ARGS)
 
 void InitcCubic(SSP_INIT_ARGS)
 {
+    IGNORE_UNUSED(FileRoot);
+    
     real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     

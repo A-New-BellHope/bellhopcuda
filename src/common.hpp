@@ -222,7 +222,7 @@ DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
 
 inline bool isInt(std::string str, bool allowNegative = true){
 	if(str.empty()) return false;
-	for(int i=0; i<str.length(); ++i){
+	for(size_t i=0; i<str.length(); ++i){
 		if(str[i] == '-'){
 			if(i != 0 || !allowNegative || str.length() == 1) return false;
 			continue;
