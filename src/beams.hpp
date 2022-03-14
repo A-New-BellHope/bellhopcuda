@@ -1,28 +1,9 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
 
-struct rxyz {
-    real r, x, y, z;
-};
+namespace bhc {
 
-struct BeamStructure {
-    //LP: NSteps moved out of this struct as it's a property of a single beam.
-    int32_t NBeams, Nimage, iBeamWindow;
-    real deltas, epsMultiplier, rLoop;
-    char Component;
-    char Type[4];
-    char RunType[7];
-    rxyz Box;
-};
-
-struct BeamInfo {
-    int32_t NSBPPts;
-    real *SrcBmPat;
-    char SBPFlag;
-};
-
-inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
+inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
     BeamInfo *beaminfo)
 {
     if(beaminfo->SBPFlag == '*'){
@@ -38,7 +19,7 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
         LIST(SBPFile); SBPFile.Read(beaminfo->NSBPPts);
         PRTFile << "Number of source beam pattern points " << beaminfo->NSBPPts << "\n";
         
-        beaminfo->SrcBmPat = allocate<real>(beaminfo->NSBPPts * 2);
+        checkallocate(beaminfo->SrcBmPat, beaminfo->NSBPPts * 2);
         
         PRTFile << "\n Angle (degrees)  Power (dB)\n" << std::setprecision(3);
         
@@ -48,20 +29,13 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
         }
     }else{
         beaminfo->NSBPPts = 2;
-        beaminfo->SrcBmPat = allocate<real>(2*2);
+        checkallocate(beaminfo->SrcBmPat, 2*2);
         beaminfo->SrcBmPat[0*2+0] = FL(-180.0); beaminfo->SrcBmPat[0*2+1] = FL(0.0);
         beaminfo->SrcBmPat[1*2+0] = FL( 180.0); beaminfo->SrcBmPat[1*2+1] = FL(0.0);
     }
     
-    //LP: BUG: BELLHOP does not require that the angles are monotonically
-    //increasing. However, in bellhop.f90:261, it looks for the largest angle
-    //below the target angle and then linearly interpolates between that one and
-    //the next angle in the array. This is only sensible if the angles are
-    //monotonically increasing.
     if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)){
-        std::cout << "Source beam pattern angles are not monotonic. This was not "
-            << "a requirement in BELLHOP but has been added to " PROGRAMNAME " "
-            << "because BELLHOP gave nonsense results if they were not.\n";
+        std::cout << "BELLHOP-ReadPat: Source beam pattern angles are not monotonic\n";
         std::abort();
     }
     
@@ -73,7 +47,7 @@ inline void ReadPat(std::string FileRoot, std::ofstream &PRTFile,
 /**
  * Limits for tracing beams
  */
-inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
+inline void ReadBeamInfo(LDIFile &ENVFile, std::ostream &PRTFile,
     BeamStructure *Beam)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
@@ -168,4 +142,6 @@ inline void ReadBeamInfo(LDIFile &ENVFile, std::ofstream &PRTFile,
         
         PRTFile << "\n";
     }
+}
+
 }

@@ -1,5 +1,10 @@
 #pragma once
-#include "common.hpp"
+
+#ifndef _BHC_INCLUDING_COMPONENTS_
+#error "Must be included from common.hpp!"
+#endif
+
+namespace bhc {
 
 #if __cplusplus < 202002L
 // Pre-C++20 version of bit_cast
@@ -127,4 +132,6 @@ template<typename INT> HOST_DEVICE inline INT AtomicFetchAdd(INT *ptr, INT val)
     #else
     #error "Unrecognized compiler for atomic intrinsics!"
     #endif
+}
+
 }

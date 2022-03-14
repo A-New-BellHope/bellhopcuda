@@ -1,27 +1,10 @@
 #pragma once
 #include "common.hpp"
-#include "atomics.hpp"
-#include "sourcereceiver.hpp"
-#include "beams.hpp"
 
-struct Arrival {
-    int32_t NTopBnc, NBotBnc;
-    float SrcDeclAngle, SrcAzimAngle, RcvrDeclAngle, RcvrAzimAngle, a, Phase;
-    cpxf delay;
-};
+namespace bhc {
 
 /**
- * Variables for arrival information
- */
-struct ArrInfo {
-    Arrival *Arr;
-    int32_t *NArr;
-    int32_t MaxNArr;
-    bool singlethread;
-};
-
-/**
- * Is this the second bracketting ray [LP: step] of a pair?
+ * Is this the second step of a pair (on the same ray)?
  * If so, we want to combine the arrivals to conserve space.
  * (test this by seeing if the arrival time is close to the previous one)
  * (also need that the phase is about the same to make sure surface and direct paths are not joined)
@@ -51,21 +34,22 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
     
     if(arrinfo->singlethread){
         // LP: Besides this algorithm being virtually impossible to adapt for
-        // multithreading, there is a more fundamental problem with it: it does
+        // multithreading, there is a more fundamental BUG with it: it does
         // not have any handling for the case where the current arrival is the
         // second step of a pair, but the storage is full and the first step of
         // the pair got stored in some slot other than the last one. It will
         // only consider the last ray in storage as a candidate for the first
         // half of the pair. This means that whether a given pair is
         // successfully paired or not depends on the number of arrivals before
-        // that pair, which is arbitrary and independent of the current pair.
+        // that pair, which depends on the order rays were computed, which is
+        // arbitrary and non-physical.
     
         Nt = *baseNArr; // # of arrivals
         
         if(!IsSecondStepOfPair(omega, Phase, delay, baseArr, Nt)){
             int32_t iArr;
-            if(Nt >= arrinfo->MaxNArr){ // space [LP: NOT] available to add an arrival?
-                // no: replace weakest arrival
+            if(Nt >= arrinfo->MaxNArr){ // space not available to add an arrival?
+                // replace weakest arrival
                 iArr = -1;
                 real weakest = Amp;
                 for(Nt=0; Nt<arrinfo->MaxNArr; ++Nt){
@@ -82,8 +66,8 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
             baseArr[iArr].a             = (float)Amp; // amplitude
             baseArr[iArr].Phase         = (float)Phase; // phase
             baseArr[iArr].delay         = Cpx2Cpxf(delay); // delay time
-            baseArr[iArr].SrcDeclAngle  = (float)SrcDeclAngle; // angle
-            baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle [LP: :( ]
+            baseArr[iArr].SrcDeclAngle  = (float)SrcDeclAngle; // launch angle from source
+            baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle ray reaches receiver
             baseArr[iArr].NTopBnc       = NumTopBnc; // Number of top    bounces
             baseArr[iArr].NBotBnc       = NumBotBnc; //   "       bottom
         }else{ // not a new ray
@@ -110,27 +94,29 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
         baseArr[Nt].a             = (float)Amp; // amplitude
         baseArr[Nt].Phase         = (float)Phase; // phase
         baseArr[Nt].delay         = Cpx2Cpxf(delay); // delay time
-        baseArr[Nt].SrcDeclAngle  = (float)SrcDeclAngle; // angle
-        baseArr[Nt].RcvrDeclAngle = (float)RcvrDeclAngle; // angle [LP: :( ]
+        baseArr[Nt].SrcDeclAngle  = (float)SrcDeclAngle; // launch angle from source
+        baseArr[Nt].RcvrDeclAngle = (float)RcvrDeclAngle; // angle ray reaches receiver
         baseArr[Nt].NTopBnc       = NumTopBnc; // Number of top    bounces
         baseArr[Nt].NBotBnc       = NumBotBnc; //   "       bottom
     }
 }
 
 inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
-    const Position *Pos, const BeamStructure *Beam, std::ofstream &PRTFile)
+    const Position *Pos, const BeamStructure *Beam, std::ostream &PRTFile)
 {
     arrinfo->singlethread = singlethread;
     size_t nzr = Pos->NRz_per_range * Pos->NRr;
     const size_t ArrivalsStorage = singlethread ? 20000000 : 50000000;
     const size_t MinNArr = 10;
-    arrinfo->MaxNArr = math::max(ArrivalsStorage / nzr, MinNArr);
+    arrinfo->MaxNArr = bhc::max(ArrivalsStorage / nzr, MinNArr);
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
-    arrinfo->Arr  = allocate<Arrival>((size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr);
-    arrinfo->NArr = allocate<int32_t>((size_t)Pos->NSz * nzr);
+    checkallocate(arrinfo->Arr , (size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr);
+    checkallocate(arrinfo->NArr, (size_t)Pos->NSz * nzr);
     memset(arrinfo->Arr,  0, (size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
     memset(arrinfo->NArr, 0, (size_t)Pos->NSz * nzr * sizeof(int32_t));
 }
 
-void WriteArrivals(const ArrInfo *arrinfo, const Position *Pos,
+void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD);
+
+}

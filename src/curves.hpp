@@ -1,12 +1,9 @@
 #pragma once
 #include "common.hpp"
 
+namespace bhc {
+
 /**
- * LP: Museum piece back from when keyboards didn't have lowercase letters--
- *     and the period key automatically inserted a space after itself. ;)
- *     Also, at some time between 1983 and 2021, a find-and-replace of "C " to
- *     "! " was applied, leading to spurious errors.
- * 
  *  TAKEN FROM "A PRACTICAL GUIDE TO SPLINES", BY CARL DE BOOR. 1978.
  *  SPRINGER-VERLAG.  THE INPUT PARAMETER "NDIM" HAS BEEN ADDED TO
  *  ALLOW FOR MULTIPLE CALLS WITH DIFFERENT VALUES OF N. - DENNIS DUNDORE
@@ -35,11 +32,11 @@
  *      IBCEND = 0, 1, OR 2 HAS ANALOGOUS MEANING CONCERNING THE BOUNDARY
  *            CONDITION AT TAU(N), WITH INFORMATION SUPPLIED BY C(2,N).
  * 
- *  NDIM = ROW DIMENSION OF ! MATRIX:  C(4,NDIM)
+ *  NDIM = ROW DIMENSION OF C MATRIX:  C(4,NDIM)
  * 
  * **************************  O U T P U T  ****************************
  * 
- *  C(J,I), J=1,...,4;  I=1,...,L=N-1  =  THE POLY COEFFS OF THE CUBI!
+ *  C(J,I), J=1,...,4;  I=1,...,L=N-1  =  THE POLY COEFFS OF THE CUBIC
  *      SPLINE WITH INTERIOR KNOTS TAU(2),...,TAU(N-1).  PRECISELY, IN THE
  *      INTERVAL (TAU(I), TAU(I+1)), THE SPLINE F IS GIVEN BY
  * 
@@ -202,9 +199,9 @@ HOST_DEVICE inline real fprime_interior(real del1, real del2, real fprime)
     if(del1 * del2 > FL(0.0)){
         // adjacent secant slopes have the same sign, enforce monotonicity
         if(del1 > FL(0.0)){
-            return math::min(math::max(fprime, RL(0.0)), RL(3.0) * math::min(del1, del2));
+            return bhc::min(bhc::max(fprime, RL(0.0)), RL(3.0) * bhc::min(del1, del2));
         }else{
-            return math::max(math::min(fprime, RL(0.0)), RL(3.0) * math::max(del1, del2));
+            return bhc::max(bhc::min(fprime, RL(0.0)), RL(3.0) * bhc::max(del1, del2));
         }
     }else{
         // force the interpolant to have an extrema here
@@ -226,10 +223,8 @@ HOST_DEVICE inline real fprime_left_end(real del1, real del2, real fprime)
 }
 
 /**
- * This is essentially the same as fprime_left_end( del2, del1, fprime )
- * Written separately for clarity
- * LP: How is writing the code twice more clear? It is exactly, not merely
- * essentially, the same.
+ * This is essentially the same as fprime_left_end(del2, del1, fprime)
+ * [LP: Not] Written separately for clarity
  */
 HOST_DEVICE inline real fprime_right_end(real del1, real del2, real fprime)
 {
@@ -348,4 +343,6 @@ HOST_DEVICE inline void pchip(const real *x, const cpx *y, int32_t n,
             PolyCoef4[ix] = (h * (f1prime + f2prime) - RL(2.0) * (f2 - f1)) / CUBE(h);
         }
     }
+}
+
 }

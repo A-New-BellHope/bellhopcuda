@@ -1,22 +1,9 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
+#include "attenuation.hpp"
 #include "ssp.hpp"
 
-struct BdryPtFull {
-    vec2 x, t, n; // coordinate, tangent, and outward normal for a segment
-    vec2 Nodet, Noden; // tangent and normal at the node, if the curvilinear option is used
-    real Len, kappa; // length and curvature of a segement
-    real Dx, Dxx, Dss; // first, second derivatives wrt depth; s is along tangent
-    HSInfo hs;
-};
- 
-struct BdryInfo {
-    int32_t NATIPts, NBTYPts;
-    char atiType[2];
-    char btyType[2];
-    BdryPtFull *Top, *Bot;
-};
+namespace bhc {
 
 constexpr int32_t Bdry_Number_to_Echo = 21;
 
@@ -39,8 +26,8 @@ HOST_DEVICE inline void GetTopSeg(real r, real t, int32_t &IsegTop, vec2 &rTopSe
     // linearly search out from the last position, usually only have to move
     // by 1
     int32_t n = bdinfo->NATIPts;
-    IsegTop = math::max(IsegTop, 0);
-    IsegTop = math::min(IsegTop, n-2);
+    IsegTop = bhc::max(IsegTop, 0);
+    IsegTop = bhc::min(IsegTop, n-2);
     if(t >= FL(0.0)){
         while(IsegTop >= 0 && bdinfo->Top[IsegTop].x.x > r) --IsegTop;
         while(IsegTop >= 0 && IsegTop < n-1 && bdinfo->Top[IsegTop+1].x.x <= r) ++IsegTop;
@@ -72,8 +59,8 @@ HOST_DEVICE inline void GetBotSeg(real r, real t, int32_t &IsegBot, vec2 &rBotSe
     // linearly search out from the last position, usually only have to move
     // by 1
     int32_t n = bdinfo->NBTYPts;
-    IsegBot = math::max(IsegBot, 0);
-    IsegBot = math::min(IsegBot, n-2);
+    IsegBot = bhc::max(IsegBot, 0);
+    IsegBot = bhc::min(IsegBot, n-2);
     if(t >= FL(0.0)){
         while(IsegBot >= 0 && bdinfo->Bot[IsegBot].x.x > r) --IsegBot;
         while(IsegBot >= 0 && IsegBot < n-1 && bdinfo->Bot[IsegBot+1].x.x <= r) ++IsegBot;
@@ -148,7 +135,7 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
         // averaging two centered differences is equivalent to forming a single centered difference of two steps ...
         for(int32_t ii=1; ii<NPts-1; ++ii){
             sss = Bdry[ii-1].Len / (Bdry[ii-1].Len + Bdry[ii].Len);
-            sss = FL(0.5); //LP: ???
+            sss = FL(0.5); // LP: BUG? Line above is overwritten.
             Bdry[ii].Nodet = (FL(1.0) - sss) * Bdry[ii-1].t + sss * Bdry[ii].t;
         }
         
@@ -161,6 +148,10 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
         }
         
         // compute curvature in each segment
+        // LP: This allocation is not necessary, could just have two variables for
+        // current and next phi. Operating on the whole array can trigger compiler
+        // SIMD parallelism (AVX-512 etc.), but this is unlikely to happen for
+        // atan2, and this is in one-time setup code anyway.
         phi = allocate<real>(NPts);
         // this is the angle at each node
         for(int32_t i=0; i<NPts; ++i) phi[i] = STD::atan2(Bdry[i].Nodet[1], Bdry[i].Nodet[0]);
@@ -178,16 +169,16 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
             
             Bdry[ii].kappa = Bdry[ii].Dss; // over-ride kappa !!!!!
         }
+        
+        deallocate(phi);
     }else{
         for(int32_t i=0; i<NPts; ++i) Bdry[i].kappa = FL(0.0);
     }
 }
 
 inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
-    std::ofstream &PRTFile, BdryInfo *bdinfo)
+    std::ostream &PRTFile, BdryInfo *bdinfo)
 {
-    //LP: Removed phi, which got allocated but not used. Just to check that
-    //there was enough memory for it to be allocated later? Or bug?
     switch(TopATI){
     case '~':
     case '*':{
@@ -216,7 +207,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         PRTFile << "Number of altimetry points = " << bdinfo->NATIPts << "\n";
         bdinfo->NATIPts += 2; // we'll be extending the altimetry to infinity to the left and right
         
-        bdinfo->Top = allocate<BdryPtFull>(bdinfo->NATIPts);
+        checkallocate(bdinfo->Top, bdinfo->NATIPts);
         
         PRTFile << "\n Range (km)  Depth (m)\n";
         
@@ -225,9 +216,9 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
             case 'S':
             case ' ':
                 LIST(ATIFile); ATIFile.Read(bdinfo->Top[ii].x);
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts){ // echo some values
-                    //LP: Bug? Even in the Fortran, ii should never equal
-                    //NATIPts as the loop ends at NATIPts-1.
+                // LP: This condition was previously ii == bdinfo->NATIPts - 1,
+                // which will never be satisfied due to the loop bounds
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts - 2){ // echo some values
                     PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << "\n";
                 }
                 break;
@@ -238,7 +229,8 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
                 ATIFile.Read(bdinfo->Top[ii].hs.rho);
                 ATIFile.Read(bdinfo->Top[ii].hs.alphaI);
                 ATIFile.Read(bdinfo->Top[ii].hs.betaI);
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts){ // echo some values
+                // LP: Same change as above
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts - 2){ // echo some values
                     PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << " "
                         << bdinfo->Top[ii].hs.alphaR << " "
                         << bdinfo->Top[ii].hs.betaR << " "
@@ -263,7 +255,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         
         }break;
     default:
-        bdinfo->Top = allocate<BdryPtFull>(2);
+        checkallocate(bdinfo->Top, 2);
         bdinfo->Top[0].x = vec2(-STD::sqrt(REAL_MAX) / FL(1.0e5), DepthT);
         bdinfo->Top[1].x = vec2( STD::sqrt(REAL_MAX) / FL(1.0e5), DepthT);
     }
@@ -277,7 +269,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
 }
 
 inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
-    std::ofstream &PRTFile, BdryInfo *bdinfo)
+    std::ostream &PRTFile, BdryInfo *bdinfo)
 {
     switch(BotBTY){
     case '~':
@@ -308,7 +300,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         PRTFile << "Number of bathymetry points = " << bdinfo->NBTYPts << "\n";
         
         bdinfo->NBTYPts += 2; // we'll be extending the bathymetry to infinity to the left and right
-        bdinfo->Bot = allocate<BdryPtFull>(bdinfo->NBTYPts);
+        checkallocate(bdinfo->Bot, bdinfo->NBTYPts);
         
         PRTFile << "\n";
         switch(bdinfo->btyType[1]){
@@ -331,9 +323,9 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             case 'S':
             case ' ':
                 LIST(BTYFile); BTYFile.Read(bdinfo->Bot[ii].x);
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts){ // echo some values
-                    //LP: Bug? Even in the Fortran, ii should never equal
-                    //NBTYPts as the loop ends at NBTYPts-1.
+                // LP: This condition was previously ii == bdinfo->NBTYPts - 1,
+                // which will never be satisfied due to the loop bounds
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts - 2){ // echo some values
                     PRTFile << std::setprecision(3) << bdinfo->Bot[ii].x << "\n";
                 }
                 break;
@@ -344,7 +336,8 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
                 BTYFile.Read(bdinfo->Bot[ii].hs.rho);
                 BTYFile.Read(bdinfo->Bot[ii].hs.alphaI);
                 BTYFile.Read(bdinfo->Bot[ii].hs.betaI);
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts){ // echo some values
+                // LP: Same change as above
+                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NBTYPts - 2){ // echo some values
                     PRTFile << std::setprecision(2) << bdinfo->Bot[ii].x << " "
                         << bdinfo->Bot[ii].hs.alphaR << " "
                         << bdinfo->Bot[ii].hs.betaR << " "
@@ -369,7 +362,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         
         }break;
     default:
-        bdinfo->Bot = allocate<BdryPtFull>(2);
+        checkallocate(bdinfo->Bot, 2);
         bdinfo->Bot[0].x = vec2(-BdryInfinity, DepthB);
         bdinfo->Bot[1].x = vec2( BdryInfinity, DepthB);
     }
@@ -386,10 +379,10 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
  * Handles top and bottom boundary conditions
  * LP: Moved from readenv.cpp as it relates to boundary conditions.
  * 
- * freq: frequency [LP: :( ]
+ * freq: center / nominal frequency (wideband not supported)
  */
 inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs,
-    LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten,  HSInfo &RecycledHS)
+    LDIFile &ENVFile, std::ostream &PRTFile, const AttenInfo *atten,  HSInfo &RecycledHS)
 {
     real Mz, vr, alpha2_f; // values related to grain size
     real zTemp;
@@ -489,4 +482,6 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         hs.cS  = FL(0.0);
         hs.rho = RecycledHS.rho;
     }
+}
+
 }

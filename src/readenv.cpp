@@ -1,5 +1,11 @@
 #include "readenv.hpp"
-#include "ldio.hpp"
+#include "boundary.hpp"
+#include "ssp.hpp"
+#include "sourcereceiver.hpp"
+#include "angles.hpp"
+#include "beams.hpp"
+
+namespace bhc {
 
 /**
  * LP: No function description given.
@@ -7,7 +13,7 @@
  * bc: Boundary condition type
  */
 void ReadTopOpt(char (&TopOpt)[6], char &bc,
-    std::string FileRoot, LDIFile &ENVFile, std::ofstream &PRTFile,
+    std::string FileRoot, LDIFile &ENVFile, std::ostream &PRTFile,
     SSPStructure *ssp, AttenInfo *atten)
 {
     memcpy(TopOpt, "      ", 6); // initialize to blanks
@@ -38,7 +44,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
+            std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
             std::abort();
         }
         } break;
@@ -48,7 +54,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
+            std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
         }
         } break;*/
     case 'A':
@@ -143,7 +149,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
  * Read the RunType variable and echo with explanatory information to the print file
  */
 void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
-    LDIFile &ENVFile, std::ofstream &PRTFile,
+    LDIFile &ENVFile, std::ostream &PRTFile,
     Position *Pos)
 {
     LIST(ENVFile); ENVFile.Read(RunType, 7);
@@ -220,8 +226,8 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     }
 }
 
-void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
-    std::string &Title, real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
+    char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
     HSInfo &RecycledHS)
 {
@@ -233,21 +239,24 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     real Sigma, Depth;
     char PlotType[10];
     
-    PRTFile << PROGRAMNAME "\n\n";
+    PRTFile << BHC_PROGRAMNAME "\n\n";
     
     // Open the environmental file
     LDIFile ENVFile(FileRoot + ".env");
     if(!ENVFile.Good()){
         PRTFile << "ENVFile = " << FileRoot << ".env\n";
-        std::cout << PROGRAMNAME " - ReadEnvironment: Unable to open the environmental file\n";
+        std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the environmental file\n";
         std::abort();
     }
     
     // Prepend model name to title
-    LIST(ENVFile); ENVFile.Read(Title);
-    Title = PROGRAMNAME "- " + Title;
-    
-    PRTFile << Title << "\n";
+    std::string TempTitle;
+    LIST(ENVFile); ENVFile.Read(TempTitle);
+    TempTitle = BHC_PROGRAMNAME "- " + TempTitle;
+    PRTFile << TempTitle << "\n";
+    int32_t l = bhc::min(sizeof(Title) - 1, TempTitle.size());
+    memcpy(Title, TempTitle.c_str(), l);
+    Title[l] = 0;
     
     LIST(ENVFile); ENVFile.Read(freqinfo->freq0);
     PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);
@@ -332,3 +341,5 @@ void ReadEnvironment(const std::string &FileRoot, std::ofstream &PRTFile,
     //LP: Moved to separate function for clarity and modularity.
     ReadBeamInfo(ENVFile, PRTFile, Beam);
 } 
+
+}

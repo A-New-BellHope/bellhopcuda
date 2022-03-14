@@ -1,28 +1,7 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
-#include "atomics.hpp"
-#include "boundary.hpp"
-#include "refcoef.hpp"
-#include "ssp.hpp"
-#include "sourcereceiver.hpp"
-#include "angles.hpp"
-#include "beams.hpp"
 
-struct EigenHit {
-    // LP: Receiver this hit pertains to
-    int32_t ir, iz;
-    // LP: Identifying info to re-trace this ray
-    int32_t isrc, ialpha;
-    // LP: Number of steps until the ray hit the receiver
-    int32_t is;
-};
-
-struct EigenInfo {
-    uint32_t neigen;
-    uint32_t memsize;
-    EigenHit *hits;
-};
+namespace bhc {
 
 HOST_DEVICE inline void RecordEigenHit(int32_t ir, int32_t iz, 
     int32_t isrc, int32_t ialpha, int32_t is, EigenInfo *eigen)
@@ -40,14 +19,13 @@ HOST_DEVICE inline void RecordEigenHit(int32_t ir, int32_t iz,
 
 inline void InitEigenMode(EigenInfo *eigen)
 {
-    static const uint32_t maxhits = 1000000u;
+    constexpr uint32_t maxhits = 1000000u;
     eigen->neigen = 0;
     eigen->memsize = maxhits;
-    eigen->hits = allocate<EigenHit>(maxhits);
+    checkallocate(eigen->hits, maxhits);
 }
 
-void FinalizeEigenMode(
-    const BdryType *Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
-    const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
-    const EigenInfo *eigen, LDOFile &RAYFile, bool singlethread);
+void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs, 
+    std::string FileRoot, bool singlethread);
+
+}

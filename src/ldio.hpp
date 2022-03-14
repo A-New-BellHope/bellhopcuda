@@ -1,5 +1,10 @@
 #pragma once
-#include "common.hpp"
+
+#ifndef _BHC_INCLUDING_COMPONENTS_
+#error "Must be included from common.hpp!"
+#endif
+
+namespace bhc {
 
 /**
  * C++ emulation of FORTRAN list-directed input.
@@ -420,3 +425,5 @@ private:
         }
     }
 };
+
+}

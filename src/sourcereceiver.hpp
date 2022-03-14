@@ -1,29 +1,13 @@
 #pragma once
 #include "common.hpp"
-#include "beams.hpp"
 
-struct Position {
-    int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
-    int32_t NRz_per_range;
-    real Delta_r, Delta_theta;
-    int32_t *iSz, *iRz;
-    // LP: These are really floats, not reals.
-    float *Sx, *Sy, *Sz; // Source x, y, z coordinates
-    float *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
-    float *theta; // Receiver bearings
-};
-
-struct FreqInfo {
-    real freq0; // Nominal or carrier frequency
-    int32_t Nfreq; // number of frequencies
-    real *freqVec; // frequency vector for braodband runs
-};
+namespace bhc {
 
 /**
  * Optionally reads a vector of source frequencies for a broadband run
  * If the broadband option is not selected, then the input freq (a scalar) is stored in the frequency vector
  */
-inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &PRTFile,
+inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ostream &PRTFile,
     FreqInfo *freqinfo)
 {
     freqinfo->Nfreq = 1;
@@ -38,8 +22,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &P
         }
     }
     
-    if(freqinfo->freqVec != nullptr) deallocate(freqinfo->freqVec);
-    freqinfo->freqVec = allocate<real>(math::max(3, freqinfo->Nfreq));
+    checkallocate(freqinfo->freqVec, bhc::max(3, freqinfo->Nfreq));
     
     if(BroadbandOption == 'B'){
         PRTFile << "Frequencies (Hz)\n";
@@ -58,7 +41,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ofstream &P
  * Units       is something like 'km'
  */
 template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::string Description, 
-    std::string Units, LDIFile &ENVFile, std::ofstream &PRTFile)
+    std::string Units, LDIFile &ENVFile, std::ostream &PRTFile)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
     LIST(ENVFile); ENVFile.Read(Nx);
@@ -69,8 +52,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
         std::abort();
     }
     
-    if(x != nullptr) deallocate(x);
-    x = allocate<REAL>(math::max(3, Nx));
+    checkallocate(x, bhc::max(3, Nx));
     
     PRTFile << Description << " (" << Units << ")\n";
     x[2] = FL(-999.9);
@@ -94,14 +76,15 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
  * 
  * ThreeD: flag indicating whether this is a 3D run
  */
-inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ofstream &PRTFile,
+inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ostream &PRTFile,
     Position *Pos)
 {
     if(ThreeD){
         ReadVector(Pos->NSx, Pos->Sx, "source   x-coordinates, Sx", "km", ENVFile, PRTFile);
         ReadVector(Pos->NSy, Pos->Sy, "source   y-coordinates, Sy", "km", ENVFile, PRTFile);
     }else{
-        Pos->Sx = allocate<float>(1); Pos->Sy = allocate<float>(1);
+        checkallocate(Pos->Sx, 1);
+        checkallocate(Pos->Sy, 1);
         Pos->Sx[0] = FL(0.0);
         Pos->Sy[0] = FL(0.0);
     }
@@ -112,7 +95,7 @@ inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ofstream &PRTFile,
  * zMin, zMax: limits for those depths; 
  *     sources and receivers are shifted to be within those limits
  */
-inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ofstream &PRTFile,
+inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ostream &PRTFile,
     Position *Pos)
 {
     //bool monotonic; //LP: monotonic is a function, this is a name clash
@@ -120,11 +103,10 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ofstream &PRTF
     ReadVector(Pos->NSz, Pos->Sz, "Source   depths, Sz", "m", ENVFile, PRTFile);
     ReadVector(Pos->NRz, Pos->Rz, "Receiver depths, Rz", "m", ENVFile, PRTFile);
     
-    if(Pos->ws != nullptr){ deallocate(Pos->ws); deallocate(Pos->iSz); }
-    Pos->ws = allocate<float>(Pos->NSz); Pos->iSz = allocate<int32_t>(Pos->NSz);
-    
-    if(Pos->wr != nullptr){ deallocate(Pos->wr); deallocate(Pos->iRz); }
-    Pos->wr = allocate<float>(Pos->NRz); Pos->iRz = allocate<int32_t>(Pos->NRz);
+    checkallocate(Pos->ws, Pos->NSz);
+    checkallocate(Pos->iSz, Pos->NSz);
+    checkallocate(Pos->wr, Pos->NRz);
+    checkallocate(Pos->iRz, Pos->NRz);
     
     // *** Check for Sz/Rz in upper or lower halfspace ***
     
@@ -168,7 +150,7 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ofstream &PRTF
     */
 }
 
-inline void ReadRcvrRanges(LDIFile &ENVFile, std::ofstream &PRTFile,
+inline void ReadRcvrRanges(LDIFile &ENVFile, std::ostream &PRTFile,
     Position *Pos)
 {
     ReadVector(Pos->NRr, Pos->Rr, "Receiver ranges, Rr", "km", ENVFile, PRTFile);
@@ -183,7 +165,7 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, std::ofstream &PRTFile,
     }
 }
 
-inline void ReadRcvrBearings(LDIFile &ENVFile, std::ofstream &PRTFile,
+inline void ReadRcvrBearings(LDIFile &ENVFile, std::ostream &PRTFile,
     Position *Pos)
 {
     ReadVector(Pos->Ntheta, Pos->theta, "receiver bearings, theta", "degrees", ENVFile, PRTFile);
@@ -198,4 +180,6 @@ inline void ReadRcvrBearings(LDIFile &ENVFile, std::ofstream &PRTFile,
         std::cout << "ReadRcvrBearings: Receiver bearings are not monotonically increasing\n";
         std::abort();
     }
+}
+
 }

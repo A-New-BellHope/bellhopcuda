@@ -1,17 +1,7 @@
 #pragma once
 #include "common.hpp"
 
-struct bioStructure {
-    real z1, z2, f0, q, a0;
-};
-
-constexpr int32_t MaxBioLayers = 200;
-
-struct AttenInfo {
-    int32_t NBioLayers;
-    bioStructure bio[MaxBioLayers];
-    real t, Salinity, pH, z_bar, fg; // Francois-Garrison volume attenuation; temperature, salinity, ...
-};
+namespace bhc {
 
 /**
  * Francois Garrison formulas for attenuation
@@ -84,7 +74,7 @@ inline real Franc_Garr(real f, const AttenInfo *atten){
  * alpha imaginary part of sound speed
  */
 inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&AttenUnit)[2],
-    real beta, real fT, const AttenInfo *atten, std::ofstream &PRTFile)
+    real beta, real fT, const AttenInfo *atten, std::ostream &PRTFile)
 {
     real f2, omega, alphaT, Thorp, a, fg;
     cpx ret;
@@ -168,4 +158,6 @@ inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&
     }
     
     return ret;
+}
+
 }

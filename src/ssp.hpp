@@ -1,56 +1,17 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
 #include "curves.hpp"
-#include "attenuation.hpp"
-#include "sourcereceiver.hpp"
 
-constexpr int32_t MaxN = 100000;
-constexpr int32_t MaxSSP = MaxN + 1;
+namespace bhc {
 
 constexpr real betaPowerLaw = FL(1.0);
-
-struct rxyz_vector {
-    real *r, *x, *y, *z;
-};
-
-struct SSPStructure {
-    int32_t NPts, Nr, Nx, Ny, Nz;
-    real z[MaxSSP], rho[MaxSSP];
-    cpx c[MaxSSP], cz[MaxSSP], n2[MaxSSP], n2z[MaxSSP], cSpline[4][MaxSSP];
-    cpx cCoef[4][MaxSSP], CSWork[4][MaxSSP]; // for PCHIP coefs.
-    real *cMat, *czMat, *cMat3, *czMat3;
-    rxyz_vector Seg;
-    char Type;
-    char AttenUnit[2];
-};
-
-struct HSInfo {
-    real alphaR, betaR, alphaI, betaI; // compressional and shear wave speeds/attenuations in user units
-    cpx cP, cS; // P-wave, S-wave speeds
-    real rho, Depth; // density, depth
-    char bc; // Boundary condition type
-    char Opt[6];
-};
-
-/**
- * LP: Compare with BdryPtFull in boundary.hpp.
- */
-struct BdryPtSmall {
-    HSInfo hs;
-};
-
-struct BdryType {
-    BdryPtSmall Top, Bot;
-};
-
 
 #define SSP_FN_ARGS const vec2 &x, const vec2 &t, cpx &ccpx, vec2 &gradc, \
     real &crr, real &crz, real &czz, real &rho, real freq, \
     const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr
 #define SSP_CALL_ARGS x, t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
 #define SSP_INIT_ARGS vec2 x, const real &fT, \
-    LDIFile &ENVFile, std::ofstream &PRTFile, std::string FileRoot, \
+    LDIFile &ENVFile, std::ostream &PRTFile, std::string FileRoot, \
     SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
 #define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
 
@@ -214,8 +175,8 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
     // s1 = proportional distance of x.x in range
     delta_r = ssp->Seg.r[iSegr+1] - ssp->Seg.r[iSegr];
     s1 = (x.x - ssp->Seg.r[iSegr]) / delta_r;
-    s1 = math::min(s1, RL(1.0)); // force piecewise constant extrapolation for points outside the box
-    s1 = math::max(s1, RL(0.0)); // "
+    s1 = bhc::min(s1, RL(1.0)); // force piecewise constant extrapolation for points outside the box
+    s1 = bhc::max(s1, RL(0.0)); // "
     
     real c = (RL(1.0) - s1) * c1 + s1 * c2;
     
@@ -258,7 +219,7 @@ HOST_DEVICE inline void Analytic(SSP_FN_ARGS)
     //}else{
     // Homogeneous half-space
     //xt    = FL(2.0) * (FL(5000.0) - unk1) / unk1;
-    //ccpx  = cpx(c0 * (FL(1.0) + unk2 * (xt - FL(1.0) + emxt)), FL(0.0)); // LP: BUG: cimag never set on this codepath
+    //ccpx  = cpx(c0 * (FL(1.0) + unk2 * (xt - FL(1.0) + emxt)), FL(0.0));
     //cz    = FL(0.0);
     //czz   = FL(0.0);
     //}
@@ -305,3 +266,4 @@ HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx
 
 void InitializeSSP(SSP_INIT_ARGS);
  
+}

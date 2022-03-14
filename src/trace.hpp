@@ -1,12 +1,9 @@
 #pragma once
 #include "common.hpp"
-#include "boundary.hpp"
-#include "refcoef.hpp"
-#include "ssp.hpp"
-#include "sourcereceiver.hpp"
-#include "angles.hpp"
-#include "beams.hpp"
 #include "step.hpp"
+#include "refcoef.hpp"
+
+namespace bhc {
 
 /**
  * Calculates the distances to the boundaries
@@ -285,11 +282,11 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
     
     if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && ialpha == 0){
-        printf("Warning in " PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
+        printf("Warning in " BHC_PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
     }
     
     int32_t ibp = BinarySearchLEQ(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
-    ibp = math::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
+    ibp = bhc::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
     
     // linear interpolation to get amplitude
     real s = (SrcDeclAngle - beaminfo->SrcBmPat[2*ibp+0]) / (beaminfo->SrcBmPat[2*(ibp+1)+0] - beaminfo->SrcBmPat[2*ibp+0]);
@@ -462,4 +459,6 @@ HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int3
     DistBegTop = DistEndTop;
     DistBegBot = DistEndBot;
     return false;
+}
+
 }

@@ -1,15 +1,7 @@
 #pragma once
 #include "common.hpp"
-#include "ldio.hpp"
 
-struct ReflectionCoef {
-    real theta, r, phi;
-};
-
-struct ReflectionInfo {
-    int32_t NBotPts, NTopPts;
-    ReflectionCoef *RBot, *RTop;
-};
+namespace bhc {
 
 /**
  * Given an angle RInt%ThetaInt, returns the magnitude and
@@ -55,7 +47,7 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
         //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
         //     thetaIntr, r[iRight].theta);
     }else{
-        // Search for bracketting abscissas: Log2( NPts ) stabs required for a bracket
+        // Search for bracketing abscissas: Log2( NPts ) stabs required for a bracket
         
         while(iLeft != iRight - 1){
             iMid = (iLeft + iRight) / 2;
@@ -80,7 +72,7 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
  * BotRC, TopRC: flag set to 'F' if refl. coef. is to be read from a File
  */
 inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char TopRC,
-    std::ofstream &PRTFile, ReflectionInfo *refl)
+    std::ostream &PRTFile, ReflectionInfo *refl)
 {
     if(BotRC == 'F'){
         PRTFile << "__________________________________________________________________________\n\n";
@@ -95,8 +87,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
         LIST(BRCFile); BRCFile.Read(refl->NBotPts);
         PRTFile << "Number of points in bottom reflection coefficient = " << refl->NBotPts << "\n";
         
-        if(refl->RBot != nullptr) deallocate(refl->RBot);
-        refl->RBot = allocate<ReflectionCoef>(refl->NBotPts);
+        checkallocate(refl->RBot, refl->NBotPts);
         
         LIST(BRCFile);
         for(int32_t itheta=0; itheta<refl->NBotPts; ++itheta){
@@ -106,10 +97,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             refl->RBot->phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        //LP: BUG: BELLHOP does not deallocate this array first, despite doing
-        //so above.
-        if(refl->RBot != nullptr) deallocate(refl->RBot);
-        refl->RBot = allocate<ReflectionCoef>(1);
+        checkallocate(refl->RBot, 1);
     }
     
     // Optionally read in top reflection coefficient
@@ -127,8 +115,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
         LIST(TRCFile); TRCFile.Read(refl->NTopPts);
         PRTFile << "Number of points in top reflection coefficient = " << refl->NTopPts << "\n";
         
-        if(refl->RTop != nullptr) deallocate(refl->RTop);
-        refl->RTop = allocate<ReflectionCoef>(refl->NTopPts);
+        checkallocate(refl->RTop, refl->NTopPts);
         
         LIST(TRCFile);
         for(int32_t itheta=0; itheta<refl->NTopPts; ++itheta){
@@ -138,17 +125,16 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             refl->RTop->phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        //LP: BUG: BELLHOP does not deallocate this array first, despite doing
-        //so above.
-        if(refl->RTop != nullptr) deallocate(refl->RTop);
-        refl->RTop = allocate<ReflectionCoef>(1);
+        checkallocate(refl->RTop, 1);
     }
     
     // Optionally read in internal reflection coefficient data
     
     if(BotRC == 'P'){
         std::cout << "Internal reflections not supported by BELLHOP and therefore "
-            "not supported by " PROGRAMNAME "\n";
+            "not supported by " BHC_PROGRAMNAME "\n";
         std::abort();
     }
+}
+
 }

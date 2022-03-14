@@ -1,7 +1,11 @@
 #include "ssp.hpp"
+#include "curves.hpp"
+#include "boundary.hpp"
+
+namespace bhc {
 
 #define READ_SSP_ARGS real Depth, real freq, const real &fT, SSPStructure *ssp, \
-    LDIFile &ENVFile, std::ofstream &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS
+    LDIFile &ENVFile, std::ostream &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS
 #define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, RecycledHS
 
 /**
@@ -126,9 +130,9 @@ void InitQuad(SSP_INIT_ARGS)
         std::abort();
     }
     
-    ssp->cMat  = allocate<real>( ssp->NPts    * ssp->Nr);
-    ssp->czMat = allocate<real>((ssp->NPts-1) * ssp->Nr);
-    ssp->Seg.r = allocate<real>(ssp->Nr);
+    checkallocate(ssp->cMat ,  ssp->NPts    * ssp->Nr);
+    checkallocate(ssp->czMat, (ssp->NPts-1) * ssp->Nr);
+    checkallocate(ssp->Seg.r, ssp->Nr);
     
     LIST(SSPFile); SSPFile.Read(ssp->Seg.r, ssp->Nr);
     PRTFile << "\nProfile ranges (km):\n" << std::setprecision(2);
@@ -183,4 +187,6 @@ void InitializeSSP(SSP_INIT_ARGS)
         printf("InitializeSSP: Invalid profile option %c\n", ssp->Type);
         std::abort();
     }
+}
+
 }
