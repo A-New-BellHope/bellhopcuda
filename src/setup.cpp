@@ -114,7 +114,7 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
         std::string TempTitle = BHC_PROGRAMNAME "- Calibration case with envfil passed as parameters";
-        int32_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
+        size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
         memcpy(params.Title, TempTitle.c_str(), l);
         params.Title[l] = 0;
         params.freqinfo->freq0 = FL(250.0);

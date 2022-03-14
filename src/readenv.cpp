@@ -234,7 +234,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
     //const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;
     real ZMin, ZMax;
-    vec2 x, gradc;
+    vec2 x;
     cpx ccpx;
     real Sigma, Depth;
     char PlotType[10];
@@ -254,7 +254,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
     LIST(ENVFile); ENVFile.Read(TempTitle);
     TempTitle = BHC_PROGRAMNAME "- " + TempTitle;
     PRTFile << TempTitle << "\n";
-    int32_t l = bhc::min(sizeof(Title) - 1, TempTitle.size());
+    size_t l = bhc::min(sizeof(Title) - 1, TempTitle.size());
     memcpy(Title, TempTitle.c_str(), l);
     Title[l] = 0;
     

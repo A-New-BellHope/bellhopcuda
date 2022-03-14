@@ -102,13 +102,13 @@ HOST_DEVICE inline void AddArr(real omega, int32_t isrc, int32_t id, int32_t ir,
 }
 
 inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
-    const Position *Pos, const BeamStructure *Beam, std::ostream &PRTFile)
+    const Position *Pos, std::ostream &PRTFile)
 {
     arrinfo->singlethread = singlethread;
     size_t nzr = Pos->NRz_per_range * Pos->NRr;
     const size_t ArrivalsStorage = singlethread ? 20000000 : 50000000;
     const size_t MinNArr = 10;
-    arrinfo->MaxNArr = bhc::max(ArrivalsStorage / nzr, MinNArr);
+    arrinfo->MaxNArr = (int32_t)bhc::max(ArrivalsStorage / nzr, MinNArr);
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
     checkallocate(arrinfo->Arr , (size_t)Pos->NSz * nzr * (size_t)arrinfo->MaxNArr);
     checkallocate(arrinfo->NArr, (size_t)Pos->NSz * nzr);

@@ -58,6 +58,8 @@ namespace bhc {
 HOST_DEVICE inline void cSpline(const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx *c4, 
     int32_t n, int32_t ibcbeg, int32_t ibcend, int32_t ndim)
 {
+    IGNORE_UNUSED(ndim);
+    
     cpx g, dtau, divdf1, divdf3;
     
     int32_t l = n - 1;

@@ -62,6 +62,9 @@ HOST_DEVICE inline real LinInterpDensity(const vec2 &x,
  */
 HOST_DEVICE inline void n2Linear(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(iSegr);
+    
     UpdateDepthSegmentT(x, t, ssp, iSegz);
     real w = LinInterpDensity(x, ssp, iSegz, rho);
     
@@ -78,6 +81,9 @@ HOST_DEVICE inline void n2Linear(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cLinear(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(iSegr);
+    
     UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
@@ -92,6 +98,9 @@ HOST_DEVICE inline void cLinear(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(iSegr);
+    
     UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
@@ -122,6 +131,9 @@ HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cCubic(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(iSegr);
+    
     UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
@@ -145,6 +157,8 @@ HOST_DEVICE inline void cCubic(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void Quad(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    
     real c1, c2, cz1, cz2, cr, cz, s1, s2, delta_r, delta_z;
     
     if(x.x < ssp->Seg.r[0] || x.x > ssp->Seg.r[ssp->Nr-1]){
@@ -198,6 +212,11 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
 
 HOST_DEVICE inline void Analytic(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(t);
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(ssp);
+    IGNORE_UNUSED(iSegr);
+    
     real c0, cr, cz, DxtDz, xt;
     
     iSegz = 0;

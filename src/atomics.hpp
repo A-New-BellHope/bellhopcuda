@@ -117,8 +117,8 @@ template<typename REAL> HOST_DEVICE inline void AtomicAddCpx(STD::complex<REAL> 
     // This is the right way according to https://stackoverflow.com/questions/24229808/
     // getting-pointers-to-the-real-and-imaginary-parts-of-a-complex-vector-in-c
     // (though this should amount to the same thing as (real*)ptr and &((real*)ptr)[1] ).
-    AtomicAddReal(&reinterpret_cast<REAL(&)[2]>(*ptr)[0], v.real());
-    AtomicAddReal(&reinterpret_cast<REAL(&)[2]>(*ptr)[1], v.imag());
+    AtomicAddReal(&reinterpret_cast<REAL(&)[2]>(*ptr)[0], (REAL)v.real());
+    AtomicAddReal(&reinterpret_cast<REAL(&)[2]>(*ptr)[1], (REAL)v.imag());
 }
 
 template<typename INT> HOST_DEVICE inline INT AtomicFetchAdd(INT *ptr, INT val)

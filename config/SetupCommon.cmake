@@ -10,12 +10,14 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 # Set default compile flags for each platform
 if(CMAKE_COMPILER_IS_GNUCXX)
     message(STATUS "GCC detected, adding compile flags")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra \
-    -Wno-sign-compare -Wno-unused-parameter -Wno-class-memaccess")
+    set(EXTRA_CXX_FLAGS "-Wall -Wextra -Wno-class-memaccess")
 else()
     message(STATUS "Not GCC, assuming Windows format compile flags")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W4")
+    # C2422: implicit conversion of double to float; BELLHOP sometimes carelessly
+    # mixes doubles and floats, and we need to use exactly the same ones to match
+    set(EXTRA_CXX_FLAGS "/W4 /wd4244")
 endif(CMAKE_COMPILER_IS_GNUCXX)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
 
 find_package(Threads)
 

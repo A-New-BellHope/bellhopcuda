@@ -13,13 +13,13 @@ namespace bhc {
  */
 class DirectOFile {
 public:
-    DirectOFile() : recl(-1), bytesWrittenThisRecord(777777777) {}
+    DirectOFile() : recl(0), bytesWrittenThisRecord(777777777) {}
     ~DirectOFile() { if(ostr.is_open()) ostr.close(); }
     
     /**
      * LRecl: record length in bytes
      */
-    void open(const std::string &path, int32_t LRecl){
+    void open(const std::string &path, size_t LRecl){
         recl = LRecl;
         ostr.open(path);
     }
@@ -28,13 +28,13 @@ public:
         return ostr.good() && ostr.is_open();
     }
     
-    void rec(int32_t r){
+    void rec(size_t r){
         ostr.seekp(r * recl);
         bytesWrittenThisRecord = 0;
     }
     
     #define DOFWRITE(d, data, bytes) d.write(__FILE__, __LINE__, data, bytes)
-    void write(const char *file, int fline, const void *data, int32_t bytes){
+    void write(const char *file, int fline, const void *data, size_t bytes){
         if(bytesWrittenThisRecord + bytes > recl){
             std::cout << file << ":" << fline << ": DirectOFile overflow, " 
                 << bytesWrittenThisRecord << " bytes already written, rec size "
@@ -44,9 +44,9 @@ public:
         ostr.write((const char*)data, bytes);
         bytesWrittenThisRecord += bytes;
     }
-    void write(const char *file, int fline, const std::string &str, int32_t bytes){
-        write(file, fline, str.data(), bhc::min(bytes, (int32_t)str.size()));
-        for(int32_t b=str.size(); b<bytes; ++b){
+    void write(const char *file, int fline, const std::string &str, size_t bytes){
+        write(file, fline, str.data(), bhc::min(bytes, str.size()));
+        for(size_t b=str.size(); b<bytes; ++b){
             ostr.put(' ');
             ++bytesWrittenThisRecord;
         }
@@ -58,8 +58,8 @@ public:
     
 private:
     std::ofstream ostr;
-    int32_t recl;
-    int32_t bytesWrittenThisRecord;
+    size_t recl;
+    size_t bytesWrittenThisRecord;
 };
 
 /**
@@ -93,7 +93,7 @@ public:
             bail();
         }
         ostr.write((const char*)&v, sizeof(T));
-        recl += sizeof(T);
+        recl += (int32_t)sizeof(T);
     }
     
     template<typename T> void write(T *arr, size_t n){
@@ -102,7 +102,7 @@ public:
             bail();
         }
         for(size_t i=0; i<n; ++i) ostr.write((const char*)&arr[i], sizeof(T));
-        recl += n * sizeof(T);
+        recl += (int32_t)(n * sizeof(T));
     }
     
 private:

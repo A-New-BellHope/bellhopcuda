@@ -254,7 +254,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     ray2DPt &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
     int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
     int32_t &iSegz, int32_t &iSegr, BdryType &Bdry,
-    const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
+    const BdryType *ConstBdry, const BdryInfo *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
 {
@@ -353,7 +353,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
  */
 HOST_DEVICE inline int32_t RayUpdate(
     const ray2DPt &point0, ray2DPt &point1, ray2DPt &point2,
-    const real &DistBegTop, const real &DistBegBot, real &DistEndTop, real &DistEndBot, 
+    real &DistEndTop, real &DistEndBot, 
     int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
     int32_t &iSmallStepCtr, int32_t &iSegz, int32_t &iSegr,
     BdryType &Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,

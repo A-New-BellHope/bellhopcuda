@@ -451,6 +451,8 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     int32_t is, cpxf *u,
     const BdryType *Bdry, const Position *Pos, const BeamStructure *Beam)
 {
+    IGNORE_UNUSED(is);
+    
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
     real zn, rn, zR;
     // need to add logic related to NRz_per_range

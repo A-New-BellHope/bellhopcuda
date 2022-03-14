@@ -116,7 +116,7 @@ public:
         LDIFILE_READPREFIX();
         if(s.length() > nc) Error("Max string length " + std::to_string(nc) 
             + ", got " + s);
-        std::strncpy(v, s.c_str(), s.length());
+        std::memcpy(v, s.c_str(), s.length());
         if(s.length() < nc) memset(v+s.length(), ' ', nc-s.length());
     }
     template<typename REAL> void Read(REAL *arr, size_t count){
@@ -192,7 +192,7 @@ private:
                     isafternewline = true;
                     break;
                 }else{
-                    lastitem += c;
+                    lastitem += (char)c;
                 }
             }else if(quotemode == 2){
                 if(c == '\''){
@@ -203,7 +203,7 @@ private:
                     isafternewline = true;
                     break;
                 }else{
-                    lastitem += c;
+                    lastitem += (char)c;
                 }
             }else{
                 if(c == '"'){
@@ -214,14 +214,14 @@ private:
                     if(!quotemode){
                         quotemode = 3;
                     }
-                    lastitem += c;
+                    lastitem += (char)c;
                 }else if(c == ')'){
                     if(quotemode == 3){
                         quotemode = -1;
-                        lastitem += c;
+                        lastitem += (char)c;
                         break;
                     }
-                    lastitem += c;
+                    lastitem += (char)c;
                 }else if(isspace(c)){
                     if(c == '\n'){
                         ++line;
@@ -240,7 +240,7 @@ private:
                     isafterslash = true;
                     break;
                 }else{
-                    lastitem += c;
+                    lastitem += (char)c;
                 }
             }
         }
@@ -302,7 +302,7 @@ private:
     std::ifstream f;
     std::string lastitem;
     uint32_t lastitemcount;
-    uint32_t line;
+    int line;
     bool isafterslash, isafternewline;
     
     //This string is not possible to represent, so we use it to indicate null

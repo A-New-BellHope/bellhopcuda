@@ -58,14 +58,12 @@ namespace bhc {
 
 #define NULLSTATEMENT ((void)0)
 #define REQUIRESEMICOLON do{NULLSTATEMENT;} while(false)
+#define IGNORE_UNUSED(x) do{ (void)x; } while(false)
 
 /**
  * Returns a pointer to only the last portion of the source filename.
- * This works perfectly correctly on GPU, but it consumes many registers,
- * which are often evaluated once at the beginning and left in registers
- * through the whole kernel.
 */
-/*HOST_DEVICE*/ inline const char *SOURCE_FILENAME(const char *file){
+inline const char *SOURCE_FILENAME(const char *file){
     static const char *const tag = "/bellhopcuda/";
     static const int taglen = 13;
     const char *x = file;
@@ -79,6 +77,7 @@ namespace bhc {
     if(*x) return x+taglen;
     return file;
 }
+
 
 #ifdef __CUDA_ARCH__
 #define bail __trap

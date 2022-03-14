@@ -7,14 +7,14 @@
 
 namespace bhc {
 
-static std::atomic<int32_t> jobID;
+static std::atomic<uint32_t> jobID;
 
 void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
 {
     ray2DPt *localmem = nullptr;
     if(IsRayCopyMode(outputs.rayinfo)) localmem = new ray2DPt[MaxN];
     while(true){
-        int32_t job = jobID++;
+        uint32_t job = jobID++;
         if(job >= outputs.eigen->neigen) break;
         if(job >= outputs.eigen->memsize){
             printf("Had %d eigenrays but only %d fit in memory\n",
