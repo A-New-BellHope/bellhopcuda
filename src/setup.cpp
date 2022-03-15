@@ -32,8 +32,8 @@ void setupGPU();
 
 constexpr bool Init_Inline = false;
 
-BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &params,
-    bhcOutputs &outputs)
+BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams &params, bhcOutputs &outputs)
 {
     #ifdef BHC_BUILD_CUDA
     setupGPU();
@@ -128,6 +128,9 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     RecycledHS.alphaI = FL(0.0);
     RecycledHS.betaI = FL(0.0);
     RecycledHS.rho = FL(1.0);
+    
+    PrintFileEmu *PRTFile = new PrintFileEmu(FileRoot, outputCallback);
+    params.internal = PRTFile;
     
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
@@ -303,11 +306,17 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     }
     
     PRTFile << "\n";
+    return true;
 }
 
 BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
 {
     // IMPORTANT--if changes are made here, make the same changes in setup
+    // (i.e. setting the pointers to nullptr initially)
+    
+    PrintFileEmu *PRTFile = (PrintFileEmu*)params.internal;
+    delete PRTFile;
+    
     checkdeallocate(params.bdinfo->Top);
     checkdeallocate(params.bdinfo->Bot);
     checkdeallocate(params.refl->RBot);

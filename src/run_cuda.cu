@@ -73,23 +73,23 @@ void setupGPU()
     checkCudaErrors(cudaSetDevice(m_gpu));
 }
 
-void run_cuda(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs)
+bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
 {
-    InitSelectedMode(PRTFile, params, outputs, false);
+    InitSelectedMode(params, outputs, false);
     FieldModesKernel<<<d_multiprocs,512>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel");
+    return true;
 }
 
-BHC_API void run(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread)
+BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     if(singlethread){
         std::cout << "Single threaded mode is nonsense on CUDA, ignoring\n";
     }
     if(params.Beam->RunType[0] == 'R'){
-        run_cxx(PRTFile, params, outputs, false);
+        return run_cxx(params, outputs, false);
     }else{
-        run_cuda(PRTFile, params, outputs);
+        return run_cuda(params, outputs);
     }
 }
 

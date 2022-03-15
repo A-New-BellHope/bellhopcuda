@@ -27,23 +27,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "structs.hpp"
 #undef _BHC_INCLUDED_
 
-#include <iostream>
-#include <fstream>
-
 namespace bhc {
-
-/**
- * Optional PRTFile initialization. You can also use an ostringstream for
- * PRTFile but then you have to set it up yourself.
- */
-static inline void OpenPRTFile(std::string FileRoot, std::ofstream &PRTFile){
-    PRTFile.open(FileRoot + ".prt");
-    if(!PRTFile.good()){
-        std::cout << "Could not open print file: " << FileRoot << ".prt\n";
-        std::abort();
-    }
-    PRTFile << std::unitbuf;
-}
 
 /**
  * Main BELLHOP setup from an environment file. Call this to create and
@@ -54,21 +38,27 @@ static inline void OpenPRTFile(std::string FileRoot, std::ofstream &PRTFile){
  * path/to/MunkB_ray_rot (where path/to/MunkB_ray_rot.env and also path/to/
  * MunkB_ray_rot.ssp, path/to/MunkB_ray_rot.bty, etc. exist).
  * 
- * PRTFile: Where BELLHOP debug / informational output is sent. This may be an
- * ofstream or an ostringstream.
+ * outputCallback: Callback called by setup/run code which will be called for
+ * messages (e.g. debug output, error messages). If nullptr is passed, will
+ * open a PRTFile (<FileRoot>.prt) and put the messages in there.
  * 
  * params, outputs: Just create uninitialized structs and pass them in to be
  * initialized.
+ * 
+ * returns: false on fatal errors, true otherwise. If a fatal error occurs,
+ * must call finalize() and setup() again before continuing to use the library.
  */
-BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &params,
-    bhcOutputs &outputs);
+BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams &params, bhcOutputs &outputs);
     
 /**
  * Runs the selected run type and places the results in the appropriate struct
  * within outputs. outputs need not be initialized prior to the call.
+ * 
+ * returns: false on fatal errors, true otherwise. If a fatal error occurs,
+ * must call finalize() and setup() again before continuing to use the library.
  */
-BHC_API void run(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread);
+BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread);
 
 /**
  * Frees memory. You may call run() many times, you do not have to call setup

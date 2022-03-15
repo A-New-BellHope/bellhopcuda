@@ -545,5 +545,6 @@ private:
 #define _BHC_INCLUDING_COMPONENTS_ 1
 #include "ldio.hpp"
 #include "bino.hpp"
+#include "PRTFile.hpp"
 #include "atomics.hpp"
 #undef _BHC_INCLUDING_COMPONENTS_

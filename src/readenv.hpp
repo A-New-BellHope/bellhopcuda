@@ -21,7 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
+void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
     HSInfo &RecycledHS);

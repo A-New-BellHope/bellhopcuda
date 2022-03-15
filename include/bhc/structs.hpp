@@ -269,6 +269,8 @@ struct bhcParams {
     FreqInfo *freqinfo;
     BeamStructure *Beam;
     BeamInfo *beaminfo;
+    ///Pointer to internal data structure for program (non-marine-related) state.
+    void *internal;
 };
 
 struct bhcOutputs {

@@ -195,7 +195,7 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
 }
 
 inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
-    std::ostream &PRTFile, BdryInfo *bdinfo)
+    PrintFileEmu &PRTFile, BdryInfo *bdinfo)
 {
     switch(TopATI){
     case '~':
@@ -287,7 +287,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
 }
 
 inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
-    std::ostream &PRTFile, BdryInfo *bdinfo)
+    PrintFileEmu &PRTFile, BdryInfo *bdinfo)
 {
     switch(BotBTY){
     case '~':
@@ -400,7 +400,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
  * freq: center / nominal frequency (wideband not supported)
  */
 inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs,
-    LDIFile &ENVFile, std::ostream &PRTFile, const AttenInfo *atten,  HSInfo &RecycledHS)
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, const AttenInfo *atten,  HSInfo &RecycledHS)
 {
     real Mz, vr, alpha2_f; // values related to grain size
     real zTemp;

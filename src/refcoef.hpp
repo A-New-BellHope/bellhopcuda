@@ -90,7 +90,7 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
  * BotRC, TopRC: flag set to 'F' if refl. coef. is to be read from a File
  */
 inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char TopRC,
-    std::ostream &PRTFile, ReflectionInfo *refl)
+    PrintFileEmu &PRTFile, ReflectionInfo *refl)
 {
     if(BotRC == 'F'){
         PRTFile << "__________________________________________________________________________\n\n";

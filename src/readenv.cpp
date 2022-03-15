@@ -31,7 +31,7 @@ namespace bhc {
  * bc: Boundary condition type
  */
 void ReadTopOpt(char (&TopOpt)[6], char &bc,
-    std::string FileRoot, LDIFile &ENVFile, std::ostream &PRTFile,
+    std::string FileRoot, LDIFile &ENVFile, PrintFileEmu &PRTFile,
     SSPStructure *ssp, AttenInfo *atten)
 {
     memcpy(TopOpt, "      ", 6); // initialize to blanks
@@ -167,7 +167,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
  * Read the RunType variable and echo with explanatory information to the print file
  */
 void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
-    LDIFile &ENVFile, std::ostream &PRTFile,
+    LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
     LIST(ENVFile); ENVFile.Read(RunType, 7);
@@ -244,7 +244,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     }
 }
 
-void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
+void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
     HSInfo &RecycledHS)

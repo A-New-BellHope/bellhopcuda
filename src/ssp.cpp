@@ -23,7 +23,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 #define READ_SSP_ARGS real Depth, real freq, const real &fT, SSPStructure *ssp, \
-    LDIFile &ENVFile, std::ostream &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS
 #define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, RecycledHS
 
 /**

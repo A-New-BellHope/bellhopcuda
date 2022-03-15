@@ -21,7 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
+inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile,
     BeamInfo *beaminfo)
 {
     if(beaminfo->SBPFlag == '*'){
@@ -65,7 +65,7 @@ inline void ReadPat(std::string FileRoot, std::ostream &PRTFile,
 /**
  * Limits for tracing beams
  */
-inline void ReadBeamInfo(LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadBeamInfo(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     BeamStructure *Beam)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";

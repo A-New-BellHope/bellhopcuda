@@ -60,10 +60,9 @@ void FieldModesWorker(const bhcParams &params, bhcOutputs &outputs)
     }
 }
 
-void run_cxx(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread)
+bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
-    InitSelectedMode(PRTFile, params, outputs, singlethread);
+    InitSelectedMode(params, outputs, singlethread);
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
@@ -71,13 +70,13 @@ void run_cxx(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs
         params.Beam->RunType[0] == 'R' ? RayModeWorker : FieldModesWorker,
         std::cref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
+    return true;
 }
 
 #ifndef BHC_BUILD_CUDA
-BHC_API void run(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread)
+BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
-    run_cxx(PRTFile, params, outputs, singlethread);
+    return run_cxx(PRTFile, params, outputs, singlethread);
 }
 #endif
 

@@ -53,16 +53,13 @@ int main(int argc, char **argv)
         std::abort();
     }
     
-    std::ofstream PRTFile;
-    bhc::OpenPRTFile(FileRoot, PRTFile);
-    
     bhc::bhcParams params;
     bhc::bhcOutputs outputs;
-    bhc::setup(FileRoot, PRTFile, params, outputs);
+    bhc::setup(FileRoot, nullptr, params, outputs);
     
     bhc::Stopwatch sw;
     sw.tick();
-    bhc::run(PRTFile, params, outputs, singlethread);
+    bhc::run(params, outputs, singlethread);
     sw.tock();
     
     char r = params.Beam->RunType[0];

@@ -47,8 +47,7 @@ HOST_DEVICE inline bool GetJobIndices(int32_t &isrc, int32_t &ialpha, int32_t jo
     return (isrc < Pos->NSz);
 }
 
-inline void InitSelectedMode(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread)
+inline void InitSelectedMode(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     // Common
     // irregular or rectilinear grid
@@ -62,14 +61,13 @@ inline void InitSelectedMode(std::ostream &PRTFile, const bhcParams &params, bhc
     }else if(params.Beam->RunType[0] == 'E'){
         InitEigenMode(outputs.eigen);
     }else if(params.Beam->RunType[0] == 'A' || params.Beam->RunType[0] == 'a'){
-        InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, PRTFile);
+        InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, (PrintFileEmu*)params.internal);
     }else{
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         std::abort();
     }
 }
 
-void run_cxx(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread);
+bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread);
 
 }
