@@ -22,9 +22,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #error "Must be included from common.hpp!"
 #endif
 
-#include <fstream>
-#include <sstream>
-
 namespace bhc {
 
 class PrintFileEmu {
@@ -57,7 +54,7 @@ public:
             if(newlinepos != std::string::npos){
                 std::string msg = linebuf.str().substr(0, newlinepos);
                 callback(msg.c_str());
-                linebuf.ignore(newline+1);
+                linebuf.ignore(newlinepos+1);
             }
         }else if(ofs.good()){
             ofs << x;

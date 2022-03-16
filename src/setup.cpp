@@ -129,8 +129,8 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     RecycledHS.betaI = FL(0.0);
     RecycledHS.rho = FL(1.0);
     
-    PrintFileEmu *PRTFile = new PrintFileEmu(FileRoot, outputCallback);
-    params.internal = PRTFile;
+    params.internal = new PrintFileEmu(FileRoot, outputCallback);
+    PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
     
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP

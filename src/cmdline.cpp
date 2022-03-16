@@ -55,7 +55,7 @@ int main(int argc, char **argv)
     
     bhc::bhcParams params;
     bhc::bhcOutputs outputs;
-    bhc::setup(FileRoot, nullptr, params, outputs);
+    bhc::setup(FileRoot.c_str(), nullptr, params, outputs);
     
     bhc::Stopwatch sw;
     sw.tick();

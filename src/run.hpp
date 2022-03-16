@@ -61,7 +61,7 @@ inline void InitSelectedMode(const bhcParams &params, bhcOutputs &outputs, bool 
     }else if(params.Beam->RunType[0] == 'E'){
         InitEigenMode(outputs.eigen);
     }else if(params.Beam->RunType[0] == 'A' || params.Beam->RunType[0] == 'a'){
-        InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, (PrintFileEmu*)params.internal);
+        InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, *(PrintFileEmu*)params.internal);
     }else{
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         std::abort();

@@ -76,7 +76,7 @@ bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 #ifndef BHC_BUILD_CUDA
 BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
-    return run_cxx(PRTFile, params, outputs, singlethread);
+    return run_cxx(params, outputs, singlethread);
 }
 #endif
 

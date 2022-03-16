@@ -27,6 +27,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #endif
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <cstdio>
 #include <iomanip>
 #include <cctype>
@@ -305,6 +307,21 @@ static inline std::string trim_copy(std::string s) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//Other components
+////////////////////////////////////////////////////////////////////////////////
+
+}
+
+#define _BHC_INCLUDING_COMPONENTS_ 1
+#include "ldio.hpp"
+#include "bino.hpp"
+#include "prtfileemu.hpp"
+#include "atomics.hpp"
+#undef _BHC_INCLUDING_COMPONENTS_
+
+namespace bhc {
+
+////////////////////////////////////////////////////////////////////////////////
 //CUDA memory
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -475,7 +492,7 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *ang
         --n;
 }
 
-template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ostream &PRTFile)
+template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, PrintFileEmu &PRTFile)
 {
     constexpr int32_t NEcho = 10;
     PRTFile << std::setprecision(6);
@@ -537,14 +554,3 @@ private:
 };
 
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//Other components
-////////////////////////////////////////////////////////////////////////////////
-
-#define _BHC_INCLUDING_COMPONENTS_ 1
-#include "ldio.hpp"
-#include "bino.hpp"
-#include "PRTFile.hpp"
-#include "atomics.hpp"
-#undef _BHC_INCLUDING_COMPONENTS_
