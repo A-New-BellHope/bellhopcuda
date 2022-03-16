@@ -55,11 +55,11 @@ int main(int argc, char **argv)
     
     bhc::bhcParams params;
     bhc::bhcOutputs outputs;
-    bhc::setup(FileRoot.c_str(), nullptr, params, outputs);
+    if(!bhc::setup(FileRoot.c_str(), nullptr, params, outputs)) return 1;
     
     bhc::Stopwatch sw;
     sw.tick();
-    bhc::run(params, outputs, singlethread);
+    if(!bhc::run(params, outputs, singlethread)) return 1;
     sw.tock();
     
     char r = params.Beam->RunType[0];

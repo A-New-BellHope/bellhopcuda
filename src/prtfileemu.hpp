@@ -34,7 +34,7 @@ public:
             ofs.open(s + ".prt");
             if(!ofs.good()){
                 std::cout << "Could not open print file: " << FileRoot << ".prt\n";
-                std::abort();
+                bail();
             }
             ofs << std::unitbuf;
         }else{

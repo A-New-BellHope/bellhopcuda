@@ -75,10 +75,21 @@ void setupGPU()
 
 bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
 {
+    if(!api_okay) return false;
+    
+    try{
+    
     InitSelectedMode(params, outputs, false);
     FieldModesKernel<<<d_multiprocs,512>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel");
-    return true;
+    
+    }catch(const std::exception &e){
+        api_okay = false;
+        PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
+        PRTFile << e.what() << "\n";
+    }
+    
+    return api_okay;
 }
 
 BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)

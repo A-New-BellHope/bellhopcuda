@@ -556,13 +556,12 @@ void check(T result, char const *const func, const char *const file, int const l
 {
     if (result)
     {
-        std::cout << "CUDA error at " << std::string(file)
-            << ":" << std::to_string(line)
-            << " code=" << std::to_string(static_cast<unsigned int>(result))
-            << "(" << std::string(_cudaGetErrorEnum(result))
-            << ") \"" << std::string(func) << "\"\n";
         cudaDeviceReset();
-        std::abort();
+        throw std::runtime_error("CUDA error at " + std::string(file)
+            + ":" + std::to_string(line)
+            + " code=" + std::to_string(static_cast<unsigned int>(result))
+            + "(" + std::string(_cudaGetErrorEnum(result))
+            + ") \"" + std::string(func) + "\"\n");
     }
 }
 
@@ -579,13 +578,12 @@ inline void __getLastCudaError(const char *errorMessage, const char *file, const
 
     if (cudaSuccess != err)
     {
-        std::cout << std::string(file) << ":" << std::to_string(line)
-            << ": getLastCudaError() CUDA error: " << std::string(errorMessage)
-            << ": " << std::to_string((int)err)
-            << "(" << std::string(cudaGetErrorString(err))
-            << ")\n";
         cudaDeviceReset();
-        std::abort();
+        throw std::runtime_error(std::string(file) + ":" + std::to_string(line)
+            + ": getLastCudaError() CUDA error: " + std::string(errorMessage)
+            + ": " + std::to_string((int)err)
+            + "(" + std::string(cudaGetErrorString(err))
+            + ")\n");
     }
 }
 #endif
@@ -603,13 +601,12 @@ inline void __syncAndCheckKernelErrors(const char *kernelName, const char *file,
         errtype = 1;
     }
     if(err == cudaSuccess) return;
-    std::cout << std::string(kernelName) <<
+    cudaDeviceReset();
+    throw std::runtime_error(std::string(kernelName) +
         std::string(errtype == 1 ? " launch failed at "
             : errtype == 2 ? " execution failed at "
             : " CUDA error at or before kernel from ")
-        << std::string(file) << ":" << std::to_string(line)
-        << ": error " << std::to_string((int)err)
-        << ": " << std::string(cudaGetErrorString(err)) << "\n";
-    cudaDeviceReset();
-    std::abort();
+        + std::string(file) + ":" + std::to_string(line)
+        + ": error " + std::to_string((int)err)
+        + ": " + std::string(cudaGetErrorString(err)) + "\n");
 }

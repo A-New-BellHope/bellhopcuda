@@ -38,6 +38,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 //#include <cfenv>
 #include <chrono>
+#include <exception>
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -76,6 +77,8 @@ namespace bhc {
 //Assertions and debug
 ////////////////////////////////////////////////////////////////////////////////
 
+extern bool api_okay;
+
 #define NULLSTATEMENT ((void)0)
 #define REQUIRESEMICOLON do{NULLSTATEMENT;} while(false)
 #define IGNORE_UNUSED(x) do{ (void)x; } while(false)
@@ -98,23 +101,21 @@ inline const char *SOURCE_FILENAME(const char *file){
     return file;
 }
 
-
-#ifdef __CUDA_ARCH__
-#define bail __trap
 #define BASSERT_STR(x) #x
 #define BASSERT_XSTR(x) BASSERT_STR(x)
+#ifdef __CUDA_ARCH__
+#define bail __trap
 #define BASSERT(statement) \
 if(__builtin_expect(!(statement), 0)) { \
 	printf("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
 	__trap(); \
 } REQUIRESEMICOLON
 #else
-#define bail std::abort
+#define bail() throw std::runtime_error("bhc::bail()")
 #define BASSERT(statement) \
 if(!(statement)){ \
-	std::cout << "FATAL: Assertion \"" #statement "\" failed in " \
-		<< SOURCE_FILENAME(__FILE__) << " line " << __LINE__ << "\n"; \
-	std::abort(); \
+	throw std::runtime_error("Assertion \"" #statement "\" failed in " \
+		+ std::string(SOURCE_FILENAME(__FILE__)) + " line " BASSERT_XSTR(__LINE__) "\n"); \
 } REQUIRESEMICOLON
 #endif
 

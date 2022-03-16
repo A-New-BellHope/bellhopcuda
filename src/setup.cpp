@@ -30,11 +30,19 @@ namespace bhc {
 void setupGPU();
 #endif
 
+bool api_okay = false;
+
 constexpr bool Init_Inline = false;
 
 BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams &params, bhcOutputs &outputs)
 {
+    api_okay = true;
+    params.internal = new PrintFileEmu(FileRoot, outputCallback);
+    PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
+    
+    try {
+    
     #ifdef BHC_BUILD_CUDA
     setupGPU();
     #endif
@@ -128,9 +136,6 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     RecycledHS.alphaI = FL(0.0);
     RecycledHS.betaI = FL(0.0);
     RecycledHS.rho = FL(1.0);
-    
-    params.internal = new PrintFileEmu(FileRoot, outputCallback);
-    PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
     
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
@@ -306,7 +311,13 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     }
     
     PRTFile << "\n";
-    return true;
+    
+    }catch(const std::exception &e){
+        api_okay = false;
+        PRTFile << e.what() << "\n";
+    }
+    
+    return api_okay;
 }
 
 BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
@@ -316,6 +327,11 @@ BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
     
     PrintFileEmu *PRTFile = (PrintFileEmu*)params.internal;
     delete PRTFile;
+    
+    #ifdef BHC_BUILD_CUDA
+    if(!api_okay) return; // Memory was deallocated when the device was reset
+    #endif
+    api_okay = false;
     
     checkdeallocate(params.bdinfo->Top);
     checkdeallocate(params.bdinfo->Bot);
