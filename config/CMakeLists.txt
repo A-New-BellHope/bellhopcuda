@@ -18,6 +18,8 @@
 add_subdirectory(cxx)
 add_subdirectory(cxxlib)
 
-if(NOT(APPLE OR DEFINED ENV{BELLHOP_NO_CUDA}))
+option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
+
+if(BHC_ENABLE_CUDA AND NOT(APPLE OR DEFINED ENV{BHC_NO_CUDA}))
     add_subdirectory(cuda)
 endif()

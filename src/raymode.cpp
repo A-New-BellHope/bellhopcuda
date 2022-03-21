@@ -88,8 +88,8 @@ void InitRayMode(RayInfo *rayinfo, const bhcParams &params)
     rayinfo->NRays = GetNumJobs(params.Pos, params.Angles);
     rayinfo->MaxPoints = bhc::min((uint32_t)MaxN * (uint32_t)rayinfo->NRays, 100000000u);
     rayinfo->NPoints = 0;
-    rayinfo->raymem = new ray2DPt[rayinfo->MaxPoints];
-    rayinfo->results = new RayResult[rayinfo->NRays];
+    checkallocate(rayinfo->raymem, rayinfo->MaxPoints);
+    checkallocate(rayinfo->results, rayinfo->NRays);
     memset(rayinfo->results, 0, rayinfo->NRays * sizeof(RayResult)); // Clear because will check pointers
 }
 
