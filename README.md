@@ -3,8 +3,8 @@ C++/CUDA port of `BELLHOP` underwater acoustics simulator
 
 ### Impressum
 
-Copyright (C) 2021-2022 The Regents of the University of California
-c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Copyright (C) 2021-2022 The Regents of the University of California \
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu \
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
@@ -94,10 +94,11 @@ This section updated 3/2022.
 run automatically for all four run types (ray, transmission loss, eigenrays,
 arrivals), but only transmission loss and arrivals results are automatically
 checked. The automatic checkers check results based on absolute error, relative
-error, and ULPs, but they don't use any contextual information, so for example
-a receiver being off by 1\% at a level of 1e-7 is considered the same error
-whether the peak of the field is 1e-7 around this receiver, or the peak of the
-field is 1e-2 hundreds of kilometers away.
+error, and ULPs, but they don't use any contextual information. So for example
+a receiver being off by 3\% at a level of 1e-7 is considered the same error
+whether the peak of the field is 1e-7 around this receiver (this is a big
+deal), or the peak of the field is 1e-2 hundreds of kilometers away (this is
+negligible).
 
 All results are compared to the outputs of [our modified version of BELLHOP](https://github.com/A-New-BellHope/bellhop).
 Many results of the original BELLHOP cannot be reproduced, some not even by
@@ -143,9 +144,9 @@ eigenrays test case provided by `BELLHOP`.
 #### Arrivals
 
 `bellhopcxx` / `bellhopcuda` matches the results of `BELLHOP` on the 6 test
-cases in `arrivals_pass` and fails to match on `sduct_bbB` in `arrivals_fail`.
-In the latter, the problems are mild, affecting 19 out of about 150,000
-arrivals.
+cases in `arrivals_match` and fails to match on `sduct_bbB` in
+`arrivals_nomatch`. In the latter, the problems are mild, affecting 19 out of
+about 150,000 arrivals.
 
 ## Speed
 
@@ -160,7 +161,8 @@ primarily for two reasons:
 1. `bellhopcuda` has been tested on consumer ("gaming") GPUs only (e.g. NVIDIA
 GeForce RTX 3080). These GPUs only include vestigial double-precision floating-
 point support, at 1/64th the throughput compared to single-precision. Most of
-`BELLHOP` and consequently `bellhopcuda` uses double-precision (see below).
+`BELLHOP` and consequently `bellhopcxx` / `bellhopcuda` uses double-precision
+(see below).
 2. The codebase parallelizes over rays, the same for multithreaded C++ as for
 CUDA. Unless there are many more rays than CUDA cores (at least several tens of
 thousands for a high-end RTX GPU), the GPU will not be fully utilized.
