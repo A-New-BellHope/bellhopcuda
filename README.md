@@ -62,7 +62,8 @@ but these may be outdated compared to recent changes to the repo.
 - If you want `bellhopcuda`, install [the latest CUDA toolkit](https://developer.nvidia.com/cuda-downloads)
 (the earliest supported CUDA version is somewhere between 11.3 and 11.5).
 Otherwise if you do not want `bellhopcuda`, set the environment variable
-`BHC_NO_CUDA` or turn off the CMake option `BHC_ENABLE_CUDA`. 
+`BHC_NO_CUDA` (to something like "1") or turn off the CMake option
+`BHC_ENABLE_CUDA`.
 - Build the project with CMake as usual.
 
 ### How do I use `bellhopcxxlib` as a library in another project?
@@ -86,7 +87,7 @@ Submit a bug report on the [GitHub issues page](https://github.com/A-New-BellHop
 
 # Results
 
-This section updated 3/2022.
+This section was last updated 3/2022; things may have changed since then.
 
 ## Accuracy
 
@@ -101,8 +102,8 @@ deal), or the peak of the field is 1e-2 hundreds of kilometers away (this is
 negligible).
 
 All results are compared to the outputs of [our modified version of BELLHOP](https://github.com/A-New-BellHope/bellhop).
-Many results of the original BELLHOP cannot be reproduced, some not even by
-itself; for more details, see the discussion on that repo.
+Many results of the original `BELLHOP` cannot be reproduced, in some cases not
+even by `BELLHOP` itself; for more details, see the discussion on that repo.
 
 Note that rays and eigenrays are generated in a random order due to thread
 scheduling by `bellhopcxx` in multithreading mode and by `bellhopcuda`. Results
@@ -180,11 +181,13 @@ research direction.
 # Miscellaneous
 
 ## Comments
-Unattributed comments in all translated code are copied directly from the original
-BELLHOP and/or Acoustics Toolbox code, mostly by Michael B. Porter. Unattributed
-comments in new code are by the Jules Jaffe team, mostly Louis Pisha. It should
-usually be easy to distinguish the comment author from the style.
+Unattributed comments in all translated code are copied directly from the
+original `BELLHOP` and/or Acoustics Toolbox code, mostly by Michael B. Porter.
+Unattributed comments in new code are by the Jules Jaffe team, mostly Louis
+Pisha. It should usually be easy to distinguish the comment author from the
+style.
 
 ## Code style
 Code style (things like where newlines and if statements are) is kept as close
-as possible to the original Fortran code, for ease of comparing the source files.
+as possible to the original Fortran code, for ease of comparing the source
+files.
