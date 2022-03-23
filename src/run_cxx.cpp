@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #include "run.hpp"
 
 #include <atomic>
@@ -42,10 +60,13 @@ void FieldModesWorker(const bhcParams &params, bhcOutputs &outputs)
     }
 }
 
-void run_cxx(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread)
+bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
-    InitSelectedMode(PRTFile, params, outputs, singlethread);
+    if(!api_okay) return false;
+    
+    try{
+    
+    InitSelectedMode(params, outputs, singlethread);
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
@@ -53,13 +74,20 @@ void run_cxx(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs
         params.Beam->RunType[0] == 'R' ? RayModeWorker : FieldModesWorker,
         std::cref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
+    
+    }catch(const std::exception &e){
+        api_okay = false;
+        PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
+        PRTFile << e.what() << "\n";
+    }
+
+    return api_okay;
 }
 
 #ifndef BHC_BUILD_CUDA
-BHC_API void run(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread)
+BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
-    run_cxx(PRTFile, params, outputs, singlethread);
+    return run_cxx(params, outputs, singlethread);
 }
 #endif
 

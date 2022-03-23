@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #include "common.hpp"
 #include "readenv.hpp"
 #include "boundary.hpp"
@@ -12,11 +30,19 @@ namespace bhc {
 void setupGPU();
 #endif
 
+bool api_okay = false;
+
 constexpr bool Init_Inline = false;
 
-BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &params,
-    bhcOutputs &outputs)
+BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams &params, bhcOutputs &outputs)
 {
+    api_okay = true;
+    params.internal = new PrintFileEmu(FileRoot, outputCallback);
+    PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
+    
+    try {
+    
     #ifdef BHC_BUILD_CUDA
     setupGPU();
     #endif
@@ -114,7 +140,7 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
         std::string TempTitle = BHC_PROGRAMNAME "- Calibration case with envfil passed as parameters";
-        int32_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
+        size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
         memcpy(params.Title, TempTitle.c_str(), l);
         params.Title[l] = 0;
         params.freqinfo->freq0 = FL(250.0);
@@ -285,11 +311,28 @@ BHC_API void setup(std::string FileRoot, std::ostream &PRTFile, bhcParams &param
     }
     
     PRTFile << "\n";
+    
+    }catch(const std::exception &e){
+        api_okay = false;
+        PRTFile << e.what() << "\n";
+    }
+    
+    return api_okay;
 }
 
 BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
 {
     // IMPORTANT--if changes are made here, make the same changes in setup
+    // (i.e. setting the pointers to nullptr initially)
+    
+    PrintFileEmu *PRTFile = (PrintFileEmu*)params.internal;
+    delete PRTFile;
+    
+    #ifdef BHC_BUILD_CUDA
+    if(!api_okay) return; // Memory was deallocated when the device was reset
+    #endif
+    api_okay = false;
+    
     checkdeallocate(params.bdinfo->Top);
     checkdeallocate(params.bdinfo->Bot);
     checkdeallocate(params.refl->RBot);

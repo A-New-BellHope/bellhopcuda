@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #include "readenv.hpp"
 #include "boundary.hpp"
 #include "ssp.hpp"
@@ -13,7 +31,7 @@ namespace bhc {
  * bc: Boundary condition type
  */
 void ReadTopOpt(char (&TopOpt)[6], char &bc,
-    std::string FileRoot, LDIFile &ENVFile, std::ostream &PRTFile,
+    std::string FileRoot, LDIFile &ENVFile, PrintFileEmu &PRTFile,
     SSPStructure *ssp, AttenInfo *atten)
 {
     memcpy(TopOpt, "      ", 6); // initialize to blanks
@@ -149,7 +167,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
  * Read the RunType variable and echo with explanatory information to the print file
  */
 void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
-    LDIFile &ENVFile, std::ostream &PRTFile,
+    LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
     LIST(ENVFile); ENVFile.Read(RunType, 7);
@@ -226,7 +244,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     }
 }
 
-void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
+void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
     HSInfo &RecycledHS)
@@ -234,7 +252,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
     //const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;
     real ZMin, ZMax;
-    vec2 x, gradc;
+    vec2 x;
     cpx ccpx;
     real Sigma, Depth;
     char PlotType[10];
@@ -254,7 +272,7 @@ void ReadEnvironment(const std::string &FileRoot, std::ostream &PRTFile,
     LIST(ENVFile); ENVFile.Read(TempTitle);
     TempTitle = BHC_PROGRAMNAME "- " + TempTitle;
     PRTFile << TempTitle << "\n";
-    int32_t l = bhc::min(sizeof(Title) - 1, TempTitle.size());
+    size_t l = bhc::min(sizeof(Title) - 1, TempTitle.size());
     memcpy(Title, TempTitle.c_str(), l);
     Title[l] = 0;
     

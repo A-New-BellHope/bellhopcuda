@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #pragma once
 
 #define _USE_MATH_DEFINES 1 //must be before anything which includes math.h
@@ -9,6 +27,8 @@
 #endif
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <cstdio>
 #include <iomanip>
 #include <cctype>
@@ -18,6 +38,7 @@
 #include <algorithm>
 //#include <cfenv>
 #include <chrono>
+#include <exception>
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -56,16 +77,16 @@ namespace bhc {
 //Assertions and debug
 ////////////////////////////////////////////////////////////////////////////////
 
+extern bool api_okay;
+
 #define NULLSTATEMENT ((void)0)
 #define REQUIRESEMICOLON do{NULLSTATEMENT;} while(false)
+#define IGNORE_UNUSED(x) do{ (void)x; } while(false)
 
 /**
  * Returns a pointer to only the last portion of the source filename.
- * This works perfectly correctly on GPU, but it consumes many registers,
- * which are often evaluated once at the beginning and left in registers
- * through the whole kernel.
 */
-/*HOST_DEVICE*/ inline const char *SOURCE_FILENAME(const char *file){
+inline const char *SOURCE_FILENAME(const char *file){
     static const char *const tag = "/bellhopcuda/";
     static const int taglen = 13;
     const char *x = file;
@@ -80,22 +101,21 @@ namespace bhc {
     return file;
 }
 
-#ifdef __CUDA_ARCH__
-#define bail __trap
 #define BASSERT_STR(x) #x
 #define BASSERT_XSTR(x) BASSERT_STR(x)
+#ifdef __CUDA_ARCH__
+#define bail __trap
 #define BASSERT(statement) \
 if(__builtin_expect(!(statement), 0)) { \
 	printf("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
 	__trap(); \
 } REQUIRESEMICOLON
 #else
-#define bail std::abort
+#define bail() throw std::runtime_error("bhc::bail()")
 #define BASSERT(statement) \
 if(!(statement)){ \
-	std::cout << "FATAL: Assertion \"" #statement "\" failed in " \
-		<< SOURCE_FILENAME(__FILE__) << " line " << __LINE__ << "\n"; \
-	std::abort(); \
+	throw std::runtime_error("Assertion \"" #statement "\" failed in " \
+		+ std::string(SOURCE_FILENAME(__FILE__)) + " line " BASSERT_XSTR(__LINE__) "\n"); \
 } REQUIRESEMICOLON
 #endif
 
@@ -223,7 +243,7 @@ DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
 
 inline bool isInt(std::string str, bool allowNegative = true){
 	if(str.empty()) return false;
-	for(int i=0; i<str.length(); ++i){
+	for(size_t i=0; i<str.length(); ++i){
 		if(str[i] == '-'){
 			if(i != 0 || !allowNegative || str.length() == 1) return false;
 			continue;
@@ -286,6 +306,21 @@ static inline std::string trim_copy(std::string s) {
     trim(s);
     return s;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//Other components
+////////////////////////////////////////////////////////////////////////////////
+
+}
+
+#define _BHC_INCLUDING_COMPONENTS_ 1
+#include "ldio.hpp"
+#include "bino.hpp"
+#include "prtfileemu.hpp"
+#include "atomics.hpp"
+#undef _BHC_INCLUDING_COMPONENTS_
+
+namespace bhc {
 
 ////////////////////////////////////////////////////////////////////////////////
 //CUDA memory
@@ -458,7 +493,7 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *ang
         --n;
 }
 
-template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, std::ostream &PRTFile)
+template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, PrintFileEmu &PRTFile)
 {
     constexpr int32_t NEcho = 10;
     PRTFile << std::setprecision(6);
@@ -520,13 +555,3 @@ private:
 };
 
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//Other components
-////////////////////////////////////////////////////////////////////////////////
-
-#define _BHC_INCLUDING_COMPONENTS_ 1
-#include "ldio.hpp"
-#include "bino.hpp"
-#include "atomics.hpp"
-#undef _BHC_INCLUDING_COMPONENTS_

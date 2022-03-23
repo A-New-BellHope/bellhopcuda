@@ -1,3 +1,20 @@
+# bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+# Copyright (C) 2021-2022 The Regents of the University of California
+# c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+# Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+
 option(CUDA_PRINT_REGISTERS "Print kernel register use" OFF)
 option(CUDA_DISASSEMBLY "Save temp outputs for disassembly" OFF)
 set(CUDA_ARCH_OVERRIDE "" CACHE STRING "Compile for this GPU architecture (e.g. 86)")
@@ -95,5 +112,7 @@ endfunction()
 
 get_gencode_args(NVCC_GENCODE_FLAGS)
 message(STATUS "Using gencode args: " ${NVCC_GENCODE_FLAGS})
-set(CMAKE_CUDA_FLAGS "${NVCC_GENCODE_FLAGS} ${NVCC_DEBUG_FLAGS} ${CUDA_EXTRA_FLAGS}")
+string(REPLACE " " ";" EXTRA_CXX_FLAGS_LIST ${EXTRA_CXX_FLAGS})
+prepend(CXX_TO_CUDA_FLAGS "-Xcompiler=" ${EXTRA_CXX_FLAGS_LIST})
+set(CMAKE_CUDA_FLAGS "${NVCC_GENCODE_FLAGS} ${NVCC_DEBUG_FLAGS} ${CXX_TO_CUDA_FLAGS} ${CUDA_EXTRA_FLAGS}")
 message(STATUS "Full CUDA flags: ${CMAKE_CUDA_FLAGS}")

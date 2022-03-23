@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #pragma once
 #include "common.hpp"
 #include "trace.hpp"
@@ -9,8 +27,7 @@ namespace bhc {
 /**
  * for a TL calculation, allocate space for the pressure matrix
  */
-inline void InitTLMode(cpxf *&uAllSources, const Position *Pos,
-    const BeamStructure *Beam)
+inline void InitTLMode(cpxf *&uAllSources, const Position *Pos)
 {
     size_t n = Pos->NSz * Pos->NRz_per_range * Pos->NRr;
     checkallocate(uAllSources, n);
@@ -39,7 +56,7 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     
     if(!RayInit(isrc, ialpha, SrcDeclAngle, point0, gradc,
         DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
-        Bdry, ConstBdry, bdinfo, refl, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) return;
+        Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) return;
     
     Init_Influence(inflray, point0, isrc, ialpha, Angles->alpha[ialpha], gradc,
         Pos, ssp, iSegz, iSegr, Angles, freqinfo, Beam);
@@ -50,8 +67,7 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     int32_t Nsteps = 0; // not actually needed in TL mode, debugging only
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
-        int32_t dStep = RayUpdate(point0, point1, point2, 
-            DistBegTop, DistBegBot, DistEndTop, DistEndBot,
+        int32_t dStep = RayUpdate(point0, point1, point2, DistEndTop, DistEndBot,
             IsegTop, IsegBot, rTopSeg, rBotSeg, iSmallStepCtr, iSegz, iSegr,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(!Step_Influence(point0, point1, inflray, is, u, 

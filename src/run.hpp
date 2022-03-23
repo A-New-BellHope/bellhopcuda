@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #pragma once
 #include "common.hpp"
 #include "raymode.hpp"
@@ -29,8 +47,7 @@ HOST_DEVICE inline bool GetJobIndices(int32_t &isrc, int32_t &ialpha, int32_t jo
     return (isrc < Pos->NSz);
 }
 
-inline void InitSelectedMode(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread)
+inline void InitSelectedMode(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     // Common
     // irregular or rectilinear grid
@@ -40,18 +57,17 @@ inline void InitSelectedMode(std::ostream &PRTFile, const bhcParams &params, bhc
     if(params.Beam->RunType[0] == 'R'){
         InitRayMode(outputs.rayinfo, params);
     }else if(params.Beam->RunType[0] == 'C' || params.Beam->RunType[0] == 'S' || params.Beam->RunType[0] == 'I'){
-        InitTLMode(outputs.uAllSources, params.Pos, params.Beam);
+        InitTLMode(outputs.uAllSources, params.Pos);
     }else if(params.Beam->RunType[0] == 'E'){
         InitEigenMode(outputs.eigen);
     }else if(params.Beam->RunType[0] == 'A' || params.Beam->RunType[0] == 'a'){
-        InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, params.Beam, PRTFile);
+        InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, *(PrintFileEmu*)params.internal);
     }else{
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         std::abort();
     }
 }
 
-void run_cxx(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread);
+bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread);
 
 }

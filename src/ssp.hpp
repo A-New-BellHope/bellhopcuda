@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #pragma once
 #include "common.hpp"
 #include "curves.hpp"
@@ -11,7 +29,7 @@ constexpr real betaPowerLaw = FL(1.0);
     const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr
 #define SSP_CALL_ARGS x, t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
 #define SSP_INIT_ARGS vec2 x, const real &fT, \
-    LDIFile &ENVFile, std::ostream &PRTFile, std::string FileRoot, \
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot, \
     SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
 #define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
 
@@ -62,6 +80,9 @@ HOST_DEVICE inline real LinInterpDensity(const vec2 &x,
  */
 HOST_DEVICE inline void n2Linear(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(iSegr);
+    
     UpdateDepthSegmentT(x, t, ssp, iSegz);
     real w = LinInterpDensity(x, ssp, iSegz, rho);
     
@@ -78,6 +99,9 @@ HOST_DEVICE inline void n2Linear(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cLinear(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(iSegr);
+    
     UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
@@ -92,6 +116,9 @@ HOST_DEVICE inline void cLinear(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(iSegr);
+    
     UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
@@ -122,6 +149,9 @@ HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void cCubic(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(iSegr);
+    
     UpdateDepthSegmentT(x, t, ssp, iSegz);
     LinInterpDensity(x, ssp, iSegz, rho);
     
@@ -145,6 +175,8 @@ HOST_DEVICE inline void cCubic(SSP_FN_ARGS)
  */
 HOST_DEVICE inline void Quad(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(freq);
+    
     real c1, c2, cz1, cz2, cr, cz, s1, s2, delta_r, delta_z;
     
     if(x.x < ssp->Seg.r[0] || x.x > ssp->Seg.r[ssp->Nr-1]){
@@ -198,6 +230,11 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
 
 HOST_DEVICE inline void Analytic(SSP_FN_ARGS)
 {
+    IGNORE_UNUSED(t);
+    IGNORE_UNUSED(freq);
+    IGNORE_UNUSED(ssp);
+    IGNORE_UNUSED(iSegr);
+    
     real c0, cr, cz, DxtDz, xt;
     
     iSegz = 0;

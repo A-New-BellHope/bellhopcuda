@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #pragma once
 #include "common.hpp"
 #include "attenuation.hpp"
@@ -177,7 +195,7 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
 }
 
 inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
-    std::ostream &PRTFile, BdryInfo *bdinfo)
+    PrintFileEmu &PRTFile, BdryInfo *bdinfo)
 {
     switch(TopATI){
     case '~':
@@ -269,7 +287,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
 }
 
 inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
-    std::ostream &PRTFile, BdryInfo *bdinfo)
+    PrintFileEmu &PRTFile, BdryInfo *bdinfo)
 {
     switch(BotBTY){
     case '~':
@@ -382,7 +400,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
  * freq: center / nominal frequency (wideband not supported)
  */
 inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs,
-    LDIFile &ENVFile, std::ostream &PRTFile, const AttenInfo *atten,  HSInfo &RecycledHS)
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, const AttenInfo *atten,  HSInfo &RecycledHS)
 {
     real Mz, vr, alpha2_f; // values related to grain size
     real zTemp;

@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #pragma once
 #include "common.hpp"
 #include "step.hpp"
@@ -254,7 +272,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     ray2DPt &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
     int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
     int32_t &iSegz, int32_t &iSegr, BdryType &Bdry,
-    const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
+    const BdryType *ConstBdry, const BdryInfo *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
 {
@@ -353,7 +371,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
  */
 HOST_DEVICE inline int32_t RayUpdate(
     const ray2DPt &point0, ray2DPt &point1, ray2DPt &point2,
-    const real &DistBegTop, const real &DistBegBot, real &DistEndTop, real &DistEndBot, 
+    real &DistEndTop, real &DistEndBot, 
     int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
     int32_t &iSmallStepCtr, int32_t &iSegz, int32_t &iSegr,
     BdryType &Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,

@@ -1,3 +1,19 @@
+# bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+# Copyright (C) 2021-2022 The Regents of the University of California
+# c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+# Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+# 
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
 
 set(CMAKE_CXX_STANDARD 14) # C++14
 set(CMAKE_CXX_STANDARD_REQUIRED ON) # ...is required
@@ -10,12 +26,14 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 # Set default compile flags for each platform
 if(CMAKE_COMPILER_IS_GNUCXX)
     message(STATUS "GCC detected, adding compile flags")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra \
-    -Wno-sign-compare -Wno-unused-parameter -Wno-class-memaccess")
+    set(EXTRA_CXX_FLAGS "-Wall -Wextra -Wno-class-memaccess")
 else()
     message(STATUS "Not GCC, assuming Windows format compile flags")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W4")
+    # C2422: implicit conversion of double to float; BELLHOP sometimes carelessly
+    # mixes doubles and floats, and we need to use exactly the same ones to match
+    set(EXTRA_CXX_FLAGS "/W4 /wd4244")
 endif(CMAKE_COMPILER_IS_GNUCXX)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
 
 find_package(Threads)
 
@@ -66,6 +84,7 @@ set(COMMON_SOURCE
     eigenrays.hpp
     influence.hpp
     ldio.hpp
+    prtfileemu.hpp
     raymode.cpp
     raymode.hpp
     readenv.cpp

@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #include "run.hpp"
 
 namespace bhc {
@@ -55,23 +73,34 @@ void setupGPU()
     checkCudaErrors(cudaSetDevice(m_gpu));
 }
 
-void run_cuda(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs)
+bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
 {
-    InitSelectedMode(PRTFile, params, outputs, false);
+    if(!api_okay) return false;
+    
+    try{
+    
+    InitSelectedMode(params, outputs, false);
     FieldModesKernel<<<d_multiprocs,512>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel");
+    
+    }catch(const std::exception &e){
+        api_okay = false;
+        PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
+        PRTFile << e.what() << "\n";
+    }
+    
+    return api_okay;
 }
 
-BHC_API void run(std::ostream &PRTFile, const bhcParams &params, bhcOutputs &outputs,
-    bool singlethread)
+BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     if(singlethread){
         std::cout << "Single threaded mode is nonsense on CUDA, ignoring\n";
     }
     if(params.Beam->RunType[0] == 'R'){
-        run_cxx(PRTFile, params, outputs, false);
+        return run_cxx(params, outputs, false);
     }else{
-        run_cuda(PRTFile, params, outputs);
+        return run_cuda(params, outputs);
     }
 }
 

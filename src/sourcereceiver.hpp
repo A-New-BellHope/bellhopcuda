@@ -1,3 +1,21 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+Copyright (C) 2021-2022 The Regents of the University of California
+c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
+Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 #pragma once
 #include "common.hpp"
 
@@ -7,7 +25,7 @@ namespace bhc {
  * Optionally reads a vector of source frequencies for a broadband run
  * If the broadband option is not selected, then the input freq (a scalar) is stored in the frequency vector
  */
-inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, PrintFileEmu &PRTFile,
     FreqInfo *freqinfo)
 {
     freqinfo->Nfreq = 1;
@@ -41,7 +59,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, std::ostream &PR
  * Units       is something like 'km'
  */
 template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::string Description, 
-    std::string Units, LDIFile &ENVFile, std::ostream &PRTFile)
+    std::string Units, LDIFile &ENVFile, PrintFileEmu &PRTFile)
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
     LIST(ENVFile); ENVFile.Read(Nx);
@@ -76,7 +94,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
  * 
  * ThreeD: flag indicating whether this is a 3D run
  */
-inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
     if(ThreeD){
@@ -95,7 +113,7 @@ inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, std::ostream &PRTFile,
  * zMin, zMax: limits for those depths; 
  *     sources and receivers are shifted to be within those limits
  */
-inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
     //bool monotonic; //LP: monotonic is a function, this is a name clash
@@ -150,7 +168,7 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, std::ostream &PRTFi
     */
 }
 
-inline void ReadRcvrRanges(LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadRcvrRanges(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
     ReadVector(Pos->NRr, Pos->Rr, "Receiver ranges, Rr", "km", ENVFile, PRTFile);
@@ -165,7 +183,7 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, std::ostream &PRTFile,
     }
 }
 
-inline void ReadRcvrBearings(LDIFile &ENVFile, std::ostream &PRTFile,
+inline void ReadRcvrBearings(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
     ReadVector(Pos->Ntheta, Pos->theta, "receiver bearings, theta", "degrees", ENVFile, PRTFile);
