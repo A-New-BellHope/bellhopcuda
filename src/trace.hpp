@@ -382,6 +382,12 @@ HOST_DEVICE inline int32_t RayUpdate(
     Step2D(point0, point1, bdinfo->Top[IsegTop].x, bdinfo->Top[IsegTop].n,
         bdinfo->Bot[IsegBot].x, bdinfo->Bot[IsegBot].n, rTopSeg, rBotSeg, 
         freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr, topRefl, botRefl);
+    /*
+    if(point0.x == point1.x){
+        printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
+        bail();
+    }
+    */
     
     // New altimetry segment?
     if(    point1.x.x < rTopSeg.x || (point1.x.x == rTopSeg.x && point1.t.x < FL(0.0))

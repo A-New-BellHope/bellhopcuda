@@ -19,12 +19,15 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "run.hpp"
 
 #include <atomic>
+#include <mutex>
 #include <thread>
 #include <vector>
 
 namespace bhc {
 
 static std::atomic<int32_t> jobID;
+static std::mutex exceptionMutex;
+static std::string exceptionStr;
 
 // Ray mode
 
@@ -32,12 +35,21 @@ void RayModeWorker(const bhcParams &params, bhcOutputs &outputs)
 {
     ray2DPt *localmem = nullptr;
     if(IsRayCopyMode(outputs.rayinfo)) localmem = new ray2DPt[MaxN];
+    
+    try{
+        
     while(true){
         int32_t job = jobID++;
         int32_t isrc, ialpha, Nsteps = -1;
         if(!GetJobIndices(isrc, ialpha, job, params.Pos, params.Angles)) break;
         if(!RunRay(outputs.rayinfo, params, localmem, job, isrc, ialpha, Nsteps)) break;
     }
+    
+    }catch(const std::exception &e){
+        std::lock_guard<std::mutex> lock(exceptionMutex);
+        exceptionStr += std::string(e.what()) + "\n";
+    }
+    
     if(IsRayCopyMode(outputs.rayinfo)) delete[] localmem;
 }
 
@@ -47,6 +59,8 @@ cpxf *uAllSources;
 
 void FieldModesWorker(const bhcParams &params, bhcOutputs &outputs)
 {
+    try{
+    
     while(true){
         int32_t job = jobID++;
         int32_t isrc, ialpha;
@@ -58,11 +72,17 @@ void FieldModesWorker(const bhcParams &params, bhcOutputs &outputs)
             params.Angles, params.freqinfo, params.Beam, params.beaminfo,
             outputs.eigen, outputs.arrinfo);
     }
+    
+    }catch(const std::exception &e){
+        std::lock_guard<std::mutex> lock(exceptionMutex);
+        exceptionStr += std::string(e.what()) + "\n";
+    }
 }
 
 bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     if(!api_okay) return false;
+    exceptionStr = "";
     
     try{
     
@@ -75,10 +95,12 @@ bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
         std::cref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
     
+    if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
+    
     }catch(const std::exception &e){
         api_okay = false;
         PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
-        PRTFile << e.what() << "\n";
+        PRTFile << "Exception caught:\n" << e.what() << "\n";
     }
 
     return api_okay;

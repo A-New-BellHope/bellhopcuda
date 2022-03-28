@@ -23,7 +23,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+#ifdef BHC_USE_FLOATS
+#define INFINITESIMAL_STEP_SIZE (RL(1e-3))
+#else
 #define INFINITESIMAL_STEP_SIZE (RL(1e-6))
+#endif
 
 /**
  * calculate a reduced step size, h, that lands on any points where the environment changes
@@ -53,17 +57,17 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     if(STD::abs(urayt.y) > REAL_EPSILON){
         if(       ssp->z[iSegz0]     >  x.y){
             h1 = (ssp->z[iSegz0]     - x0.y) / urayt.y;
-            // printf("Lower bound SSP Z %g > z %g; h1 = %g\n", ssp->z[iSegz0], x.y, h1);
+            // printf("Shallower bound SSP Z %g > z %g; h1 = %g\n", ssp->z[iSegz0], x.y, h1);
         }else if( ssp->z[iSegz0 + 1] <  x.y){
             h1 = (ssp->z[iSegz0 + 1] - x0.y) / urayt.y;
-            // printf("Upper bound SSP Z %g < z %g; h1 = %g\n", ssp->z[iSegz0+1], x.y, h1);
+            // printf("Deeper bound SSP Z %g < z %g; h1 = %g\n", ssp->z[iSegz0+1], x.y, h1);
         }
     }
     
     // top crossing
     h2 = REAL_MAX;
     d = x - Topx; // vector from top to ray
-    if(glm::dot(Topn, d) > REAL_EPSILON){
+    if(glm::dot(Topn, d) >= RL(0.0)){
         d0 = x0 - Topx; // vector from top node to ray origin
         h2 = -glm::dot(d0, Topn) / glm::dot(urayt, Topn);
     }
@@ -71,7 +75,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     // bottom crossing
     h3 = REAL_MAX;
     d = x - Botx; // vector from bottom to ray
-    if(glm::dot(Botn, d) > REAL_EPSILON){
+    if(glm::dot(Botn, d) >= RL(0.0)){
         d0 = x0 - Botx; // vector from bottom node to ray origin
         h3 = -glm::dot(d0, Botn) / glm::dot(urayt, Botn);
     }
@@ -89,10 +93,10 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     if(STD::abs(urayt.x) > REAL_EPSILON){
         if(x.x < rSeg.x){
             h4 = -(x0.x - rSeg.x) / urayt.x;
-            // printf("Lower bound SSP R %g > r %g; h4 = %g\n", rSeg.x, x.x, h4);
+            // printf("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.x, x.x, h4);
         }else if(x.x > rSeg.y){
             h4 = -(x0.x - rSeg.y) / urayt.x;
-            // printf("Upper bound SSP R %g < r %g; h4 = %g; rTopSeg up %g; rBotSeg up %g; ssp r up %g\n",
+            // printf("Farther bound SSP R %g < r %g; h4 = %g; rTopSeg up %g; rBotSeg up %g; ssp r up %g\n",
             //     rSeg.y, x.x, h4, rTopSeg.y, rBotSeg.y,
             //     ssp->Type == 'Q' ? ssp->Seg.r[iSegr0+1] : INFINITY);
         }
@@ -142,18 +146,22 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
             h = (ssp->z[iSegz0]     - x0.y) / urayt.y;
             x2.x = x0.x + h * urayt.x;
             x2.y = ssp->z[iSegz0];
-            // printf("StepToBdry2D lower depth h %g to (%g,%g)\n", h, x2.x, x2.y);
+            // printf("StepToBdry2D upper depth h %g to (%g,%g)\n", h, x2.x, x2.y);
         }else if(ssp->z[iSegz0 + 1] < x2.y){
             h = (ssp->z[iSegz0 + 1] - x0.y) / urayt.y;
             x2.x = x0.x + h * urayt.x;
             x2.y = ssp->z[iSegz0 + 1];
-            // printf("StepToBdry2D upper depth h %g to (%g,%g)\n", h, x2.x, x2.y);
+            // printf("StepToBdry2D lower depth h %g to (%g,%g)\n", h, x2.x, x2.y);
         }
     }
     
     // top crossing
     d = x2 - Topx; // vector from top to ray
-    if(glm::dot(Topn, d) > REAL_EPSILON){
+    // Originally, this value had to be > a small positive number, meaning the
+    // new step really had to be outside the boundary, not just to the boundary.
+    // Also, this is not missing a normalization factor, Topn is normalized so
+    // this is actually the distance above the top in meters.
+    if(glm::dot(Topn, d) > -INFINITESIMAL_STEP_SIZE){
         d0 = x0 - Topx; // vector from top node to ray origin
         h = -glm::dot(d0, Topn) / glm::dot(urayt, Topn);
         x2 = x0 + h * urayt;
@@ -169,7 +177,8 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
     
     // bottom crossing
     d = x2 - Botx; // vector from bottom to ray
-    if(glm::dot(Botn, d) > REAL_EPSILON){
+    // See comment above for top case.
+    if(glm::dot(Botn, d) > -INFINITESIMAL_STEP_SIZE){
         d0 = x0 - Botx; // vector from bottom node to ray origin
         h = -glm::dot(d0, Botn) / glm::dot(urayt, Botn);
         x2 = x0 + h * urayt;

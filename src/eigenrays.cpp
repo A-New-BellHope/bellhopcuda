@@ -20,17 +20,23 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "raymode.hpp"
 
 #include <atomic>
+#include <mutex>
 #include <thread>
 #include <vector>
 
 namespace bhc {
 
 static std::atomic<uint32_t> jobID;
+static std::mutex exceptionMutex;
+static std::string exceptionStr;
 
 void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
 {
     ray2DPt *localmem = nullptr;
     if(IsRayCopyMode(outputs.rayinfo)) localmem = new ray2DPt[MaxN];
+    
+    try{
+    
     while(true){
         uint32_t job = jobID++;
         if(job >= outputs.eigen->neigen) break;
@@ -49,6 +55,12 @@ void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
                 hit->isrc, hit->ialpha, hit->is, Nsteps);
         }
     }
+    
+    }catch(const std::exception &e){
+        std::lock_guard<std::mutex> lock(exceptionMutex);
+        exceptionStr += std::string(e.what()) + "\n";
+    }
+    
     if(IsRayCopyMode(outputs.rayinfo)) delete[] localmem;
 }
 
@@ -64,6 +76,8 @@ void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs,
     for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(EigenModePostWorker,
         std::cref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
+    
+    if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
     
     FinalizeRayMode(outputs.rayinfo, FileRoot, params);
 }

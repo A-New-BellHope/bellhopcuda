@@ -86,7 +86,7 @@ bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
     }catch(const std::exception &e){
         api_okay = false;
         PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
-        PRTFile << e.what() << "\n";
+        PRTFile << "Exception caught:\n" << e.what() << "\n";
     }
     
     return api_okay;
