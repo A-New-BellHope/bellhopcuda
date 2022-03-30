@@ -29,6 +29,11 @@ if [[ $1 != "ray" && $1 != "tl" && $1 != "eigen" && $1 != "arr" ]]; then
 fi
 runtype=$1
 
+if [[ $2 == *.txt ]]; then
+    echo "BELLHOP syntax prohibits including the file extension on input files (drop the .txt)"
+    exit 1
+fi
+
 ignore=0
 if [[ $3 == "ignore" || $4 == "ignore" ]]; then
     ignore=1
@@ -112,7 +117,10 @@ run_test () {
     echo $runname
     ./bin/bellhopcuda test/cuda/$1
     check_fail $? $runname $1
-    if [[ $runtype == "tl" ]]; then
+    if [[ $runtype == "ray" ]]; then
+        python3 compare_ray.py $1
+        m_check_fail $? $1
+    elif [[ $runtype == "tl" ]]; then
         python3 compare_shdfil.py $1
         m_check_fail $? $1
     elif [[ $runtype == "arr" ]]; then
