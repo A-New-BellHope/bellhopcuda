@@ -528,7 +528,9 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                     n     = nA     + w * (nB - nA);
                     nSq   = SQ(n);
                     if(gamma.imag() > 0){
+                        #ifndef BHC_USE_FLOATS
                         printf("Unbounded beam\n");
+                        #endif
                         continue;
                     }
                     
@@ -634,7 +636,9 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
         gamma = gamma0     + w * (gamma1     - gamma0);
         
         if(gamma.imag() > FL(0.0)){
+            #ifndef BHC_USE_FLOATS
             printf("Unbounded beam\n");
+            #endif
             continue;
         }
         

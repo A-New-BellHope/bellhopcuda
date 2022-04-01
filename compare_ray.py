@@ -27,8 +27,13 @@ if len(sys.argv) != 2:
     print('No path, no .ray')
     sys.exit(1)
 
-thresh_rel_print = 1e-6
-thresh_rel_alarm = 1e-3
+use_float = True
+if use_float:
+    thresh_rel_print = 1e-4
+    thresh_rel_alarm = 1e-2
+else:
+    thresh_rel_print = 1e-6
+    thresh_rel_alarm = 1e-3
 
 def compare_files(cxxf, forf):
     def compare_lines(cxxl, forl):
@@ -92,8 +97,6 @@ def compare_files(cxxf, forf):
         if not res:
             cxxl2 = cxxf.readline().strip()
             forl2 = forf.readline().strip()
-            cxx_num += 1
-            for_num += 1
             if compare_lines(cxxl, forl2):
                 print('Extra FOR line {}: {}'.format(for_num, forl))
                 cxx_read = False
@@ -106,6 +109,8 @@ def compare_files(cxxf, forf):
                 print('Ray files failed to match\nCXX line {}: {}\nFOR line {}: {}'.format(
                     cxx_num, cxxl, for_num, forl))
                 sys.exit(1)
+            cxx_num += 1
+            for_num += 1
 
 cxx1file = 'test/cxx1/{}.ray'.format(sys.argv[1])
 forfile = 'test/FORTRAN/{}.ray'.format(sys.argv[1])
