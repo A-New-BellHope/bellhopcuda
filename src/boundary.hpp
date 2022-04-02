@@ -194,13 +194,17 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
     }
 }
 
-inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
-    PrintFileEmu &PRTFile, BdryInfo *bdinfo)
+template<bool THREED> inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
+    PrintFileEmu &PRTFile, BdryInfo<THREED> *bdinfo)
 {
     switch(TopATI){
     case '~':
     case '*':{
-        PRTFile << "__________________________________________________________________________\n\n";
+        if constexpr(THREED){
+            PRTFile << "*********************************\n";
+        }else{
+            PRTFile << "__________________________________________________________________________\n\n";
+        }
         PRTFile << "Using top-altimetry file\n";
         
         LDIFile ATIFile(FileRoot + ".ati");
@@ -210,72 +214,139 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
             std::abort();
         }
         
-        LIST(ATIFile); ATIFile.Read(bdinfo->atiType, 2);
+        LIST(ATIFile); ATIFile.Read(bdinfo->atiType, THREED ? 1 : 2);
+        if constexpr(THREED) bdinfo->atiType[1] = ' ';
         switch(bdinfo->atiType[0]){
+        case 'R':
+            if constexpr(THREED){
+                PRTFile << "Regular grid for a 3D run\n";
+            }else{
+                PRTFile << "atiType R not supported for 2D runs\n"; std::abort();
+            }
+            break;
         case 'C':
-            PRTFile << "Curvilinear Interpolation\n"; break;
+            if constexpr(THREED){
+                PRTFile << "Regular grid for a 3D run (curvilinear)\n";
+            }else{
+                PRTFile << "Curvilinear Interpolation\n";
+            }
+            break;
         case 'L':
-            PRTFile << "Piecewise linear interpolation\n"; break;
+            if constexpr(THREED){
+                PRTFile << "atiType L not supported for 3D runs\n"; std::abort();
+            }else{
+                PRTFile << "Piecewise linear interpolation\n";
+            }
+            break;
         default:
             std::cout << "ReadATI: Unknown option for selecting altimetry interpolation\n";
             std::abort();
         }
         
-        LIST(ATIFile); ATIFile.Read(bdinfo->NATIPts);
-        PRTFile << "Number of altimetry points = " << bdinfo->NATIPts << "\n";
-        bdinfo->NATIPts += 2; // we'll be extending the altimetry to infinity to the left and right
-        
-        checkallocate(bdinfo->Top, bdinfo->NATIPts);
-        
-        PRTFile << "\n Range (km)  Depth (m)\n";
-        
-        for(int32_t ii=1; ii<bdinfo->NATIPts-1; ++ii){
-            switch(bdinfo->atiType[1]){
-            case 'S':
-            case ' ':
-                LIST(ATIFile); ATIFile.Read(bdinfo->Top[ii].x);
-                // LP: This condition was previously ii == bdinfo->NATIPts - 1,
-                // which will never be satisfied due to the loop bounds
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts - 2){ // echo some values
-                    PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << "\n";
+        if constexpr(THREED){
+            // x values
+            LIST(ATIFile); ATIFile.Read(bdinfo->NATIPts.x);
+            PRTFile << "\nNumber of altimetry points in x-direction " << bdinfo->NATIPts.x << "\n";
+            
+            real *TopGlobalx = allocate<real>(std::max(bdinfo->NATIPts.x, 3));
+            TopGlobalx[2] = FL(-999.9);
+            LIST(ATIFile); ATIFile.Read(TopGlobalx, bdinfo->NATIPts.x);
+            SubTab(TopGlobalx, bdinfo->NATIPts.x);
+            EchoVector(TopGlobalx, bdinfo->NATIPts.x, PRTFile, Bdry_Number_to_Echo);
+            
+            // y values
+            LIST(ATIFile); ATIFile.Read(bdinfo->NATIPts.y);
+            PRTFile << "\nNumber of altimetry points in y-direction " << bdinfo->NATIPts.y << "\n";
+            
+            real *TopGlobaly = allocate<real>(std::max(bdinfo->NATIPts.y, 3));
+            TopGlobaly[2] = FL(-999.9);
+            LIST(ATIFile); ATIFile.Read(TopGlobaly, bdinfo->NATIPts.y);
+            SubTab(TopGlobalx, bdinfo->NATIPts.y);
+            EchoVector(TopGlobalx, bdinfo->NATIPts.y, PRTFile, Bdry_Number_to_Echo);
+            
+            // convert km to m
+            for(int32_t i=0; i<bdinfo->NATIPts.x; ++i) TopGlobalx[i] *= FL(1000.0);
+            for(int32_t i=0; i<bdinfo->NATIPts.y; ++i) TopGlobaly[i] *= FL(1000.0);
+            
+            // z values
+            checkallocate(bdinfo->Top, bdinfo->NATIPts.x * bdinfo->NATIPts.y);
+            
+            PRTFile << "\n";
+            bool warnedNaN = false;
+            for(int32_t iy=0; iy<bdinfo->NATIPts.y; ++iy){
+                LIST(ATIFile); // read a row of depths
+                for(int32_t ix=0; ix<bdinfo->NATIPts.x; ++ix){
+                    vec3 &x = bdinfo->Top[ix*bdinfo->NATIPts.y+iy].x;
+                    ATIFile.Read(x.z);
+                    if(!std::isfinite(x.z) && !warnedNaN){
+                        PRTFile << "Warning in " BHC_PROGRAMNAME "3D - ReadATI3D : The altimetry file contains a NaN\n";
+                        warnedNaN = true;
+                    }
+                    x.x = TopGlobalx[ix];
+                    x.y = TopGlobaly[iy];
                 }
-                break;
-            case 'L':
-                LIST(ATIFile); ATIFile.Read(bdinfo->Top[ii].x);
-                ATIFile.Read(bdinfo->Top[ii].hs.alphaR);
-                ATIFile.Read(bdinfo->Top[ii].hs.betaR);
-                ATIFile.Read(bdinfo->Top[ii].hs.rho);
-                ATIFile.Read(bdinfo->Top[ii].hs.alphaI);
-                ATIFile.Read(bdinfo->Top[ii].hs.betaI);
-                // LP: Same change as above
-                if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts - 2){ // echo some values
-                    PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << " "
-                        << bdinfo->Top[ii].hs.alphaR << " "
-                        << bdinfo->Top[ii].hs.betaR << " "
-                        << bdinfo->Top[ii].hs.rho << " "
-                        << bdinfo->Top[ii].hs.alphaI << " "
-                        << bdinfo->Top[ii].hs.betaI << "\n";
+            }
+        }else{
+        
+            LIST(ATIFile); ATIFile.Read(bdinfo->NATIPts);
+            PRTFile << "Number of altimetry points = " << bdinfo->NATIPts << "\n";
+            bdinfo->NATIPts += 2; // we'll be extending the altimetry to infinity to the left and right
+            
+            checkallocate(bdinfo->Top, bdinfo->NATIPts);
+            
+            PRTFile << "\n Range (km)  Depth (m)\n";
+            
+            for(int32_t ii=1; ii<bdinfo->NATIPts-1; ++ii){
+                switch(bdinfo->atiType[1]){
+                case 'S':
+                case ' ':
+                    LIST(ATIFile); ATIFile.Read(bdinfo->Top[ii].x);
+                    // LP: This condition was previously ii == bdinfo->NATIPts - 1,
+                    // which will never be satisfied due to the loop bounds
+                    if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts - 2){ // echo some values
+                        PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << "\n";
+                    }
+                    break;
+                case 'L':
+                    LIST(ATIFile); ATIFile.Read(bdinfo->Top[ii].x);
+                    ATIFile.Read(bdinfo->Top[ii].hs.alphaR);
+                    ATIFile.Read(bdinfo->Top[ii].hs.betaR);
+                    ATIFile.Read(bdinfo->Top[ii].hs.rho);
+                    ATIFile.Read(bdinfo->Top[ii].hs.alphaI);
+                    ATIFile.Read(bdinfo->Top[ii].hs.betaI);
+                    // LP: Same change as above
+                    if(ii < Bdry_Number_to_Echo || ii == bdinfo->NATIPts - 2){ // echo some values
+                        PRTFile << std::setprecision(3) << bdinfo->Top[ii].x << " "
+                            << bdinfo->Top[ii].hs.alphaR << " "
+                            << bdinfo->Top[ii].hs.betaR << " "
+                            << bdinfo->Top[ii].hs.rho << " "
+                            << bdinfo->Top[ii].hs.alphaI << " "
+                            << bdinfo->Top[ii].hs.betaI << "\n";
+                    }
+                    break;
+                default:
+                    std::cout << "ReadATI: Unknown option for selecting altimetry option\n";
+                    std::abort();
                 }
-                break;
-            default:
-                std::cout << "ReadATI: Unknown option for selecting altimetry option\n";
-                std::abort();
+                
+                if(bdinfo->Top[ii].x[1] < DepthT){
+                    std::cout << "BELLHOP:ReadATI: Altimetry rises above highest point in the sound speed profile\n";
+                    std::abort();
+                }
             }
             
-            if(bdinfo->Top[ii].x[1] < DepthT){
-                std::cout << "BELLHOP:ReadATI: Altimetry rises above highest point in the sound speed profile\n";
-                std::abort();
-            }
+            // Convert ranges in km to m
+            for(int32_t i=0; i<bdinfo->NATIPts; ++i) bdinfo->Top[i].x[0] *= FL(1000.0);
+            
         }
-        
-        // Convert ranges in km to m
-        for(int32_t i=0; i<bdinfo->NATIPts; ++i) bdinfo->Top[i].x[0] *= FL(1000.0);
         
         }break;
     default:
         checkallocate(bdinfo->Top, 2);
         bdinfo->Top[0].x = vec2(-STD::sqrt(REAL_MAX) / FL(1.0e5), DepthT);
         bdinfo->Top[1].x = vec2( STD::sqrt(REAL_MAX) / FL(1.0e5), DepthT);
+        
+        TODO; //skip things below for 3D
     }
     
     ComputeBdryTangentNormal(bdinfo->Top, true, bdinfo);
@@ -284,6 +355,8 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         std::cout << "BELLHOP:ReadATI: Altimetry ranges are not monotonically increasing\n";
         std::abort();
     }
+    
+    TODO; //don't forget extra function end in 3D
 }
 
 inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,

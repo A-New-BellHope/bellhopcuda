@@ -38,6 +38,7 @@ using real = double;
 
 using vec2 = glm::vec<2, real, glm::defaultp>;
 using vec3 = glm::vec<3, real, glm::defaultp>;
+using int2 = glm::vec<2, int32_t, glm::defaultp>;
 
 using cpx = STD::complex<real>;
 using cpxf = STD::complex<float>;

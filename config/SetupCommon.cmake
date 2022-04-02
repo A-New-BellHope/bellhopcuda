@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
-set(CMAKE_CXX_STANDARD 14) # C++14
+set(CMAKE_CXX_STANDARD 17) # C++17
 set(CMAKE_CXX_STANDARD_REQUIRED ON) # ...is required
 set(CMAKE_CXX_EXTENSTIONS OFF) # ...without compiler extensions like gnu++11
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Necessary to build shared libraries

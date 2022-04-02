@@ -24,6 +24,13 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+template<bool THREED> struct TmplVec23 {};
+template<> struct TmplVec23<false> { typedef vec2 type; };
+template<> struct TmplVec23<true>  { typedef vec3 type; };
+template<bool THREED> struct TmplInt12 {};
+template<> struct TmplInt12<false> { typedef int32_t type; };
+template<> struct TmplInt12<true>  { typedef int2 type; };
+
 ////////////////////////////////////////////////////////////////////////////////
 //SSP / Boundary
 ////////////////////////////////////////////////////////////////////////////////
@@ -66,23 +73,52 @@ struct BdryType {
     BdryPtSmall Top, Bot;
 };
 
-struct BdryPtFull {
-    vec2 x, t, n; // coordinate, tangent, and outward normal for a segment
-    vec2 Nodet, Noden; // tangent and normal at the node, if the curvilinear option is used
-    real Len, kappa; // length and curvature of a segement
+struct BdryPtFull2DExtras {
+    vec2 Nodet; // tangent at the node, if the curvilinear option is used
+    real kappa; // curvature of a segement
     real Dx, Dxx, Dss; // first, second derivatives wrt depth; s is along tangent
     HSInfo hs;
+};
+struct BdryPtFull3DExtras {
+    vec3 n1, n2; // normals for each of the triangles in a pair, n is selected from those
+    vec3 Noden_unscaled;
+    real kappa_xx, kappa_xy, kappa_yy;
+    real z_xx, z_xy, z_yy;
+    real phi_xx, phi_xy, phi_yy;
+};
+template<bool THREED> struct BdryPtFull 
+    : public conditional_t<THREED, BdryPtFull3DExtras, BdryPtFull2DExtras>
+{
+    using VEC = TmplVec23<THREED>::type;
+    VEC x; // 2D: coordinate for a segment / 3D: coordinate of boundary
+    VEC t; // 2D: tangent for a segment / 3D: tangent for a facet
+    VEC n; // 2D: outward normal for a segment / 3D: normal for a facet (outward pointing)
+    VEC Noden; // normal at the node, if the curvilinear option is used
+    real Len; // 2D: length of a segment / 3D: length of tangent (temporary variable to normalize tangent)
 };
 
 /**
  * LP: There are two boundary structures. This one represents data in the
  * FORTRAN which was not within any structure, and is called bdinfo.
  */
-struct BdryInfo {
-    int32_t NATIPts, NBTYPts;
-    char atiType[2];
-    char btyType[2];
-    BdryPtFull *Top, *Bot;
+template<bool THREED> struct BdryInfo {
+    using IORI2 = TmplInt12<THREED>::type;
+    IORI2 NATIPts, NBTYPts;
+    char atiType[2]; // In 3D, only first char
+    char btyType[2]; // In 3D, only first char
+    BdryPtFull<THREED> *Top, *Bot; // 2D: 1D arrays / 3D: 2D arrays
+};
+
+/**
+ * LP: Variables holding current state of active segment(s) ray is in.
+ */
+template<bool THREED> struct BdryState {
+    using VEC = TmplVec23<THREED>::type;
+    int32_t IsegTop, IsegBot; // 2D only: indices that point to the current active segment
+    int32_t IsegTopx, IsegTopy, IsegBotx, IsegBoty; // 3D only
+    vec2 rTopSeg, rBotSeg; // 2D only
+    vec2 xTopSeg, yTopSeg, xBotSeg, yBotSeg; //3D only
+    VEC Topx, Botx, Topn, Botn; // only explicitly written in 3D, but effectively present in 2D
 };
 
 ////////////////////////////////////////////////////////////////////////////////
