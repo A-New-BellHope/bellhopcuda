@@ -80,7 +80,7 @@ struct BdryPtFull2DExtras {
     HSInfo hs;
 };
 struct BdryPtFull3DExtras {
-    vec3 n1, n2; // normals for each of the triangles in a pair, n is selected from those
+    vec3 n1, n2; // (outward-pointing) normals for each of the triangles in a pair, n is selected from those
     vec3 Noden_unscaled;
     real kappa_xx, kappa_xy, kappa_yy;
     real z_xx, z_xy, z_yy;
@@ -97,28 +97,38 @@ template<bool THREED> struct BdryPtFull
     real Len; // 2D: length of a segment / 3D: length of tangent (temporary variable to normalize tangent)
 };
 
+template<bool THREED> struct BdryInfoTopBot {
+    using IORI2 = TmplInt12<THREED>::type;
+    IORI2 NPts;
+    char type[2]; // In 3D, only first char is used
+    BdryPtFull<THREED> *bd; // 2D: 1D array / 3D: 2D array
+};
 /**
  * LP: There are two boundary structures. This one represents data in the
  * FORTRAN which was not within any structure, and is called bdinfo.
  */
 template<bool THREED> struct BdryInfo {
-    using IORI2 = TmplInt12<THREED>::type;
-    IORI2 NATIPts, NBTYPts;
-    char atiType[2]; // In 3D, only first char
-    char btyType[2]; // In 3D, only first char
-    BdryPtFull<THREED> *Top, *Bot; // 2D: 1D arrays / 3D: 2D arrays
+    BdryInfoTopBot top, bot;
 };
 
+struct BdryLimits { float min, max; };
+struct BdryLimits2 { BdryLimits x, y; };
+template<bool THREED> struct BdryLimits12 {};
+template<> struct TmplBdryLimits12<false> { typedef BdryLimits type; };
+template<> struct TmplBdryLimits12<true>  { typedef BdryLimits2 type; };
+template<bool THREED> struct BdryStateTopBot {
+    using IORI2 = TmplInt12<THREED>::type;
+    using VEC = TmplVec23<THREED>::type;
+    using LIMITS = TmplBdryLimits12<THREED>::type;
+    IORI2 Iseg; // indices that point to the current active segment
+    LIMITS lSeg; // LP: limits of current segment
+    VEC x, n; // only explicitly written in 3D, but effectively present in 2D
+};
 /**
  * LP: Variables holding current state of active segment(s) ray is in.
  */
 template<bool THREED> struct BdryState {
-    using VEC = TmplVec23<THREED>::type;
-    int32_t IsegTop, IsegBot; // 2D only: indices that point to the current active segment
-    int32_t IsegTopx, IsegTopy, IsegBotx, IsegBoty; // 3D only
-    vec2 rTopSeg, rBotSeg; // 2D only
-    vec2 xTopSeg, yTopSeg, xBotSeg, yBotSeg; //3D only
-    VEC Topx, Botx, Topn, Botn; // only explicitly written in 3D, but effectively present in 2D
+    BdryStateTopBot top, bot;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
