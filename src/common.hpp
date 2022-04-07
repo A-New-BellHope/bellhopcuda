@@ -211,6 +211,10 @@ template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v){
 	return STD::abs(STD::nextafter(v, (REAL)(0.0f)) - v);
 }
 
+inline HOST_DEVICE bool isfinite(const vec3 &v){
+    return STD::isfinite(v.x) && STD::isfinite(v.y) && STD::isfinite(v.z);
+}
+
 //max/min are not handled the same way as other math functions by the C++
 //standard library and therefore also by libcu++. These versions make sure
 //to use the underlying function with the correct precision.

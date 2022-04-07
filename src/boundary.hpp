@@ -38,135 +38,349 @@ template<> struct bdry_big<false> { HOST_DEVICE inline real value() { return STD
  * that if the ray moves slightly along its current direction, it will remain
  * in the same segment.
  * state.lSeg: segment limits in range
+ * 
+ * LP: BUG: Function comment in 3D forgot to be changed when copy-pasted from 2D.
  */
-template<bool THREED> HOST_DEVICE inline void GetBdrySeg(real r, real t, 
+template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
+    BdryStateTopBot<THREED>::VEC x, BdryStateTopBot<THREED>::VEC t, 
     BdryStateTopBot<THREED> &bds, const BdryInfoTopBot<THREED> *bdinfotb,
     bool isTop)
 {
-    // LP: bdinfotb->bd.x is checked for being monotonic at load time, so we can
-    // linearly search out from the last position, usually only have to move
-    // by 1
-    int32_t n = bdinfotb->NPts;
-    bds.Iseg = bhc::max(bds.Iseg, 0);
-    bds.Iseg = bhc::min(bds.Iseg, n-2);
-    if(t >= FL(0.0)){
-        while(bds.Iseg >= 0 && bdinfotb->bd[bds.Iseg].x.x > r) --bds.Iseg;
-        while(bds.Iseg >= 0 && bds.Iseg < n-1 && bdinfotb->bd[bds.Iseg+1].x.x <= r) ++bds.Iseg;
+    if constexpr(THREED){
+        
+        // LP: BUG/TODO: BELLHOP3D has the same edge case problems as 2D did:
+        // both endpoints are allowed in the initial check but then only one is
+        // allowed when searching, furthermore if the ray goes out of bounds
+        // it is only a warning, and the old values are used (possibly
+        // uninitialized or from a previous ray).
+        
+        int32_t nx = bdinfotb->NPts.x;
+        int32_t ny = bdinfotb->NPts.x;
+        bds.Iseg.x = bhc::min(bhc::max(bds.Iseg.x, 0), nx-2);
+        bds.Iseg.y = bhc::min(bhc::max(bds.Iseg.y, 0), ny-2);
+        if(t.x >= FL(0.0)){
+            while(bds.Iseg.x >= 0   && bdinfotb->bd[(bds.Iseg.x  )*ny].x.x >  x.x) --bds.Iseg.x;
+            while(bds.Iseg.x >= 0   && bds.Iseg.x < nx-1 && bdinfotb->bd[(bds.Iseg.x+1)*ny].x.x <= x.x) ++bds.Iseg.x;
+        }else{
+            while(bds.Iseg.x < nx-1 && bdinfotb->bd[(bds.Iseg.x+1)*ny].x.x <  x.x) ++bds.Iseg.x;
+            while(bds.Iseg.x >= 0   && bds.Iseg.x < nx-1 && bdinfotb->bd[(bds.Iseg.x  )*ny].x.x >= x.x) --bds.Iseg.x;
+        }
+        if(t.y >= FL(0.0)){
+            while(bds.Iseg.y >= 0   && bdinfotb->bd[bds.Iseg.y  ].x.x >  x.x) --bds.Iseg.x;
+            while(bds.Iseg.y >= 0   && bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y+1].x.x <= x.x) ++bds.Iseg.x;
+        }else{
+            while(bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y+1].x.x <  x.x) ++bds.Iseg.x;
+            while(bds.Iseg.y >= 0   && bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y  ].x.x >= x.x) --bds.Iseg.x;
+        }
+        if(bds.Iseg.x < 0 || bds.Iseg.x >= nx-1 || bds.Iseg.y < 0 || bds.Iseg.y >= ny-1){
+            printf("Error: Get%s the ray, x=(%g,%g)\n",
+                isTop ? "TopSeg3D: Top altimetry undefined above" : 
+                "BotSeg3D: Bottom bathymetry undefined below", x.x, x.y);
+            bail();
+        }
+        bds.lSeg.x.min = bdinfotb->bd[(bds.Iseg.x  )*ny].x.x;
+        bds.lSeg.x.max = bdinfotb->bd[(bds.Iseg.x+1)*ny].x.x;
+        bds.lSeg.y.min = bdinfotb->bd[bds.Iseg.y  ].x.y;
+        bds.lSeg.y.max = bdinfotb->bd[bds.Iseg.y+1].x.y;
+        
+        bds.x = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].x;
+        
+        // identify the normal based on the active triangle of a pair
+        
+        vec2 Top_tri_n = vec2(-(bds.lSeg.y.max - bds.lSeg.y.min), bds.lSeg.x.max - bds.lSeg.x.min);
+        
+        if(glm::dot(vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y), Top_tri_n) < RL(0.0)){
+            bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n1;
+        }else{
+            bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n2;
+        }
+        
+        // if the Top depth is bad (a NaN) then set the segment flags to indicate that
+        if(!STD::isfinite(bds.x.z) || !bhc::isfinite(bds.n)){
+            bds.Iseg.x = -1;
+            bds.Iseg.y = -1;
+        }
+        
     }else{
-        while(bds.Iseg >= 0 && bds.Iseg < n-1 && bdinfotb->bd[bds.Iseg+1].x.x <  r) ++bds.Iseg;
-        while(bds.Iseg >= 0 && bdinfotb->bd[bds.Iseg].x.x >= r) --bds.Iseg;
+        
+        // LP: bdinfotb->bd.x is checked for being monotonic at load time, so we can
+        // linearly search out from the last position, usually only have to move
+        // by 1
+        int32_t n = bdinfotb->NPts;
+        bds.Iseg = bhc::min(bhc::max(bds.Iseg, 0), n-2);
+        if(t.x >= FL(0.0)){
+            while(bds.Iseg >= 0  && bdinfotb->bd[bds.Iseg  ].x.x >  x.x) --bds.Iseg;
+            while(bds.Iseg >= 0  && bds.Iseg < n-1 && bdinfotb->bd[bds.Iseg+1].x.x <= x.x) ++bds.Iseg;
+        }else{
+            while(bds.Iseg < n-1 && bdinfotb->bd[bds.Iseg+1].x.x <  x.x) ++bds.Iseg;
+            while(bds.Iseg >= 0  && bds.Iseg < n-1 && bdinfotb->bd[bds.Iseg  ].x.x >= x.x) --bds.Iseg;
+        }
+        if(bds.Iseg < 0 || bds.Iseg >= n-1){
+            // Iseg MUST LIE IN [0, NPts-2]
+            printf("Error: Get%s the ray, r=%g\n",
+                isTop ? "TopSeg: Top altimetry undefined above" : 
+                "BotSeg: Bottom bathymetry undefined below", x.x);
+            bail();
+        }
+        bds.lSeg.min = bdinfotb->bd[bds.Iseg  ].x.x;
+        bds.lSeg.max = bdinfotb->bd[bds.Iseg+1].x.x;
+        
+        // LP: Only explicitly loaded in this function in 3D, loaded in containing
+        // code in 2D
+        bds.x = bdinfotb->bd[bds.Iseg].x.x;
+        bds.n = bdinfotb->bd[bds.Iseg].x.n;
+        
     }
-    if(bds.Iseg < 0 || bds.Iseg >= n-1){
-        // IsegTop MUST LIE IN [0, NATIPts-2]
-        printf("Error: Get%s undefined above the ray, r=%g\n",
-            isTop ? "TopSeg: Top altimetry" : "BotSeg: Bottom bathymetry", r);
-        bail();
-    }
-    bds.lSeg.min = bdinfotb->bd[bds.Iseg  ].x.x;
-    bds.lSeg.max = bdinfotb->bd[bds.Iseg+1].x.x;
-    
-    // LP: Only explicitly loaded in this function in 3D, loaded in containing
-    // code in 2D
-    bds.x = bdinfotb->bd[bds.Iseg].x.x;
-    bds.n = bdinfotb->bd[bds.Iseg].x.n;
 }
 
 /**
  * Does some pre-processing on the boundary points to pre-compute segment
- * lengths  (%Len),
- * tangents (%t, %nodet),
- * normals  (%n, %noden), and
- * curvatures (%kappa)
+ * lengths  (.Len),
+ * tangents (.t, .nodet),
+ * normals  (.n, .noden), and
+ * curvatures (.kappa)
  *
- * The boundary is also extended with a constant depth to infinity to cover cases where the ray
- * exits the domain defined by the user
+ * [LP: 2D only:] The boundary is also extended with a constant depth to
+ * infinity to cover cases where the ray exits the domain defined by the user
  */
-inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdryInfo)
+template<bool THREED> inline void ComputeBdryTangentNormal(
+    BdryInfoTopBot<THREED> *bd, bool isTop)
 {
-    int32_t NPts = 0;
-    real *phi;
-    real sss;
-    char CurvilinearFlag = '-';
+    BdryInfoTopBot<THREED>::IORI2 NPts = bd->NPts;
+    vec3 tvec;
+    real Len;
     
-    if(!isTop){
-        NPts = bdryInfo->NBTYPts;
-        CurvilinearFlag = bdryInfo->btyType[0];
+    if constexpr(THREED){
+        
+        // normals on triangle faces
+        for(int32_t ix=0; ix<NPts.x - 1; ++ix){
+            for(int32_t iy=0; iy<NPts.y - 1; ++iy){
+                // coordinates of corner nodes, moving counter-clockwise around the rectangle
+                vec3 p1 = bd->bd[(ix  )*NPts.y+iy  ].x;
+                vec3 p2 = bd->bd[(ix+1)*NPts.y+iy  ].x;
+                vec3 p3 = bd->bd[(ix+1)*NPts.y+iy+1].x;
+                vec3 p4 = bd->bd[(ix  )*NPts.y+iy+1].x;
+                
+                // edges for triangle 1
+                vec3 u = p2 - p1; // tangent along one edge
+                vec3 v = p3 - p1; // tangent along another edge
+                
+                // normal vector is the cross-product of the edge tangents
+                vec3 n1 = glm::cross(u, v);
+                if(isTop) n1 = -n1;
+                
+                bd->bd[ix*NPts.y+iy].n1 = n1 / glm::length(n1); // scale to make it a unit normal
+                
+                // edges for triangle 2
+                u = p3 - p1; // tangent along one edge
+                v = p4 - p1; // tangent along another edge
+                
+                // normal vector is the cross-product of the edge tangents
+                vec3 n2 = glm::cross(u, v);
+                if(isTop) n2 = -n2;
+                
+                bd->bd[ix*NPts.y+iy].n2 = n2 / glm::length(n2); // scale to make it a unit normal
+            }
+        }
+        
+        // normals at nodes
+        // use forward, centered, or backward difference formulas
+        for(int32_t ix=0; ix<NPts.x; ++ix){
+            for(int32_t iy=0; iy<NPts.y; ++iy){
+                real mx, my;
+                if(ix == 0){
+                    mx = (bd->bd[(ix+1)*NPts.y+iy  ].x.z - bd->bd[(ix  )*NPts.y+iy  ].x.z) /
+                         (bd->bd[(ix+1)*NPts.y+iy  ].x.x - bd->bd[(ix  )*NPts.y+iy  ].x.x);
+                }else if(ix == Npts.x - 1){
+                    mx = (bd->bd[(ix  )*NPts.y+iy  ].x.z - bd->bd[(ix-1)*NPts.y+iy  ].x.z) /
+                         (bd->bd[(ix  )*NPts.y+iy  ].x.x - bd->bd[(ix-1)*NPts.y+iy  ].x.x);
+                }else{
+                    mx = (bd->bd[(ix+1)*NPts.y+iy  ].x.z - bd->bd[(ix-1)*NPts.y+iy  ].x.z) /
+                         (bd->bd[(ix+1)*NPts.y+iy  ].x.x - bd->bd[(ix-1)*NPts.y+iy  ].x.x);
+                }
+                
+                if(iy == 0){
+                    mx = (bd->bd[(ix  )*NPts.y+iy+1].x.z - bd->bd[(ix  )*NPts.y+iy  ].x.z) /
+                         (bd->bd[(ix  )*NPts.y+iy+1].x.y - bd->bd[(ix  )*NPts.y+iy  ].x.y);
+                }else if(iy == Npts.y - 1){
+                    mx = (bd->bd[(ix  )*NPts.y+iy  ].x.z - bd->bd[(ix  )*NPts.y+iy-1].x.z) /
+                         (bd->bd[(ix  )*NPts.y+iy  ].x.y - bd->bd[(ix  )*NPts.y+iy-1].x.y);
+                }else{
+                    mx = (bd->bd[(ix  )*NPts.y+iy+1].x.z - bd->bd[(ix  )*NPts.y+iy-1].x.z) /
+                         (bd->bd[(ix  )*NPts.y+iy+1].x.y - bd->bd[(ix  )*NPts.y+iy-1].x.y);
+                }
+                
+                vec3 n = vec3(-mx, -my, RL(1.0)); // this is a normal to the surface
+                
+                if(ix < NPts.x - 1 && iy < NPts.y - 1){
+                    // xx term
+                    bd->bd[(ix  )*NPts.y+iy  ].phi_xx = STD::atan2(n.z, n.x); // this is the angle at each node
+                    
+                    // xy term
+                    tvec = bd->bd[(ix+1)*NPts.y+iy+1].x - bd->bd[(ix  )*NPts.y+iy  ].x;
+                    Len = STD::sqrt(SQ(tvec.x) + SQ(tvec.y));
+                    tvec /= Len;
+                    // this is the angle at each node
+                    bd->bd[(ix  )*NPts.y+iy  ].phi_xy = STD::atan2(n.z, n.x * tvec.x + n.y * tvec.y);
+                    
+                    // yy term
+                    bd->bd[(ix  )*NPts.y+iy  ].phi_yy = STD::atan2(n.z, n.y); // this is the angle at each node
+                }
+                
+                bd->bd[(ix  )*NPts.y+iy  ].Noden_unscaled = n;
+                bd->bd[(ix  )*NPts.y+iy  ].Noden = n / glm::length(n);
+            }
+        }
+        
     }else{
-        NPts = bdryInfo->NATIPts;
-        CurvilinearFlag = bdryInfo->atiType[0];
-    }
     
-    // extend the bathymetry to +/- infinity in a piecewise constant fashion
+        // extend the bathymetry to +/- infinity in a piecewise constant fashion
 
-    Bdry[0     ].x[0] = -BDRYBIG;
-    Bdry[0     ].x[1] = Bdry[1     ].x[1];
-    Bdry[0     ].hs   = Bdry[1     ].hs;
-    Bdry[NPts-1].x[0] =  BDRYBIG;
-    Bdry[NPts-1].x[1] = Bdry[NPts-2].x[1];
-    Bdry[NPts-1].hs   = Bdry[NPts-2].hs;
-    
-    // compute tangent and outward-pointing normal to each bottom segment
-    // tBdry[0][:] = xBdry[0][1:NPts-1] - xBdry[0][0:NPts-2]
-    // tBdry[1][:] = xBdry[1][1:NPts-1] - xBdry[1][0:NPts-2]
-    // above caused compiler problems
-    // LP: C++ obviously does not have vector slicing, but you get the idea.
-    
-    for(int32_t ii=0; ii<NPts-1; ++ii){
-        Bdry[ii].t  = Bdry[ii+1].x - Bdry[ii].x;
-        Bdry[ii].Dx = Bdry[ii].t[1] / Bdry[ii].t[0]; // first derivative
-        // std::cout << "Dx, t " << Bdry[ii].Dx << " " << Bdry[ii].x << " " << (FL(1.0) / (Bdry[ii].x[1] / FL(500.0)) << "\n";
+        bd->bd[0     ].x[0] = -BDRYBIG;
+        bd->bd[0     ].x[1] = bd->bd[1     ].x[1];
+        bd->bd[0     ].hs   = bd->bd[1     ].hs;
+        bd->bd[NPts-1].x[0] =  BDRYBIG;
+        bd->bd[NPts-1].x[1] = bd->bd[NPts-2].x[1];
+        bd->bd[NPts-1].hs   = bd->bd[NPts-2].hs;
         
-        // normalize the tangent vector
-        Bdry[ii].Len = glm::length(Bdry[ii].t);
-        Bdry[ii].t  /= Bdry[ii].Len;
-        
-        Bdry[ii].n[0] = (isTop ? RL(1.0) : RL(-1.0)) * Bdry[ii].t[1];
-        Bdry[ii].n[1] = (isTop ? RL(-1.0) : RL(1.0)) * Bdry[ii].t[0];
-    }
-    
-    if(CurvilinearFlag == 'C'){
-        // curvilinear option: compute tangent and normal at node by averaging normals on adjacent segments
-        // averaging two centered differences is equivalent to forming a single centered difference of two steps ...
-        for(int32_t ii=1; ii<NPts-1; ++ii){
-            sss = Bdry[ii-1].Len / (Bdry[ii-1].Len + Bdry[ii].Len);
-            sss = FL(0.5); // LP: BUG? Line above is overwritten.
-            Bdry[ii].Nodet = (FL(1.0) - sss) * Bdry[ii-1].t + sss * Bdry[ii].t;
-        }
-        
-        Bdry[0     ].Nodet = vec2(FL(1.0), FL(0.0)); // tangent left-end  node
-        Bdry[NPts-1].Nodet = vec2(FL(1.0), FL(0.0)); // tangent right-end node
-        
-        for(int32_t ii=0; ii<NPts; ++ii){
-            Bdry[ii].Noden[0] = (isTop ? RL(1.0) : RL(-1.0)) * Bdry[ii].Nodet[1];
-            Bdry[ii].Noden[1] = (isTop ? RL(-1.0) : RL(1.0)) * Bdry[ii].Nodet[0];
-        }
-        
-        // compute curvature in each segment
-        // LP: This allocation is not necessary, could just have two variables for
-        // current and next phi. Operating on the whole array can trigger compiler
-        // SIMD parallelism (AVX-512 etc.), but this is unlikely to happen for
-        // atan2, and this is in one-time setup code anyway.
-        phi = allocate<real>(NPts);
-        // this is the angle at each node
-        for(int32_t i=0; i<NPts; ++i) phi[i] = STD::atan2(Bdry[i].Nodet[1], Bdry[i].Nodet[0]);
+        // compute tangent and outward-pointing normal to each bottom segment
+        // tBdry[0][:] = xBdry[0][1:NPts-1] - xBdry[0][0:NPts-2]
+        // tBdry[1][:] = xBdry[1][1:NPts-1] - xBdry[1][0:NPts-2]
+        // above caused compiler problems
+        // LP: C++ obviously does not have vector slicing, but you get the idea.
         
         for(int32_t ii=0; ii<NPts-1; ++ii){
-            Bdry[ii].kappa = (phi[ii+1] - phi[ii]) / Bdry[ii].Len; // this is curvature = dphi/ds
-            Bdry[ii].Dxx   = (Bdry[ii+1].Dx - Bdry[ii].Dx) / // second derivative
-                             (Bdry[ii+1].x[0] - Bdry[ii].x[0]); 
-            Bdry[ii].Dss   = Bdry[ii].Dxx * CUBE(Bdry[ii].t[0]); // derivative in direction of tangent
-            //std::cout << "kappa, Dss, Dxx " << Bdry[ii].kappa << " " << Bdry[ii].Dss << " " << Bdry[ii].Dxx
-            //    << " " << FL(1.0) / ((FL(8.0) / SQ(FL(1000.0))) * CUBE(STD::abs(Bdry[ii].x[1])))
-            //    << " " << Bdry[ii].x[1] << " "
-            //    << FL(-1.0) / (FL(4.0) * CUBE(Bdry[ii].x[1]) / FL(1000000.0))
-            //    << " " << Bdry[ii].x[1] << "\n";
+            bd->bd[ii].t  = bd->bd[ii+1].x  - bd->bd[ii].x;
+            bd->bd[ii].Dx = bd->bd[ii].t[1] / bd->bd[ii].t[0]; // first derivative
+            // std::cout << "Dx, t " << bd->bd[ii].Dx << " " << bd->bd[ii].x << " " 
+            // << (FL(1.0) / (bd->bd[ii].x[1] / FL(500.0)) << "\n";
             
-            Bdry[ii].kappa = Bdry[ii].Dss; // over-ride kappa !!!!!
+            // normalize the tangent vector
+            bd->bd[ii].Len = glm::length(bd->bd[ii].t);
+            bd->bd[ii].t  /= bd->bd[ii].Len;
+            
+            bd->bd[ii].n[0] = (isTop ? RL(1.0) : RL(-1.0)) * bd->bd[ii].t[1];
+            bd->bd[ii].n[1] = (isTop ? RL(-1.0) : RL(1.0)) * bd->bd[ii].t[0];
         }
         
-        deallocate(phi);
+    }
+    
+    if(bd->type[0] == 'C'){
+        // curvilinear option
+        
+        if constexpr(THREED){
+            // compute derivative as centered difference between two nodes
+            // compute curvatures in each segment
+            
+            // - sign below because the node normal = vec3(-mx, -my, RL(1.0))
+            for(int32_t ix=0; ix<NPts.x; ++ix){
+                for(int32_t iy=0; iy<NPts.y; ++iy){
+                    // z_xx (difference in x of z_x)
+                    bd->bd[ix*NPts.y+iy].z_xx = -(bd->bd[(ix+1)*NPts.y+iy  ].Noden_unscaled.x - bd->bd[(ix  )*NPts.y+iy  ].Noden_unscaled.x) /
+                                                 (bd->bd[(ix+1)*NPts.y+iy  ].x.x              - bd->bd[(ix  )*NPts.y+iy  ].x.x);
+                    
+                    tvec = bd->bd[(ix+1)*NPts.y+iy  ].x - bd->bd[(ix  )*NPts.y+iy  ].x;
+                    Len = STD::sqrt(SQ(tvec.x) + SQ(tvec.z));
+                    // this is curvature = dphi/ds
+                    bd->bd[ix*NPts.y+iy].kappa_xx = (bd->bd[(ix+1)*NPts.y+iy  ].phi_xx - bd->bd[(ix  )*NPts.y+iy  ].phi_xx) / Len;
+                    
+                    // z_xy (difference in y of z_x)
+                    bd->bd[ix*NPts.y+iy].z_xy = -(bd->bd[(ix  )*NPts.y+iy+1].Noden_unscaled.x - bd->bd[(ix  )*NPts.y+iy  ].Noden_unscaled.x) /
+                                                 (bd->bd[(ix  )*NPts.y+iy+1].x.y              - bd->bd[(ix  )*NPts.y+iy  ].x.y);
+                    
+                    // LP: This is overwritten by "new" below.
+                    /*
+                    tvec = bd->bd[(ix+1)*NPts.y+iy+1].x - bd->bd[(ix  )*NPts.y+iy  ].x;
+                    Len = glm::length(tvec);
+                    // this is curvature = dphi/ds
+                    bd->bd[ix*NPts.y+iy].kappa_xy = (bd->bd[(ix+1)*NPts.y+iy+1].phi_xy - bd->bd[(ix  )*NPts.y+iy  ].phi_xy) / Len;
+                    */
+                    
+                    // new
+                    tvec = bd->bd[(ix  )*NPts.y+iy+1].x - bd->bd[(ix  )*NPts.y+iy  ].x;
+                    Len = STD::sqrt(SQ(tvec.y) + SQ(tvec.z));
+                    // this is curvature = dphi/ds
+                    bd->bd[ix*NPts.y+iy].kappa_xy = (bd->bd[(ix  )*NPts.y+iy+1].phi_xx - bd->bd[(ix  )*NPts.y+iy  ].phi_xx) / Len;
+                    
+                    // z_yy (difference in y of z_y)
+                    bd->bd[ix*NPts.y+iy].z_yy = -(bd->bd[(ix  )*NPts.y+iy+1].Noden_unscaled.y - bd->bd[(ix  )*NPts.y+iy  ].Noden_unscaled.y) /
+                                                 (bd->bd[(ix  )*NPts.y+iy+1].x.y              - bd->bd[(ix  )*NPts.y+iy  ].x.y);
+                    
+                    tvec = bd->bd[(ix  )*NPts.y+iy+1].x - bd->bd[(ix  )*NPts.y+iy  ].x;
+                    Len = STD::sqrt(SQ(tvec.y) + SQ(tvec.z));
+                    // this is curvature = dphi/ds
+                    bd->bd[ix*NPts.y+iy].kappa_yy = (bd->bd[(ix  )*NPts.y+iy+1].phi_xx - bd->bd[(ix  )*NPts.y+iy  ].phi_xx) / Len;
+                    
+                    // introduce Len factor per Eq. 4.4.18 in Cerveny's book
+                    Len = glm::length(bd->bd[ix*NPts.y+iy].Noden_unscaled);
+                    bd->bd[ix*NPts.y+iy].z_xx /= Len;
+                    bd->bd[ix*NPts.y+iy].z_xy /= Len;
+                    bd->bd[ix*NPts.y+iy].z_yy /= Len;
+                }
+            }
+            
+        }else{
+        
+            // compute tangent and normal at node by averaging normals on adjacent segments
+            // averaging two centered differences is equivalent to forming a single centered difference of two steps ...
+            for(int32_t ii=1; ii<NPts-1; ++ii){
+                real sss = bd->bd[ii-1].Len / (bd->bd[ii-1].Len + bd->bd[ii].Len);
+                sss = FL(0.5); // LP: BUG? Line above is overwritten.
+                bd->bd[ii].Nodet = (FL(1.0) - sss) * bd->bd[ii-1].t + sss * bd->bd[ii].t;
+            }
+            
+            bd->bd[0     ].Nodet = vec2(FL(1.0), FL(0.0)); // tangent left-end  node
+            bd->bd[NPts-1].Nodet = vec2(FL(1.0), FL(0.0)); // tangent right-end node
+            
+            for(int32_t ii=0; ii<NPts; ++ii){
+                bd->bd[ii].Noden[0] = (isTop ? RL(1.0) : RL(-1.0)) * bd->bd[ii].Nodet[1];
+                bd->bd[ii].Noden[1] = (isTop ? RL(-1.0) : RL(1.0)) * bd->bd[ii].Nodet[0];
+            }
+        
+            // compute curvature in each segment
+            // LP: TODO: This allocation is not necessary, could just have two
+            // variables for current and next phi. Operating on the whole array can
+            // trigger compiler SIMD parallelism (AVX-512 etc.), but this is
+            // unlikely to happen for atan2, and this is in one-time setup code
+            // anyway.
+            real *phi = allocate<real>(NPts);
+            // this is the angle at each node
+            for(int32_t i=0; i<NPts; ++i) phi[i] = STD::atan2(bd->bd[i].Nodet[1], bd->bd[i].Nodet[0]);
+            
+            for(int32_t ii=0; ii<NPts-1; ++ii){
+                bd->bd[ii].kappa = (phi[ii+1] - phi[ii]) / bd->bd[ii].Len; // this is curvature = dphi/ds
+                bd->bd[ii].Dxx   = (bd->bd[ii+1].Dx - bd->bd[ii].Dx) / // second derivative
+                                 (bd->bd[ii+1].x[0] - bd->bd[ii].x[0]); 
+                bd->bd[ii].Dss   = bd->bd[ii].Dxx * CUBE(bd->bd[ii].t[0]); // derivative in direction of tangent
+                //std::cout << "kappa, Dss, Dxx " << bd->bd[ii].kappa << " " << bd->bd[ii].Dss << " " << bd->bd[ii].Dxx
+                //    << " " << FL(1.0) / ((FL(8.0) / SQ(FL(1000.0))) * CUBE(STD::abs(bd->bd[ii].x[1])))
+                //    << " " << bd->bd[ii].x[1] << " "
+                //    << FL(-1.0) / (FL(4.0) * CUBE(bd->bd[ii].x[1]) / FL(1000000.0))
+                //    << " " << bd->bd[ii].x[1] << "\n";
+                
+                bd->bd[ii].kappa = bd->bd[ii].Dss; // over-ride kappa !!!!!
+            }
+            
+            deallocate(phi);
+        
+        }
+        
     }else{
-        for(int32_t i=0; i<NPts; ++i) Bdry[i].kappa = FL(0.0);
+        if constexpr(THREED){
+            for(int32_t ix=0; ix<NPts.x; ++ix){
+                for(int32_t iy=0; iy<NPts.y; ++iy){
+                    bd->bd[ix*NPts.y+iy].z_xx = RL(0.0);
+                    bd->bd[ix*NPts.y+iy].z_xy = RL(0.0);
+                    bd->bd[ix*NPts.y+iy].z_yy = RL(0.0);
+                    
+                    bd->bd[ix*NPts.y+iy].kappa_xx = RL(0.0);
+                    bd->bd[ix*NPts.y+iy].kappa_xy = RL(0.0);
+                    bd->bd[ix*NPts.y+iy].kappa_yy = RL(0.0);
+                }
+            }
+        }else{
+            for(int32_t i=0; i<NPts; ++i) bd->bd[i].kappa = FL(0.0);
+        }
     }
 }
 
@@ -238,6 +452,13 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
             LIST(BDRYFile); BDRYFile.Read(Globalx, bdinfotb->NPts.x);
             SubTab(Globalx, bdinfotb->NPts.x);
             EchoVector(Globalx, bdinfotb->NPts.x, PRTFile, Bdry_Number_to_Echo);
+            // LP: BUG/TODO: This monotonic check is absent from BELLHOP3D,
+            // needed for new GetBdrySeg and even implicitly for GetTop/BotSeg3D
+            if(!monotonic(&Globalx, bdinfotb->NPts.x)){
+                std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
+                    << " X values are not monotonically increasing\n";
+                std::abort();
+            }
             
             // y values
             LIST(BDRYFile); BDRYFile.Read(bdinfotb->NPts.y);
@@ -249,6 +470,13 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
             LIST(BDRYFile); BDRYFile.Read(Globaly, bdinfotb->NPts.y);
             SubTab(Globalx, bdinfotb->NPts.y);
             EchoVector(Globalx, bdinfotb->NPts.y, PRTFile, Bdry_Number_to_Echo);
+            // LP: BUG/TODO: This monotonic check is absent from BELLHOP3D,
+            // needed for new GetBdrySeg and even implicitly for GetTop/BotSeg3D
+            if(!monotonic(&Globaly, bdinfotb->NPts.y)){
+                std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
+                    << " Y values are not monotonically increasing\n";
+                std::abort();
+            }
             
             // convert km to m
             for(int32_t i=0; i<bdinfotb->NPts.x; ++i) Globalx[i] *= FL(1000.0);
@@ -339,7 +567,7 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
                 }
             }
             
-            if(!monotonic(&bdinfotb->bd[0].x.x, bdinfotb->NPts, sizeof(BdryPtFull)/sizeof(real), 0)){
+            if(!monotonic(&bdinfotb->bd[0].x.x, bdinfotb->NPts, sizeof(BdryPtFull<THREED>)/sizeof(real), 0)){
                 std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
                     << " ranges are not monotonically increasing\n";
                 std::abort();
@@ -393,7 +621,7 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
         }
     }
     
-    ComputeBdryTangentNormal(bdinfotb->bd, isTop, bdinfotb);
+    ComputeBdryTangentNormal(bdinfotb, isTop);
     
     // LP: TODO/BUG: 3D version has initialization for xTopSeg / yTopSeg here,
     // which probably also means state is carried over from one ray to the next
