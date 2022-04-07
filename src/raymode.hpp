@@ -27,17 +27,18 @@ namespace bhc {
  */
 HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
     ray2DPt *ray2D, int32_t &Nsteps,
-    const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
+    const BdryType *ConstBdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
-    int32_t IsegTop, IsegBot, iSegz, iSegr;
-    vec2 gradc, rTopSeg, rBotSeg;
+    int32_t iSegz, iSegr;
+    vec2 gradc;
+    BdryState<false> bds;
     BdryType Bdry;
     
     if(!RayInit(isrc, ialpha, SrcDeclAngle, ray2D[0], gradc,
-        DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
+        DistBegTop, DistBegBot, iSegz, iSegr, bds,
         Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo))
     {
         Nsteps = 1;
@@ -49,7 +50,7 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
         is += RayUpdate(ray2D[is], ray2D[is+1], ray2D[is+2], DistEndTop, DistEndBot,
-            IsegTop, IsegBot, rTopSeg, rBotSeg, iSmallStepCtr, iSegz, iSegr,
+            iSmallStepCtr, iSegz, iSegr, bds,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(RayTerminate(ray2D[is], Nsteps, is, DistBegTop, DistBegBot,
             DistEndTop, DistEndBot, Beam)) break;

@@ -38,8 +38,7 @@ namespace bhc {
  * h: reduced step size
  */
 HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
-    int32_t iSegz0, int32_t iSegr0, const vec2 &Topx, const vec2 &Topn,
-    const vec2 &Botx, const vec2 &Botn, const vec2 &rTopSeg, const vec2 &rBotSeg,
+    int32_t iSegz0, int32_t iSegr0, const BdryState<false> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp, 
     real &h, int32_t &iSmallStepCtr)
 {
@@ -66,23 +65,23 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     
     // top crossing
     h2 = REAL_MAX;
-    d = x - Topx; // vector from top to ray
-    if(glm::dot(Topn, d) >= RL(0.0)){
-        d0 = x0 - Topx; // vector from top node to ray origin
-        h2 = -glm::dot(d0, Topn) / glm::dot(urayt, Topn);
+    d = x - bds.top.x; // vector from top to ray
+    if(glm::dot(bds.top.n, d) >= RL(0.0)){
+        d0 = x0 - bds.top.x; // vector from top node to ray origin
+        h2 = -glm::dot(d0, bds.top.n) / glm::dot(urayt, bds.top.n);
     }
     
     // bottom crossing
     h3 = REAL_MAX;
-    d = x - Botx; // vector from bottom to ray
-    if(glm::dot(Botn, d) >= RL(0.0)){
-        d0 = x0 - Botx; // vector from bottom node to ray origin
-        h3 = -glm::dot(d0, Botn) / glm::dot(urayt, Botn);
+    d = x - bds.bot.x; // vector from bottom to ray
+    if(glm::dot(bds.bot.n, d) >= RL(0.0)){
+        d0 = x0 - bds.bot.x; // vector from bottom node to ray origin
+        h3 = -glm::dot(d0, bds.bot.n) / glm::dot(urayt, bds.bot.n);
     }
     
     // top or bottom segment crossing in range
-    rSeg.x = bhc::max(rTopSeg.x, rBotSeg.x);
-    rSeg.y = bhc::min(rTopSeg.y, rBotSeg.y);
+    rSeg.x = bhc::max(bds.top.lSeg.min, bds.bot.lSeg.min);
+    rSeg.y = bhc::min(bds.top.lSeg.max, bds.bot.lSeg.max);
     
     if(ssp->Type == 'Q'){
         rSeg.x = bhc::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
@@ -96,8 +95,8 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
             // printf("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.x, x.x, h4);
         }else if(x.x > rSeg.y){
             h4 = -(x0.x - rSeg.y) / urayt.x;
-            // printf("Farther bound SSP R %g < r %g; h4 = %g; rTopSeg up %g; rBotSeg up %g; ssp r up %g\n",
-            //     rSeg.y, x.x, h4, rTopSeg.y, rBotSeg.y,
+            // printf("Farther bound SSP R %g < r %g; h4 = %g; top.max %g; bot.max %g; ssp r up %g\n",
+            //     rSeg.y, x.x, h4, bds.top.lSeg.max, bds.bot.lSeg.max,
             //     ssp->Type == 'Q' ? ssp->Seg.r[iSegr0+1] : INFINITY);
         }
     }
@@ -130,8 +129,7 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
 
 HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt,
     real &h, bool &topRefl, bool &botRefl,
-    int32_t iSegz0, int32_t iSegr0, const vec2 &Topx, const vec2 &Topn,
-    const vec2 &Botx, const vec2 &Botn, const vec2 &rTopSeg, const vec2 &rBotSeg,
+    int32_t iSegz0, int32_t iSegr0, const BdryState<false> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp)
 {
     vec2 d, d0, rSeg;
@@ -156,18 +154,18 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
     }
     
     // top crossing
-    d = x2 - Topx; // vector from top to ray
+    d = x2 - bds.top.x; // vector from top to ray
     // Originally, this value had to be > a small positive number, meaning the
     // new step really had to be outside the boundary, not just to the boundary.
     // Also, this is not missing a normalization factor, Topn is normalized so
     // this is actually the distance above the top in meters.
-    if(glm::dot(Topn, d) > -INFINITESIMAL_STEP_SIZE){
-        d0 = x0 - Topx; // vector from top node to ray origin
-        h = -glm::dot(d0, Topn) / glm::dot(urayt, Topn);
+    if(glm::dot(bds.top.n, d) > -INFINITESIMAL_STEP_SIZE){
+        d0 = x0 - bds.top.x; // vector from top node to ray origin
+        h = -glm::dot(d0, bds.top.n) / glm::dot(urayt, bds.top.n);
         x2 = x0 + h * urayt;
         // Snap to exact top depth value if it's flat
-        if(STD::abs(Topn.x) < REAL_EPSILON){
-            x2.y = Topx.y;
+        if(STD::abs(bds.top.n.x) < REAL_EPSILON){
+            x2.y = bds.top.x.y;
         }
         // printf("StepToBdry2D top crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
         topRefl = true;
@@ -176,15 +174,15 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
     }
     
     // bottom crossing
-    d = x2 - Botx; // vector from bottom to ray
+    d = x2 - bds.bot.x; // vector from bottom to ray
     // See comment above for top case.
-    if(glm::dot(Botn, d) > -INFINITESIMAL_STEP_SIZE){
-        d0 = x0 - Botx; // vector from bottom node to ray origin
-        h = -glm::dot(d0, Botn) / glm::dot(urayt, Botn);
+    if(glm::dot(bds.bot.n, d) > -INFINITESIMAL_STEP_SIZE){
+        d0 = x0 - bds.bot.x; // vector from bottom node to ray origin
+        h = -glm::dot(d0, bds.bot.n) / glm::dot(urayt, bds.bot.n);
         x2 = x0 + h * urayt;
         // Snap to exact bottom depth value if it's flat
-        if(STD::abs(Botn.x) < REAL_EPSILON){
-            x2.y = Botx.y;
+        if(STD::abs(bds.bot.n.x) < REAL_EPSILON){
+            x2.y = bds.bot.x.y;
         }
         // printf("StepToBdry2D bottom crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
         botRefl = true;
@@ -196,8 +194,8 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
     }
     
     // top or bottom segment crossing in range
-    rSeg.x = bhc::max(rTopSeg.x, rBotSeg.x); // lower range bound (not an x value)
-    rSeg.y = bhc::min(rTopSeg.y, rBotSeg.y); // upper range bound (not a y value)
+    rSeg.x = bhc::max(bds.top.lSeg.min, bds.bot.lSeg.min);
+    rSeg.y = bhc::min(bds.top.lSeg.max, bds.bot.lSeg.max);
     
     if(ssp->Type == 'Q'){
         rSeg.x = bhc::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
@@ -227,14 +225,14 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
         x2 = x0 + h * urayt;
         // printf("StepToBdry2D small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
         // Recheck reflection conditions
-        d = x2 - Topx; // vector from top to ray
-        if(glm::dot(Topn, d) > REAL_EPSILON){
+        d = x2 - bds.top.x; // vector from top to ray
+        if(glm::dot(bds.top.n, d) > REAL_EPSILON){
             topRefl = true;
         }else{
             topRefl = false;
         }
-        d = x2 - Botx; // vector from bottom to ray
-        if(glm::dot(Botn, d) > REAL_EPSILON){
+        d = x2 - bds.bot.x; // vector from bottom to ray
+        if(glm::dot(bds.bot.n, d) > REAL_EPSILON){
             botRefl = true;
             topRefl = false;
         }else{
@@ -247,8 +245,7 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
  * Does a single step along the ray
  */
 HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2, 
-    const vec2 &Topx, const vec2 &Topn, const vec2 &Botx, const vec2 &Botn,
-    const vec2 &rTopSeg, const vec2 &rBotSeg, const real &freq,
+    const BdryState<false> &bds, const real &freq,
     const BeamStructure *Beam, const SSPStructure *ssp,
     int32_t &iSegz, int32_t &iSegr, int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
 {
@@ -300,7 +297,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
+    ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, bds,
         Beam, ssp, h, iSmallStepCtr);
     // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
@@ -358,7 +355,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // printf("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0.x, urayt1, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
+    ReduceStep2D(ray0.x, urayt1, iSegz0, iSegr0, bds,
         Beam, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
@@ -375,7 +372,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // to put this on a boundary, and ensure that the resulting position
     // (ray2.x) gets put precisely on the boundary.
     StepToBdry2D(ray0.x, ray2.x, urayt2, h, topRefl, botRefl,
-        iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg, Beam, ssp);
+        iSegz0, iSegr0, bds, Beam, ssp);
     ray2.t   = ray0.t   + h * unitdt;
     ray2.p   = ray0.p   + h * unitdp;
     ray2.q   = ray0.q   + h * unitdq;

@@ -49,7 +49,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
 
     // Allocate main structs
     params.Bdry = allocate<BdryType>();
-    params.bdinfo = allocate<BdryInfo>();
+    params.bdinfo = allocate<BdryInfo<false>>();
     params.refl = allocate<ReflectionInfo>();
     params.ssp = allocate<SSPStructure>();
     params.atten = allocate<AttenInfo>();
@@ -66,8 +66,8 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     // Set pointers to null because we always check if they are not null (and
     // deallocate them if so) before allocating them
     // IMPORTANT--if changes are made here, make the same changes in finalize
-    params.bdinfo->Top = nullptr;
-    params.bdinfo->Bot = nullptr;
+    params.bdinfo->top.bd = nullptr;
+    params.bdinfo->bot.bd = nullptr;
     params.refl->RBot = nullptr;
     params.refl->RTop = nullptr;
     params.ssp->cMat = nullptr;
@@ -102,10 +102,10 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     // Fill in default / "constructor" data
     params.fT = RL(1.0e20);
     //Bdry: none
-    params.bdinfo->NATIPts = 2;
-    params.bdinfo->NBTYPts = 2;
-    memcpy(params.bdinfo->atiType, "LS", 2);
-    memcpy(params.bdinfo->btyType, "LS", 2);
+    params.bdinfo->top.NPts = 2;
+    params.bdinfo->bot.NPts = 2;
+    memcpy(params.bdinfo->top.type, "LS", 2);
+    memcpy(params.bdinfo->bot.type, "LS", 2);
     //params.refl: none
     //params.ssp: none
     params.atten->t = FL(20.0);
@@ -199,19 +199,19 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
         
         // *** altimetry ***
         
-        params.bdinfo->Top = allocate<BdryPtFull>(2);
-        params.bdinfo->Top[0].x = vec2(-BdryInfinity, RL(0.0));
-        params.bdinfo->Top[1].x = vec2( BdryInfinity, RL(0.0));
+        params.bdinfo->top.bd = allocate<BdryPtFull<false>>(2);
+        params.bdinfo->top.bd[0].x = vec2(-bdry_big<false>::value(), RL(0.0));
+        params.bdinfo->top.bd[1].x = vec2( bdry_big<false>::value(), RL(0.0));
         
-        ComputeBdryTangentNormal(params.bdinfo->Top, true, params.bdinfo);
+        ComputeBdryTangentNormal(&params.bdinfo->top, true);
         
         // *** bathymetry ***
         
-        params.bdinfo->Bot = allocate<BdryPtFull>(2);
-        params.bdinfo->Bot[0].x = vec2(-BdryInfinity, RL(5000.0));
-        params.bdinfo->Bot[1].x = vec2( BdryInfinity, RL(5000.0));
+        params.bdinfo->bot.bd = allocate<BdryPtFull<false>>(2);
+        params.bdinfo->bot.bd[0].x = vec2(-bdry_big<false>::value(), RL(5000.0));
+        params.bdinfo->bot.bd[1].x = vec2( bdry_big<false>::value(), RL(5000.0));
         
-        ComputeBdryTangentNormal(params.bdinfo->Bot, false, params.bdinfo);
+        ComputeBdryTangentNormal(&params.bdinfo->bot, false);
         
         params.refl->RBot = allocate<ReflectionCoef>(1);
         params.refl->RTop = allocate<ReflectionCoef>(1);
@@ -228,10 +228,10 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
         ReadEnvironment(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
             params.Beam, RecycledHS);
-        ReadATI(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
-            PRTFile, params.bdinfo); // AlTImetry
-        ReadBTY(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
-            PRTFile, params.bdinfo); // BaThYmetry
+        ReadBoundary<false>(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
+            PRTFile, &params.bdinfo->top, true); // AlTImetry
+        ReadBoundary<false>(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
+            PRTFile, &params.bdinfo->bot, false); // BaThYmetry
         ReadReflectionCoefficient(FileRoot, 
             params.Bdry->Bot.hs.Opt[0], params.Bdry->Top.hs.Opt[1], PRTFile, params.refl); // (top and bottom)
         params.beaminfo->SBPFlag = params.Beam->RunType[2];
@@ -276,35 +276,35 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
             - params.Angles->alpha[0]) / (params.Angles->Nalpha-1);
     
     // convert range-dependent geoacoustic parameters from user to program units
-    if(params.bdinfo->atiType[1] == 'L'){
-        for(int32_t iSeg = 0; iSeg < params.bdinfo->NATIPts; ++iSeg){
+    if(params.bdinfo->top.type[1] == 'L'){
+        for(int32_t iSeg = 0; iSeg < params.bdinfo->top.NPts; ++iSeg){
              // compressional wave speed
-            params.bdinfo->Top[iSeg].hs.cP = crci(RL(1.0e20),
-                params.bdinfo->Top[iSeg].hs.alphaR,
-                params.bdinfo->Top[iSeg].hs.alphaI,
+            params.bdinfo->top.bd[iSeg].hs.cP = crci(RL(1.0e20),
+                params.bdinfo->top.bd[iSeg].hs.alphaR,
+                params.bdinfo->top.bd[iSeg].hs.alphaI,
                 params.freqinfo->freq0, params.freqinfo->freq0,
                 {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
              // shear         wave speed
-            params.bdinfo->Top[iSeg].hs.cS = crci(RL(1.0e20),
-                params.bdinfo->Top[iSeg].hs.betaR,
-                params.bdinfo->Top[iSeg].hs.betaI, 
+            params.bdinfo->top.bd[iSeg].hs.cS = crci(RL(1.0e20),
+                params.bdinfo->top.bd[iSeg].hs.betaR,
+                params.bdinfo->top.bd[iSeg].hs.betaI, 
                 params.freqinfo->freq0, params.freqinfo->freq0,
                 {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
         }
     }
     
-    if(params.bdinfo->btyType[1] == 'L'){
-        for(int32_t iSeg = 0; iSeg < params.bdinfo->NBTYPts; ++iSeg){
+    if(params.bdinfo->bot.type[1] == 'L'){
+        for(int32_t iSeg = 0; iSeg < params.bdinfo->bot.NPts; ++iSeg){
              // compressional wave speed
-            params.bdinfo->Bot[iSeg].hs.cP = crci(RL(1.0e20),
-                params.bdinfo->Bot[iSeg].hs.alphaR,
-                params.bdinfo->Bot[iSeg].hs.alphaI,
+            params.bdinfo->bot.bd[iSeg].hs.cP = crci(RL(1.0e20),
+                params.bdinfo->bot.bd[iSeg].hs.alphaR,
+                params.bdinfo->bot.bd[iSeg].hs.alphaI,
                 params.freqinfo->freq0, params.freqinfo->freq0,
                 {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
              // shear         wave speed
-            params.bdinfo->Bot[iSeg].hs.cS = crci(RL(1.0e20),
-                params.bdinfo->Bot[iSeg].hs.betaR,
-                params.bdinfo->Bot[iSeg].hs.betaI, 
+            params.bdinfo->bot.bd[iSeg].hs.cS = crci(RL(1.0e20),
+                params.bdinfo->bot.bd[iSeg].hs.betaR,
+                params.bdinfo->bot.bd[iSeg].hs.betaI, 
                 params.freqinfo->freq0, params.freqinfo->freq0,
                 {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
         }
@@ -333,8 +333,8 @@ BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
     #endif
     api_okay = false;
     
-    checkdeallocate(params.bdinfo->Top);
-    checkdeallocate(params.bdinfo->Bot);
+    checkdeallocate(params.bdinfo->top.bd);
+    checkdeallocate(params.bdinfo->bot.bd);
     checkdeallocate(params.refl->RBot);
     checkdeallocate(params.refl->RTop);
     checkdeallocate(params.ssp->cMat);

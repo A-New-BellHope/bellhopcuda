@@ -41,21 +41,22 @@ void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &o
  */
 HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
     cpxf *uAllSources,
-    const BdryType *ConstBdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
+    const BdryType *ConstBdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
-    int32_t IsegTop, IsegBot, iSegz, iSegr;
-    vec2 gradc, rTopSeg, rBotSeg;
+    int32_t iSegz, iSegr;
+    vec2 gradc;
+    BdryState<false> bds;
     BdryType Bdry;
     
     ray2DPt point0, point1, point2;
     InfluenceRayInfo inflray;
     
     if(!RayInit(isrc, ialpha, SrcDeclAngle, point0, gradc,
-        DistBegTop, DistBegBot, IsegTop, IsegBot, rTopSeg, rBotSeg, iSegz, iSegr,
+        DistBegTop, DistBegBot, iSegz, iSegr, bds,
         Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) return;
     
     Init_Influence(inflray, point0, isrc, ialpha, Angles->alpha[ialpha], gradc,
@@ -68,7 +69,7 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
         int32_t dStep = RayUpdate(point0, point1, point2, DistEndTop, DistEndBot,
-            IsegTop, IsegBot, rTopSeg, rBotSeg, iSmallStepCtr, iSegz, iSegr,
+            iSmallStepCtr, iSegz, iSegr, bds,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(!Step_Influence(point0, point1, inflray, is, u, 
             ConstBdry, ssp, iSegz, iSegr, Pos, Beam, eigen, arrinfo)){

@@ -498,7 +498,7 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *ang
 }
 
 template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv,
-    PrintFileEmu &PRTFile, int32_t Necho = 10)
+    PrintFileEmu &PRTFile, int32_t NEcho = 10)
 {
     PRTFile << std::setprecision(6);
     for(int32_t i=0, r=0; i<bhc::min(Nv, NEcho); ++i){

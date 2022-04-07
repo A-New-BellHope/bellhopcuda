@@ -22,6 +22,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #error "This file must be included via #include <bhc/bhc.hpp>!"
 #endif
 
+#include <type_traits>
+
 namespace bhc {
 
 template<bool THREED> struct TmplVec23 {};
@@ -87,9 +89,9 @@ struct BdryPtFull3DExtras {
     real phi_xx, phi_xy, phi_yy;
 };
 template<bool THREED> struct BdryPtFull 
-    : public conditional_t<THREED, BdryPtFull3DExtras, BdryPtFull2DExtras>
+    : public std::conditional_t<THREED, BdryPtFull3DExtras, BdryPtFull2DExtras>
 {
-    using VEC = TmplVec23<THREED>::type;
+    using VEC = typename TmplVec23<THREED>::type;
     VEC x; // 2D: coordinate for a segment / 3D: coordinate of boundary
     VEC t; // 2D: tangent for a segment / 3D: tangent for a facet
     VEC n; // 2D: outward normal for a segment / 3D: normal for a facet (outward pointing)
@@ -98,7 +100,7 @@ template<bool THREED> struct BdryPtFull
 };
 
 template<bool THREED> struct BdryInfoTopBot {
-    using IORI2 = TmplInt12<THREED>::type;
+    using IORI2 = typename TmplInt12<THREED>::type;
     IORI2 NPts;
     char type[2]; // In 3D, only first char is used
     BdryPtFull<THREED> *bd; // 2D: 1D array / 3D: 2D array
@@ -108,18 +110,18 @@ template<bool THREED> struct BdryInfoTopBot {
  * FORTRAN which was not within any structure, and is called bdinfo.
  */
 template<bool THREED> struct BdryInfo {
-    BdryInfoTopBot top, bot;
+    BdryInfoTopBot<THREED> top, bot;
 };
 
 struct BdryLimits { float min, max; };
 struct BdryLimits2 { BdryLimits x, y; };
-template<bool THREED> struct BdryLimits12 {};
+template<bool THREED> struct TmplBdryLimits12 {};
 template<> struct TmplBdryLimits12<false> { typedef BdryLimits type; };
 template<> struct TmplBdryLimits12<true>  { typedef BdryLimits2 type; };
 template<bool THREED> struct BdryStateTopBot {
-    using IORI2 = TmplInt12<THREED>::type;
-    using VEC = TmplVec23<THREED>::type;
-    using LIMITS = TmplBdryLimits12<THREED>::type;
+    using IORI2 = typename TmplInt12<THREED>::type;
+    using VEC = typename TmplVec23<THREED>::type;
+    using LIMITS = typename TmplBdryLimits12<THREED>::type;
     IORI2 Iseg; // indices that point to the current active segment
     LIMITS lSeg; // LP: limits of current segment
     VEC x, n; // only explicitly written in 3D, but effectively present in 2D
@@ -128,7 +130,7 @@ template<bool THREED> struct BdryStateTopBot {
  * LP: Variables holding current state of active segment(s) ray is in.
  */
 template<bool THREED> struct BdryState {
-    BdryStateTopBot top, bot;
+    BdryStateTopBot<THREED> top, bot;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -306,7 +308,7 @@ struct bhcParams {
     char Title[80]; // Size determined by WriteHeader for TL
     real fT;
     BdryType *Bdry;
-    BdryInfo *bdinfo;
+    BdryInfo<false> *bdinfo;
     ReflectionInfo *refl;
     SSPStructure *ssp;
     AttenInfo *atten;

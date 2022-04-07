@@ -265,14 +265,11 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  * Original comments follow.
  * 
  * DistBegTop etc.: Distances from ray beginning, end to top and bottom
- * IsegTop, IsegBot: indices that point to the current active segment
- * rTopSeg, rBotSeg: range intervals defining the current active segment
  */
 HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
     ray2DPt &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
-    int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
-    int32_t &iSegz, int32_t &iSegr, BdryType &Bdry,
-    const BdryType *ConstBdry, const BdryInfo *bdinfo,
+    int32_t &iSegz, int32_t &iSegr, BdryState<false> &bds, BdryType &Bdry,
+    const BdryType *ConstBdry, const BdryInfo<false> *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
 {
@@ -332,33 +329,32 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     // set I.C. to 0 in hopes of saving run time
     if(Beam->RunType[1] == 'G') point0.q = vec2(FL(0.0), FL(0.0));
     
-    IsegTop = 0; IsegBot = 0;
-    GetTopSeg(xs.x, point0.t.x, IsegTop, rTopSeg, bdinfo); // identify the top    segment above the source
-    GetBotSeg(xs.x, point0.t.x, IsegBot, rBotSeg, bdinfo); // identify the bottom segment below the source
+    bds.top.Iseg = 0; bds.bot.Iseg = 0;
+    GetBdrySeg(xs, point0.t, bds.top, &bdinfo->top, true ); // identify the top    segment above the source
+    GetBdrySeg(xs, point0.t, bds.bot, &bdinfo->bot, false); // identify the bottom segment below the source
     
     // convert range-dependent geoacoustic parameters from user to program units
-    // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and rho
-    // from the current segment in bdinfo. rho is read from files in ReadATI and
-    // ReadBTY, and cP and cS are computed in core_setup. bc, which is also read
-    // by Reflect2D, is never set in bdinfo and is left alone from ConstBdry.
+    // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and
+    // rho from the current segment in bdinfo. rho is read from files in
+    // ReadBoundary, and cP and cS are computed in core_setup. bc, which is also
+    // read by Reflect2D, is never set in bdinfo and is left alone from
+    // ConstBdry.
     Bdry = *ConstBdry;
-    if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs);
-    if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs);
-    // printf("btyType cP top bot %c%c (%g,%g) (%g,%g)\n", bdinfo->btyType[0], bdinfo->btyType[1],
+    if(bdinfo->top.type[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->top.bd[bds.top.Iseg].hs);
+    if(bdinfo->bot.type[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->bot.bd[bds.bot.Iseg].hs);
+    // printf("btyType cP top bot %c%c (%g,%g) (%g,%g)\n", bdinfo->bot.type[0], bdinfo->bot.type[1],
     //     Bdry.Top.hs.cP.real(), Bdry.Top.hs.cP.imag(),
     //     Bdry.Bot.hs.cP.real(), Bdry.Bot.hs.cP.imag());
     
     vec2 dEndTop_temp, dEndBot_temp;
-    Distances2D(point0.x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, 
-        dEndTop_temp, dEndBot_temp,
-        bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistBegTop, DistBegBot);
+    Distances2D(point0.x, bds.top.x, bds.bot.x, dEndTop_temp, dEndBot_temp, 
+        bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
         
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)){
         printf("Terminating the ray trace because the source is on or outside the boundaries\n");
         // printf("xs (%g,%g) Bot.x (%g,%g) Bot.n (%g,%g) DistBegBot %g\n",
-        //     xs.x, xs.y,
-        //     bdinfo->Bot[IsegBot].x.x, bdinfo->Bot[IsegBot].x.y,
-        //     bdinfo->Bot[IsegBot].n.x, bdinfo->Bot[IsegBot].n.y, DistBegBot);
+        //     xs.x, xs.y, bds.bot.x.x, bds.bot.x.y,
+        //     bds.bot.n.x, bds.bot.n.y, DistBegBot);
         return false; // source must be within the medium
     }
     
@@ -371,16 +367,14 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
  */
 HOST_DEVICE inline int32_t RayUpdate(
     const ray2DPt &point0, ray2DPt &point1, ray2DPt &point2,
-    real &DistEndTop, real &DistEndBot, 
-    int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
+    real &DistEndTop, real &DistEndBot,
     int32_t &iSmallStepCtr, int32_t &iSegz, int32_t &iSegr,
-    BdryType &Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
+    BdryState<false> &bds, BdryType &Bdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl;
-    Step2D(point0, point1, bdinfo->Top[IsegTop].x, bdinfo->Top[IsegTop].n,
-        bdinfo->Bot[IsegBot].x, bdinfo->Bot[IsegBot].n, rTopSeg, rBotSeg, 
+    Step2D(point0, point1, bds, 
         freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr, topRefl, botRefl);
     /*
     if(point0.x == point1.x){
@@ -390,17 +384,17 @@ HOST_DEVICE inline int32_t RayUpdate(
     */
     
     // New altimetry segment?
-    if(    point1.x.x < rTopSeg.x || (point1.x.x == rTopSeg.x && point1.t.x < FL(0.0))
-        || point1.x.x > rTopSeg.y || (point1.x.x == rTopSeg.y && point1.t.x >= FL(0.0))){
-        GetTopSeg(point1.x.x, point1.t.x, IsegTop, rTopSeg, bdinfo);
-        if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs); // grab the geoacoustic info for the new segment
+    if(    point1.x.x < bds.top.lSeg.min || (point1.x.x == bds.top.lSeg.min && point1.t.x < FL(0.0))
+        || point1.x.x > bds.top.lSeg.max || (point1.x.x == bds.top.lSeg.max && point1.t.x >= FL(0.0))){
+        GetBdrySeg(point1.x, point1.t, bds.top, &bdinfo->top, true);
+        if(bdinfo->top.type[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->top.bd[bds.top.Iseg].hs); // grab the geoacoustic info for the new segment
     }
     
     // New bathymetry segment?
-    if(    point1.x.x < rBotSeg.x || (point1.x.x == rBotSeg.x && point1.t.x < FL(0.0))
-        || point1.x.x > rBotSeg.y || (point1.x.x == rBotSeg.y && point1.t.x >= FL(0.0))){
-        GetBotSeg(point1.x.x, point1.t.x, IsegBot, rBotSeg, bdinfo);
-        if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
+    if(    point1.x.x < bds.bot.lSeg.min || (point1.x.x == bds.bot.lSeg.min && point1.t.x < FL(0.0))
+        || point1.x.x > bds.bot.lSeg.max || (point1.x.x == bds.bot.lSeg.max && point1.t.x >= FL(0.0))){
+        GetBdrySeg(point1.x, point1.t, bds.bot, &bdinfo->bot, false);
+        if(bdinfo->bot.type[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->bot.bd[bds.bot.Iseg].hs); // grab the geoacoustic info for the new segment
     }
     
     // Reflections?
@@ -409,19 +403,20 @@ HOST_DEVICE inline int32_t RayUpdate(
     // DistBeg is the distance at point0, which is saved
     // DistEnd is the distance at point1, which needs to be calculated
     vec2 dEndTop, dEndBot;
-    Distances2D(point1.x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x,
-        dEndTop, dEndBot,
-        bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
+    Distances2D(point1.x, bds.top.x, bds.bot.x, dEndTop, dEndBot,
+        bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
     
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl){
         // printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
+        const BdryInfoTopBot<false> &bdi = topRefl ? bdinfo->top : bdinfo->bot;
+        const BdryStateTopBot<false> &bdstb = topRefl ? bds.top : bds.bot;
         vec2 dEnd = topRefl ? dEndTop : dEndBot;
-        BdryPtFull *bd0 = topRefl ? &bdinfo->Top[IsegTop] : &bdinfo->Bot[IsegBot];
-        BdryPtFull *bd1 = &bd0[1]; // LP: next segment
+        BdryPtFull<false> *bd0 = &bdi.bd[bdstb.Iseg];
+        BdryPtFull<false> *bd1 = &bd0[1]; // LP: next segment
         vec2 nInt, tInt;
         // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
-        if((topRefl ? bdinfo->atiType[0] : bdinfo->btyType[0]) == 'C'){
+        if(bdi.type[0] == 'C'){
             real sss = glm::dot(dEnd, bd0->t) / bd0->Len; // proportional distance along segment
             nInt = (FL(1.0) - sss) * bd0->Noden + sss * bd1->Noden;
             tInt = (FL(1.0) - sss) * bd0->Nodet + sss * bd1->Nodet;
@@ -437,8 +432,8 @@ HOST_DEVICE inline int32_t RayUpdate(
             Beam, ssp, iSegz, iSegr);
         //Incrementing bounce count moved to Reflect2D
         numRaySteps = 2;
-        Distances2D(point2.x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
-            bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
+        Distances2D(point2.x, bds.top.x, bds.bot.x, dEndTop, dEndBot,
+            bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
     }
     
     return numRaySteps;

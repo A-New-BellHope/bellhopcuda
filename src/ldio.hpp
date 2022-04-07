@@ -411,7 +411,7 @@ private:
             return;
         }
         ostr << "  ";
-        if(!isfinite(r)){
+        if(!std::isfinite(r)){
             ostr << std::setw(width)
                 << std::left
                 << r;

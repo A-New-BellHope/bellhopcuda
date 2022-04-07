@@ -27,8 +27,8 @@ constexpr int32_t Bdry_Number_to_Echo = 21;
 
 template<bool THREED> struct bdry_big {};
 // LP: Can't be constexpr as std::sqrt is not constexpr without GCC extensions
-template<> struct bdry_big<true>  { HOST_DEVICE inline real value() { return RL(1.0e25); } };
-template<> struct bdry_big<false> { HOST_DEVICE inline real value() { return STD::sqrt(REAL_MAX) / RL(1.0e5); } };
+template<> struct bdry_big<true>  { HOST_DEVICE static inline real value() { return RL(1.0e25); } };
+template<> struct bdry_big<false> { HOST_DEVICE static inline real value() { return STD::sqrt(REAL_MAX) / RL(1.0e5); } };
 #define BDRYBIG bdry_big<THREED>::value()
 
 /**
@@ -42,7 +42,7 @@ template<> struct bdry_big<false> { HOST_DEVICE inline real value() { return STD
  * LP: BUG: Function comment in 3D forgot to be changed when copy-pasted from 2D.
  */
 template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
-    BdryStateTopBot<THREED>::VEC x, BdryStateTopBot<THREED>::VEC t, 
+    typename TmplVec23<THREED>::type x, typename TmplVec23<THREED>::type t, 
     BdryStateTopBot<THREED> &bds, const BdryInfoTopBot<THREED> *bdinfotb,
     bool isTop)
 {
@@ -127,8 +127,8 @@ template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
         
         // LP: Only explicitly loaded in this function in 3D, loaded in containing
         // code in 2D
-        bds.x = bdinfotb->bd[bds.Iseg].x.x;
-        bds.n = bdinfotb->bd[bds.Iseg].x.n;
+        bds.x = bdinfotb->bd[bds.Iseg].x;
+        bds.n = bdinfotb->bd[bds.Iseg].n;
         
     }
 }
@@ -146,9 +146,8 @@ template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
 template<bool THREED> inline void ComputeBdryTangentNormal(
     BdryInfoTopBot<THREED> *bd, bool isTop)
 {
-    BdryInfoTopBot<THREED>::IORI2 NPts = bd->NPts;
+    typename TmplInt12<THREED>::type NPts = bd->NPts;
     vec3 tvec;
-    real Len;
     
     if constexpr(THREED){
         
@@ -191,7 +190,7 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
                 if(ix == 0){
                     mx = (bd->bd[(ix+1)*NPts.y+iy  ].x.z - bd->bd[(ix  )*NPts.y+iy  ].x.z) /
                          (bd->bd[(ix+1)*NPts.y+iy  ].x.x - bd->bd[(ix  )*NPts.y+iy  ].x.x);
-                }else if(ix == Npts.x - 1){
+                }else if(ix == NPts.x - 1){
                     mx = (bd->bd[(ix  )*NPts.y+iy  ].x.z - bd->bd[(ix-1)*NPts.y+iy  ].x.z) /
                          (bd->bd[(ix  )*NPts.y+iy  ].x.x - bd->bd[(ix-1)*NPts.y+iy  ].x.x);
                 }else{
@@ -202,7 +201,7 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
                 if(iy == 0){
                     mx = (bd->bd[(ix  )*NPts.y+iy+1].x.z - bd->bd[(ix  )*NPts.y+iy  ].x.z) /
                          (bd->bd[(ix  )*NPts.y+iy+1].x.y - bd->bd[(ix  )*NPts.y+iy  ].x.y);
-                }else if(iy == Npts.y - 1){
+                }else if(iy == NPts.y - 1){
                     mx = (bd->bd[(ix  )*NPts.y+iy  ].x.z - bd->bd[(ix  )*NPts.y+iy-1].x.z) /
                          (bd->bd[(ix  )*NPts.y+iy  ].x.y - bd->bd[(ix  )*NPts.y+iy-1].x.y);
                 }else{
@@ -218,7 +217,7 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
                     
                     // xy term
                     tvec = bd->bd[(ix+1)*NPts.y+iy+1].x - bd->bd[(ix  )*NPts.y+iy  ].x;
-                    Len = STD::sqrt(SQ(tvec.x) + SQ(tvec.y));
+                    real Len = STD::sqrt(SQ(tvec.x) + SQ(tvec.y));
                     tvec /= Len;
                     // this is the angle at each node
                     bd->bd[(ix  )*NPts.y+iy  ].phi_xy = STD::atan2(n.z, n.x * tvec.x + n.y * tvec.y);
@@ -275,6 +274,8 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
             // - sign below because the node normal = vec3(-mx, -my, RL(1.0))
             for(int32_t ix=0; ix<NPts.x; ++ix){
                 for(int32_t iy=0; iy<NPts.y; ++iy){
+                    real Len;
+                    
                     // z_xx (difference in x of z_x)
                     bd->bd[ix*NPts.y+iy].z_xx = -(bd->bd[(ix+1)*NPts.y+iy  ].Noden_unscaled.x - bd->bd[(ix  )*NPts.y+iy  ].Noden_unscaled.x) /
                                                  (bd->bd[(ix+1)*NPts.y+iy  ].x.x              - bd->bd[(ix  )*NPts.y+iy  ].x.x);
@@ -514,7 +515,7 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
             // header for geoacoustics is only supported for bathymetry.
             if(isTop || bdinfotb->type[1] == 'S' || bdinfotb->type[1] == ' '){
                 if(!isTop){
-                    PRTFILE << "Short format (" << s_altimetrybathymetry << " only)\n";
+                    PRTFile << "Short format (" << s_altimetrybathymetry << " only)\n";
                 }
                 PRTFile << "\n Range (km)  Depth (m)\n";
             }else if(bdinfotb->type[1] == 'L'){
