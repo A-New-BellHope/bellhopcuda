@@ -27,7 +27,7 @@ if len(sys.argv) != 2:
     print('No path, no .ray')
     sys.exit(1)
 
-use_float = True
+use_float = False
 if use_float:
     thresh_rel_print = 1e-4
     thresh_rel_alarm = 1e-2
