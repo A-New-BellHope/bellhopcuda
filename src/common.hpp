@@ -398,7 +398,10 @@ template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n,
 {
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
-		if(arr[(i+1)*stridereals+offset] <= arr[i*stridereals+offset]) return false;
+		if(arr[(i+1)*stridereals+offset] <= arr[i*stridereals+offset]){
+            printf("%g <= %g\n", arr[(i+1)*stridereals+offset], arr[i*stridereals+offset]);
+            return false;
+        }
 	}
 	return true;
 }

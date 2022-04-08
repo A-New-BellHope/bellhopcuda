@@ -139,9 +139,6 @@ template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
  * tangents (.t, .nodet),
  * normals  (.n, .noden), and
  * curvatures (.kappa)
- *
- * [LP: 2D only:] The boundary is also extended with a constant depth to
- * infinity to cover cases where the ray exits the domain defined by the user
  */
 template<bool THREED> inline void ComputeBdryTangentNormal(
     BdryInfoTopBot<THREED> *bd, bool isTop)
@@ -232,15 +229,12 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
         }
         
     }else{
-    
-        // extend the bathymetry to +/- infinity in a piecewise constant fashion
-
-        bd->bd[0     ].x[0] = -BDRYBIG;
-        bd->bd[0     ].x[1] = bd->bd[1     ].x[1];
-        bd->bd[0     ].hs   = bd->bd[1     ].hs;
-        bd->bd[NPts-1].x[0] =  BDRYBIG;
-        bd->bd[NPts-1].x[1] = bd->bd[NPts-2].x[1];
-        bd->bd[NPts-1].hs   = bd->bd[NPts-2].hs;
+        
+        // LP: Moved "The boundary is also extended with a constant depth to
+        // infinity to cover cases where the ray exits the domain defined by the
+        // user" to ReadBoundary. The only place this is called other than there
+        // is in the Init_Inline setup, which is never used and the results end
+        // up the same anyway.
         
         // compute tangent and outward-pointing normal to each bottom segment
         // tBdry[0][:] = xBdry[0][1:NPts-1] - xBdry[0][0:NPts-2]
@@ -393,6 +387,7 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
     const char *s_altimetrybathymetry = isTop ? "altimetry" : "bathymetry";
     const char *s_AltimetryBathymetry = isTop ? "Altimetry" : "Bathymetry";
     const char *s_topbottom = isTop ? "top" : "bottom";
+    const char *s_risesdrops = isTop ? "rises above highest" : "drops below lowest";
     
     switch(BdryDefMode){
     case '~':
@@ -561,14 +556,25 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
                     std::abort();
                 }
                 
-                if(bdinfotb->bd[ii].x[1] < BdryDepth){
+                real sidemult = (isTop ? RL(1.0) : RL(-1.0));
+                if(sidemult * bdinfotb->bd[ii].x[1] < sidemult * BdryDepth){
                     std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
-                        << " rises above highest point in the sound speed profile\n";
+                        << " " << s_risesdrops << " point in the sound speed profile\n";
                     std::abort();
                 }
             }
             
-            if(!monotonic(&bdinfotb->bd[0].x.x, bdinfotb->NPts, sizeof(BdryPtFull<THREED>)/sizeof(real), 0)){
+            // extend the bathymetry to +/- infinity in a piecewise constant fashion
+            // LP: moved from ComputeBdryTangentNormal to be before the monotonic
+            // check, as until now the first and last X were uninitialized.
+            bdinfotb->bd[0               ].x[0] = -BDRYBIG;
+            bdinfotb->bd[0               ].x[1] = bdinfotb->bd[1               ].x[1];
+            bdinfotb->bd[0               ].hs   = bdinfotb->bd[1               ].hs;
+            bdinfotb->bd[bdinfotb->NPts-1].x[0] =  BDRYBIG;
+            bdinfotb->bd[bdinfotb->NPts-1].x[1] = bdinfotb->bd[bdinfotb->NPts-2].x[1];
+            bdinfotb->bd[bdinfotb->NPts-1].hs   = bdinfotb->bd[bdinfotb->NPts-2].hs;
+            
+            if(!monotonic(&bdinfotb->bd[0].x.x, bdinfotb->NPts, sizeof(BdryPtFull<false>)/sizeof(real), 0)){
                 std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
                     << " ranges are not monotonically increasing\n";
                 std::abort();
