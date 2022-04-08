@@ -60,11 +60,22 @@ but these may be outdated compared to recent changes to the repo.
 
 - Make sure you got the Git submodules (the `glm` folder should not be empty).
 - If you want `bellhopcuda`, install [the latest CUDA toolkit](https://developer.nvidia.com/cuda-downloads)
-(the earliest supported CUDA version is somewhere between 11.3 and 11.5).
-Otherwise if you do not want `bellhopcuda`, set the environment variable
-`BHC_NO_CUDA` (to something like "1") or turn off the CMake option
-`BHC_ENABLE_CUDA`.
+(see below for version information). Otherwise if you do not want `bellhopcuda`,
+set the environment variable `BHC_NO_CUDA` (to something like "1") or turn off
+the CMake option `BHC_ENABLE_CUDA`.
 - Build the project with CMake as usual.
+
+### Why do I get errors about `hypot` when building with CUDA?
+
+If you get an error like `error: ‘float cuda::std::__4::hypot(float, float, float)’
+conflicts with a previous declaration` or similar, this is a bug in libcu++
+which was fixed between libcu++ 1.7.0 (included in CUDA Toolkit 11.6) and
+libcu++ 1.8.0. At time of writing, there is no CUDA toolkit download including
+the latter, but if you reading this in the future probably CUDA Toolkit 11.7
+or 12.x will include the fix. Until then, you have to 
+[download libcu++ source manually](https://github.com/NVIDIA/libcudacxx)
+and replace `include/cuda` and `include/nv` in your CUDA installation with the
+appropriate directories from the Git repo.
 
 ### How do I use `bellhopcxxlib` as a library in another project?
 

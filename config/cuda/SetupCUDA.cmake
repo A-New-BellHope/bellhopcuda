@@ -19,7 +19,7 @@ option(CUDA_PRINT_REGISTERS "Print kernel register use" OFF)
 option(CUDA_DISASSEMBLY "Save temp outputs for disassembly" OFF)
 set(CUDA_ARCH_OVERRIDE "" CACHE STRING "Compile for this GPU architecture (e.g. 86)")
 
-set(CMAKE_CUDA_STANDARD 14) # C++14
+set(CMAKE_CUDA_STANDARD 17) # C++17
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 	set(NVCC_DEBUG_FLAGS "-g -G")

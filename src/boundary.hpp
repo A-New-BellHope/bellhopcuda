@@ -199,13 +199,13 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
                 }
                 
                 if(iy == 0){
-                    mx = (bd->bd[(ix  )*NPts.y+iy+1].x.z - bd->bd[(ix  )*NPts.y+iy  ].x.z) /
+                    my = (bd->bd[(ix  )*NPts.y+iy+1].x.z - bd->bd[(ix  )*NPts.y+iy  ].x.z) /
                          (bd->bd[(ix  )*NPts.y+iy+1].x.y - bd->bd[(ix  )*NPts.y+iy  ].x.y);
                 }else if(iy == NPts.y - 1){
-                    mx = (bd->bd[(ix  )*NPts.y+iy  ].x.z - bd->bd[(ix  )*NPts.y+iy-1].x.z) /
+                    my = (bd->bd[(ix  )*NPts.y+iy  ].x.z - bd->bd[(ix  )*NPts.y+iy-1].x.z) /
                          (bd->bd[(ix  )*NPts.y+iy  ].x.y - bd->bd[(ix  )*NPts.y+iy-1].x.y);
                 }else{
-                    mx = (bd->bd[(ix  )*NPts.y+iy+1].x.z - bd->bd[(ix  )*NPts.y+iy-1].x.z) /
+                    my = (bd->bd[(ix  )*NPts.y+iy+1].x.z - bd->bd[(ix  )*NPts.y+iy-1].x.z) /
                          (bd->bd[(ix  )*NPts.y+iy+1].x.y - bd->bd[(ix  )*NPts.y+iy-1].x.y);
                 }
                 
