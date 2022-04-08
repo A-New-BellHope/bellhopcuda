@@ -214,7 +214,7 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
             h = -(x0.x - rSeg.y) / urayt.x;
             x2.x = rSeg.y;
             x2.y = x0.y + h * urayt.y;
-            // printf("StepToBdry2D upper range h %g to (%g,%g)\n", h, x2.x, x2.y);
+            // printf("StepToBdry2D upper range h %25.21f to (%25.21f,%25.21f)\n", h, x2.x, x2.y);
             topRefl = false;
             botRefl = false;
         }
@@ -262,7 +262,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
     // printf("iSegz iSegr %d %d\n", iSegz, iSegr);
     
-    // if(ray0.x.x > 420.0){
+    // if(ray0.x.x > 40.0){
     //     printf("Enough\n");
     //     bail();
     // }

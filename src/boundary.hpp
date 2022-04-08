@@ -102,7 +102,6 @@ template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
         }
         
     }else{
-        
         // LP: bdinfotb->bd.x is checked for being monotonic at load time, so we can
         // linearly search out from the last position, usually only have to move
         // by 1

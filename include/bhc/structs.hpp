@@ -113,7 +113,7 @@ template<bool THREED> struct BdryInfo {
     BdryInfoTopBot<THREED> top, bot;
 };
 
-struct BdryLimits { float min, max; };
+struct BdryLimits { real min, max; };
 struct BdryLimits2 { BdryLimits x, y; };
 template<bool THREED> struct TmplBdryLimits12 {};
 template<> struct TmplBdryLimits12<false> { typedef BdryLimits type; };
