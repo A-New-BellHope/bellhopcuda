@@ -574,14 +574,14 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
             bdinfotb->bd[bdinfotb->NPts-1].x[1] = bdinfotb->bd[bdinfotb->NPts-2].x[1];
             bdinfotb->bd[bdinfotb->NPts-1].hs   = bdinfotb->bd[bdinfotb->NPts-2].hs;
             
+            // Convert ranges in km to m [LP: not the extended points]
+            for(int32_t i=1; i<bdinfotb->NPts-1; ++i) bdinfotb->bd[i].x[0] *= FL(1000.0);
+            
             if(!monotonic(&bdinfotb->bd[0].x.x, bdinfotb->NPts, sizeof(BdryPtFull<false>)/sizeof(real), 0)){
                 std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
                     << " ranges are not monotonically increasing\n";
                 std::abort();
             }
-            
-            // Convert ranges in km to m
-            for(int32_t i=0; i<bdinfotb->NPts; ++i) bdinfotb->bd[i].x[0] *= FL(1000.0);
             
         }
         
