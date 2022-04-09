@@ -27,6 +27,9 @@ constexpr real betaPowerLaw = FL(1.0);
 #define SSP_2D_FN_ARGS const vec2 &x, const vec2 &t, \
     SSPOutputs<false> &o, real freq, \
     const SSPStructure *ssp, SSPSegState &iSeg
+#define SSP_3D_FN_ARGS const vec3 &x, const vec3 &t, \
+    SSPOutputs<true> &o, real freq, \
+    const SSPStructure *ssp, SSPSegState &iSeg
 #define SSP_TEMPL_FN_ARGS \
     const typename TmplVec23<THREED>::type &x, \
     const typename TmplVec23<THREED>::type &t, \
@@ -50,7 +53,7 @@ HOST_DEVICE inline void UpdateSSPSegment(real x, real t, const real *array,
     }
 }
 
-HOST_DEVICE inline real LinInterpDensity(const vec2 &x,
+HOST_DEVICE inline real LinInterpDensity(real z,
     const SSPStructure *ssp, const SSPSegState &iSeg, real &rho)
 {
     real w = (x.y - ssp->z[iSeg.z]) / (ssp->z[iSeg.z+1] - ssp->z[iSeg.z]);
@@ -66,7 +69,7 @@ HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
     IGNORE_UNUSED(freq);
     
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
-    real w = LinInterpDensity(x, ssp, iSeg, o.rho);
+    real w = LinInterpDensity(x.y, ssp, iSeg, o.rho);
     
     o.ccpx = RL(1.0) / STD::sqrt((RL(1.0) - w) * ssp->n2[iSeg.z] + w * ssp->n2[iSeg.z+1]);
     real c = ccpx.real();
@@ -84,7 +87,7 @@ HOST_DEVICE inline void cLinear(SSP_2D_FN_ARGS)
     IGNORE_UNUSED(freq);
     
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
-    LinInterpDensity(x, ssp, iSeg, o.rho);
+    LinInterpDensity(x.y, ssp, iSeg, o.rho);
     
     o.ccpx = ssp->c[iSeg.z] + (x.y - ssp->z[iSeg.z]) * ssp->cz[iSeg.z];
     o.gradc = vec2(RL(0.0), ssp->cz[iSeg.z].real());
@@ -100,7 +103,7 @@ HOST_DEVICE inline void cPCHIP(SSP_2D_FN_ARGS)
     IGNORE_UNUSED(freq);
     
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
-    LinInterpDensity(x, ssp, iSeg, o.rho);
+    LinInterpDensity(x.y, ssp, iSeg, o.rho);
     
     real xt = x.y - ssp->z[iSeg.z];
     if(STD::abs(xt) > RL(1.0e10)){
@@ -132,7 +135,7 @@ HOST_DEVICE inline void cCubic(SSP_2D_FN_ARGS)
     IGNORE_UNUSED(freq);
     
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
-    LinInterpDensity(x, ssp, iSeg, o.rho);
+    LinInterpDensity(x.y, ssp, iSeg, o.rho);
     
     real hSpline = x.y - ssp->z[iSeg.z];
     cpx czcpx, czzcpx;
@@ -150,7 +153,7 @@ HOST_DEVICE inline void cCubic(SSP_2D_FN_ARGS)
 }
 
 /**
- * Bilinear quadrilatteral interpolation of SSP data in 2D
+ * Bilinear quadrilateral interpolation of SSP data in 2D
  */
 HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
 {
@@ -165,7 +168,7 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
     
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     UpdateSSPSegment(x.x, t.x, ssp->Seg.r, ssp->Nr, iSeg.r);
-    LinInterpDensity(x, ssp, iSeg, o.rho);
+    LinInterpDensity(x.y, ssp, iSeg, o.rho);
     if(iSeg.z >= ssp->Nz - 1 || iSeg.r >= ssp->Nr - 1){
         printf("iSeg error in Quad: z %d/%d r %d/%d\n",
             iSeg.z, ssp->Nz, iSeg.r, ssp->Nr);
@@ -205,6 +208,88 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
     o.gradc = vec2(cr, cz);
     o.crr = RL(0.0);
     o.czz = RL(0.0);
+}
+
+/**
+ * Trilinear hexahedral interpolation of SSP data in 3D
+ * assumes a rectilinear case (not the most general hexahedral)
+ */
+HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
+{
+    if( x.x < ssp->Seg.x[0] || x.x > ssp->Seg.x[ssp->Nx-1] ||
+        x.y < ssp->Seg.y[0] || x.y > ssp->Seg.y[ssp->Ny-1]){
+        printf("Hexahedral: ray is outside the box where the ocean soundspeed is defined\nx = (x, y, z) = %g, %g, %g\n",
+            x.x, x.y, x.z);
+        bail();
+    }
+    
+    UpdateSSPSegment(x.x, t.x, ssp->Seg.x, ssp->Nx, iSeg.x);
+    UpdateSSPSegment(x.y, t.y, ssp->Seg.y, ssp->Ny, iSeg.y);
+    UpdateSSPSegment(x.z, t.z, ssp->Seg.z, ssp->Nz, iSeg.z);
+    
+    // cz at the corners of the current rectangle
+    real cz11 = ssp->czMat[((iSeg.x  )*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z];
+    real cz12 = ssp->czMat[((iSeg.x+1)*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z];
+    real cz21 = ssp->czMat[((iSeg.x  )*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z];
+    real cz22 = ssp->czMat[((iSeg.x+1)*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z];
+    
+    // for this depth, x.z get the sound speed at the corners of the current rectangle
+    real s3 = x.z - ssp->Seg.z[iSeg.z];
+    real c11 = ssp->cMat[((iSeg.x  )*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z] + s3*cz11;
+    real c12 = ssp->cMat[((iSeg.x+1)*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z] + s3*cz12;
+    real c21 = ssp->cMat[((iSeg.x  )*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z] + s3*cz21;
+    real c22 = ssp->cMat[((iSeg.x+1)*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z] + s3*cz22;
+    
+    // s1 = proportional distance of x.x in x
+    real s1 = (x.x - ssp->Seg.x[iSeg.x]) / (ssp->Seg.x[iSeg.x+1] - ssp->Seg.x[iSeg.x]);
+    s1 = STD::max(STD::min(s1, RL(1.0)), RL(0.0)); // force piecewise constant extrapolation for points outside the box
+    
+    // s2 = proportional distance of x.y in y
+    real s2 = (x.y - ssp->Seg.y[iSeg.y]) / (ssp->Seg.y[iSeg.y+1] - ssp->Seg.y[iSeg.y]);
+    s2 = STD::max(STD::min(s2, RL(1.0)), RL(0.0)); // force piecewise constant extrapolation for points outside the box
+    
+    // interpolate the soundspeed in the x direction, at the two endpoints in y (top and bottom sides of rectangle)
+    real c1 = c11 + s1 * (c21 - c11);
+    real c2 = c12 + s1 * (c22 - c12);
+    //c = (RL(1.0) - s2) * c1 + s2 * c2; // interpolation in y
+    real cy = (c2 - c1) / (ssp->Seg.y[iSeg.y+1] - ssp->Seg.y[iSeg.y]);
+    
+    // interpolate the soundspeed in the y direction, at the two endpoints in x (left and right sides of rectangle)
+    c1 = c11 + s2 * (c12 - c11);
+    c2 = c21 + s2 * (c22 - c21);
+    
+    real c = c1 + s1 * (c2 - c1); // interpolation in x
+    
+    // interpolate the attenuation 
+    //!! This will use the wrong segment if the ssp in the envfil
+    //   is sampled at different depths [LP: this uses ssp->z rather than
+    //   ssp->Seg.z]
+    s3 /= ssp->z[iSeg.z+1] - ssp->z[iSeg.z]; // convert s3 to a proportional distance in the layer
+    // volume attenuation is taken from the single c(z) profile
+    real cimag = ((RL(1.0) - s3) * ssp->c[iSeg.z] + s3 * ssp->c[iSeg.z+1]).imag();
+    o.ccpx = cpx(c, cimag);
+    
+    real cx = (c2 - c1) / (ssp->Seg.x[iSeg.x+1] - ssp->Seg.x[iSeg.x]);
+    
+    // same thing on cz
+    real cz1 = cz11 + s2 * (cz21 - cz11);
+    real cz2 = cz12 + s2 * (cz22 - cz12);
+    real cz  = cz1  + s1 * (cz2  - cz1 ); // interpolation in z
+    
+    //o.gradc = vec3(cx, cy, cz);
+    o.gradc.x = cx;
+    o.gradc.y = cy;
+    o.gradc.z = cz;
+    
+    o.cxx = RL(0.0);
+    o.cyy = RL(0.0);
+    o.czz = RL(0.0);
+    o.cxy = RL(0.0);
+    o.cxz = RL(0.0);
+    o.cyz = RL(0.0);
+    
+    // linear interpolation for density
+    LinInterpDensity(x.z, ssp, iSeg, o.rho);
 }
 
 template<bool THREED> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
@@ -286,6 +371,7 @@ template<bool THREED> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
 template<bool THREED> HOST_DEVICE inline void EvaluateSSP(SSP_TEMPL_FN_ARGS)
 {
     vec2 x_rz, t_rz;
+    SSPOutputs<false> o2d;
     if constexpr(THREED){
         x_rz = vec2(RL(0.0), x.z);
         t_rz = vec2(RL(0.0), t.z);
@@ -295,9 +381,9 @@ template<bool THREED> HOST_DEVICE inline void EvaluateSSP(SSP_TEMPL_FN_ARGS)
     }
     switch(ssp->Type){
     case 'N': // N2-linear profile option
-        n2Linear(x_rz, t_rz, o, freq, ssp, iSeg); break;
+        n2Linear(x_rz, t_rz, o2d, freq, ssp, iSeg); break;
     case 'C': // C-linear profile option
-        cLinear (x_rz, t_rz, o, freq, ssp, iSeg); break;
+        cLinear (x_rz, t_rz, o2d, freq, ssp, iSeg); break;
     case 'P': // monotone PCHIP ACS profile option
         if constexpr(THREED){
             // LP: TODO: I don't think there's any reason this should not be supported,
@@ -309,7 +395,7 @@ template<bool THREED> HOST_DEVICE inline void EvaluateSSP(SSP_TEMPL_FN_ARGS)
         }
         break;
     case 'S': // Cubic spline profile option
-        cCubic  (x_rz, t_rz, o, freq, ssp, iSeg); break;
+        cCubic  (x_rz, t_rz, o2d, freq, ssp, iSeg); break;
     case 'Q':
         if constexpr(THREED){
             printf("EvaluateSSP: 'Q' (Quad) profile not supported in 3D or 2D3D mode\n");
@@ -327,13 +413,48 @@ template<bool THREED> HOST_DEVICE inline void EvaluateSSP(SSP_TEMPL_FN_ARGS)
         }
         break;
     case 'A': // Analytic profile option
-        Analytic(x, t, o, freq, ssp, iSeg); break;
+        Analytic<THREED>(x, t, o, freq, ssp, iSeg); break;
     default:
         printf("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
         bail();
     }
+    if(ssp->Type == 'N' || ssp->Type == 'C' || ssp->Type == 'S'){
+        if constexpr(THREED){
+            o.gradc = vec3(RL(0.0), RL(0.0), o2d.gradc.y);
+            o.cxx = o.cyy = o.cxy = o.cxz = o.cyz = RL(0.0);
+            o.czz = o2d.czz;
+            o.ccpx = o2d.ccpx;
+            o.rho = o2d.rho;
+        }else{
+            o = o2d;
+        }
+    }
 }
 
+HOST_DEVICE inline void EvaluateSSP2D3D(const vec2 &x2D, const vec2 &t2D,
+    const vec3 &xs, const vec2 &tradial,
+    SSPOutputs<false> &o, real freq, const SSPStructure *ssp, SSPSegState &iSeg)
+{
+    vec3 x = vec3(xs.x + x2D.x * tradial.x, xs.y + x2D.x * tradial.y, x2D.y);
+    vec3 t = vec3(xs.x + t2D.x * tradial.x, xs.y + t2D.x * tradial.y, t2D.y);
+    SSPOutputs<true> o3d;
+    
+    EvaluateSSP<true>(x, t, o3d, freq, ssp, iSeg);
+    
+    o.gradc.x = glm::dot(tradial, vec2(o3d.x, o3d.y)); // r derivative
+    o.gradc.y = o3d.gradc.z; // z derivative
+    
+    o.crz = tradial.x * o3d.cxz + tradial.y * o3d.cyz;
+    o.crr = o3d.cxx * SQ(tradial.x) 
+        + FL(2.0) * o3d.cxy * tradial.x * tradial.y 
+        + o3d.cyy * SQ(tradial.y);
+    
+    o.ccpx = o3d.ccpx;
+    o.rho = o3d.rho;
+    o.czz = o3d.czz;
+}
+
+/*
 HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx,
     real freq, const SSPStructure *ssp, SSPSegState &iSeg)
 {
@@ -341,6 +462,7 @@ HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx
     real crr, crz, czz, rho;
     EvaluateSSP(SSP_2D_CALL_ARGS);
 }
+*/
 
 void InitializeSSP(SSP_INIT_ARGS);
  

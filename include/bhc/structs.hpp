@@ -56,17 +56,17 @@ struct SSPStructure {
 };
 
 struct SSPOutputs2DExtras {
-    real crr, crz, czz;
+    real crr, crz;
 };
 struct SSPOutputs3DExtras {
-    real cxx, cyy, czz, cxy, cxz, cyz;
+    real cxx, cyy, cxy, cxz, cyz;
 };
 template<bool THREED> struct SSPOutputs 
     : std::conditional_t<THREED, SSPOutputs3DExtras, SSPOutputs2DExtras>
 {
     cpx ccpx;
     typename TmplVec23<THREED>::type gradc;
-    real rho;
+    real rho, czz;
 };
 
 struct SSPSegState {
