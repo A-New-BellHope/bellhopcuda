@@ -171,7 +171,7 @@ void InitQuad(SSP_INIT_ARGS)
     PRTFile << " Depth (m )     Soundspeed (m/s)\n";
     for(int32_t iz2=0; iz2<ssp->NPts; ++iz2){
         LIST(SSPFile); SSPFile.Read(&ssp->cMat[iz2*ssp->Nr], ssp->Nr);
-        // PRTFile << "iSegz depth = " << std::setprecision(2) << ssp->z[iz2] << " m\n";
+        // PRTFile << "iSeg.z depth = " << std::setprecision(2) << ssp->z[iz2] << " m\n";
         PRTFile << std::setprecision(2) << ssp->z[iz2] << " ";
         for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->cMat[iz2*ssp->Nr+i] << " ";
         PRTFile << "\n";

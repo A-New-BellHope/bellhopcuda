@@ -49,10 +49,28 @@ struct SSPStructure {
     real z[MaxSSP], rho[MaxSSP];
     cpx c[MaxSSP], cz[MaxSSP], n2[MaxSSP], n2z[MaxSSP], cSpline[4][MaxSSP];
     cpx cCoef[4][MaxSSP], CSWork[4][MaxSSP]; // for PCHIP coefs.
-    real *cMat, *czMat, *cMat3, *czMat3;
+    real *cMat, *czMat; // LP: No need for separate cMat3 / czMat3 as we don't have to specify the dimension here.
     rxyz_vector Seg;
     char Type;
     char AttenUnit[2];
+};
+
+struct SSPOutputs2DExtras {
+    real crr, crz, czz;
+};
+struct SSPOutputs3DExtras {
+    real cxx, cyy, czz, cxy, cxz, cyz;
+};
+template<bool THREED> struct SSPOutputs 
+    : std::conditional_t<THREED, SSPOutputs3DExtras, SSPOutputs2DExtras>
+{
+    cpx ccpx;
+    typename TmplVec23<THREED>::type gradc;
+    real rho;
+};
+
+struct SSPSegState {
+    int32_t r, x, y, z;
 };
 
 struct HSInfo {

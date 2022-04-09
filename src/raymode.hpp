@@ -32,14 +32,13 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
-    int32_t iSegz, iSegr;
+    SSPSegState iSeg;
     vec2 gradc;
     BdryState<false> bds;
     BdryType Bdry;
     
-    if(!RayInit(isrc, ialpha, SrcDeclAngle, ray2D[0], gradc,
-        DistBegTop, DistBegBot, iSegz, iSegr, bds,
-        Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo))
+    if(!RayInit(isrc, ialpha, SrcDeclAngle, ray2D[0], gradc, DistBegTop, DistBegBot,
+        iSeg, bds, Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo))
     {
         Nsteps = 1;
         return;
@@ -50,8 +49,7 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
         is += RayUpdate(ray2D[is], ray2D[is+1], ray2D[is+2], DistEndTop, DistEndBot,
-            iSmallStepCtr, iSegz, iSegr, bds,
-            Bdry, bdinfo, refl, ssp, freqinfo, Beam);
+            iSmallStepCtr, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(RayTerminate(ray2D[is], Nsteps, is, DistBegTop, DistBegBot,
             DistEndTop, DistEndBot, Beam)) break;
         if(Nsteps >= 0 && is > Nsteps){

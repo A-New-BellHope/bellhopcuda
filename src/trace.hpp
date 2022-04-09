@@ -56,8 +56,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     const HSInfo &hs, bool isTop,
     const vec2 &tBdry, const vec2 &nBdry, real kappa, real freq,
     const ReflectionCoef *RefC, int32_t Npts,
-    const BeamStructure *Beam, const SSPStructure *ssp,
-    int32_t &iSegz, int32_t &iSegr)
+    const BeamStructure *Beam, const SSPStructure *ssp, SSPSegState &iSeg)
 {
     cpx ccpx;
     vec2 gradc;
@@ -85,7 +84,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     
     // just to get c 
     // LP: ccpx.real(); also, this is wrong, it is also using gradc
-    EvaluateSSP(oldPoint.x, oldPoint.t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr);
+    EvaluateSSP(oldPoint.x, oldPoint.t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSeg);
     
     // incident unit ray tangent and normal
     rayt = ccpx.real() * oldPoint.t; // unit tangent to ray
@@ -268,7 +267,7 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  */
 HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
     ray2DPt &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
-    int32_t &iSegz, int32_t &iSegr, BdryState<false> &bds, BdryType &Bdry,
+    SSPSegState &iSeg, BdryState<false> &bds, BdryType &Bdry,
     const BdryType *ConstBdry, const BdryInfo<false> *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
@@ -283,14 +282,14 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     vec2 xs = vec2(FL(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
     
     // LP: Changed in BELLHOP to just reinitialize before every ray.
-    iSegz = iSegr = 0;
+    iSeg.z = iSeg.r = 0;
     
     real alpha = Angles->alpha[ialpha]; // initial angle
     SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
     
     cpx ccpx; real crr, crz, czz, rho;
     vec2 tinit = vec2(STD::cos(alpha), STD::sin(alpha));
-    EvaluateSSP(xs, tinit, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSegz, iSegr);
+    EvaluateSSP(xs, tinit, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSeg);
     
     // Are there enough beams?
     real DalphaOpt = STD::sqrt(ccpx.real() / (FL(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
@@ -368,14 +367,14 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
 HOST_DEVICE inline int32_t RayUpdate(
     const ray2DPt &point0, ray2DPt &point1, ray2DPt &point2,
     real &DistEndTop, real &DistEndBot,
-    int32_t &iSmallStepCtr, int32_t &iSegz, int32_t &iSegr,
+    int32_t &iSmallStepCtr, SSPSegState &iSeg,
     BdryState<false> &bds, BdryType &Bdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl;
     Step2D(point0, point1, bds, 
-        freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr, topRefl, botRefl);
+        freqinfo->freq0, Beam, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -429,7 +428,7 @@ HOST_DEVICE inline int32_t RayUpdate(
             topRefl, tInt, nInt, bd0->kappa, freqinfo->freq0,
             topRefl ? refl->RTop : refl->RBot,
             topRefl ? refl->NTopPts : refl->NBotPts,
-            Beam, ssp, iSegz, iSegr);
+            Beam, ssp, iSeg);
         //Incrementing bounce count moved to Reflect2D
         numRaySteps = 2;
         Distances2D(point2.x, bds.top.x, bds.bot.x, dEndTop, dEndBot,

@@ -66,11 +66,11 @@ template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
             while(bds.Iseg.x >= 0   && bds.Iseg.x < nx-1 && bdinfotb->bd[(bds.Iseg.x  )*ny].x.x >= x.x) --bds.Iseg.x;
         }
         if(t.y >= FL(0.0)){
-            while(bds.Iseg.y >= 0   && bdinfotb->bd[bds.Iseg.y  ].x.x >  x.x) --bds.Iseg.x;
-            while(bds.Iseg.y >= 0   && bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y+1].x.x <= x.x) ++bds.Iseg.x;
+            while(bds.Iseg.y >= 0   && bdinfotb->bd[bds.Iseg.y  ].x.y >  x.y) --bds.Iseg.y;
+            while(bds.Iseg.y >= 0   && bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y+1].x.y <= x.y) ++bds.Iseg.y;
         }else{
-            while(bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y+1].x.x <  x.x) ++bds.Iseg.x;
-            while(bds.Iseg.y >= 0   && bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y  ].x.x >= x.x) --bds.Iseg.x;
+            while(bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y+1].x.y <  x.y) ++bds.Iseg.y;
+            while(bds.Iseg.y >= 0   && bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y  ].x.y >= x.y) --bds.Iseg.y;
         }
         if(bds.Iseg.x < 0 || bds.Iseg.x >= nx-1 || bds.Iseg.y < 0 || bds.Iseg.y >= ny-1){
             printf("Error: Get%s the ray, x=(%g,%g)\n",
