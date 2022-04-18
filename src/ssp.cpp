@@ -87,7 +87,6 @@ void Initn2Linear(SSP_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
     
-    real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     
     for(int32_t i=0; i<ssp->NPts; ++i) ssp->n2[i] = FL(1.0) / SQ(ssp->c[i]);
@@ -103,7 +102,6 @@ void InitcLinear(SSP_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
     
-    real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
 }
 
@@ -111,7 +109,6 @@ void InitcPCHIP(SSP_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
     
-    real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     
     //                                                               2      3
@@ -126,7 +123,6 @@ void InitcCubic(SSP_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
     
-    real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     
     for(int32_t i=0; i<ssp->NPts; ++i) ssp->cSpline[0][i] = ssp->c[i];
@@ -140,7 +136,6 @@ void InitcCubic(SSP_INIT_ARGS)
 
 void InitQuad(SSP_INIT_ARGS)
 {
-    real Depth = x[1];
     ReadSSP(CALL_READ_SSP_ARGS);
     
     // Read the 2D SSP matrix
@@ -189,26 +184,92 @@ void InitQuad(SSP_INIT_ARGS)
     ssp->Nz = ssp->NPts;
 }
 
+void InitHexahedral(SSP_INIT_ARGS)
+{
+    // Read dummy SSP information from the environmental file
+    // This is over-ridden by the info in the SSP file
+    // However, cz info is used in beam selection
+    
+    ReadSSP(CALL_READ_SSP_ARGS);
+    
+    // Read the 3D SSP matrix
+    
+    PRTFile << "\nReading sound speed profile from file\n";
+    LDIFile SSPFile(FileRoot + ".ssp");
+    
+    // x coordinates
+    LIST(SSPFile); SSPFile.Read(ssp->Nx);
+    PRTFile << "\nNumber of points in x = " << ssp->Nx << "\n";
+    checkallocate(ssp->Seg.x, ssp->Nx);
+    LIST(SSPFile); SSPFile.read(ssp->Seg.x, ssp->Nx);
+    
+    // y coordinates
+    LIST(SSPFile); SSPFile.Read(ssp->Ny);
+    PRTFile << "\nNumber of points in y = " << ssp->Ny << "\n";
+    checkallocate(ssp->Seg.y, ssp->Ny);
+    LIST(SSPFile); SSPFile.read(ssp->Seg.y, ssp->Ny);
+    
+    // z coordinates
+    LIST(SSPFile); SSPFile.Read(ssp->Nz);
+    PRTFile << "\nNumber of points in z = " << ssp->Nz << "\n";
+    checkallocate(ssp->Seg.z, ssp->Nz);
+    LIST(SSPFile); SSPFile.read(ssp->Seg.z, ssp->Nz);
+    
+    if(ssp->Nx < 2 || ssp->Ny < 2 || ssp->Nz < 2){
+        std::cout << "You must have at least two points in x, y, z directions in your 3D SSP field\n";
+        std::abort();
+    }
+    
+    checkallocate(ssp->cMat,  ssp->Nx * ssp->Ny * ssp->Nz);
+    checkallocate(ssp->czMat, ssp->Nx * ssp->Ny * (ssp->Nz - 1));
+    
+    PRTFile << "\n";
+    for(int32_t iz2=0; iz2<ssp->Nz; ++iz2){
+        for(int32_t iy2=0; iy2<ssp->Ny; ++iy2){
+            LIST(SSPFile);
+            for(int32_t ix2=0; ix2<ssp->Nx; ++ix2){
+                SSPFile.read(&ssp->cMat[((ix2)*ssp->Ny+iy2)*ssp->Nz+iz2]);
+            }
+        }
+    }
+    
+    // convert km to m
+    for(int32_t ix1=0; ix1<ssp->Nx; ++ix1) ssp->Seg.x *= FL(1000.0);
+    for(int32_t iy1=0; iy1<ssp->Ny; ++iy1) ssp->Seg.y *= FL(1000.0);
+    
+    // calculate cz
+    for(int32_t iSegxt=0; iSegxt<ssp->Nx; ++iSegxt){
+        for(int32_t iSegyt=0; iSegyt<ssp->Ny; ++iSegyt){
+            for(int32_t iz2=1; iz2<ssp->Nz; ++iz2){
+                ssp->czMat[((iSegxt)*ssp->Ny+iSegyt)*(ssp->Nz-1)+iz2-1] =
+                    (ssp->cMat[((iSegxt)*ssp->Ny+iSegyt)*ssp->Nz+iz2] - ssp->cMat[((iSegxt)*ssp->Ny+iSegyt)*ssp->Nz+iz2-1]) /
+                    (ssp->Seg.z[                                 iz2] - ssp->Seg.z[                                 iz2-1]);
+            }
+        }
+    }
+    
+    // over-ride the SSP%z values read in from the environmental file with these new values
+    ssp->NPts = ssp->Nz;
+    for(int32_t iz=0; iz<ssp->Nz; ++iz) ssp->z[iz] = ssp->Seg.z[iz];
+}
+
 void InitializeSSP(SSP_INIT_ARGS)
 {
     switch(ssp->Type){
     case 'N': // N2-linear profile option
-        Initn2Linear(SSP_CALL_INIT_ARGS); break;
+        Initn2Linear  (SSP_CALL_INIT_ARGS); break;
     case 'C': // C-linear profile option
-        InitcLinear (SSP_CALL_INIT_ARGS); break;
+        InitcLinear   (SSP_CALL_INIT_ARGS); break;
     case 'P': // monotone PCHIP ACS profile option
-        InitcPCHIP  (SSP_CALL_INIT_ARGS); break;
+        InitcPCHIP    (SSP_CALL_INIT_ARGS); break;
     case 'S': // Cubic spline profile option
-        InitcCubic  (SSP_CALL_INIT_ARGS); break;
+        InitcCubic    (SSP_CALL_INIT_ARGS); break;
     case 'Q':
-        InitQuad    (SSP_CALL_INIT_ARGS); break;
-    /* case 'H':
-        // this is called by BELLHOP3D only once, during READIN
-        // possibly the logic should be changed to call EvaluateSSP2D or 3D
-        x3 = vec3(RL(0.0), RL(0.0), x.y);
-        InitHexahedral(x3, freq, ssp); break; */
+        InitQuad      (SSP_CALL_INIT_ARGS); break;
+    case 'H':
+        InitHexahedral(SSP_CALL_INIT_ARGS); break;
     case 'A': // Analytic profile option
-        break; //LP: No init for analytic.
+        break; //LP: No init for analytic 2D or 3D.
     default:
         printf("InitializeSSP: Invalid profile option %c\n", ssp->Type);
         std::abort();

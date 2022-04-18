@@ -307,7 +307,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
         ssp->z[0] = FL(0.0);
         ssp->z[1] = Bdry->Bot.hs.Depth;
     }else{
-        x = vec2(RL(0.0), Bdry->Bot.hs.Depth);
+        real Depth = Bdry->Bot.hs.Depth;
         InitializeSSP(SSP_CALL_INIT_ARGS);
     }
     

@@ -351,12 +351,12 @@ HOST_DEVICE inline cpx Compute_gamma(const ray2DPt &point, const cpx &pB, const 
     vec2 rayt = point.c * point.t; // unit tangent
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
-    cpx ccpx; vec2 gradc; real crr, crz, czz, rho;
-    EvaluateSSP(point.x, point.t, ccpx, gradc, crr, crz, czz, rho, inflray.freq0, ssp, iSeg);
+    SSPOutputs<false> o;
+    EvaluateSSP<false>(point.x, point.t, o, inflray.freq0, ssp, iSeg);
     
-    real csq = SQ(ccpx.real());
-    real cS = glm::dot(gradc, rayt);
-    real cN = glm::dot(gradc, rayn);
+    real csq = SQ(o.ccpx.real());
+    real cS = glm::dot(o.gradc, rayt);
+    real cN = glm::dot(o.gradc, rayn);
     
     real Tr = rayt.x;
     real Tz = rayt.y;

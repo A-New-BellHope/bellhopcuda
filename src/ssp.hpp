@@ -35,6 +35,12 @@ constexpr real betaPowerLaw = FL(1.0);
     const typename TmplVec23<THREED>::type &t, \
     SSPOutputs<THREED> &o, real freq, \
     const SSPStructure *ssp, SSPSegState &iSeg
+    
+#define SSP_INIT_ARGS real Depth, const real &fT, \
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot, \
+    SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
+#define SSP_CALL_INIT_ARGS Depth, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
+
 
 HOST_DEVICE inline void UpdateSSPSegment(real x, real t, const real *array,
     int32_t n, int32_t &iSeg)
@@ -363,11 +369,6 @@ template<bool THREED> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
     }
 }
 
-#define SSP_INIT_ARGS vec2 x, const real &fT, \
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot, \
-    SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
-#define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
-
 template<bool THREED> HOST_DEVICE inline void EvaluateSSP(SSP_TEMPL_FN_ARGS)
 {
     vec2 x_rz, t_rz;
@@ -453,16 +454,6 @@ HOST_DEVICE inline void EvaluateSSP2D3D(const vec2 &x2D, const vec2 &t2D,
     o.rho = o3d.rho;
     o.czz = o3d.czz;
 }
-
-/*
-HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx,
-    real freq, const SSPStructure *ssp, SSPSegState &iSeg)
-{
-    vec2 gradc;
-    real crr, crz, czz, rho;
-    EvaluateSSP(SSP_2D_CALL_ARGS);
-}
-*/
 
 void InitializeSSP(SSP_INIT_ARGS);
  

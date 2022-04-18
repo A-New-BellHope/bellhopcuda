@@ -252,11 +252,9 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray2DPt ray1;
     SSPSegState iSeg0;
     vec2 gradc0, gradc1, gradc2, urayt0, urayt1, ray2n, gradcjump;
-    cpx ccpx0, ccpx1, ccpx2;
-    real crr0, crz0, czz0, csq0, cnn0_csq0;
-    real crr1, crz1, czz1, csq1, cnn1_csq1;
-    real crr2, crz2, czz2;
-    real h, halfh, rm, rn, cnjump, csjump, w0, w1, rho;
+    real csq0, cnn0_csq0, csq1, cnn1_csq1;
+    real h, halfh, rm, rn, cnjump, csjump, w0, w1;
+    SSPOutputs<false> o0, o1, o2;
     
     // printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
     //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
@@ -273,25 +271,15 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
 
     // *** Phase 1 (an Euler step)
 
-    EvaluateSSP(ray0.x, ray0.t, ccpx0, gradc0, crr0, crz0, czz0, rho, freq, ssp, iSeg);
+    EvaluateSSP<false>(ray0.x, ray0.t, o0, freq, ssp, iSeg);
     // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
     
-    // printf("ccpx0: (%g,%g) gradc0: (%g,%g) crr0 %g crz0 %g czz0 %g, rho %g\n", 
-    //    ccpx0.real(), ccpx0.imag(), gradc0.x, gradc0.y, crr0, crz0, czz0, rho);
-    
-    /*
-    if(STD::abs(ccpx0) > DEBUG_LARGEVAL){
-        printf("ccpx0 invalid: (%g,%g)\n", ccpx0.real(), ccpx0.imag());
-        bail();
-    }
-    */
-    
-    csq0      = SQ(ccpx0.real());
-    cnn0_csq0 = crr0 * SQ(ray0.t.y) - FL(2.0) * crz0 * ray0.t.x * ray0.t.y + czz0 * SQ(ray0.t.x);
+    csq0      = SQ(o0.ccpx.real());
+    cnn0_csq0 = o0.crr * SQ(ray0.t.y) - FL(2.0) * o0.crz * ray0.t.x * ray0.t.y + o0.czz * SQ(ray0.t.x);
     iSeg0     = iSeg; // make note of current layer
     
     h = Beam->deltas;       // initially set the step h, to the basic one, deltas
-    urayt0 = ccpx0.real() * ray0.t; // unit tangent
+    urayt0 = o0.ccpx.real() * ray0.t; // unit tangent
     
     // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
@@ -308,47 +296,19 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // printf("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
     //   ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
-    /*
-    if(STD::abs(ray1.x.x) > DEBUG_LARGEVAL || STD::abs(ray1.x.y) > DEBUG_LARGEVAL){
-        printf("ray1.x invalid\n");
-        bail();
-    }
-    if(STD::abs(ray1.t.x) > DEBUG_LARGEVAL || STD::abs(ray1.t.y) > DEBUG_LARGEVAL){
-        printf("ray1.t invalid\n");
-        bail();
-    }
-    if(STD::abs(ray1.p.x) > DEBUG_LARGEVAL || STD::abs(ray1.p.y) > DEBUG_LARGEVAL){
-        printf("ray1.p invalid\n");
-        bail();
-    }
-    if(STD::abs(ray1.q.x) > DEBUG_LARGEVAL || STD::abs(ray1.q.y) > DEBUG_LARGEVAL){
-        printf("ray1.q invalid\n");
-        bail();
-    }
-    */
-    
     // *** Phase 2
     
-    EvaluateSSP(ray1.x, ray1.t, ccpx1, gradc1, crr1, crz1, czz1, rho, freq, ssp, iSeg);
+    EvaluateSSP<false>(ray1.x, ray1.t, o1, freq, ssp, iSeg);
     
-    // printf("ccpx1: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
-    
-    /*
-    if(STD::abs(ccpx1) > DEBUG_LARGEVAL){
-        printf("ccpx1 invalid: ray1.x (%g,%g) iSeg.z %d iSeg.r %d => ccpx1 (%g,%g)\n", 
-            ray1.x.x, ray1.x.y, iSeg.z, iSeg.r, ccpx1.real(), ccpx1.imag());
-        bail();
-    }
-    */
-    csq1      = SQ(ccpx1.real());
-    cnn1_csq1 = crr1 * SQ(ray1.t.y) - FL(2.0) * crz1 * ray1.t.x * ray1.t.y + czz1 * SQ(ray1.t.x);
+    csq1      = SQ(o1.ccpx.real());
+    cnn1_csq1 = o1.crr * SQ(ray1.t.y) - FL(2.0) * o1.crz * ray1.t.x * ray1.t.y + o1.czz * SQ(ray1.t.x);
     
     // The Munk test case with a horizontally launched ray caused problems.
     // The ray vertexes on an interface and can ping-pong around that interface.
     // Have to be careful in that case about big changes to the stepsize (that invalidate the leap-frog scheme) in phase II.
     // A modified Heun or Box method could also work.
 
-    urayt1 = ccpx1.real() * ray1.t; // unit tangent
+    urayt1 = o1.ccpx.real() * ray1.t; // unit tangent
     
     // printf("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
     
@@ -378,14 +338,6 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
         ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
         ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
-    
-    if(STD::abs(ray2.x.x) > DEBUG_LARGEVAL || STD::abs(ray2.x.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2.t.x) > DEBUG_LARGEVAL || STD::abs(ray2.t.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2.p.x) > DEBUG_LARGEVAL || STD::abs(ray2.p.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2.q.x) > DEBUG_LARGEVAL || STD::abs(ray2.q.y) > DEBUG_LARGEVAL){
-        printf("ray2 invalid\n");
-        bail();
-    }
     */
     
     ray2.Amp       = ray0.Amp;
@@ -395,15 +347,8 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP(ray2.x, ray2.t, ccpx2, gradc2, crr2, crz2, czz2, rho, freq, ssp, iSeg);
-    //printf("ccpx2: (%g,%g)\n", ccpx2.real(), ccpx2.imag());
-    /*
-    if(STD::abs(ccpx2) > DEBUG_LARGEVAL){
-        printf("ccpx2 invalid: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
-        bail();
-    }
-    */
-    ray2.c = ccpx2.real();
+    EvaluateSSP<false>(ray2.x, ray2.t, o2, freq, ssp, iSeg);
+    ray2.c = o2.ccpx.real();
     
     if(iSeg.z != iSeg0.z || iSeg.r != iSeg0.r){
         gradcjump = gradc2 - gradc0;
@@ -418,7 +363,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
             rm = -ray2.t.y / ray2.t.x; // this is tan( alpha ) where alpha is the angle of incidence
         }                              // LP: The case where it crosses in depth and range simultaneously is not handled.
         
-        rn = rm * (FL(2.0) * cnjump - rm * csjump) / ccpx2.real();
+        rn = rm * (FL(2.0) * cnjump - rm * csjump) / o2.ccpx.real();
         ray2.p = ray2.p - ray2.q * rn;
     }
 }

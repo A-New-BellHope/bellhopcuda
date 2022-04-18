@@ -58,9 +58,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     const ReflectionCoef *RefC, int32_t Npts,
     const BeamStructure *Beam, const SSPStructure *ssp, SSPSegState &iSeg)
 {
-    cpx ccpx;
-    vec2 gradc;
-    real crr, crz, czz, rho; // derivatives of sound speed
+    SSPOutputs<false> o;
     real rm, rn, Tg, Th;
     vec2 rayt, rayn, rayt_tilde, rayn_tilde;
     real cnjump, csjump; // for curvature change
@@ -82,23 +80,22 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     // Calculate the change in curvature
     // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
     
-    // just to get c 
-    // LP: ccpx.real(); also, this is wrong, it is also using gradc
-    EvaluateSSP(oldPoint.x, oldPoint.t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSeg);
+    // just to get c [LP: o.ccpx.real(); also, this is wrong, it is also using o.gradc]
+    EvaluateSSP<false>(oldPoint.x, oldPoint.t, o, freq, ssp, iSeg);
     
     // incident unit ray tangent and normal
-    rayt = ccpx.real() * oldPoint.t; // unit tangent to ray
+    rayt = o.ccpx.real() * oldPoint.t; // unit tangent to ray
     rayn = vec2(-rayt.y, rayt.x);     // unit normal  to ray
     
     // reflected unit ray tangent and normal (the reflected tangent, normal system has a different orientation)
-    rayt_tilde = ccpx.real() * newPoint.t;         // unit tangent to ray
+    rayt_tilde = o.ccpx.real() * newPoint.t;         // unit tangent to ray
     rayn_tilde = -vec2(-rayt_tilde.y, rayt_tilde.x); // unit normal  to ray
     
-    rn = FL(2.0) * kappa / SQ(ccpx.real()) / Th; // boundary curvature correction
+    rn = FL(2.0) * kappa / SQ(o.ccpx.real()) / Th; // boundary curvature correction
     
     // get the jumps (this could be simplified, e.g. jump in rayt is roughly 2 * Th * nbdry
-    cnjump = -glm::dot(gradc, rayn_tilde - rayn);
-    csjump = -glm::dot(gradc, rayt_tilde - rayt);
+    cnjump = -glm::dot(o.gradc, rayn_tilde - rayn);
+    csjump = -glm::dot(o.gradc, rayt_tilde - rayt);
     
     if(isTop){
         cnjump = -cnjump; // this is because the (t,n) system of the top boundary has a different sense to the bottom boundary
@@ -106,7 +103,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     }
     
     rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
-    rn = rn + rm * (FL(2.0) * cnjump - rm * csjump) / SQ(ccpx.real());
+    rn = rn + rm * (FL(2.0) * cnjump - rm * csjump) / SQ(o.ccpx.real());
     
     if(Beam->Type[2] == 'D'){
         rn = FL(2.0) * rn;
@@ -114,7 +111,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
         rn = FL(0.0);
     }
     
-    newPoint.c   = ccpx.real();
+    newPoint.c   = o.ccpx.real();
     newPoint.tau = oldPoint.tau;
     newPoint.p   = oldPoint.p + oldPoint.q * rn;
     newPoint.q   = oldPoint.q;
@@ -234,7 +231,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
                 newPoint.x.x = newPoint.x.x + delta.real() * STD::cos(theta_bot); // range displacement
                 newPoint.x.y = newPoint.x.y + delta.real() * STD::sin(theta_bot); // depth displacement
                 newPoint.tau = newPoint.tau + pdelta; // phase change
-                newPoint.q   = newPoint.q + sddelta * rddelta * si * ccpx.real() * oldPoint.p; // beam-width change
+                newPoint.q   = newPoint.q + sddelta * rddelta * si * o.ccpx.real() * oldPoint.p; // beam-width change
             }
         }
     }else{
@@ -287,12 +284,13 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     real alpha = Angles->alpha[ialpha]; // initial angle
     SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
     
-    cpx ccpx; real crr, crz, czz, rho;
+    SSPOutputs<false> o;
     vec2 tinit = vec2(STD::cos(alpha), STD::sin(alpha));
-    EvaluateSSP(xs, tinit, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSeg);
+    EvaluateSSP<false>(xs, tinit, o, freqinfo->freq0, ssp, iSeg);
+    gradc = o.gradc;
     
     // Are there enough beams?
-    real DalphaOpt = STD::sqrt(ccpx.real() / (FL(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
+    real DalphaOpt = STD::sqrt(o.ccpx.real() / (FL(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
     int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
     
     if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && ialpha == 0){
@@ -308,7 +306,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     
     // Lloyd mirror pattern for semi-coherent option
     if(Beam->RunType[0] == 'S')
-        Amp0 *= STD::sqrt(FL(2.0)) * STD::abs(STD::sin(omega / ccpx.real() * xs.y * STD::sin(alpha)));
+        Amp0 *= STD::sqrt(FL(2.0)) * STD::abs(STD::sin(omega / o.ccpx.real() * xs.y * STD::sin(alpha)));
         
     // LP: This part from TraceRay2D
     
@@ -316,10 +314,10 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
         /*.NumTopBnc =*/ 0,
         /*.NumBotBnc =*/ 0,
         /*.x         =*/ xs,
-        /*.t         =*/ tinit / ccpx.real(),
+        /*.t         =*/ tinit / o.ccpx.real(),
         /*.p         =*/ vec2(FL(1.0), FL(0.0)),
         /*.q         =*/ vec2(FL(0.0), FL(1.0)),
-        /*.c         =*/ ccpx.real(),
+        /*.c         =*/ o.ccpx.real(),
         /*.Amp       =*/ Amp0,
         /*.Phase     =*/ FL(0.0),
         /*.tau       =*/ cpx(FL(0.0), FL(0.0)),
