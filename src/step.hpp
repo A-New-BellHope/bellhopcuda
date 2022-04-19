@@ -36,7 +36,7 @@ namespace bhc {
  * Instead the SSP is extrapolated
  * This prevents problems when the boundaries are outside the domain of the SSP
  */
-template<typename THREED> HOST_DEVICE inline real DepthInterfaceCrossing(
+template<bool THREED> HOST_DEVICE inline void DepthInterfaceCrossing(
     real &h, typename TmplVec23<THREED>::type &x,
     const typename TmplVec23<THREED>::type &x0,
     const typename TmplVec23<THREED>::type &urayt,
@@ -62,25 +62,26 @@ template<typename THREED> HOST_DEVICE inline real DepthInterfaceCrossing(
     }
 }
 
-HOST_DEVICE inline real TopBotCrossing(
-    real &h, const BdryInfoTopBot &bd, typename TmplVec23<THREED>::type &x,
+template<bool THREED> HOST_DEVICE inline void TopBotCrossing(
+    real &h, const BdryStateTopBot<THREED> &bd, typename TmplVec23<THREED>::type &x,
     const typename TmplVec23<THREED>::type &x0,
     const typename TmplVec23<THREED>::type &urayt, bool stepTo, bool &refl)
 {
     if(!stepTo) h = REAL_MAX;
-    typename TmplVec23<THREED>::type d = x - bd.x; // vector from top / bottom to ray
+    typename TmplVec23<THREED>::type d, d0;
+    d  = x  - bd.x; // vector from top / bottom to ray
+    d0 = x0 - bd.x; // vector from top / bottom node to ray origin
     // Originally, this value had to be > a small positive number, meaning the
     // new step really had to be outside the boundary, not just to the boundary.
     // Also, this is not missing a normalization factor, Topn is normalized so
     // this is actually the distance above the top in meters.
     if(glm::dot(bd.n, d) >= (stepTo ? INFINITESIMAL_STEP_SIZE : RL(0.0))){
-        d0 = x0 - bd.x; // vector from top / bottom node to ray origin
         h = -glm::dot(d0, bd.n) / glm::dot(urayt, bd.n);
         if(stepTo){
             x = x0 + h * urayt;
             // Snap to exact top / bot depth value if it's flat
             if(STD::abs(DEP(bd.n)) >= FL(0.999)){
-                DEP(x2) = DEP(bd.x);
+                DEP(x) = DEP(bd.x);
             }
         }
         refl = true;
@@ -92,42 +93,56 @@ HOST_DEVICE inline real TopBotCrossing(
 /**
  * top or bottom segment crossing in range / x / y
  */
-HOST_DEVICE inline real TopBotSegCrossing(
+template<bool THREED> HOST_DEVICE inline void TopBotSegCrossing(
     real &h, const BdryLimits &TopSeg, const BdryLimits &BotSeg,
-    const real *segdim, int32_t iSeg,
-    real xdim, real x0dim, real uraytdim, char qh, const SSPStructure *ssp)
+    const real *seg_w, int32_t iSeg, typename TmplVec23<THREED>::type &x,
+    const typename TmplVec23<THREED>::type &x0,
+    const typename TmplVec23<THREED>::type &urayt, char qh, const SSPStructure *ssp,
+    bool stepTo, bool &topRefl, bool &botRefl, bool isY)
 {
     BdryLimits rSeg;
     rSeg.min = bhc::max(TopSeg.min, BotSeg.min);
     rSeg.max = bhc::min(TopSeg.max, BotSeg.max);
     
     if(ssp->Type == qh){
-        rSeg.min = bhc::max(rSeg.min, segdim[iSeg  ]);
-        rSeg.max = bhc::min(rSeg.max, segdim[iSeg+1]);
+        rSeg.min = bhc::max(rSeg.min, seg_w[iSeg  ]);
+        rSeg.max = bhc::min(rSeg.max, seg_w[iSeg+1]);
     }
     
+    real &x_w    = isY ?     x.y :     x.x;
+    real x0_w    = isY ?    x0.y :    x0.x;
+    real urayt_w = isY ? urayt.y : urayt.x;
     if(!stepTo) h = REAL_MAX;
-    if(STD::abs(uraytdim) > REAL_EPSILON){
-        if(xdim < rSeg.min){
-            h = -(x0dim - rSeg.min) / uraytdim;
-            // printf("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.min, xdim, h);
-        }else if(x.x > rSeg.max){
-            h = -(x0dim - rSeg.max) / uraytdim;
+    if(STD::abs(urayt_w) > REAL_EPSILON){
+        if(x_w < rSeg.min){
+            h = -(x0_w - rSeg.min) / urayt_w;
+            if(stepTo){
+                x = x0 + h * urayt;
+                x_w = rSeg.min;
+                topRefl = botRefl = false;
+            }
+            // printf("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.min, x_w, h);
+        }else if(x_w > rSeg.max){
+            h = -(x0_w - rSeg.max) / urayt_w;
+            if(stepTo){
+                x = x0 + h * urayt;
+                x_w = rSeg.max;
+                topRefl = botRefl = false;
+            }
             // printf("Farther bound SSP R %g < r %g; h4 = %g; top.max %g; bot.max %g; ssp r up %g\n",
-            //     rSeg.max, xdim, h, TopSeg.max, BotSeg.max,
+            //     rSeg.max, x_w, h, TopSeg.max, BotSeg.max,
             //     ssp->Type == qh ? segdim[iSeg+1] : INFINITY);
         }
     }
-    
-    TODO; //add stepTo and setting refl to false
 }
 
 /**
  * triangle crossing within a top / bottom segment
  */
-HOST_DEVICE inline real TriDiagCrossing(
-    real &h, const BdryStateTopBot &bd,
-    const vec3 &x, const vec3 &x0, const vec3 &urayt)
+HOST_DEVICE inline void TriDiagCrossing(
+    real &h, const BdryStateTopBot<true> &bd,
+    vec3 &x, const vec3 &x0, const vec3 &urayt,
+    bool stepTo, bool &topRefl, bool &botRefl)
 {
     vec3 d     = x  - bd.x; // vector from top / bottom node to ray end
     vec3 d0    = x0 - bd.x; // vector from top / bottom node to ray origin
@@ -137,6 +152,24 @@ HOST_DEVICE inline real TriDiagCrossing(
     if( (glm::dot(tri_n, d0) > RL(0.0) && glm::dot(tri_n, d) <= RL(0.0)) ||
         (glm::dot(tri_n, d0) < RL(0.0) && glm::dot(tri_n, d) >= RL(0.0)) ){
         h = -glm::dot(d0, tri_n) / glm::dot(urayt, tri_n);
+        if(stepTo){
+            int32_t i;
+            for(i=0; i<100; ++i){
+                x = x0 + h * urayt;
+                // LP: Since this is not an exact floating-point value to step
+                // to, make sure we have stepped over the boundary.
+                if( (glm::dot(tri_n, d0) > RL(0.0) && glm::dot(tri_n, x - bd.x) <= RL(0.0)) ||
+                    (glm::dot(tri_n, d0) < RL(0.0) && glm::dot(tri_n, x - bd.x) >= RL(0.0)) ){
+                    break;
+                }
+                // Slightly increase h if not.
+                h *= FL(1.000001);
+            }
+            if(i == 100){
+                printf("Warning, TriDiagCrossing did not converge\n");
+            }
+            topRefl = botRefl = false;
+        }
     }
 }
 
@@ -165,20 +198,20 @@ template<bool THREED> HOST_DEVICE inline void ReduceStep2D(
 
     x = x0 + h * urayt; // make a trial step
 
-    DepthInterfaceCrossing(h1, x, x0, urayt, iSeg0, ssp, false);
-    TopBotCrossing(h2, bds.top, x, x0, urayt, false, dummy);
-    TopBotCrossing(h3, bds.bot, x, x0, urayt, false, dummy);
+    DepthInterfaceCrossing<THREED>(h1, x, x0, urayt, iSeg0, ssp, false);
+    TopBotCrossing<THREED>(h2, bds.top, x, x0, urayt, false, dummy);
+    TopBotCrossing<THREED>(h3, bds.bot, x, x0, urayt, false, dummy);
     
     if constexpr(THREED){
-        TopBotSegCrossing(h4, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
-            x.x, x0.x, urayt.x, 'H', ssp);
-        TopBotSegCrossing(h5, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
-            x.y, x0.y, urayt.y, 'H', ssp);
-        TriDiagCrossing(h6, bds.top, x, x0, urayt);
-        TriDiagCrossing(h7, bds.bot, x, x0, urayt);
+        TopBotSegCrossing<THREED>(h4, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
+            x, x0, urayt, 'H', ssp, false, dummy, dummy, false);
+        TopBotSegCrossing<THREED>(h5, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
+            x, x0, urayt, 'H', ssp, false, dummy, dummy, true);
+        TriDiagCrossing(h6, bds.top, x, x0, urayt, false, dummy, dummy);
+        TriDiagCrossing(h7, bds.bot, x, x0, urayt, false, dummy, dummy);
     }else{
-        TopBotSegCrossing(h4, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
-            x.x, x0.x, urayt.x, 'Q', ssp);
+        TopBotSegCrossing<THREED>(h4, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
+            x, x0, urayt, 'Q', ssp, false, dummy, dummy, false);
         h5 = h6 = h7 = REAL_MAX;
     }
     
@@ -216,94 +249,33 @@ template<bool THREED> HOST_DEVICE inline void ReduceStep2D(
     }
 }
 
-HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt,
+template<bool THREED> HOST_DEVICE inline void StepToBdry2D(
+    const typename TmplVec23<THREED>::type &x0, 
+    typename TmplVec23<THREED>::type &x2,
+    const typename TmplVec23<THREED>::type &urayt,
     real &h, bool &topRefl, bool &botRefl,
-    const SSPSegState &iSeg0, const BdryState<false> &bds,
+    const SSPSegState &iSeg0, const BdryState<THREED> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp)
 {
-    vec2 d, d0;
-    BdryLimits rSeg;
-    
     // Original step due to maximum step size
     h = Beam->deltas;
     x2 = x0 + h * urayt;
     
-    // interface crossing in depth
-    if(STD::abs(urayt.y) > REAL_EPSILON){
-        if(      ssp->z[iSeg0.z]     > x2.y){
-            h = (ssp->z[iSeg0.z]     - x0.y) / urayt.y;
-            x2.x = x0.x + h * urayt.x;
-            x2.y = ssp->z[iSeg0.z];
-            // printf("StepToBdry2D upper depth h %g to (%g,%g)\n", h, x2.x, x2.y);
-        }else if(ssp->z[iSeg0.z + 1] < x2.y){
-            h = (ssp->z[iSeg0.z + 1] - x0.y) / urayt.y;
-            x2.x = x0.x + h * urayt.x;
-            x2.y = ssp->z[iSeg0.z + 1];
-            // printf("StepToBdry2D lower depth h %g to (%g,%g)\n", h, x2.x, x2.y);
-        }
-    }
+    DepthInterfaceCrossing<THREED>(h, x2, x0, urayt, iSeg0, ssp, true);
+    TopBotCrossing<THREED>(h, bds.top, x2, x0, urayt, true, topRefl);
+    TopBotCrossing<THREED>(h, bds.bot, x2, x0, urayt, true, botRefl);
+    if(botRefl) topRefl = false;
     
-    // top crossing
-    d = x2 - bds.top.x; // vector from top to ray
-    if(glm::dot(bds.top.n, d) > -INFINITESIMAL_STEP_SIZE){
-        d0 = x0 - bds.top.x; // vector from top node to ray origin
-        h = -glm::dot(d0, bds.top.n) / glm::dot(urayt, bds.top.n);
-        x2 = x0 + h * urayt;
-        // Snap to exact top depth value if it's flat
-        if(STD::abs(bds.top.n.x) < REAL_EPSILON){
-            x2.y = bds.top.x.y;
-        }
-        // printf("StepToBdry2D top crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
-        topRefl = true;
+    if constexpr(THREED){
+        TopBotSegCrossing<THREED>(h, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
+            x2, x0, urayt, 'H', ssp, true, topRefl, botRefl, false);
+        TopBotSegCrossing<THREED>(h, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
+            x2, x0, urayt, 'H', ssp, true, topRefl, botRefl, true);
+        TriDiagCrossing(h, bds.top, x2, x0, urayt, true, topRefl, botRefl);
+        TriDiagCrossing(h, bds.bot, x2, x0, urayt, true, topRefl, botRefl);
     }else{
-        topRefl = false;
-    }
-    
-    // bottom crossing
-    d = x2 - bds.bot.x; // vector from bottom to ray
-    // See comment above for top case.
-    if(glm::dot(bds.bot.n, d) > -INFINITESIMAL_STEP_SIZE){
-        d0 = x0 - bds.bot.x; // vector from bottom node to ray origin
-        h = -glm::dot(d0, bds.bot.n) / glm::dot(urayt, bds.bot.n);
-        x2 = x0 + h * urayt;
-        // Snap to exact bottom depth value if it's flat
-        if(STD::abs(bds.bot.n.x) < REAL_EPSILON){
-            x2.y = bds.bot.x.y;
-        }
-        // printf("StepToBdry2D bottom crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
-        botRefl = true;
-        // Should not ever be able to cross both, but in case it does, make sure
-        // only the crossing we exactly landed on is active
-        topRefl = false;
-    }else{
-        botRefl = false;
-    }
-    
-    // top or bottom segment crossing in range
-    rSeg.min = bhc::max(bds.top.lSeg.min, bds.bot.lSeg.min);
-    rSeg.max = bhc::min(bds.top.lSeg.max, bds.bot.lSeg.max);
-    
-    if(ssp->Type == 'Q'){
-        rSeg.min = bhc::max(rSeg.min, ssp->Seg.r[iSeg0.r  ]);
-        rSeg.max = bhc::min(rSeg.max, ssp->Seg.r[iSeg0.r+1]);
-    }
-    
-    if(STD::abs(urayt.x) > REAL_EPSILON){
-        if(x2.x < rSeg.min){
-            h = -(x0.x - rSeg.min) / urayt.x;
-            x2.x = rSeg.min;
-            x2.y = x0.y + h * urayt.y;
-            // printf("StepToBdry2D lower range h %g to (%g,%g)\n", h, x2.x, x2.y);
-            topRefl = false;
-            botRefl = false;
-        }else if(x2.x > rSeg.max){
-            h = -(x0.x - rSeg.max) / urayt.x;
-            x2.x = rSeg.max;
-            x2.y = x0.y + h * urayt.y;
-            // printf("StepToBdry2D upper range h %25.21f to (%25.21f,%25.21f)\n", h, x2.x, x2.y);
-            topRefl = false;
-            botRefl = false;
-        }
+        TopBotSegCrossing<THREED>(h, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
+            x2, x0, urayt, 'Q', ssp, true, topRefl, botRefl, false);
     }
     
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
@@ -311,6 +283,7 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
         x2 = x0 + h * urayt;
         // printf("StepToBdry2D small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
         // Recheck reflection conditions
+        typename TmplVec23<THREED>::type d;
         d = x2 - bds.top.x; // vector from top to ray
         if(glm::dot(bds.top.n, d) > REAL_EPSILON){
             topRefl = true;
@@ -369,7 +342,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0.x, urayt0, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    ReduceStep2D<false>(ray0.x, urayt0, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
     // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
@@ -398,7 +371,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // printf("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0.x, urayt1, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    ReduceStep2D<false>(ray0.x, urayt1, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RL(2.0) * halfh);
@@ -413,7 +386,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // Take the blended ray tangent (urayt2) and find the minimum step size (h)
     // to put this on a boundary, and ensure that the resulting position
     // (ray2.x) gets put precisely on the boundary.
-    StepToBdry2D(ray0.x, ray2.x, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
+    StepToBdry2D<false>(ray0.x, ray2.x, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
     ray2.t   = ray0.t   + h * unitdt;
     ray2.p   = ray0.p   + h * unitdp;
     ray2.q   = ray0.q   + h * unitdq;
