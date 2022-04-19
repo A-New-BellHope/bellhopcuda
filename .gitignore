@@ -13,3 +13,5 @@ test/cxxmulti/
 test/cuda/
 test/FORTRAN/
 .vs/
+
+.DS_Store
