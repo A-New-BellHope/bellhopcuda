@@ -87,15 +87,15 @@ template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
         
         // identify the normal based on the active triangle of a pair
         
-        vec2 Top_tri_n = vec2(-(bds.lSeg.y.max - bds.lSeg.y.min), bds.lSeg.x.max - bds.lSeg.x.min);
+        vec2 tri_n = vec2(-(bds.lSeg.y.max - bds.lSeg.y.min), bds.lSeg.x.max - bds.lSeg.x.min);
         
-        if(glm::dot(vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y), Top_tri_n) < RL(0.0)){
+        if(glm::dot(vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y), tri_n) < RL(0.0)){
             bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n1;
         }else{
             bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n2;
         }
         
-        // if the Top depth is bad (a NaN) then set the segment flags to indicate that
+        // if the depth is bad (a NaN) then set the segment flags to indicate that
         if(!STD::isfinite(bds.x.z) || !bhc::isfinite(bds.n)){
             bds.Iseg.x = -1;
             bds.Iseg.y = -1;
