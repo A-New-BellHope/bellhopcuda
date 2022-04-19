@@ -81,7 +81,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
     // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
     
     // just to get c [LP: o.ccpx.real(); also, this is wrong, it is also using o.gradc]
-    EvaluateSSP<false>(oldPoint.x, oldPoint.t, o, freq, ssp, iSeg);
+    EvaluateSSP<false>(oldPoint.x, oldPoint.t, o, ssp, iSeg);
     
     // incident unit ray tangent and normal
     rayt = o.ccpx.real() * oldPoint.t; // unit tangent to ray
@@ -159,7 +159,7 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
             g = hs.rho;
         }
         
-        Refl = -(rho * f - J * kz * g) / (rho * f + J * kz * g); // complex reflection coef.
+        Refl = -(o.rho * f - J * kz * g) / (o.rho * f + J * kz * g); // complex reflection coef.
         /*
         printf("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
             hs.cP.real(), hs.cP.imag(), hs.rho);
@@ -286,7 +286,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     
     SSPOutputs<false> o;
     vec2 tinit = vec2(STD::cos(alpha), STD::sin(alpha));
-    EvaluateSSP<false>(xs, tinit, o, freqinfo->freq0, ssp, iSeg);
+    EvaluateSSP<false>(xs, tinit, o, ssp, iSeg);
     gradc = o.gradc;
     
     // Are there enough beams?
@@ -371,8 +371,7 @@ HOST_DEVICE inline int32_t RayUpdate(
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl;
-    Step2D(point0, point1, bds, 
-        freqinfo->freq0, Beam, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
+    Step2D(point0, point1, bds, Beam, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);

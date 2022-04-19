@@ -30,6 +30,40 @@ namespace bhc {
 #endif
 
 /**
+ * top or bottom segment crossing in range / x / y
+ */
+HOST_DEVICE inline real TopBotSegCrossing(
+    const BdryLimits &TopSeg, const BdryLimits &BotSeg,
+    const real *segdim, int32_t iSeg,
+    real xdim, real x0dim, real uraytdim, char qh, const SSPStructure *ssp
+    )
+{
+    BdryLimits rSeg;
+    rSeg.min = bhc::max(TopSeg.min, BotSeg.min);
+    rSeg.max = bhc::min(TopSeg.max, BotSeg.max);
+    
+    if(ssp->Type == qh){
+        rSeg.min = bhc::max(rSeg.min, segdim[iSeg  ]);
+        rSeg.max = bhc::min(rSeg.max, segdim[iSeg+1]);
+    }
+    
+    real h = REAL_MAX;
+    if(STD::abs(uraytdim) > REAL_EPSILON){
+        if(xdim < rSeg.min){
+            h = -(x0dim - rSeg.min) / uraytdim;
+            // printf("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.min, xdim, h);
+        }else if(x.x > rSeg.max){
+            h = -(x0dim - rSeg.max) / uraytdim;
+            // printf("Farther bound SSP R %g < r %g; h4 = %g; top.max %g; bot.max %g; ssp r up %g\n",
+            //     rSeg.max, xdim, h, TopSeg.max, BotSeg.max,
+            //     ssp->Type == qh ? segdim[iSeg+1] : INFINITY);
+        }
+    }
+    
+    return h;
+}
+
+/**
  * calculate a reduced step size, h, that lands on any points where the environment changes
  * 
  * x0, urayt: ray coordinate and tangent
@@ -37,13 +71,15 @@ namespace bhc {
  * Topx, Topn, Botx, Botn: Top, bottom coordinate and normal
  * h: reduced step size
  */
-HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
-    const SSPSegState &iSeg0, const BdryState<false> &bds,
+template<bool THREED> HOST_DEVICE inline void ReduceStep2D(
+    const typename TmplVec23<THREED>::type &x0, 
+    const typename TmplVec23<THREED>::type &urayt,
+    const SSPSegState &iSeg0, const BdryState<THREED> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp, 
     real &h, int32_t &iSmallStepCtr)
 {
-    vec2 x, d, d0, rSeg;
-    real h1, h2, h3, h4;
+    typename TmplVec23<THREED>::type x, d, d0;
+    real h1, h2, h3, h4, h5, h6, h7;
     
     // Detect interface or boundary crossing and reduce step, if necessary, to land on that crossing.
     // Keep in mind possibility that user put source right on an interface
@@ -52,13 +88,17 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     x = x0 + h * urayt; // make a trial step
 
     // interface crossing in depth
+    // LP: 3D only:
+    // Step reduction is not done for the top or bottom layer
+    // Instead the SSP is extrapolated
+    // This prevents problems when the boundaries are outside the domain of the SSP
     h1 = REAL_MAX;
-    if(STD::abs(urayt.y) > REAL_EPSILON){
-        if(       ssp->z[iSeg0.z]     >  x.y){
-            h1 = (ssp->z[iSeg0.z]     - x0.y) / urayt.y;
+    if(STD::abs(DEP(urayt)) > REAL_EPSILON){
+        if(       ssp->z[iSeg0.z]     > DEP(x) && (!THREED || iSeg0.z > 0)){
+            h1 = (ssp->z[iSeg0.z]     - DEP(x0)) / DEP(urayt);
             // printf("Shallower bound SSP Z %g > z %g; h1 = %g\n", ssp->z[iSeg0.z], x.y, h1);
-        }else if( ssp->z[iSeg0.z + 1] <  x.y){
-            h1 = (ssp->z[iSeg0.z + 1] - x0.y) / urayt.y;
+        }else if( ssp->z[iSeg0.z + 1] < DEP(x) && (!THREED || iSeg0.z + 1 < ssp->Nz-1)){
+            h1 = (ssp->z[iSeg0.z + 1] - DEP(x0)) / DEP(urayt);
             // printf("Deeper bound SSP Z %g < z %g; h1 = %g\n", ssp->z[iSeg0.z+1], x.y, h1);
         }
     }
@@ -79,31 +119,22 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
         h3 = -glm::dot(d0, bds.bot.n) / glm::dot(urayt, bds.bot.n);
     }
     
-    // top or bottom segment crossing in range
-    rSeg.x = bhc::max(bds.top.lSeg.min, bds.bot.lSeg.min);
-    rSeg.y = bhc::min(bds.top.lSeg.max, bds.bot.lSeg.max);
-    
-    if(ssp->Type == 'Q'){
-        rSeg.x = bhc::max(rSeg.x, ssp->Seg.r[iSeg0.r  ]);
-        rSeg.y = bhc::min(rSeg.y, ssp->Seg.r[iSeg0.r+1]);
+    if constexpr(THREED){
+        h4 = TopBotSegCrossing(bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
+            x.x, x0.x, urayt.x, 'H', ssp);
+        h5 = TopBotSegCrossing(bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
+            x.y, x0.y, urayt.y, 'H', ssp);
+    }else{
+        h4 = TopBotSegCrossing(bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
+            x.x, x0.x, urayt.x, 'Q', ssp);
+        h5 = REAL_MAX;
     }
     
-    h4 = REAL_MAX;
-    if(STD::abs(urayt.x) > REAL_EPSILON){
-        if(x.x < rSeg.x){
-            h4 = -(x0.x - rSeg.x) / urayt.x;
-            // printf("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.x, x.x, h4);
-        }else if(x.x > rSeg.y){
-            h4 = -(x0.x - rSeg.y) / urayt.x;
-            // printf("Farther bound SSP R %g < r %g; h4 = %g; top.max %g; bot.max %g; ssp r up %g\n",
-            //     rSeg.y, x.x, h4, bds.top.lSeg.max, bds.bot.lSeg.max,
-            //     ssp->Type == 'Q' ? ssp->Seg.r[iSeg0.r+1] : INFINITY);
-        }
-    }
-    
-    //printf("ReduceStep2D h h1 h2 h3 h4 %g %g %g %g %g\n", h, h1, h2, h3, h4);
+    //printf("ReduceStep2D h h1 h2 h3 h4 h5 h6 h7 %g %g %g %g %g %g %g %g\n",
+    //    h, h1, h2, h3, h4, h5, h6, h7);
     // take limit set by shortest distance to a crossing
-    h = bhc::min(h, bhc::min(h1, bhc::min(h2, bhc::min(h3, h4))));
+    h = bhc::min(h, bhc::min(h1, bhc::min(h2, bhc::min(h3, bhc::min(h4, 
+        bhc::min(h5, bhc::min(h6, h7)))))));
     /*
     if(h == h1){
         printf("Step %g due to Z SSP crossing\n", h);
@@ -132,7 +163,8 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
     const SSPSegState &iSeg0, const BdryState<false> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp)
 {
-    vec2 d, d0, rSeg;
+    vec2 d, d0;
+    BdryLimits rSeg;
     
     // Original step due to maximum step size
     h = Beam->deltas;
@@ -194,25 +226,25 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
     }
     
     // top or bottom segment crossing in range
-    rSeg.x = bhc::max(bds.top.lSeg.min, bds.bot.lSeg.min);
-    rSeg.y = bhc::min(bds.top.lSeg.max, bds.bot.lSeg.max);
+    rSeg.min = bhc::max(bds.top.lSeg.min, bds.bot.lSeg.min);
+    rSeg.max = bhc::min(bds.top.lSeg.max, bds.bot.lSeg.max);
     
     if(ssp->Type == 'Q'){
-        rSeg.x = bhc::max(rSeg.x, ssp->Seg.r[iSeg0.r  ]);
-        rSeg.y = bhc::min(rSeg.y, ssp->Seg.r[iSeg0.r+1]);
+        rSeg.min = bhc::max(rSeg.min, ssp->Seg.r[iSeg0.r  ]);
+        rSeg.max = bhc::min(rSeg.max, ssp->Seg.r[iSeg0.r+1]);
     }
     
     if(STD::abs(urayt.x) > REAL_EPSILON){
-        if(x2.x < rSeg.x){
-            h = -(x0.x - rSeg.x) / urayt.x;
-            x2.x = rSeg.x;
+        if(x2.x < rSeg.min){
+            h = -(x0.x - rSeg.min) / urayt.x;
+            x2.x = rSeg.min;
             x2.y = x0.y + h * urayt.y;
             // printf("StepToBdry2D lower range h %g to (%g,%g)\n", h, x2.x, x2.y);
             topRefl = false;
             botRefl = false;
-        }else if(x2.x > rSeg.y){
-            h = -(x0.x - rSeg.y) / urayt.x;
-            x2.x = rSeg.y;
+        }else if(x2.x > rSeg.max){
+            h = -(x0.x - rSeg.max) / urayt.x;
+            x2.x = rSeg.max;
             x2.y = x0.y + h * urayt.y;
             // printf("StepToBdry2D upper range h %25.21f to (%25.21f,%25.21f)\n", h, x2.x, x2.y);
             topRefl = false;
@@ -245,13 +277,12 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
  * Does a single step along the ray
  */
 HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2, 
-    const BdryState<false> &bds, const real &freq,
-    const BeamStructure *Beam, const SSPStructure *ssp,
-    const SSPSegState &iSeg, int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
+    const BdryState<false> &bds, const BeamStructure *Beam, const SSPStructure *ssp,
+    SSPSegState &iSeg, int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
 {
     ray2DPt ray1;
     SSPSegState iSeg0;
-    vec2 gradc0, gradc1, gradc2, urayt0, urayt1, ray2n, gradcjump;
+    vec2 urayt0, urayt1, ray2n, gradcjump;
     real csq0, cnn0_csq0, csq1, cnn1_csq1;
     real h, halfh, rm, rn, cnjump, csjump, w0, w1;
     SSPOutputs<false> o0, o1, o2;
@@ -271,7 +302,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
 
     // *** Phase 1 (an Euler step)
 
-    EvaluateSSP<false>(ray0.x, ray0.t, o0, freq, ssp, iSeg);
+    EvaluateSSP<false>(ray0.x, ray0.t, o0, ssp, iSeg);
     // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
     
     csq0      = SQ(o0.ccpx.real());
@@ -289,16 +320,16 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
     ray1.x = ray0.x + halfh * urayt0;
-    ray1.t = ray0.t - halfh * gradc0 / csq0;
-    ray1.p = ray0.p - halfh * cnn0_csq0    * ray0.q;
-    ray1.q = ray0.q + halfh * ccpx0.real() * ray0.p;
+    ray1.t = ray0.t - halfh * o0.gradc / csq0;
+    ray1.p = ray0.p - halfh * cnn0_csq0      * ray0.q;
+    ray1.q = ray0.q + halfh * o0.ccpx.real() * ray0.p;
     
     // printf("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
     //   ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     // *** Phase 2
     
-    EvaluateSSP<false>(ray1.x, ray1.t, o1, freq, ssp, iSeg);
+    EvaluateSSP<false>(ray1.x, ray1.t, o1, ssp, iSeg);
     
     csq1      = SQ(o1.ccpx.real());
     cnn1_csq1 = o1.crr * SQ(ray1.t.y) - FL(2.0) * o1.crz * ray1.t.x * ray1.t.y + o1.czz * SQ(ray1.t.x);
@@ -319,11 +350,11 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     w1  = h / (RL(2.0) * halfh);
     w0  = RL(1.0) - w1;
     // printf("w1 %20.17f w0 %20.17f\n", w1, w0);
-    vec2 urayt2   =  w0 * urayt0                + w1 * urayt1;
-    vec2 unitdt   = -w0 * gradc0 / csq0         - w1 * gradc1 / csq1;
-    vec2 unitdp   = -w0 * cnn0_csq0    * ray0.q - w1 * cnn1_csq1    * ray1.q;
-    vec2 unitdq   =  w0 * ccpx0.real() * ray0.p + w1 * ccpx1.real() * ray1.p;
-    cpx  unitdtau =  w0 / ccpx0                 + w1 / ccpx1;
+    vec2 urayt2   =  w0 * urayt0                  + w1 * urayt1;
+    vec2 unitdt   = -w0 * o0.gradc / csq0         - w1 * o1.gradc / csq1;
+    vec2 unitdp   = -w0 * cnn0_csq0      * ray0.q - w1 * cnn1_csq1      * ray1.q;
+    vec2 unitdq   =  w0 * o0.ccpx.real() * ray0.p + w1 * o1.ccpx.real() * ray1.p;
+    cpx  unitdtau =  w0 / o0.ccpx                 + w1 / o1.ccpx;
     
     // Take the blended ray tangent (urayt2) and find the minimum step size (h)
     // to put this on a boundary, and ensure that the resulting position
@@ -347,11 +378,11 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP<false>(ray2.x, ray2.t, o2, freq, ssp, iSeg);
+    EvaluateSSP<false>(ray2.x, ray2.t, o2, ssp, iSeg);
     ray2.c = o2.ccpx.real();
     
     if(iSeg.z != iSeg0.z || iSeg.r != iSeg0.r){
-        gradcjump = gradc2 - gradc0;
+        gradcjump = o2.gradc - o0.gradc;
         ray2n = vec2(-ray2.t.y, ray2.t.x); // ray normal
         
         cnjump = glm::dot(gradcjump, ray2n);

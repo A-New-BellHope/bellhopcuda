@@ -346,13 +346,13 @@ HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
  * Form gamma
  */
 HOST_DEVICE inline cpx Compute_gamma(const ray2DPt &point, const cpx &pB, const cpx &qB,
-    const InfluenceRayInfo &inflray, const SSPStructure *ssp, SSPSegState &iSeg)
+    const SSPStructure *ssp, SSPSegState &iSeg)
 {
     vec2 rayt = point.c * point.t; // unit tangent
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
     SSPOutputs<false> o;
-    EvaluateSSP<false>(point.x, point.t, o, inflray.freq0, ssp, iSeg);
+    EvaluateSSP<false>(point.x, point.t, o, ssp, iSeg);
     
     real csq = SQ(o.ccpx.real());
     real cS = glm::dot(o.gradc, rayt);
@@ -451,7 +451,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
         // LP: For Cerveny cart
         cpx eps0, pB0, qB0;
         Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
-        inflray.gamma = Compute_gamma(point0, pB0, qB0, inflray, ssp, iSeg);
+        inflray.gamma = Compute_gamma(point0, pB0, qB0, ssp, iSeg);
     }else{
         // LP: not used
         inflray.gamma = RL(0.0);
@@ -600,7 +600,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     // Treatment of KMAH index is incorrect for 'Cerveny' style beam width BeamType
     
     gamma0 = inflray.gamma;
-    gamma1 = Compute_gamma(point1, pB1, qB1, inflray, ssp, iSeg);
+    gamma1 = Compute_gamma(point1, pB1, qB1, ssp, iSeg);
     inflray.gamma = gamma1;
         
     int32_t old_kmah = inflray.kmah;

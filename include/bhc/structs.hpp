@@ -29,6 +29,12 @@ namespace bhc {
 template<bool THREED> struct TmplVec23 {};
 template<> struct TmplVec23<false> { typedef vec2 type; };
 template<> struct TmplVec23<true>  { typedef vec3 type; };
+template<typename VEC> HOST_DEVICE inline real &DEP(VEC &v);
+template<> HOST_DEVICE inline real &DEP(vec2 &v) { return v.y; }
+template<> HOST_DEVICE inline real &DEP(vec3 &v) { return v.z; }
+template<typename VEC> HOST_DEVICE inline const real &DEP(const VEC &v);
+template<> HOST_DEVICE inline const real &DEP(const vec2 &v) { return v.y; }
+template<> HOST_DEVICE inline const real &DEP(const vec3 &v) { return v.z; }
 template<bool THREED> struct TmplInt12 {};
 template<> struct TmplInt12<false> { typedef int32_t type; };
 template<> struct TmplInt12<true>  { typedef int2 type; };

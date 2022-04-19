@@ -72,8 +72,6 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     params.refl->RTop = nullptr;
     params.ssp->cMat = nullptr;
     params.ssp->czMat = nullptr;
-    params.ssp->cMat3 = nullptr;
-    params.ssp->czMat3 = nullptr;
     params.ssp->Seg.r = nullptr;
     params.ssp->Seg.x = nullptr;
     params.ssp->Seg.y = nullptr;
@@ -339,8 +337,6 @@ BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
     checkdeallocate(params.refl->RTop);
     checkdeallocate(params.ssp->cMat);
     checkdeallocate(params.ssp->czMat);
-    checkdeallocate(params.ssp->cMat3);
-    checkdeallocate(params.ssp->czMat3);
     checkdeallocate(params.ssp->Seg.r);
     checkdeallocate(params.ssp->Seg.x);
     checkdeallocate(params.ssp->Seg.y);

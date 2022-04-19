@@ -201,22 +201,27 @@ void InitHexahedral(SSP_INIT_ARGS)
     LIST(SSPFile); SSPFile.Read(ssp->Nx);
     PRTFile << "\nNumber of points in x = " << ssp->Nx << "\n";
     checkallocate(ssp->Seg.x, ssp->Nx);
-    LIST(SSPFile); SSPFile.read(ssp->Seg.x, ssp->Nx);
+    LIST(SSPFile); SSPFile.Read(ssp->Seg.x, ssp->Nx);
     
     // y coordinates
     LIST(SSPFile); SSPFile.Read(ssp->Ny);
     PRTFile << "\nNumber of points in y = " << ssp->Ny << "\n";
     checkallocate(ssp->Seg.y, ssp->Ny);
-    LIST(SSPFile); SSPFile.read(ssp->Seg.y, ssp->Ny);
+    LIST(SSPFile); SSPFile.Read(ssp->Seg.y, ssp->Ny);
     
     // z coordinates
     LIST(SSPFile); SSPFile.Read(ssp->Nz);
     PRTFile << "\nNumber of points in z = " << ssp->Nz << "\n";
     checkallocate(ssp->Seg.z, ssp->Nz);
-    LIST(SSPFile); SSPFile.read(ssp->Seg.z, ssp->Nz);
+    LIST(SSPFile); SSPFile.Read(ssp->Seg.z, ssp->Nz);
     
     if(ssp->Nx < 2 || ssp->Ny < 2 || ssp->Nz < 2){
         std::cout << "You must have at least two points in x, y, z directions in your 3D SSP field\n";
+        std::abort();
+    }
+    
+    if(ssp->Nz >= MaxSSP){
+        std::cout << "InitHexahedral: Number of SSP points in Z exceeds limit\n";
         std::abort();
     }
     
@@ -228,14 +233,14 @@ void InitHexahedral(SSP_INIT_ARGS)
         for(int32_t iy2=0; iy2<ssp->Ny; ++iy2){
             LIST(SSPFile);
             for(int32_t ix2=0; ix2<ssp->Nx; ++ix2){
-                SSPFile.read(&ssp->cMat[((ix2)*ssp->Ny+iy2)*ssp->Nz+iz2]);
+                SSPFile.Read(ssp->cMat[((ix2)*ssp->Ny+iy2)*ssp->Nz+iz2]);
             }
         }
     }
     
     // convert km to m
-    for(int32_t ix1=0; ix1<ssp->Nx; ++ix1) ssp->Seg.x *= FL(1000.0);
-    for(int32_t iy1=0; iy1<ssp->Ny; ++iy1) ssp->Seg.y *= FL(1000.0);
+    for(int32_t ix1=0; ix1<ssp->Nx; ++ix1) ssp->Seg.x[ix1] *= FL(1000.0);
+    for(int32_t iy1=0; iy1<ssp->Ny; ++iy1) ssp->Seg.y[iy1] *= FL(1000.0);
     
     // calculate cz
     for(int32_t iSegxt=0; iSegxt<ssp->Nx; ++iSegxt){
