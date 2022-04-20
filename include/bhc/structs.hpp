@@ -61,14 +61,14 @@ struct SSPStructure {
     char AttenUnit[2];
 };
 
-struct SSPOutputs2DExtras {
+template<bool THREED> struct SSPOutputsExtras {};
+template<> struct SSPOutputsExtras<false> {
     real crr, crz;
 };
-struct SSPOutputs3DExtras {
+template<> struct SSPOutputsExtras<true> {
     real cxx, cyy, cxy, cxz, cyz;
 };
-template<bool THREED> struct SSPOutputs 
-    : std::conditional_t<THREED, SSPOutputs3DExtras, SSPOutputs2DExtras>
+template<bool THREED> struct SSPOutputs : public SSPOutputsExtras<THREED>
 {
     cpx ccpx;
     typename TmplVec23<THREED>::type gradc;
@@ -99,21 +99,21 @@ struct BdryType {
     BdryPtSmall Top, Bot;
 };
 
-struct BdryPtFull2DExtras {
+template<bool THREED> struct BdryPtFullExtras {};
+template<> struct BdryPtFullExtras<false> {
     vec2 Nodet; // tangent at the node, if the curvilinear option is used
     real kappa; // curvature of a segement
     real Dx, Dxx, Dss; // first, second derivatives wrt depth; s is along tangent
     HSInfo hs;
 };
-struct BdryPtFull3DExtras {
+template<> struct BdryPtFullExtras<true> {
     vec3 n1, n2; // (outward-pointing) normals for each of the triangles in a pair, n is selected from those
     vec3 Noden_unscaled;
     real kappa_xx, kappa_xy, kappa_yy;
     real z_xx, z_xy, z_yy;
     real phi_xx, phi_xy, phi_yy;
 };
-template<bool THREED> struct BdryPtFull 
-    : public std::conditional_t<THREED, BdryPtFull3DExtras, BdryPtFull2DExtras>
+template<bool THREED> struct BdryPtFull : public BdryPtFullExtras
 {
     using VEC = typename TmplVec23<THREED>::type;
     VEC x; // 2D: coordinate for a segment / 3D: coordinate of boundary
@@ -297,15 +297,15 @@ struct ArrInfo {
 //Rays/beams
 ////////////////////////////////////////////////////////////////////////////////
 
-struct rayPt2DExtras {
+template<bool THREED> struct rayPtExtras {};
+template<> struct rayPtExtras<false> {
     vec2 p, q;
 };
-struct rayPt3DExtras {
+template<> struct rayPtExtras<true> {
     vec2 p_tilde, q_tilde, p_hat, q_hat;
     real DetQ, phi;
 };
-template<bool THREED> struct rayPt
-    : std::conditional_t<THREED, rayPt3DExtras, rayPt2DExtras>
+template<bool THREED> struct rayPt : public rayPtExtras
 {
     using VEC = typename TmplVec23<THREED>::type;
     int32_t NumTopBnc, NumBotBnc;

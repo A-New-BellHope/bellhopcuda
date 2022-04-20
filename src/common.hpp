@@ -42,6 +42,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtc/matrix_access.hpp>
 
 ////////////////////////////////////////////////////////////////////////////////
 //Select which standard library
