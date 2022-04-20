@@ -328,11 +328,66 @@ template<bool THREED> HOST_DEVICE inline void StepToBdry(
     }
 }
 
+template<bool THREED> HOST_DEVICE inline void Get_c_partials(
+    const rayPt<THREED> &ray, const SSPOutputs<THREED> &o,
+    StepPartials<THREED> &part)
+{
+    if constexpr(THREED){
+        vec3 e1, e2;
+        RayNormal(ray.t, ray.phi, o.ccpx.real(), e1, e2);
+        
+        part.cnn = o.cxx * SQ(e1.x) + o.cyy * SQ(e1.y) + o.czz * SQ(e1.z)
+            + FL(2.0) * o.cxy * e1.x * e1.y
+            + FL(2.0) * o.cxz * e1.x * e1.z
+            + FL(2.0) * o.cyz * e1.y * e1.z;
+        
+        part.cmn = o.cxx * e1.x * e2.x + o.cyy * e1.y * e2.y + o.czz * e1.z * e2.z
+            + o.cxy * (e1.x * e2.y + e2.x * e1.y)
+            + o.cxz * (e1.x * e2.z + e2.x * e1.z)
+            + o.cyz * (e1.y * e2.z + e2.y * e1.z);
+        
+        part.cmm = o.cxx * SQ(e2.x) + o.cyy * SQ(e2.y) + o.czz * SQ(e2.z)
+            + FL(2.0) * o.cxy * e2.x * e2.y
+            + FL(2.0) * o.cxz * e2.x * e2.z
+            + FL(2.0) * o.cyz * e2.y * e2.z;
+    }else{
+        part.cnn_csq = o.crr * SQ(ray.t.y) 
+                    - FL(2.0) * o.crz * ray.t.x * ray.t.y 
+                    + o.czz * SQ(ray.t.x);
+    }
+}
+
+template<bool THREED> HOST_DEVICE inline void UpdateRayPQ(
+    rayPt<THREED> &ray1, const rayPt<THREED> &ray0, real halfh,
+    const SSPOutputs<THREED> &o,
+    const StepPartials<THREED> &part)
+{
+    if constexpr(THREED){
+        ray1.phi = ray0.phi + halfh * (FL(1.0) / o.ccpx.real()) * ray0.t.z *
+            (ray0.t.y * o.gradc.x - ray0.t.x * o.gradc.y) /
+            (SQ(ray0.t.x) + SQ(ray0.t.y));
+        
+        mat2x2 c_mat(part.cnn, part.cmn, part.cmn, part.cmm);
+        c_mat *= -RL(1.0) / SQ(o.ccpx.real());
+        
+        ray1.p_tilde = ray0.p_tilde + halfh * c_mat         * ray0.q_tilde;
+        ray1.q_tilde = ray0.q_tilde + halfh * o.ccpx.real() * ray0.p_tilde;
+        
+        ray1.p_hat   = ray0.p_hat   + halfh * c_mat         * ray0.q_hat;
+        ray1.q_hat   = ray0.q_hat   + halfh * o.ccpx.real() * ray0.p_hat;
+        
+    }else{
+        ray1.p = ray0.p - halfh * part.cnn_csq  * ray0.q;
+        ray1.q = ray0.q + halfh * o.ccpx.real() * ray0.p;
+    }
+}
+
 /**
  * Does a single step along the ray
  */
-HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2, 
-    const BdryState<false> &bds, const BeamStructure *Beam, const SSPStructure *ssp,
+template<bool THREED> HOST_DEVICE inline void Step2D(
+    rayPt<THREED> ray0, rayPt<THREED> &ray2, 
+    const BdryState<THREED> &bds, const BeamStructure *Beam, const SSPStructure *ssp,
     SSPSegState &iSeg, int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
 {
     ray2DPt ray1;
@@ -340,7 +395,8 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     vec2 urayt0, urayt1, ray2n, gradcjump;
     real csq0, cnn0_csq0, csq1, cnn1_csq1;
     real h, halfh, rm, rn, cnjump, csjump, w0, w1;
-    SSPOutputs<false> o0, o1, o2;
+    SSPOutputs<THREED> o0, o1, o2;
+    StepPartials<THREED> part0, part1;
     
     #ifdef STEP_DEBUGGING
     printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
@@ -361,51 +417,49 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
 
     // *** Phase 1 (an Euler step)
 
-    EvaluateSSP<false>(ray0.x, ray0.t, o0, ssp, iSeg);
+    EvaluateSSP<THREED>(ray0.x, ray0.t, o0, ssp, iSeg);
     // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
+    Get_c_partials<THREED>(ray0, o0, part0);
     
     csq0      = SQ(o0.ccpx.real());
-    cnn0_csq0 = o0.crr * SQ(ray0.t.y) - FL(2.0) * o0.crz * ray0.t.x * ray0.t.y + o0.czz * SQ(ray0.t.x);
     iSeg0     = iSeg; // make note of current layer
-    
     h = Beam->deltas;       // initially set the step h, to the basic one, deltas
     urayt0 = o0.ccpx.real() * ray0.t; // unit tangent
     
     // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
-    ReduceStep<false>(ray0.x, urayt0, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    ReduceStep<THREED>(ray0.x, urayt0, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
     // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
     ray1.x = ray0.x + halfh * urayt0;
     ray1.t = ray0.t - halfh * o0.gradc / csq0;
-    ray1.p = ray0.p - halfh * cnn0_csq0      * ray0.q;
-    ray1.q = ray0.q + halfh * o0.ccpx.real() * ray0.p;
+    UpdateRayPQ(ray1, ray0, halfh, o0, part0);
     
     // printf("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
     //     ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     // *** Phase 2
     
-    EvaluateSSP<false>(ray1.x, ray1.t, o1, ssp, iSeg);
-    
-    csq1      = SQ(o1.ccpx.real());
-    cnn1_csq1 = o1.crr * SQ(ray1.t.y) - FL(2.0) * o1.crz * ray1.t.x * ray1.t.y + o1.czz * SQ(ray1.t.x);
+    EvaluateSSP<THREED>(ray1.x, ray1.t, o1, ssp, iSeg);
+    Get_c_partials<THREED>(ray1, o1, part1);
     
     // The Munk test case with a horizontally launched ray caused problems.
     // The ray vertexes on an interface and can ping-pong around that interface.
     // Have to be careful in that case about big changes to the stepsize (that invalidate the leap-frog scheme) in phase II.
     // A modified Heun or Box method could also work.
 
+    csq1      = SQ(o1.ccpx.real());
     urayt1 = o1.ccpx.real() * ray1.t; // unit tangent
     
     // printf("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
     
     // reduce h to land on boundary
-    ReduceStep<false>(ray0.x, urayt1, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    ReduceStep<THREED>(ray0.x, urayt1, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
+    TODO; //up to here
     w1  = h / (RL(2.0) * halfh);
     w0  = RL(1.0) - w1;
     // printf("w1 %20.17f w0 %20.17f\n", w1, w0);
@@ -418,7 +472,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // Take the blended ray tangent (urayt2) and find the minimum step size (h)
     // to put this on a boundary, and ensure that the resulting position
     // (ray2.x) gets put precisely on the boundary.
-    StepToBdry<false>(ray0.x, ray2.x, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
+    StepToBdry<THREED>(ray0.x, ray2.x, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
     ray2.t   = ray0.t   + h * unitdt;
     ray2.p   = ray0.p   + h * unitdp;
     ray2.q   = ray0.q   + h * unitdq;
@@ -435,7 +489,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP<false>(ray2.x, ray2.t, o2, ssp, iSeg);
+    EvaluateSSP<THREED>(ray2.x, ray2.t, o2, ssp, iSeg);
     ray2.c = o2.ccpx.real();
     
     if(iSeg.z != iSeg0.z || iSeg.r != iSeg0.r){

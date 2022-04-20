@@ -297,17 +297,34 @@ struct ArrInfo {
 //Rays/beams
 ////////////////////////////////////////////////////////////////////////////////
 
-struct ray2DPt {
+struct rayPt2DExtras {
+    vec2 p, q;
+};
+struct rayPt3DExtras {
+    vec2 p_tilde, q_tilde, p_hat, q_hat;
+    real DetQ, phi;
+};
+template<bool THREED> struct rayPt
+    : std::conditional_t<THREED, rayPt3DExtras, rayPt2DExtras>
+{
+    using VEC = typename TmplVec23<THREED>::type;
     int32_t NumTopBnc, NumBotBnc;
     ///ray coordinate, (r,z)
-    vec2 x;
+    VEC x;
     ///scaled tangent to the ray (previously (rho, zeta))
-    vec2 t;
-    vec2 p, q;
+    VEC t;
     ///c * t would be the unit tangent
     real c;
     real Amp, Phase;
     cpx tau;
+};
+
+template<bool THREED> struct StepPartials {};
+template<> struct StepPartials<false> {
+    real cnn_csq;
+};
+template<> struct StepPartials<true> {
+    real cnn, cmn, cmm;
 };
 
 struct RayResult {

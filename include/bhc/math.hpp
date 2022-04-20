@@ -27,6 +27,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <glm/mat2x2.hpp>
 
 namespace bhc {
 
@@ -39,6 +40,7 @@ using real = double;
 using vec2 = glm::vec<2, real, glm::defaultp>;
 using vec3 = glm::vec<3, real, glm::defaultp>;
 using int2 = glm::vec<2, int32_t, glm::defaultp>;
+using mat2x2 = glm::mat<2, 2, real, glm::defaultp>;
 
 using cpx = STD::complex<real>;
 using cpxf = STD::complex<float>;

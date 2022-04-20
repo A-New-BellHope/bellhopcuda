@@ -536,6 +536,48 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
     }
 }
 
+HOST_DEVICE inline void RayNormalImpl(const vec3 &t, real phi, bool ignorephi0, 
+    real c, vec3 &e1, vec3 &e2)
+{
+    real rl = glm::length(vec2(t.x, t.y));
+    
+    if(phi != RL(0.0) || ignorephi0){
+        real cosphi = STD::cos(phi), sinphi = STD::sin(phi);
+        // e1
+        e1.x = (c * t.x * t.z * cosphi + t.y * sinphi) / rl;
+        e1.y = (c * t.y * t.z * cosphi - t.x * sinphi) / rl;
+        e1.z = -c * rl * cosphi;
+        
+        // e2
+        e2.x = (c * t.x * t.z * sinphi - t.y * cosphi) / rl;
+        e2.y = (c * t.y * t.z * sinphi + t.x * cosphi) / rl;
+        e2.z = -c * rl * sinphi;
+    }else{
+        e1 = vec3(c * t.x * t.z / rl, c * t.y * t.z / rl, -c * rl);
+        e2 = vec3(-t.y / rl, t.x / rl, RL(0.0));
+    }
+}
+/**
+ * Computes the ray normals
+ *
+ * t: tangent vector (NOT) normalized
+ * phi: torsion
+ * c: sound speed
+ * e1, e2: ray unit normals
+ */
+HOST_DEVICE inline void RayNormal(const vec3 &t, real phi, real c, vec3 &e1, vec3 &e2)
+{
+    RayNormalImpl(t, phi, false, c, e1, e2);
+}
+/**
+ * Computes the ray normals
+ * Same as routine RayNormal except this version assumes t is already normalized
+ */
+HOST_DEVICE inline void RayNormal_unit(const vec3 &t, real phi, vec3 &e1, vec3 &e2)
+{
+    RayNormalImpl(t, phi, true, RL(1.0), e1, e2);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //Timing
 ////////////////////////////////////////////////////////////////////////////////
