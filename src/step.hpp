@@ -23,6 +23,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+//#define STEP_DEBUGGING 1
+
 #ifdef BHC_USE_FLOATS
 #define INFINITESIMAL_STEP_SIZE (RL(1e-3))
 #else
@@ -49,14 +51,24 @@ template<bool THREED> HOST_DEVICE inline void DepthInterfaceCrossing(
             if(stepTo){
                 x = x0 + h * urayt; // X or X,Y
                 DEP(x) = ssp->z[iSeg0.z];
+                #ifdef STEP_DEBUGGING
+                printf("to %20.17f %20.17f\n", x.x, x.y);
+                #endif
             }
-            // printf("Shallower bound SSP Z %g > z %g; h = %g\n", ssp->z[iSeg0.z], DEP(x), h);
+            #ifdef STEP_DEBUGGING
+            printf("Shallower bound SSP Z %g > z %g; h = %g\n", ssp->z[iSeg0.z], DEP(x), h);
+            #endif
         }else if(ssp->z[iSeg0.z + 1] < DEP(x) && (!THREED || iSeg0.z + 1 < ssp->Nz-1)){
             h = (ssp->z[iSeg0.z + 1] - DEP(x0)) / DEP(urayt);
-            // printf("Deeper bound SSP Z %g < z %g; h = %g\n", ssp->z[iSeg0.z+1], DEP(x), h);
+            #ifdef STEP_DEBUGGING
+            printf("Deeper bound SSP Z %g < z %g; h = %g\n", ssp->z[iSeg0.z+1], DEP(x), h);
+            #endif
             if(stepTo){
                 x = x0 + h * urayt; // X or X,Y
                 DEP(x) = ssp->z[iSeg0.z + 1];
+                #ifdef STEP_DEBUGGING
+                printf("to %20.17f %20.17f\n", x.x, x.y);
+                #endif
             }
         }
     }
@@ -75,14 +87,21 @@ template<bool THREED> HOST_DEVICE inline void TopBotCrossing(
     // new step really had to be outside the boundary, not just to the boundary.
     // Also, this is not missing a normalization factor, Topn is normalized so
     // this is actually the distance above the top in meters.
-    if(glm::dot(bd.n, d) >= (stepTo ? INFINITESIMAL_STEP_SIZE : RL(0.0))){
+    real w = glm::dot(bd.n, d);
+    if(stepTo ? (w > -INFINITESIMAL_STEP_SIZE) : (w >= RL(0.0))){
         h = -glm::dot(d0, bd.n) / glm::dot(urayt, bd.n);
+        #ifdef STEP_DEBUGGING
+        printf("Top/bot crossing h %g\n", h);
+        #endif
         if(stepTo){
             x = x0 + h * urayt;
             // Snap to exact top / bot depth value if it's flat
-            if(STD::abs(DEP(bd.n)) >= FL(0.999)){
+            if(STD::abs(bd.n.x) < REAL_EPSILON && (!THREED || STD::abs(bd.n.y) < REAL_EPSILON)){
                 DEP(x) = DEP(bd.x);
             }
+            #ifdef STEP_DEBUGGING
+            printf("to %20.17f %20.17f\n", x.x, x.y);
+            #endif
         }
         refl = true;
     }else{
@@ -121,7 +140,9 @@ template<bool THREED> HOST_DEVICE inline void TopBotSegCrossing(
                 x_w = rSeg.min;
                 topRefl = botRefl = false;
             }
-            // printf("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.min, x_w, h);
+            #ifdef STEP_DEBUGGING
+            printf("Min bound SSP R %g > r %g; h4 = %g\n", rSeg.min, x_w, h);
+            #endif
         }else if(x_w > rSeg.max){
             h = -(x0_w - rSeg.max) / urayt_w;
             if(stepTo){
@@ -129,9 +150,11 @@ template<bool THREED> HOST_DEVICE inline void TopBotSegCrossing(
                 x_w = rSeg.max;
                 topRefl = botRefl = false;
             }
-            // printf("Farther bound SSP R %g < r %g; h4 = %g; top.max %g; bot.max %g; ssp r up %g\n",
-            //     rSeg.max, x_w, h, TopSeg.max, BotSeg.max,
-            //     ssp->Type == qh ? segdim[iSeg+1] : INFINITY);
+            #ifdef STEP_DEBUGGING
+            printf("Max bound SSP R %g < r %g; h4 = %g; top.max %g; bot.max %g; ssp r up %g\n",
+                rSeg.max, x_w, h, TopSeg.max, BotSeg.max,
+                ssp->Type == qh ? seg_w[iSeg+1] : INFINITY);
+            #endif
         }
     }
 }
@@ -152,6 +175,9 @@ HOST_DEVICE inline void TriDiagCrossing(
     if( (glm::dot(tri_n, d0) > RL(0.0) && glm::dot(tri_n, d) <= RL(0.0)) ||
         (glm::dot(tri_n, d0) < RL(0.0) && glm::dot(tri_n, d) >= RL(0.0)) ){
         h = -glm::dot(d0, tri_n) / glm::dot(urayt, tri_n);
+        #ifdef STEP_DEBUGGING
+        printf("Tri diag crossing h = %g\n", h);
+        #endif
         if(stepTo){
             int32_t i;
             for(i=0; i<100; ++i){
@@ -181,7 +207,7 @@ HOST_DEVICE inline void TriDiagCrossing(
  * Topx, Topn, Botx, Botn: Top, bottom coordinate and normal
  * h: reduced step size
  */
-template<bool THREED> HOST_DEVICE inline void ReduceStep2D(
+template<bool THREED> HOST_DEVICE inline void ReduceStep(
     const typename TmplVec23<THREED>::type &x0, 
     const typename TmplVec23<THREED>::type &urayt,
     const SSPSegState &iSeg0, const BdryState<THREED> &bds,
@@ -249,7 +275,7 @@ template<bool THREED> HOST_DEVICE inline void ReduceStep2D(
     }
 }
 
-template<bool THREED> HOST_DEVICE inline void StepToBdry2D(
+template<bool THREED> HOST_DEVICE inline void StepToBdry(
     const typename TmplVec23<THREED>::type &x0, 
     typename TmplVec23<THREED>::type &x2,
     const typename TmplVec23<THREED>::type &urayt,
@@ -281,7 +307,9 @@ template<bool THREED> HOST_DEVICE inline void StepToBdry2D(
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
         h = INFINITESIMAL_STEP_SIZE * Beam->deltas; // make sure we make some motion
         x2 = x0 + h * urayt;
-        // printf("StepToBdry2D small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
+        #ifdef STEP_DEBUGGING
+        printf("StepToBdry2D small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
+        #endif
         // Recheck reflection conditions
         typename TmplVec23<THREED>::type d;
         d = x2 - bds.top.x; // vector from top to ray
@@ -314,14 +342,18 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     real h, halfh, rm, rn, cnjump, csjump, w0, w1;
     SSPOutputs<false> o0, o1, o2;
     
-    // printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
-    //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
+    #ifdef STEP_DEBUGGING
+    printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
+        ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
     // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
+    #endif
     
-    // if(ray0.x.x > 40.0){
-    //     printf("Enough\n");
-    //     bail();
-    // }
+    /*
+    if(ray0.x.x > 16800.0){
+        printf("Enough\n");
+        bail();
+    }
+    */
     
     // The numerical integrator used here is a version of the polygon (a.k.a. midpoint, leapfrog, or Box method), and similar
     // to the Heun (second order Runge-Kutta method).
@@ -342,7 +374,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
-    ReduceStep2D<false>(ray0.x, urayt0, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    ReduceStep<false>(ray0.x, urayt0, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
     // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
@@ -352,7 +384,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray1.q = ray0.q + halfh * o0.ccpx.real() * ray0.p;
     
     // printf("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
-    //   ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
+    //     ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     // *** Phase 2
     
@@ -371,7 +403,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // printf("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
     
     // reduce h to land on boundary
-    ReduceStep2D<false>(ray0.x, urayt1, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    ReduceStep<false>(ray0.x, urayt1, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RL(2.0) * halfh);
@@ -386,17 +418,15 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // Take the blended ray tangent (urayt2) and find the minimum step size (h)
     // to put this on a boundary, and ensure that the resulting position
     // (ray2.x) gets put precisely on the boundary.
-    StepToBdry2D<false>(ray0.x, ray2.x, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
+    StepToBdry<false>(ray0.x, ray2.x, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
     ray2.t   = ray0.t   + h * unitdt;
     ray2.p   = ray0.p   + h * unitdp;
     ray2.q   = ray0.q   + h * unitdq;
     ray2.tau = ray0.tau + h * unitdtau;
     
-    /*
-    printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
-        ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
-        ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
-    */
+    // printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
+    //     ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
     
     ray2.Amp       = ray0.Amp;
     ray2.Phase     = ray0.Phase;
