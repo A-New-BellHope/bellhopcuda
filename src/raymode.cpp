@@ -56,7 +56,7 @@ void OpenRAYFile(LDOFile &RAYFile, std::string FileRoot, bool ThreeD,
  * alpha0: take-off angle of this ray
  */
 void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
-    const BdryType *Bdry, ray2DPt *ray2D)
+    const BdryType *Bdry, rayPt<false> *ray)
 {
     // compression
     
@@ -66,20 +66,20 @@ void WriteRay2D(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
     
     for(int32_t is=1; is<Nsteps1; ++is){
         // ensure that we always write ray points near bdry reflections (works only for flat bdry)
-        if(bhc::min(Bdry->Bot.hs.Depth - ray2D[is].x.y, ray2D[is].x.y - Bdry->Top.hs.Depth) < FL(0.2) ||
+        if(bhc::min(Bdry->Bot.hs.Depth - ray[is].x.y, ray[is].x.y - Bdry->Top.hs.Depth) < FL(0.2) ||
                 (is % iSkip) == 0 || is == Nsteps1-1){
             ++n2;
-            ray2D[n2-1].x = ray2D[is].x;
+            ray[n2-1].x = ray[is].x;
         }
     }
     
     // write to ray file
     
     RAYFile << alpha0 << '\n';
-    RAYFile << n2 << ray2D[Nsteps1-1].NumTopBnc << ray2D[Nsteps1-1].NumBotBnc << '\n';
+    RAYFile << n2 << ray[Nsteps1-1].NumTopBnc << ray[Nsteps1-1].NumBotBnc << '\n';
     
     for(int32_t is=0; is<n2; ++is){
-        RAYFile << ray2D[is].x << '\n';
+        RAYFile << ray[is].x << '\n';
     }
 }
 
@@ -99,8 +99,8 @@ void FinalizeRayMode(RayInfo *rayinfo, std::string FileRoot, const bhcParams &pa
     OpenRAYFile(RAYFile, FileRoot, false, params);
     for(int r=0; r<rayinfo->NRays; ++r){
         RayResult *res = &rayinfo->results[r];
-        if(res->ray2D == nullptr) continue;
-        WriteRay2D(res->SrcDeclAngle, res->Nsteps, RAYFile, params.Bdry, res->ray2D);
+        if(res->ray == nullptr) continue;
+        WriteRay2D(res->SrcDeclAngle, res->Nsteps, RAYFile, params.Bdry, res->ray);
     }
 }
 

@@ -29,8 +29,7 @@ constexpr real betaPowerLaw = FL(1.0);
 #define SSP_3D_FN_ARGS const vec3 &x, const vec3 &t, \
     SSPOutputs<true> &o, const SSPStructure *ssp, SSPSegState &iSeg
 #define SSP_TEMPL_FN_ARGS \
-    const typename TmplVec23<THREED>::type &x, \
-    const typename TmplVec23<THREED>::type &t, \
+    const VEC23<THREED> &x, const VEC23<THREED> &t, \
     SSPOutputs<THREED> &o, const SSPStructure *ssp, SSPSegState &iSeg
     
 #define SSP_INIT_ARGS real Depth, const real &fT, \

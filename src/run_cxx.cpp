@@ -33,8 +33,8 @@ static std::string exceptionStr;
 
 void RayModeWorker(const bhcParams &params, bhcOutputs &outputs)
 {
-    ray2DPt *localmem = nullptr;
-    if(IsRayCopyMode(outputs.rayinfo)) localmem = new ray2DPt[MaxN];
+    rayPt<false> *localmem = nullptr;
+    if(IsRayCopyMode(outputs.rayinfo)) localmem = new rayPt<false>[MaxN];
     
     try{
         

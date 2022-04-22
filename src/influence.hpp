@@ -138,7 +138,7 @@ HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
 HOST_DEVICE inline void ApplyContribution(
     cpxf *u, real cnst, real w, real omega, cpx delay, real phaseInt,
     real SrcDeclAngle, real RcvrDeclAngle, int32_t ir, int32_t iz, int32_t is,
-    const InfluenceRayInfo &inflray, const ray2DPt &point1,
+    const InfluenceRayInfo &inflray, const rayPt<false> &point1,
     const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -285,7 +285,7 @@ HOST_DEVICE inline void IncPhaseIfCaustic(InfluenceRayInfo &inflray, real q, boo
  * phase shifts at caustics
  * LP: point.phase is discarded if the condition is met, is this correct?
  */
-HOST_DEVICE inline real FinalPhase(const ray2DPt &point, 
+HOST_DEVICE inline real FinalPhase(const rayPt<false> &point, 
     const InfluenceRayInfo &inflray, real q)
 {
     real phaseInt = point.Phase + inflray.phase;
@@ -325,13 +325,13 @@ HOST_DEVICE inline void Compute_N_R_IR(real &n, real &r, int32_t &ir,
 /**
  * detect and skip duplicate points (happens at boundary reflection)
  */
-HOST_DEVICE inline bool IsDuplicatePoint(const ray2DPt &point0, const ray2DPt &point1)
+HOST_DEVICE inline bool IsDuplicatePoint(const rayPt<false> &point0, const rayPt<false> &point1)
 {
     return STD::abs(point1.x.x - point0.x.x) < RL(1.0e3) * spacing(point1.x.x);
 }
 
 HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
-    const ray2DPt &point, const InfluenceRayInfo &inflray, const BeamStructure *Beam)
+    const rayPt<false> &point, const InfluenceRayInfo &inflray, const BeamStructure *Beam)
 {
     if(Beam->Type[1] == 'C'){
         eps = J * STD::abs(point.q.x / point.q.y);
@@ -345,7 +345,7 @@ HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
 /**
  * Form gamma
  */
-HOST_DEVICE inline cpx Compute_gamma(const ray2DPt &point, const cpx &pB, const cpx &qB,
+HOST_DEVICE inline cpx Compute_gamma(const rayPt<false> &point, const cpx &pB, const cpx &qB,
     const SSPStructure *ssp, SSPSegState &iSeg)
 {
     vec2 rayt = point.c * point.t; // unit tangent
@@ -372,7 +372,7 @@ HOST_DEVICE inline cpx Compute_gamma(const ray2DPt &point, const cpx &pB, const 
 // 
 
 HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
-    const ray2DPt &point0, int32_t isrc, int32_t ialpha, real alpha, vec2 gradc,
+    const rayPt<false> &point0, int32_t isrc, int32_t ialpha, real alpha, vec2 gradc,
     const Position *Pos, const SSPStructure *ssp, SSPSegState &iSeg,
     const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
@@ -464,7 +464,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
  * Paraxial (Cerveny-style) beams in ray-centered coordinates
  */
 HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
-    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
+    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
     int32_t is, cpxf *u,
     const BdryType *Bdry, const Position *Pos, const BeamStructure *Beam)
 {
@@ -581,7 +581,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
  * Paraxial (Cerveny-style) beams in Cartesian coordinates
  */
 HOST_DEVICE inline bool Step_InfluenceCervenyCart(
-    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
+    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
     int32_t is, cpxf *u, 
     const BdryType *Bdry, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam)
@@ -692,7 +692,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
  * Geometrically-spreading beams with a hat-shaped beam in ray-centered coordinates
  */
 HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
-    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
+    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray,
     int32_t is, cpxf *u, const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -780,7 +780,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
  */
 HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     bool isGaussian, 
-    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
+    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
     int32_t is, cpxf *u, const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -913,7 +913,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
  * Bucker's Simple Gaussian Beams in Cartesian coordinates
  */
 HOST_DEVICE inline bool Step_InfluenceSGB(
-    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray,
+    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray,
     int32_t is, cpxf *u,
     const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
@@ -991,7 +991,7 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
  * LP: Returns whether to continue the ray.
  */
 HOST_DEVICE inline bool Step_Influence(
-    const ray2DPt &point0, const ray2DPt &point1, InfluenceRayInfo &inflray, 
+    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
     int32_t is, cpxf *u,
     const BdryType *Bdry, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)

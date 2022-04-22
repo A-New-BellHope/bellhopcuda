@@ -52,7 +52,7 @@ HOST_DEVICE inline void Distances2D(const vec2 &rayx,
  * kappa: Boundary curvature
  * RefC: reflection coefficient
  */
-HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
+HOST_DEVICE inline void Reflect2D(const rayPt<false> &oldPoint, rayPt<false> &newPoint,
     const HSInfo &hs, bool isTop,
     const vec2 &tBdry, const vec2 &nBdry, real kappa, real freq,
     const ReflectionCoef *RefC, int32_t Npts,
@@ -263,7 +263,7 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  * DistBegTop etc.: Distances from ray beginning, end to top and bottom
  */
 HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
-    ray2DPt &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
+    rayPt<false> &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
     SSPSegState &iSeg, BdryState<false> &bds, BdryType &Bdry,
     const BdryType *ConstBdry, const BdryInfo<false> *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
@@ -308,20 +308,18 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     if(Beam->RunType[0] == 'S')
         Amp0 *= STD::sqrt(FL(2.0)) * STD::abs(STD::sin(omega / o.ccpx.real() * xs.y * STD::sin(alpha)));
         
-    // LP: This part from TraceRay2D
+    // LP: This part from TraceRay<false>
+    point0.NumTopBnc = 0;
+    point0.NumBotBnc = 0;
+    point0.x         = xs;
+    point0.t         = tinit / o.ccpx.real();
+    point0.p         = vec2(FL(1.0), FL(0.0));
+    point0.q         = vec2(FL(0.0), FL(1.0));
+    point0.c         = o.ccpx.real();
+    point0.Amp       = Amp0;
+    point0.Phase     = FL(0.0);
+    point0.tau       = cpx(FL(0.0), FL(0.0));
     
-    point0 = ray2DPt{
-        /*.NumTopBnc =*/ 0,
-        /*.NumBotBnc =*/ 0,
-        /*.x         =*/ xs,
-        /*.t         =*/ tinit / o.ccpx.real(),
-        /*.p         =*/ vec2(FL(1.0), FL(0.0)),
-        /*.q         =*/ vec2(FL(0.0), FL(1.0)),
-        /*.c         =*/ o.ccpx.real(),
-        /*.Amp       =*/ Amp0,
-        /*.Phase     =*/ FL(0.0),
-        /*.tau       =*/ cpx(FL(0.0), FL(0.0)),
-    };
     // second component of qv is not used in geometric beam tracing
     // set I.C. to 0 in hopes of saving run time
     if(Beam->RunType[1] == 'G') point0.q = vec2(FL(0.0), FL(0.0));
@@ -363,7 +361,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
  * taken (i.e. normally 1, or 2 if reflected).
  */
 HOST_DEVICE inline int32_t RayUpdate(
-    const ray2DPt &point0, ray2DPt &point1, ray2DPt &point2,
+    const rayPt<false> &point0, rayPt<false> &point1, rayPt<false> &point2,
     real &DistEndTop, real &DistEndBot,
     int32_t &iSmallStepCtr, SSPSegState &iSeg,
     BdryState<false> &bds, BdryType &Bdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
@@ -371,7 +369,7 @@ HOST_DEVICE inline int32_t RayUpdate(
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl;
-    Step2D(point0, point1, bds, Beam, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
+    Step<false>(point0, point1, bds, Beam, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -440,7 +438,7 @@ HOST_DEVICE inline int32_t RayUpdate(
  * exceeded storage limit?
  * LP: Also updates DistBegTop, DistBegBot.
  */
-HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int32_t is,
+HOST_DEVICE inline bool RayTerminate(const rayPt<false> &point, int32_t &Nsteps, int32_t is,
     real &DistBegTop, real &DistBegBot, const real &DistEndTop, const real &DistEndBot,
     const BeamStructure *Beam
     )
@@ -450,7 +448,7 @@ HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int3
     bool lostenergy = point.Amp < FL(0.005);
     bool escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0)) ||
                              (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
-    //bool backward = ray2D[is+1].t.x < 0; // this last test kills off a backward traveling ray
+    //bool backward = point.t.x < 0; // this last test kills off a backward traveling ray
     if(leftbox || lostenergy || escapedboundaries // || backward
     ){
         /*
@@ -466,7 +464,7 @@ HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int3
         Nsteps = is + 1;
         return true;
     }else if(is >= MaxN - 3){
-        printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
+        printf("Warning in TraceRay: Insufficient storage for ray trajectory\n");
         Nsteps = is;
         return true;
     }

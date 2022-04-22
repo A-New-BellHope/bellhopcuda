@@ -39,9 +39,7 @@ namespace bhc {
  * This prevents problems when the boundaries are outside the domain of the SSP
  */
 template<bool THREED> HOST_DEVICE inline void DepthInterfaceCrossing(
-    real &h, typename TmplVec23<THREED>::type &x,
-    const typename TmplVec23<THREED>::type &x0,
-    const typename TmplVec23<THREED>::type &urayt,
+    real &h, VEC23<THREED> &x, const VEC23<THREED> &x0, const VEC23<THREED> &urayt,
     const SSPSegState &iSeg0, const SSPStructure *ssp, bool stepTo)
 {
     if(!stepTo) h = REAL_MAX;
@@ -75,12 +73,11 @@ template<bool THREED> HOST_DEVICE inline void DepthInterfaceCrossing(
 }
 
 template<bool THREED> HOST_DEVICE inline void TopBotCrossing(
-    real &h, const BdryStateTopBot<THREED> &bd, typename TmplVec23<THREED>::type &x,
-    const typename TmplVec23<THREED>::type &x0,
-    const typename TmplVec23<THREED>::type &urayt, bool stepTo, bool &refl)
+    real &h, const BdryStateTopBot<THREED> &bd, VEC23<THREED> &x,
+    const VEC23<THREED> &x0, const VEC23<THREED> &urayt, bool stepTo, bool &refl)
 {
     if(!stepTo) h = REAL_MAX;
-    typename TmplVec23<THREED>::type d, d0;
+    VEC23<THREED> d, d0;
     d  = x  - bd.x; // vector from top / bottom to ray
     d0 = x0 - bd.x; // vector from top / bottom node to ray origin
     // Originally, this value had to be > a small positive number, meaning the
@@ -114,10 +111,9 @@ template<bool THREED> HOST_DEVICE inline void TopBotCrossing(
  */
 template<bool THREED> HOST_DEVICE inline void TopBotSegCrossing(
     real &h, const BdryLimits &TopSeg, const BdryLimits &BotSeg,
-    const real *seg_w, int32_t iSeg, typename TmplVec23<THREED>::type &x,
-    const typename TmplVec23<THREED>::type &x0,
-    const typename TmplVec23<THREED>::type &urayt, char qh, const SSPStructure *ssp,
-    bool stepTo, bool &topRefl, bool &botRefl, bool isY)
+    const real *seg_w, int32_t iSeg, VEC23<THREED> &x,
+    const VEC23<THREED> &x0, const VEC23<THREED> &urayt, char qh, 
+    const SSPStructure *ssp, bool stepTo, bool &topRefl, bool &botRefl, bool isY)
 {
     BdryLimits rSeg;
     rSeg.min = bhc::max(TopSeg.min, BotSeg.min);
@@ -208,13 +204,12 @@ HOST_DEVICE inline void TriDiagCrossing(
  * h: reduced step size
  */
 template<bool THREED> HOST_DEVICE inline void ReduceStep(
-    const typename TmplVec23<THREED>::type &x0, 
-    const typename TmplVec23<THREED>::type &urayt,
+    const VEC23<THREED> &x0, const VEC23<THREED> &urayt,
     const SSPSegState &iSeg0, const BdryState<THREED> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp, 
     real &h, int32_t &iSmallStepCtr)
 {
-    typename TmplVec23<THREED>::type x;
+    VEC23<THREED> x;
     real h1, h2, h3, h4, h5, h6, h7;
     bool dummy;
     
@@ -276,9 +271,7 @@ template<bool THREED> HOST_DEVICE inline void ReduceStep(
 }
 
 template<bool THREED> HOST_DEVICE inline void StepToBdry(
-    const typename TmplVec23<THREED>::type &x0, 
-    typename TmplVec23<THREED>::type &x2,
-    const typename TmplVec23<THREED>::type &urayt,
+    const VEC23<THREED> &x0, VEC23<THREED> &x2, const VEC23<THREED> &urayt,
     real &h, bool &topRefl, bool &botRefl,
     const SSPSegState &iSeg0, const BdryState<THREED> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp)
@@ -311,7 +304,7 @@ template<bool THREED> HOST_DEVICE inline void StepToBdry(
         printf("StepToBdry small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
         #endif
         // Recheck reflection conditions
-        typename TmplVec23<THREED>::type d;
+        VEC23<THREED> d;
         d = x2 - bds.top.x; // vector from top to ray
         if(glm::dot(bds.top.n, d) > REAL_EPSILON){
             topRefl = true;
@@ -402,15 +395,15 @@ template<bool THREED> HOST_DEVICE inline void UpdateRayPQ(
  * correct p-q due to jumps in the gradient of the sound speed
  */
 template<bool THREED> HOST_DEVICE inline void CurvatureCorrection(
-    rayPt<THREED> &ray2, const typename TmplVec23<THREED>::type &gradcjump,
+    rayPt<THREED> &ray2, const VEC23<THREED> &gradcjump,
     const SSPSegState &iSeg, const SSPSegState &iSeg0)
 {
     if constexpr(THREED){
         vec3 nBdry(RL(0.0), RL(0.0), RL(0.0));
-        // what if we cross isegx, isegy, or isegz at the same time?
+        // what if we cross iSeg.x, iSeg.y, or iSeg.z at the same time?
         if(iSeg.z != iSeg0.z){
             nBdry.z = -STD::copysign(RL(1.0), ray2.t.z); // inward normal to layer
-        }else if(iSegx != iSeg0.x){
+        }else if(iSeg.x != iSeg0.x){
             nBdry.x = -STD::copysign(RL(1.0), ray2.t.x); // inward normal to x-segment
         }else{
             nBdry.y = -STD::copysign(RL(1.0), ray2.t.y); // inward normal to y-segment
@@ -486,7 +479,7 @@ template<bool THREED> HOST_DEVICE inline void CurvatureCorrection(
         ray2.p_hat   = glm::row(pmat, 1);
         
     }else{
-        VEC ray2n = vec2(-ray2.t.y, ray2.t.x); // ray normal
+        vec2 ray2n = vec2(-ray2.t.y, ray2.t.x); // ray normal
         
         real cnjump = glm::dot(gradcjump, ray2n);
         real csjump = glm::dot(gradcjump, ray2.t);
@@ -511,11 +504,12 @@ template<bool THREED> HOST_DEVICE inline void Step(
     const BdryState<THREED> &bds, const BeamStructure *Beam, const SSPStructure *ssp,
     SSPSegState &iSeg, int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
 {
-    using VEC = typename TmplVec23<THREED>::type;
     rayPt<THREED> ray1;
     SSPOutputs<THREED> o0, o1, o2;
     StepPartials<THREED> part0, part1;
     rayPtExtras<THREED> pq0, pq1;
+    VEC23<THREED> urayt0, urayt1;
+    real csq0, csq1, h, w0, w1, hw0, hw1;
     
     #ifdef STEP_DEBUGGING
     printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
@@ -541,10 +535,11 @@ template<bool THREED> HOST_DEVICE inline void Step(
     Get_c_partials<THREED>(ray0, o0, part0);
     pq0 = ComputeDeltaPQ(ray0, o0, part0);
     
-    real csq0         = SQ(o0.ccpx.real());
     SSPSegState iSeg0 = iSeg; // make note of current layer
-    real h            = Beam->deltas; // initially set the step h, to the basic one, deltas
-    VEC urayt0        = o0.ccpx.real() * ray0.t; // unit tangent
+    
+    csq0   = SQ(o0.ccpx.real());
+    urayt0 = o0.ccpx.real() * ray0.t; // unit tangent
+    h      = Beam->deltas; // initially set the step h, to the basic one, deltas
     
     // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
@@ -583,7 +578,7 @@ template<bool THREED> HOST_DEVICE inline void Step(
     w1  = h / (RL(2.0) * halfh);
     w0  = RL(1.0) - w1;
     // printf("w1 %20.17f w0 %20.17f\n", w1, w0);
-    VEC urayt2 =  w0 * urayt0 + w1 * urayt1;
+    VEC23<THREED> urayt2 =  w0 * urayt0 + w1 * urayt1;
     // Take the blended ray tangent (urayt2) and find the minimum step size (h)
     // to put this on a boundary, and ensure that the resulting position
     // (ray2.x) gets put precisely on the boundary.
@@ -612,8 +607,8 @@ template<bool THREED> HOST_DEVICE inline void Step(
     ray2.c = o2.ccpx.real();
     
     if(iSeg.z != iSeg0.z || (!THREED && iSeg.r != iSeg0.r) || 
-            (THREED && (iSegx != iSeg0.x || iSegy != iSeg0.y))){
-        VEC gradcjump = o2.gradc - o0.gradc;
+            (THREED && (iSeg.x != iSeg0.x || iSeg.y != iSeg0.y))){
+        VEC23<THREED> gradcjump = o2.gradc - o0.gradc;
         CurvatureCorrection(ray2, gradcjump, iSeg, iSeg0);
     }
 }

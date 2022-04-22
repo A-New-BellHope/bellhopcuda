@@ -52,7 +52,7 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     BdryState<false> bds;
     BdryType Bdry;
     
-    ray2DPt point0, point1, point2;
+    rayPt<false> point0, point1, point2;
     InfluenceRayInfo inflray;
     
     if(!RayInit(isrc, ialpha, SrcDeclAngle, point0, gradc,

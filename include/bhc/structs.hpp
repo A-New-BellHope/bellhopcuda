@@ -29,15 +29,19 @@ namespace bhc {
 template<bool THREED> struct TmplVec23 {};
 template<> struct TmplVec23<false> { typedef vec2 type; };
 template<> struct TmplVec23<true>  { typedef vec3 type; };
+template<bool THREED> using VEC23 = typename TmplVec23<THREED>::type;
+
 template<typename VEC> HOST_DEVICE inline real &DEP(VEC &v);
 template<> HOST_DEVICE inline real &DEP(vec2 &v) { return v.y; }
 template<> HOST_DEVICE inline real &DEP(vec3 &v) { return v.z; }
 template<typename VEC> HOST_DEVICE inline const real &DEP(const VEC &v);
 template<> HOST_DEVICE inline const real &DEP(const vec2 &v) { return v.y; }
 template<> HOST_DEVICE inline const real &DEP(const vec3 &v) { return v.z; }
+
 template<bool THREED> struct TmplInt12 {};
 template<> struct TmplInt12<false> { typedef int32_t type; };
 template<> struct TmplInt12<true>  { typedef int2 type; };
+template<bool THREED> using IORI2 = typename TmplInt12<THREED>::type;
 
 ////////////////////////////////////////////////////////////////////////////////
 //SSP / Boundary
@@ -71,7 +75,7 @@ template<> struct SSPOutputsExtras<true> {
 template<bool THREED> struct SSPOutputs : public SSPOutputsExtras<THREED>
 {
     cpx ccpx;
-    typename TmplVec23<THREED>::type gradc;
+    VEC23<THREED> gradc;
     real rho, czz;
 };
 
@@ -113,19 +117,17 @@ template<> struct BdryPtFullExtras<true> {
     real z_xx, z_xy, z_yy;
     real phi_xx, phi_xy, phi_yy;
 };
-template<bool THREED> struct BdryPtFull : public BdryPtFullExtras
+template<bool THREED> struct BdryPtFull : public BdryPtFullExtras<THREED>
 {
-    using VEC = typename TmplVec23<THREED>::type;
-    VEC x; // 2D: coordinate for a segment / 3D: coordinate of boundary
-    VEC t; // 2D: tangent for a segment / 3D: tangent for a facet
-    VEC n; // 2D: outward normal for a segment / 3D: normal for a facet (outward pointing)
-    VEC Noden; // normal at the node, if the curvilinear option is used
+    VEC23<THREED> x; // 2D: coordinate for a segment / 3D: coordinate of boundary
+    VEC23<THREED> t; // 2D: tangent for a segment / 3D: tangent for a facet
+    VEC23<THREED> n; // 2D: outward normal for a segment / 3D: normal for a facet (outward pointing)
+    VEC23<THREED> Noden; // normal at the node, if the curvilinear option is used
     real Len; // 2D: length of a segment / 3D: length of tangent (temporary variable to normalize tangent)
 };
 
 template<bool THREED> struct BdryInfoTopBot {
-    using IORI2 = typename TmplInt12<THREED>::type;
-    IORI2 NPts;
+    IORI2<THREED> NPts;
     char type[2]; // In 3D, only first char is used
     BdryPtFull<THREED> *bd; // 2D: 1D array / 3D: 2D array
 };
@@ -143,12 +145,10 @@ template<bool THREED> struct TmplBdryLimits12 {};
 template<> struct TmplBdryLimits12<false> { typedef BdryLimits type; };
 template<> struct TmplBdryLimits12<true>  { typedef BdryLimits2 type; };
 template<bool THREED> struct BdryStateTopBot {
-    using IORI2 = typename TmplInt12<THREED>::type;
-    using VEC = typename TmplVec23<THREED>::type;
     using LIMITS = typename TmplBdryLimits12<THREED>::type;
-    IORI2 Iseg; // indices that point to the current active segment
+    IORI2<THREED> Iseg; // indices that point to the current active segment
     LIMITS lSeg; // LP: limits of current segment
-    VEC x, n; // only explicitly written in 3D, but effectively present in 2D
+    VEC23<THREED> x, n; // only explicitly written in 3D, but effectively present in 2D
 };
 /**
  * LP: Variables holding current state of active segment(s) ray is in.
@@ -305,14 +305,13 @@ template<> struct rayPtExtras<true> {
     vec2 p_tilde, q_tilde, p_hat, q_hat;
     real DetQ, phi;
 };
-template<bool THREED> struct rayPt : public rayPtExtras
+template<bool THREED> struct rayPt : public rayPtExtras<THREED>
 {
-    using VEC = typename TmplVec23<THREED>::type;
     int32_t NumTopBnc, NumBotBnc;
     ///ray coordinate, (r,z)
-    VEC x;
+    VEC23<THREED> x;
     ///scaled tangent to the ray (previously (rho, zeta))
-    VEC t;
+    VEC23<THREED> t;
     ///c * t would be the unit tangent
     real c;
     real Amp, Phase;
@@ -328,13 +327,13 @@ template<> struct StepPartials<true> {
 };
 
 struct RayResult {
-    ray2DPt *ray2D;
+    rayPt<false> *ray;
     real SrcDeclAngle;
     int32_t Nsteps;
 };
 
 struct RayInfo {
-    ray2DPt *raymem;
+    rayPt<false> *raymem;
     uint32_t NPoints;
     uint32_t MaxPoints;
     RayResult *results;

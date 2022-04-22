@@ -42,7 +42,7 @@ template<> struct bdry_big<false> { HOST_DEVICE static inline real value() { ret
  * LP: BUG: Function comment in 3D forgot to be changed when copy-pasted from 2D.
  */
 template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
-    typename TmplVec23<THREED>::type x, typename TmplVec23<THREED>::type t, 
+    VEC23<THREED> x, VEC23<THREED> t, 
     BdryStateTopBot<THREED> &bds, const BdryInfoTopBot<THREED> *bdinfotb,
     bool isTop)
 {
