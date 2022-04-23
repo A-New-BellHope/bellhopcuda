@@ -25,11 +25,11 @@ namespace bhc {
 
 constexpr int32_t Bdry_Number_to_Echo = 21;
 
-template<bool THREED> struct bdry_big {};
+template<bool X3D> struct bdry_big {};
 // LP: Can't be constexpr as std::sqrt is not constexpr without GCC extensions
 template<> struct bdry_big<true>  { HOST_DEVICE static inline real value() { return RL(1.0e25); } };
 template<> struct bdry_big<false> { HOST_DEVICE static inline real value() { return STD::sqrt(REAL_MAX) / RL(1.0e5); } };
-#define BDRYBIG bdry_big<THREED>::value()
+#define BDRYBIG bdry_big<X3D>::value()
 
 /**
  * Get the top or bottom segment info (index and range interval) for range, r
@@ -41,12 +41,12 @@ template<> struct bdry_big<false> { HOST_DEVICE static inline real value() { ret
  * 
  * LP: BUG: Function comment in 3D forgot to be changed when copy-pasted from 2D.
  */
-template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
-    VEC23<THREED> x, VEC23<THREED> t, 
-    BdryStateTopBot<THREED> &bds, const BdryInfoTopBot<THREED> *bdinfotb,
+template<bool X3D> HOST_DEVICE inline void GetBdrySeg(
+    VEC23<X3D> x, VEC23<X3D> t, 
+    BdryStateTopBot<X3D> &bds, const BdryInfoTopBot<X3D> *bdinfotb,
     bool isTop)
 {
-    if constexpr(THREED){
+    if constexpr(X3D){
         
         // LP: BUG/TODO: BELLHOP3D has the same edge case problems as 2D did:
         // both endpoints are allowed in the initial check but then only one is
@@ -139,13 +139,13 @@ template<bool THREED> HOST_DEVICE inline void GetBdrySeg(
  * normals  (.n, .noden), and
  * curvatures (.kappa)
  */
-template<bool THREED> inline void ComputeBdryTangentNormal(
-    BdryInfoTopBot<THREED> *bd, bool isTop)
+template<bool X3D> inline void ComputeBdryTangentNormal(
+    BdryInfoTopBot<X3D> *bd, bool isTop)
 {
-    typename TmplInt12<THREED>::type NPts = bd->NPts;
+    typename TmplInt12<X3D>::type NPts = bd->NPts;
     vec3 tvec;
     
-    if constexpr(THREED){
+    if constexpr(X3D){
         
         // normals on triangle faces
         for(int32_t ix=0; ix<NPts.x - 1; ++ix){
@@ -260,7 +260,7 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
     if(bd->type[0] == 'C'){
         // curvilinear option
         
-        if constexpr(THREED){
+        if constexpr(X3D){
             // compute derivative as centered difference between two nodes
             // compute curvatures in each segment
             
@@ -360,7 +360,7 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
         }
         
     }else{
-        if constexpr(THREED){
+        if constexpr(X3D){
             for(int32_t ix=0; ix<NPts.x; ++ix){
                 for(int32_t iy=0; iy<NPts.y; ++iy){
                     bd->bd[ix*NPts.y+iy].z_xx = RL(0.0);
@@ -378,8 +378,8 @@ template<bool THREED> inline void ComputeBdryTangentNormal(
     }
 }
 
-template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDefMode, real BdryDepth,
-    PrintFileEmu &PRTFile, BdryInfoTopBot<THREED> *bdinfotb, bool isTop)
+template<bool X3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMode, real BdryDepth,
+    PrintFileEmu &PRTFile, BdryInfoTopBot<X3D> *bdinfotb, bool isTop)
 {
     const char *s_atibty = isTop ? "ati" : "bty";
     const char *s_ATIBTY = isTop ? "ATI" : "BTY";
@@ -391,7 +391,7 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
     switch(BdryDefMode){
     case '~':
     case '*':{
-        if constexpr(THREED){
+        if constexpr(X3D){
             PRTFile << "*********************************\n";
         }else{
             PRTFile << "__________________________________________________________________________\n\n";
@@ -406,25 +406,25 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
             std::abort();
         }
         
-        LIST(BDRYFile); BDRYFile.Read(bdinfotb->type, THREED ? 1 : 2);
-        if constexpr(THREED) bdinfotb->type[1] = ' ';
+        LIST(BDRYFile); BDRYFile.Read(bdinfotb->type, X3D ? 1 : 2);
+        if constexpr(X3D) bdinfotb->type[1] = ' ';
         switch(bdinfotb->type[0]){
         case 'R':
-            if constexpr(THREED){
+            if constexpr(X3D){
                 PRTFile << "Regular grid for a 3D run\n";
             }else{
                 PRTFile << s_atibty << "Type R not supported for 2D runs\n"; std::abort();
             }
             break;
         case 'C':
-            if constexpr(THREED){
+            if constexpr(X3D){
                 PRTFile << "Regular grid for a 3D run (curvilinear)\n";
             }else{
                 PRTFile << "Curvilinear Interpolation\n";
             }
             break;
         case 'L':
-            if constexpr(THREED){
+            if constexpr(X3D){
                 PRTFile << s_atibty << "Type L not supported for 3D runs\n"; std::abort();
             }else{
                 PRTFile << "Piecewise linear interpolation\n";
@@ -436,7 +436,7 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
             std::abort();
         }
         
-        if constexpr(THREED){
+        if constexpr(X3D){
             // x values
             LIST(BDRYFile); BDRYFile.Read(bdinfotb->NPts.x);
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x-direction "
@@ -586,7 +586,7 @@ template<bool THREED> inline void ReadBoundary(std::string FileRoot, char BdryDe
         
         }break;
     default:
-        if constexpr(THREED){
+        if constexpr(X3D){
             bdinfotb->atiType[0] = 'R';
             bdinfotb->NPts = int2(2, 2);
             checkallocate(bdinfotb->bd, 2*2);

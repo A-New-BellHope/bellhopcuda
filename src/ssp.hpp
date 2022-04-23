@@ -29,8 +29,8 @@ constexpr real betaPowerLaw = FL(1.0);
 #define SSP_3D_FN_ARGS const vec3 &x, const vec3 &t, \
     SSPOutputs<true> &o, const SSPStructure *ssp, SSPSegState &iSeg
 #define SSP_TEMPL_FN_ARGS \
-    const VEC23<THREED> &x, const VEC23<THREED> &t, \
-    SSPOutputs<THREED> &o, const SSPStructure *ssp, SSPSegState &iSeg
+    const VEC23<O3D> &x, const VEC23<O3D> &t, \
+    SSPOutputs<O3D> &o, const SSPStructure *ssp, SSPSegState &iSeg
     
 #define SSP_INIT_ARGS real Depth, const real &fT, \
     LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot, \
@@ -284,7 +284,7 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
     LinInterpDensity(x.z, ssp, iSeg, o.rho);
 }
 
-template<bool THREED> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
+template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
 {
     IGNORE_UNUSED(t);
     IGNORE_UNUSED(ssp);
@@ -296,7 +296,7 @@ template<bool THREED> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
     const float unk1 = FL(1300.0);
     const float unk2 = FL(0.00737);
     
-    if constexpr(THREED){
+    if constexpr(O3D){
         real w;
         // if(x.z < 5000.0){
         const float unk3 = FL(100000.0);
@@ -354,99 +354,80 @@ template<bool THREED> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
     }
 }
 
-template<bool THREED> struct SSPResultConverter {};
-template<> struct SSPResultConverter<false> {
-    static HOST_DEVICE inline void convert(const SSPOutputs<false> &i, SSPOutputs<false> &o){ o = i; }
-};
-template<> struct SSPResultConverter<true> {
-    static HOST_DEVICE inline void convert(const SSPOutputs<false> &i, SSPOutputs<true> &o){
-        o.gradc = vec3(RL(0.0), RL(0.0), i.gradc.y);
-        o.cxx = o.cyy = o.cxy = o.cxz = o.cyz = RL(0.0);
-        o.czz = i.czz;
-        o.ccpx = i.ccpx;
-        o.rho = i.rho;
-    }
-};
-
-template<bool THREED> HOST_DEVICE inline void EvaluateSSP(SSP_TEMPL_FN_ARGS)
+template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
+    const VEC23<R3D> &x, const VEC23<R3D> &t, SSPOutputs<R3D> &o,
+    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
 {
-    vec2 x_rz, t_rz;
-    SSPOutputs<false> o2d;
-    if constexpr(THREED){
-        x_rz = vec2(RL(0.0), x.z);
-        t_rz = vec2(RL(0.0), t.z);
-    }else{
-        x_rz = x;
-        t_rz = t;
-    }
-    switch(ssp->Type){
-    case 'N': // N2-linear profile option
-        n2Linear(x_rz, t_rz, o2d, ssp, iSeg);
-        SSPResultConverter<THREED>::convert(o2d, o);
-        break;
-    case 'C': // C-linear profile option
-        cLinear (x_rz, t_rz, o2d, ssp, iSeg);
-        SSPResultConverter<THREED>::convert(o2d, o);
-        break;
-    case 'P': // monotone PCHIP ACS profile option
-        if constexpr(THREED){
-            // LP: TODO: I don't think there's any reason this should not be supported,
+    VEC23<O3D> x_proc = RayToOceanX(x, org);
+    VEC23<O3D> t_proc = RayToOceanT(t, org);
+    SSPOutputs<O3D> o_proc;
+    if(ssp->Type == 'N' || ssp->Type == 'C' || ssp->Type == 'S'){
+        vec2 x_rz, t_rz;
+        SSPOutputs<false> o_rz;
+        if constexpr(O3D){
+            x_rz = vec2(RL(0.0), x_proc.z);
+            t_rz = vec2(RL(0.0), t_proc.z);
+        }else{
+            x_rz = x_proc;
+            t_rz = t_proc;
+        }
+        if(ssp->Type == 'N'){ // N2-linear profile option
+            n2Linear(x_rz, t_rz, o_rz, ssp, iSeg);
+        }else if(ssp->Type == 'C'){ // C-linear profile option
+            cLinear (x_rz, t_rz, o_rz, ssp, iSeg);
+        }else if(ssp->Type == 'S'){ // Cubic spline profile option
+            cCubic  (x_rz, t_rz, o_rz, ssp, iSeg);
+        }
+        if constexpr(O3D){
+            o_proc.gradc = vec3(RL(0.0), RL(0.0), o_rz.gradc.y);
+            o_proc.cxx = o_proc.cyy = o_proc.cxy = o_proc.cxz = o_proc.cyz = RL(0.0);
+            o_proc.czz = o_rz.czz;
+            o_proc.ccpx = o_rz.ccpx;
+            o_proc.rho = o_rz.rho;
+        }else{
+            o_proc = o_rz;
+        }
+    }else if(ssp->Type == 'P' || ssp->Type == 'Q'){
+        if constexpr(O3D){
+            // LP: TODO: I don't think there's any reason P (PCHIP) should not be supported,
             // it's very similar to cubic.
-            printf("EvaluateSSP: 'P' (PCHIP) profile not supported in 3D or 2D3D mode\n");
+            printf("EvaluateSSP: '%c' profile not supported in 3D or 2D3D mode\n", ssp->Type);
             bail();
         }else{
-            cPCHIP(x, t, o, ssp, iSeg);
+            if(ssp->Type == 'P'){ // monotone PCHIP ACS profile option
+                cPCHIP(x_proc, t_proc, o_proc, ssp, iSeg);
+            }else if(ssp->Type == 'Q'){
+                Quad(x_proc, t_proc, o_proc, ssp, iSeg);
+            }
         }
-        break;
-    case 'S': // Cubic spline profile option
-        cCubic  (x_rz, t_rz, o2d, ssp, iSeg);
-        SSPResultConverter<THREED>::convert(o2d, o);
-        break;
-    case 'Q':
-        if constexpr(THREED){
-            printf("EvaluateSSP: 'Q' (Quad) profile not supported in 3D or 2D3D mode\n");
-            bail();
-        }else{
-            Quad(x, t, o, ssp, iSeg);
-        }
-        break;
-    case 'H':
-        if constexpr(THREED){
-            Hexahedral(x, t, o, ssp, iSeg);
+    }else if(ssp->Type == 'H'){
+        if constexpr(O3D){
+            Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
         }else{
             printf("EvaluateSSP: 'H' (Hexahedral) profile not supported in 2D mode\n");
             bail();
         }
-        break;
-    case 'A': // Analytic profile option
-        Analytic<THREED>(x, t, o, ssp, iSeg); break;
-    default:
+    }else if(ssp->Type == 'A'){ // Analytic profile option
+        Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
+    }else{
         printf("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
         bail();
     }
-}
-
-HOST_DEVICE inline void EvaluateSSP2D3D(const vec2 &x2D, const vec2 &t2D,
-    const vec3 &xs, const vec2 &tradial,
-    SSPOutputs<false> &o, const SSPStructure *ssp, SSPSegState &iSeg)
-{
-    vec3 x = vec3(xs.x + x2D.x * tradial.x, xs.y + x2D.x * tradial.y, x2D.y);
-    vec3 t = vec3(xs.x + t2D.x * tradial.x, xs.y + t2D.x * tradial.y, t2D.y);
-    SSPOutputs<true> o3d;
-    
-    EvaluateSSP<true>(x, t, o3d, ssp, iSeg);
-    
-    o.gradc.x = glm::dot(tradial, vec2(o3d.gradc.x, o3d.gradc.y)); // r derivative
-    o.gradc.y = o3d.gradc.z; // z derivative
-    
-    o.crz = tradial.x * o3d.cxz + tradial.y * o3d.cyz;
-    o.crr = o3d.cxx * SQ(tradial.x) 
-        + FL(2.0) * o3d.cxy * tradial.x * tradial.y 
-        + o3d.cyy * SQ(tradial.y);
-    
-    o.ccpx = o3d.ccpx;
-    o.rho = o3d.rho;
-    o.czz = o3d.czz;
+    if constexpr(O3D && !R3D){
+        o.gradc.x = glm::dot(org.tradial, vec2(o_proc.gradc.x, o_proc.gradc.y)); // r derivative
+        o.gradc.y = o_proc.gradc.z; // z derivative
+        
+        o.crz = org.tradial.x * o_proc.cxz + org.tradial.y * o_proc.cyz;
+        o.crr = o_proc.cxx * SQ(org.tradial.x) 
+            + FL(2.0) * o_proc.cxy * org.tradial.x * org.tradial.y 
+            + o_proc.cyy * SQ(org.tradial.y);
+        
+        o.ccpx = o_proc.ccpx;
+        o.rho = o_proc.rho;
+        o.czz = o_proc.czz;
+    }else{
+        o = o_proc;
+    }
 }
 
 void InitializeSSP(SSP_INIT_ARGS);

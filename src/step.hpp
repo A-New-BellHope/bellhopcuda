@@ -38,13 +38,13 @@ namespace bhc {
  * Instead the SSP is extrapolated
  * This prevents problems when the boundaries are outside the domain of the SSP
  */
-template<bool THREED> HOST_DEVICE inline void DepthInterfaceCrossing(
-    real &h, VEC23<THREED> &x, const VEC23<THREED> &x0, const VEC23<THREED> &urayt,
+template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
+    real &h, VEC23<O3D> &x, const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
     const SSPSegState &iSeg0, const SSPStructure *ssp, bool stepTo)
 {
     if(!stepTo) h = REAL_MAX;
     if(STD::abs(DEP(urayt)) > REAL_EPSILON){
-        if(      ssp->z[iSeg0.z]     > DEP(x) && (!THREED || iSeg0.z > 0)){
+        if(      ssp->z[iSeg0.z]     > DEP(x) && (!O3D || iSeg0.z > 0)){
             h = (ssp->z[iSeg0.z]     - DEP(x0)) / DEP(urayt);
             if(stepTo){
                 x = x0 + h * urayt; // X or X,Y
@@ -56,7 +56,7 @@ template<bool THREED> HOST_DEVICE inline void DepthInterfaceCrossing(
             #ifdef STEP_DEBUGGING
             printf("Shallower bound SSP Z %g > z %g; h = %g\n", ssp->z[iSeg0.z], DEP(x), h);
             #endif
-        }else if(ssp->z[iSeg0.z + 1] < DEP(x) && (!THREED || iSeg0.z + 1 < ssp->Nz-1)){
+        }else if(ssp->z[iSeg0.z + 1] < DEP(x) && (!O3D || iSeg0.z + 1 < ssp->Nz-1)){
             h = (ssp->z[iSeg0.z + 1] - DEP(x0)) / DEP(urayt);
             #ifdef STEP_DEBUGGING
             printf("Deeper bound SSP Z %g < z %g; h = %g\n", ssp->z[iSeg0.z+1], DEP(x), h);
@@ -72,12 +72,12 @@ template<bool THREED> HOST_DEVICE inline void DepthInterfaceCrossing(
     }
 }
 
-template<bool THREED> HOST_DEVICE inline void TopBotCrossing(
-    real &h, const BdryStateTopBot<THREED> &bd, VEC23<THREED> &x,
-    const VEC23<THREED> &x0, const VEC23<THREED> &urayt, bool stepTo, bool &refl)
+template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
+    real &h, const BdryStateTopBot<O3D> &bd, VEC23<O3D> &x,
+    const VEC23<O3D> &x0, const VEC23<O3D> &urayt, bool stepTo, bool &refl)
 {
     if(!stepTo) h = REAL_MAX;
-    VEC23<THREED> d, d0;
+    VEC23<O3D> d, d0;
     d  = x  - bd.x; // vector from top / bottom to ray
     d0 = x0 - bd.x; // vector from top / bottom node to ray origin
     // Originally, this value had to be > a small positive number, meaning the
@@ -93,7 +93,7 @@ template<bool THREED> HOST_DEVICE inline void TopBotCrossing(
         if(stepTo){
             x = x0 + h * urayt;
             // Snap to exact top / bot depth value if it's flat
-            if(STD::abs(bd.n.x) < REAL_EPSILON && (!THREED || STD::abs(bd.n.y) < REAL_EPSILON)){
+            if(STD::abs(bd.n.x) < REAL_EPSILON && (!O3D || STD::abs(bd.n.y) < REAL_EPSILON)){
                 DEP(x) = DEP(bd.x);
             }
             #ifdef STEP_DEBUGGING
@@ -109,10 +109,10 @@ template<bool THREED> HOST_DEVICE inline void TopBotCrossing(
 /**
  * top or bottom segment crossing in range / x / y
  */
-template<bool THREED> HOST_DEVICE inline void TopBotSegCrossing(
+template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
     real &h, const BdryLimits &TopSeg, const BdryLimits &BotSeg,
-    const real *seg_w, int32_t iSeg, VEC23<THREED> &x,
-    const VEC23<THREED> &x0, const VEC23<THREED> &urayt, char qh, 
+    const real *seg_w, int32_t iSeg, VEC23<O3D> &x,
+    const VEC23<O3D> &x0, const VEC23<O3D> &urayt, char qh, 
     const SSPStructure *ssp, bool stepTo, bool &topRefl, bool &botRefl, bool isY)
 {
     BdryLimits rSeg;
@@ -203,13 +203,13 @@ HOST_DEVICE inline void TriDiagCrossing(
  * Topx, Topn, Botx, Botn: Top, bottom coordinate and normal
  * h: reduced step size
  */
-template<bool THREED> HOST_DEVICE inline void ReduceStep(
-    const VEC23<THREED> &x0, const VEC23<THREED> &urayt,
-    const SSPSegState &iSeg0, const BdryState<THREED> &bds,
+template<bool O3D> HOST_DEVICE inline void ReduceStep(
+    const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
+    const SSPSegState &iSeg0, const BdryState<O3D> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp, 
     real &h, int32_t &iSmallStepCtr)
 {
-    VEC23<THREED> x;
+    VEC23<O3D> x;
     real h1, h2, h3, h4, h5, h6, h7;
     bool dummy;
     
@@ -219,19 +219,19 @@ template<bool THREED> HOST_DEVICE inline void ReduceStep(
 
     x = x0 + h * urayt; // make a trial step
 
-    DepthInterfaceCrossing<THREED>(h1, x, x0, urayt, iSeg0, ssp, false);
-    TopBotCrossing<THREED>(h2, bds.top, x, x0, urayt, false, dummy);
-    TopBotCrossing<THREED>(h3, bds.bot, x, x0, urayt, false, dummy);
+    DepthInterfaceCrossing<O3D>(h1, x, x0, urayt, iSeg0, ssp, false);
+    TopBotCrossing<O3D>(h2, bds.top, x, x0, urayt, false, dummy);
+    TopBotCrossing<O3D>(h3, bds.bot, x, x0, urayt, false, dummy);
     
-    if constexpr(THREED){
-        TopBotSegCrossing<THREED>(h4, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
+    if constexpr(O3D){
+        TopBotSegCrossing<O3D>(h4, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
             x, x0, urayt, 'H', ssp, false, dummy, dummy, false);
-        TopBotSegCrossing<THREED>(h5, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
+        TopBotSegCrossing<O3D>(h5, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
             x, x0, urayt, 'H', ssp, false, dummy, dummy, true);
         TriDiagCrossing(h6, bds.top, x, x0, urayt, false, dummy, dummy);
         TriDiagCrossing(h7, bds.bot, x, x0, urayt, false, dummy, dummy);
     }else{
-        TopBotSegCrossing<THREED>(h4, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
+        TopBotSegCrossing<O3D>(h4, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
             x, x0, urayt, 'Q', ssp, false, dummy, dummy, false);
         h5 = h6 = h7 = REAL_MAX;
     }
@@ -270,30 +270,30 @@ template<bool THREED> HOST_DEVICE inline void ReduceStep(
     }
 }
 
-template<bool THREED> HOST_DEVICE inline void StepToBdry(
-    const VEC23<THREED> &x0, VEC23<THREED> &x2, const VEC23<THREED> &urayt,
+template<bool O3D> HOST_DEVICE inline void StepToBdry(
+    const VEC23<O3D> &x0, VEC23<O3D> &x2, const VEC23<O3D> &urayt,
     real &h, bool &topRefl, bool &botRefl,
-    const SSPSegState &iSeg0, const BdryState<THREED> &bds,
+    const SSPSegState &iSeg0, const BdryState<O3D> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp)
 {
     // Original step due to maximum step size
     h = Beam->deltas;
     x2 = x0 + h * urayt;
     
-    DepthInterfaceCrossing<THREED>(h, x2, x0, urayt, iSeg0, ssp, true);
-    TopBotCrossing<THREED>(h, bds.top, x2, x0, urayt, true, topRefl);
-    TopBotCrossing<THREED>(h, bds.bot, x2, x0, urayt, true, botRefl);
+    DepthInterfaceCrossing<O3D>(h, x2, x0, urayt, iSeg0, ssp, true);
+    TopBotCrossing<O3D>(h, bds.top, x2, x0, urayt, true, topRefl);
+    TopBotCrossing<O3D>(h, bds.bot, x2, x0, urayt, true, botRefl);
     if(botRefl) topRefl = false;
     
-    if constexpr(THREED){
-        TopBotSegCrossing<THREED>(h, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
+    if constexpr(O3D){
+        TopBotSegCrossing<O3D>(h, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
             x2, x0, urayt, 'H', ssp, true, topRefl, botRefl, false);
-        TopBotSegCrossing<THREED>(h, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
+        TopBotSegCrossing<O3D>(h, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
             x2, x0, urayt, 'H', ssp, true, topRefl, botRefl, true);
         TriDiagCrossing(h, bds.top, x2, x0, urayt, true, topRefl, botRefl);
         TriDiagCrossing(h, bds.bot, x2, x0, urayt, true, topRefl, botRefl);
     }else{
-        TopBotSegCrossing<THREED>(h, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
+        TopBotSegCrossing<O3D>(h, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
             x2, x0, urayt, 'Q', ssp, true, topRefl, botRefl, false);
     }
     
@@ -304,7 +304,7 @@ template<bool THREED> HOST_DEVICE inline void StepToBdry(
         printf("StepToBdry small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
         #endif
         // Recheck reflection conditions
-        VEC23<THREED> d;
+        VEC23<O3D> d;
         d = x2 - bds.top.x; // vector from top to ray
         if(glm::dot(bds.top.n, d) > REAL_EPSILON){
             topRefl = true;
@@ -321,11 +321,11 @@ template<bool THREED> HOST_DEVICE inline void StepToBdry(
     }
 }
 
-template<bool THREED> HOST_DEVICE inline void Get_c_partials(
-    const rayPt<THREED> &ray, const SSPOutputs<THREED> &o,
-    StepPartials<THREED> &part)
+template<bool R3D> HOST_DEVICE inline void Get_c_partials(
+    const rayPt<R3D> &ray, const SSPOutputs<R3D> &o,
+    StepPartials<R3D> &part)
 {
-    if constexpr(THREED){
+    if constexpr(R3D){
         vec3 e1, e2;
         RayNormal(ray.t, ray.phi, o.ccpx.real(), e1, e2);
         
@@ -350,12 +350,12 @@ template<bool THREED> HOST_DEVICE inline void Get_c_partials(
     }
 }
 
-template<bool THREED> HOST_DEVICE inline rayPtExtras<THREED> ComputeDeltaPQ(
-    const rayPt<THREED> &ray, const SSPOutputs<THREED> &o,
-    const StepPartials<THREED> &part)
+template<bool R3D> HOST_DEVICE inline rayPtExtras<R3D> ComputeDeltaPQ(
+    const rayPt<R3D> &ray, const SSPOutputs<R3D> &o,
+    const StepPartials<R3D> &part)
 {
-    rayPtExtras<THREED> pq;
-    if constexpr(THREED){
+    rayPtExtras<R3D> pq;
+    if constexpr(R3D){
         pq.phi = (FL(1.0) / o.ccpx.real()) * ray.t.z *
             (ray.t.y * o.gradc.x - ray.t.x * o.gradc.y) /
             (SQ(ray.t.x) + SQ(ray.t.y));
@@ -376,10 +376,10 @@ template<bool THREED> HOST_DEVICE inline rayPtExtras<THREED> ComputeDeltaPQ(
     return pq;
 }
 
-template<bool THREED> HOST_DEVICE inline void UpdateRayPQ(
-    rayPt<THREED> &ray1, const rayPt<THREED> &ray0, real h, const rayPtExtras<THREED> &pq)
+template<bool R3D> HOST_DEVICE inline void UpdateRayPQ(
+    rayPt<R3D> &ray1, const rayPt<R3D> &ray0, real h, const rayPtExtras<R3D> &pq)
 {
-    if constexpr(THREED){
+    if constexpr(R3D){
         ray1.phi     = ray0.phi     + h * pq.phi;
         ray1.p_tilde = ray0.p_tilde + h * pq.p_tilde;
         ray1.q_tilde = ray0.q_tilde + h * pq.q_tilde;
@@ -394,11 +394,11 @@ template<bool THREED> HOST_DEVICE inline void UpdateRayPQ(
 /**
  * correct p-q due to jumps in the gradient of the sound speed
  */
-template<bool THREED> HOST_DEVICE inline void CurvatureCorrection(
-    rayPt<THREED> &ray2, const VEC23<THREED> &gradcjump,
+template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
+    rayPt<R3D> &ray2, const VEC23<R3D> &gradcjump,
     const SSPSegState &iSeg, const SSPSegState &iSeg0)
 {
-    if constexpr(THREED){
+    if constexpr(R3D){
         vec3 nBdry(RL(0.0), RL(0.0), RL(0.0));
         // what if we cross iSeg.x, iSeg.y, or iSeg.z at the same time?
         if(iSeg.z != iSeg0.z){
@@ -479,6 +479,8 @@ template<bool THREED> HOST_DEVICE inline void CurvatureCorrection(
         ray2.p_hat   = glm::row(pmat, 1);
         
     }else{
+        // LP: 2D-3D only:
+        // mbp: this needs modifying like the full 3D version to handle jumps in the x-y direction
         vec2 ray2n = vec2(-ray2.t.y, ray2.t.x); // ray normal
         
         real cnjump = glm::dot(gradcjump, ray2n);
@@ -499,16 +501,16 @@ template<bool THREED> HOST_DEVICE inline void CurvatureCorrection(
 /**
  * Does a single step along the ray
  */
-template<bool THREED> HOST_DEVICE inline void Step(
-    rayPt<THREED> ray0, rayPt<THREED> &ray2, 
-    const BdryState<THREED> &bds, const BeamStructure *Beam, const SSPStructure *ssp,
+template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
+    rayPt<R3D> ray0, rayPt<R3D> &ray2, const Origin<O3D, R3D> &org,
+    const BdryState<O3D> &bds, const BeamStructure *Beam, const SSPStructure *ssp,
     SSPSegState &iSeg, int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
 {
-    rayPt<THREED> ray1;
-    SSPOutputs<THREED> o0, o1, o2;
-    StepPartials<THREED> part0, part1;
-    rayPtExtras<THREED> pq0, pq1;
-    VEC23<THREED> urayt0, urayt1;
+    rayPt<R3D> ray1;
+    SSPOutputs<O3D> o0, o1, o2;
+    StepPartials<R3D> part0, part1;
+    rayPtExtras<R3D> pq0, pq1;
+    VEC23<R3D> urayt0, urayt1;
     real csq0, csq1, h, w0, w1, hw0, hw1;
     
     #ifdef STEP_DEBUGGING
@@ -530,10 +532,10 @@ template<bool THREED> HOST_DEVICE inline void Step(
 
     // *** Phase 1 (an Euler step)
 
-    EvaluateSSP<THREED>(ray0.x, ray0.t, o0, ssp, iSeg);
+    EvaluateSSP<O3D, R3D>(ray0.x, ray0.t, o0, org, ssp, iSeg);
     // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
-    Get_c_partials<THREED>(ray0, o0, part0);
-    pq0 = ComputeDeltaPQ(ray0, o0, part0);
+    Get_c_partials<R3D>(ray0, o0, part0);
+    pq0 = ComputeDeltaPQ<R3D>(ray0, o0, part0);
     
     SSPSegState iSeg0 = iSeg; // make note of current layer
     
@@ -544,22 +546,24 @@ template<bool THREED> HOST_DEVICE inline void Step(
     // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
-    ReduceStep<THREED>(ray0.x, urayt0, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    VEC23<O3D> x_o = RayToOceanX(ray0.x, org);
+    VEC23<O3D> t_o = RayToOceanT(urayt0, org);
+    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
     // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     real halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
     ray1.x = ray0.x + halfh * urayt0;
     ray1.t = ray0.t - halfh * o0.gradc / csq0;
-    UpdateRayPQ(ray1, ray0, halfh, pq0);
+    UpdateRayPQ<R3D>(ray1, ray0, halfh, pq0);
     
     // printf("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
     //     ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     // *** Phase 2
     
-    EvaluateSSP<THREED>(ray1.x, ray1.t, o1, ssp, iSeg);
-    Get_c_partials<THREED>(ray1, o1, part1);
-    pq1 = ComputeDeltaPQ(ray1, o1, part1);
+    EvaluateSSP<O3D, R3D>(ray1.x, ray1.t, o1, ssp, iSeg);
+    Get_c_partials<R3D>(ray1, o1, part1);
+    pq1 = ComputeDeltaPQ<R3D>(ray1, o1, part1);
     
     // The Munk test case with a horizontally launched ray caused problems.
     // The ray vertexes on an interface and can ping-pong around that interface.
@@ -572,25 +576,28 @@ template<bool THREED> HOST_DEVICE inline void Step(
     // printf("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
     
     // reduce h to land on boundary
-    ReduceStep<THREED>(ray0.x, urayt1, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    t_o = RayToOceanT(urayt1, org);
+    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RL(2.0) * halfh);
     w0  = RL(1.0) - w1;
     // printf("w1 %20.17f w0 %20.17f\n", w1, w0);
-    VEC23<THREED> urayt2 =  w0 * urayt0 + w1 * urayt1;
+    VEC23<R3D> urayt2 =  w0 * urayt0 + w1 * urayt1;
     // Take the blended ray tangent (urayt2) and find the minimum step size (h)
     // to put this on a boundary, and ensure that the resulting position
     // (ray2.x) gets put precisely on the boundary.
-    StepToBdry<THREED>(ray0.x, ray2.x, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
+    VEC23<O3D> x2_o;
+    StepToBdry<O3D>(x_o, x2_o, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
+    ray2.x = OceanToRayX(x2_o, org, urayt2);
     
     // Update other variables with this new h
     hw0 = h * w0;
     hw1 = h * w1;
     ray2.t   = ray0.t   - hw0 * o0.gradc / csq0         - hw1 * o1.gradc / csq1;
     ray2.tau = ray0.tau + hw0 / o0.ccpx                 + hw1 / o1.ccpx;
-    UpdateRayPQ(ray2, ray0, hw0, pq0);
-    UpdateRayPQ(ray2, ray2, hw1, pq1);
+    UpdateRayPQ<R3D>(ray2, ray0, hw0, pq0);
+    UpdateRayPQ<R3D>(ray2, ray2, hw1, pq1);
     
     // printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
     //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
@@ -603,13 +610,13 @@ template<bool THREED> HOST_DEVICE inline void Step(
     
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP<THREED>(ray2.x, ray2.t, o2, ssp, iSeg);
+    EvaluateSSP<O3D, R3D>(ray2.x, ray2.t, o2, ssp, iSeg);
     ray2.c = o2.ccpx.real();
     
-    if(iSeg.z != iSeg0.z || (!THREED && iSeg.r != iSeg0.r) || 
-            (THREED && (iSeg.x != iSeg0.x || iSeg.y != iSeg0.y))){
-        VEC23<THREED> gradcjump = o2.gradc - o0.gradc;
-        CurvatureCorrection(ray2, gradcjump, iSeg, iSeg0);
+    if(iSeg.z != iSeg0.z || (!R3D && iSeg.r != iSeg0.r) || 
+            (R3D && (iSeg.x != iSeg0.x || iSeg.y != iSeg0.y))){
+        VEC23<R3D> gradcjump = o2.gradc - o0.gradc;
+        CurvatureCorrection<R3D>(ray2, gradcjump, iSeg, iSeg0);
     }
 }
 

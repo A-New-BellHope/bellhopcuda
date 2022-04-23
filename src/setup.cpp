@@ -19,7 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "readenv.hpp"
 #include "boundary.hpp"
-#include "refcoef.hpp"
+#include "reflect.hpp"
 #include "ssp.hpp"
 #include "beams.hpp"
 #include "run.hpp"

@@ -352,7 +352,7 @@ HOST_DEVICE inline cpx Compute_gamma(const rayPt<false> &point, const cpx &pB, c
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
     SSPOutputs<false> o;
-    EvaluateSSP<false>(point.x, point.t, o, ssp, iSeg);
+    EvaluateSSP<false, false>(point.x, point.t, o, ssp, iSeg);
     
     real csq = SQ(o.ccpx.real());
     real cS = glm::dot(o.gradc, rayt);

@@ -242,6 +242,79 @@ DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
 DEFINE_MATH_FUNC_INT_2(max, ::max, std::max)
 DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
 
+inline float RealBitsAddInt(float r, int32_t i){
+    #ifdef __CUDA_ARCH__
+    return __int_as_float(__float_as_int(r) + i);
+    #else
+    int32_t k;
+    std::memcpy(&k, &r, 4);
+    k += i;
+    float x;
+    std::memcpy(&x, &k, 4);
+    return x;
+    #endif
+}
+inline double RealBitsAddInt(double r, int32_t i){
+    #ifdef __CUDA_ARCH__
+    return __longlong_as_double(__double_as_longlong(r) + (int64_t)i);
+    #else
+    int64_t k;
+    std::memcpy(&k, &r, 8);
+    k += i;
+    double x;
+    std::memcpy(&x, &k, 8);
+    return x;
+    #endif
+}
+
+template<bool O3D, bool R3D> VEC23<O3D> RayToOceanX(const VEC23<R3D> &x, const Origin<O3D, R3D> &org){
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D){
+        return vec3(org.xs.x + x.x * org.tradial.x, org.xs.y + x.x * org.tradial.y, x.y);
+    }else{
+        return x;
+    }
+}
+template<bool O3D, bool R3D> VEC23<O3D> RayToOceanT(const VEC23<R3D> &t, const Origin<O3D, R3D> &org){
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D){
+        return vec3(           t.x * org.tradial.x,            t.x * org.tradial.y, t.y);
+    }else{
+        return t;
+    }
+}
+template<bool O3D, bool R3D> VEC23<R3D> OceanToRayX(const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t){
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D){
+        // LP: Going back and forth through the coordinate transform won't
+        // always keep the precise value, so we may have to finesse the floats.
+        vec2 x_cand;
+        x_cand.y = x.z;
+        if(STD::abs(org.tradial.x) >= STD::abs(org.tradial.y)){
+            x_cand.x = (x.x - org.xs.x) / org.tradial.x;
+        }else{
+            x_cand.x = (x.x - org.xs.y) / org.tradial.y;
+        }
+        vec3 x_res = RayToOceanX(x_cand, org);
+        if(x_res.x == x.x && x_res.y == x.y){
+            // Got lucky--it went through and came back with the same values.
+            return x_cand;
+        }
+        //Try adding or subtracting one ulp.
+        vec2 x_cand2 = x_cand;
+        x_cand2.x = RealBitsAddInt(x_cand.x, 1);
+        vec2 x_res2 = RayToOceanX(x_cand, org);
+        if(x_res2.x == x.x && x_res2.y == x.y) return x_cand2;
+        x_cand2.y = x_cand.y;
+        x_cand2.x = RealBitsAddInt(x_cand.x, -1);
+        x_res2 = RayToOceanX(x_cand, org);
+        if(x_res2.x == x.x && x_res2.y == x.y) return x_cand2;
+        
+    }else{
+        return x;
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //String manipulation
 ////////////////////////////////////////////////////////////////////////////////

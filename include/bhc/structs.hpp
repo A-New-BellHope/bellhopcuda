@@ -26,10 +26,16 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-template<bool THREED> struct TmplVec23 {};
+/*
+O3D: ocean (SSP, boundaries, etc.) is 3D.
+R3D: rays (beams) are 3D. In 2D-3D mode, S3D == true && R3D == false.
+X3D: generic 3D boolean value for templated types.
+*/
+
+template<bool X3D> struct TmplVec23 {};
 template<> struct TmplVec23<false> { typedef vec2 type; };
 template<> struct TmplVec23<true>  { typedef vec3 type; };
-template<bool THREED> using VEC23 = typename TmplVec23<THREED>::type;
+template<bool X3D> using VEC23 = typename TmplVec23<X3D>::type;
 
 template<typename VEC> HOST_DEVICE inline real &DEP(VEC &v);
 template<> HOST_DEVICE inline real &DEP(vec2 &v) { return v.y; }
@@ -38,10 +44,10 @@ template<typename VEC> HOST_DEVICE inline const real &DEP(const VEC &v);
 template<> HOST_DEVICE inline const real &DEP(const vec2 &v) { return v.y; }
 template<> HOST_DEVICE inline const real &DEP(const vec3 &v) { return v.z; }
 
-template<bool THREED> struct TmplInt12 {};
+template<bool X3D> struct TmplInt12 {};
 template<> struct TmplInt12<false> { typedef int32_t type; };
 template<> struct TmplInt12<true>  { typedef int2 type; };
-template<bool THREED> using IORI2 = typename TmplInt12<THREED>::type;
+template<bool X3D> using IORI2 = typename TmplInt12<X3D>::type;
 
 ////////////////////////////////////////////////////////////////////////////////
 //SSP / Boundary
@@ -65,17 +71,17 @@ struct SSPStructure {
     char AttenUnit[2];
 };
 
-template<bool THREED> struct SSPOutputsExtras {};
+template<bool R3D> struct SSPOutputsExtras {};
 template<> struct SSPOutputsExtras<false> {
     real crr, crz;
 };
 template<> struct SSPOutputsExtras<true> {
     real cxx, cyy, cxy, cxz, cyz;
 };
-template<bool THREED> struct SSPOutputs : public SSPOutputsExtras<THREED>
+template<bool R3D> struct SSPOutputs : public SSPOutputsExtras<R3D>
 {
     cpx ccpx;
-    VEC23<THREED> gradc;
+    VEC23<R3D> gradc;
     real rho, czz;
 };
 
@@ -103,7 +109,7 @@ struct BdryType {
     BdryPtSmall Top, Bot;
 };
 
-template<bool THREED> struct BdryPtFullExtras {};
+template<bool O3D> struct BdryPtFullExtras {};
 template<> struct BdryPtFullExtras<false> {
     vec2 Nodet; // tangent at the node, if the curvilinear option is used
     real kappa; // curvature of a segement
@@ -117,44 +123,49 @@ template<> struct BdryPtFullExtras<true> {
     real z_xx, z_xy, z_yy;
     real phi_xx, phi_xy, phi_yy;
 };
-template<bool THREED> struct BdryPtFull : public BdryPtFullExtras<THREED>
+template<bool O3D> struct BdryPtFull : public BdryPtFullExtras<O3D>
 {
-    VEC23<THREED> x; // 2D: coordinate for a segment / 3D: coordinate of boundary
-    VEC23<THREED> t; // 2D: tangent for a segment / 3D: tangent for a facet
-    VEC23<THREED> n; // 2D: outward normal for a segment / 3D: normal for a facet (outward pointing)
-    VEC23<THREED> Noden; // normal at the node, if the curvilinear option is used
+    VEC23<O3D> x; // 2D: coordinate for a segment / 3D: coordinate of boundary
+    VEC23<O3D> t; // 2D: tangent for a segment / 3D: tangent for a facet
+    VEC23<O3D> n; // 2D: outward normal for a segment / 3D: normal for a facet (outward pointing)
+    VEC23<O3D> Noden; // normal at the node, if the curvilinear option is used
     real Len; // 2D: length of a segment / 3D: length of tangent (temporary variable to normalize tangent)
 };
 
-template<bool THREED> struct BdryInfoTopBot {
-    IORI2<THREED> NPts;
+template<bool O3D> struct BdryInfoTopBot {
+    IORI2<O3D> NPts;
     char type[2]; // In 3D, only first char is used
-    BdryPtFull<THREED> *bd; // 2D: 1D array / 3D: 2D array
+    BdryPtFull<O3D> *bd; // 2D: 1D array / 3D: 2D array
 };
 /**
  * LP: There are two boundary structures. This one represents data in the
  * FORTRAN which was not within any structure, and is called bdinfo.
  */
-template<bool THREED> struct BdryInfo {
-    BdryInfoTopBot<THREED> top, bot;
+template<bool O3D> struct BdryInfo {
+    BdryInfoTopBot<O3D> top, bot;
 };
 
 struct BdryLimits { real min, max; };
 struct BdryLimits2 { BdryLimits x, y; };
-template<bool THREED> struct TmplBdryLimits12 {};
+template<bool O3D> struct TmplBdryLimits12 {};
 template<> struct TmplBdryLimits12<false> { typedef BdryLimits type; };
 template<> struct TmplBdryLimits12<true>  { typedef BdryLimits2 type; };
-template<bool THREED> struct BdryStateTopBot {
-    using LIMITS = typename TmplBdryLimits12<THREED>::type;
-    IORI2<THREED> Iseg; // indices that point to the current active segment
-    LIMITS lSeg; // LP: limits of current segment
-    VEC23<THREED> x, n; // only explicitly written in 3D, but effectively present in 2D
+template<bool O3D> struct BdryStateTopBot {
+    IORI2<O3D> Iseg; // indices that point to the current active segment
+    typename TmplBdryLimits12<O3D>::type lSeg; // LP: limits of current segment
+    VEC23<O3D> x, n; // only explicitly written in 3D, but effectively present in 2D
 };
 /**
  * LP: Variables holding current state of active segment(s) ray is in.
  */
-template<bool THREED> struct BdryState {
-    BdryStateTopBot<THREED> top, bot;
+template<bool O3D> struct BdryState {
+    BdryStateTopBot<O3D> top, bot;
+};
+
+template<bool O3D, bool R3D> struct Origin {};
+template<> struct Origin<true, false> {
+    vec3 xs;
+    vec2 tradial;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -297,7 +308,7 @@ struct ArrInfo {
 //Rays/beams
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool THREED> struct rayPtExtras {};
+template<bool R3D> struct rayPtExtras {};
 template<> struct rayPtExtras<false> {
     vec2 p, q;
 };
@@ -305,20 +316,20 @@ template<> struct rayPtExtras<true> {
     vec2 p_tilde, q_tilde, p_hat, q_hat;
     real DetQ, phi;
 };
-template<bool THREED> struct rayPt : public rayPtExtras<THREED>
+template<bool R3D> struct rayPt : public rayPtExtras<R3D>
 {
     int32_t NumTopBnc, NumBotBnc;
     ///ray coordinate, (r,z)
-    VEC23<THREED> x;
+    VEC23<R3D> x;
     ///scaled tangent to the ray (previously (rho, zeta))
-    VEC23<THREED> t;
+    VEC23<R3D> t;
     ///c * t would be the unit tangent
     real c;
     real Amp, Phase;
     cpx tau;
 };
 
-template<bool THREED> struct StepPartials {};
+template<bool R3D> struct StepPartials {};
 template<> struct StepPartials<false> {
     real cnn_csq;
 };

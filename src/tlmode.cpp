@@ -108,7 +108,7 @@ void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &o
     for(int32_t isrc=0; isrc<params.Pos->NSz; ++isrc){
         SSPSegState iSeg; iSeg.r = 0; iSeg.z = 0;
         SSPOutputs<false> o;
-        EvaluateSSP<false>(vec2(RL(0.0), params.Pos->Sz[isrc]), vec2(RL(1.0), RL(0.0)),
+        EvaluateSSP<false, false>(vec2(RL(0.0), params.Pos->Sz[isrc]), vec2(RL(1.0), RL(0.0)),
             o, params.ssp, iSeg);
         ScalePressure(params.Angles->Dalpha, o.ccpx.real(), params.Pos->Rr, 
             &outputs.uAllSources[isrc * params.Pos->NRz_per_range * params.Pos->NRr], 
