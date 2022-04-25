@@ -68,8 +68,8 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     // IMPORTANT--if changes are made here, make the same changes in finalize
     params.bdinfo->top.bd = nullptr;
     params.bdinfo->bot.bd = nullptr;
-    params.refl->RBot = nullptr;
-    params.refl->RTop = nullptr;
+    params.refl->bot.r = nullptr;
+    params.refl->top.r = nullptr;
     params.ssp->cMat = nullptr;
     params.ssp->czMat = nullptr;
     params.ssp->Seg.r = nullptr;
@@ -211,9 +211,9 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
         
         ComputeBdryTangentNormal(&params.bdinfo->bot, false);
         
-        params.refl->RBot = allocate<ReflectionCoef>(1);
-        params.refl->RTop = allocate<ReflectionCoef>(1);
-        params.refl->NBotPts = params.refl->NTopPts = 1;
+        params.refl->bot.r = allocate<ReflectionCoef>(1);
+        params.refl->top.r = allocate<ReflectionCoef>(1);
+        params.refl->bot.NPts = params.refl->top.NPts = 1;
         
         // *** Source Beam Pattern ***
         params.beaminfo->NSBPPts = 2;
@@ -333,8 +333,8 @@ BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
     
     checkdeallocate(params.bdinfo->top.bd);
     checkdeallocate(params.bdinfo->bot.bd);
-    checkdeallocate(params.refl->RBot);
-    checkdeallocate(params.refl->RTop);
+    checkdeallocate(params.refl->bot.r);
+    checkdeallocate(params.refl->top.r);
     checkdeallocate(params.ssp->cMat);
     checkdeallocate(params.ssp->czMat);
     checkdeallocate(params.ssp->Seg.r);

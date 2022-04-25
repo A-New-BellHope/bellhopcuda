@@ -346,13 +346,13 @@ HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
  * Form gamma
  */
 HOST_DEVICE inline cpx Compute_gamma(const rayPt<false> &point, const cpx &pB, const cpx &qB,
-    const SSPStructure *ssp, SSPSegState &iSeg)
+    const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg)
 {
     vec2 rayt = point.c * point.t; // unit tangent
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
     SSPOutputs<false> o;
-    EvaluateSSP<false, false>(point.x, point.t, o, ssp, iSeg);
+    EvaluateSSP<false, false>(point.x, point.t, o, org, ssp, iSeg);
     
     real csq = SQ(o.ccpx.real());
     real cS = glm::dot(o.gradc, rayt);
@@ -373,7 +373,7 @@ HOST_DEVICE inline cpx Compute_gamma(const rayPt<false> &point, const cpx &pB, c
 
 HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
     const rayPt<false> &point0, int32_t isrc, int32_t ialpha, real alpha, vec2 gradc,
-    const Position *Pos, const SSPStructure *ssp, SSPSegState &iSeg,
+    const Position *Pos, const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     inflray.isrc = isrc;
@@ -451,7 +451,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
         // LP: For Cerveny cart
         cpx eps0, pB0, qB0;
         Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
-        inflray.gamma = Compute_gamma(point0, pB0, qB0, ssp, iSeg);
+        inflray.gamma = Compute_gamma(point0, pB0, qB0, org, ssp, iSeg);
     }else{
         // LP: not used
         inflray.gamma = RL(0.0);
@@ -582,8 +582,8 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
  */
 HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpxf *u, 
-    const BdryType *Bdry, const SSPStructure *ssp, SSPSegState &iSeg,
+    int32_t is, cpxf *u, const BdryType *Bdry, 
+    const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam)
 {
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
@@ -600,7 +600,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     // Treatment of KMAH index is incorrect for 'Cerveny' style beam width BeamType
     
     gamma0 = inflray.gamma;
-    gamma1 = Compute_gamma(point1, pB1, qB1, ssp, iSeg);
+    gamma1 = Compute_gamma(point1, pB1, qB1, org, ssp, iSeg);
     inflray.gamma = gamma1;
         
     int32_t old_kmah = inflray.kmah;
@@ -992,15 +992,15 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
  */
 HOST_DEVICE inline bool Step_Influence(
     const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpxf *u,
-    const BdryType *Bdry, const SSPStructure *ssp, SSPSegState &iSeg,
+    int32_t is, cpxf *u, const BdryType *Bdry,
+    const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     switch(Beam->Type[0]){
     case 'R': return Step_InfluenceCervenyRayCen(
             point0, point1, inflray, is, u, Bdry, Pos, Beam);
     case 'C': return Step_InfluenceCervenyCart(
-            point0, point1, inflray, is, u, Bdry, ssp, iSeg, Pos, Beam);
+            point0, point1, inflray, is, u, Bdry, org, ssp, iSeg, Pos, Beam);
     case 'g': return Step_InfluenceGeoHatRayCen(
             point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
     case 'S': return Step_InfluenceSGB(

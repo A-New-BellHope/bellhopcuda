@@ -65,7 +65,7 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  */
 HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
     rayPt<false> &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
-    SSPSegState &iSeg, BdryState<false> &bds, BdryType &Bdry,
+    Origin<false, false> &org, SSPSegState &iSeg, BdryState<false> &bds, BdryType &Bdry,
     const BdryType *ConstBdry, const BdryInfo<false> *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
@@ -87,7 +87,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     
     SSPOutputs<false> o;
     vec2 tinit = vec2(STD::cos(alpha), STD::sin(alpha));
-    EvaluateSSP<false, false>(xs, tinit, o, ssp, iSeg);
+    EvaluateSSP<false, false>(xs, tinit, o, org, ssp, iSeg);
     gradc = o.gradc;
     
     // Are there enough beams?
@@ -133,7 +133,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and
     // rho from the current segment in bdinfo. rho is read from files in
     // ReadBoundary, and cP and cS are computed in core_setup. bc, which is also
-    // read by Reflect2D, is never set in bdinfo and is left alone from
+    // read by Reflect, is never set in bdinfo and is left alone from
     // ConstBdry.
     Bdry = *ConstBdry;
     if(bdinfo->top.type[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->top.bd[bds.top.Iseg].hs);
@@ -164,13 +164,13 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
 HOST_DEVICE inline int32_t RayUpdate(
     const rayPt<false> &point0, rayPt<false> &point1, rayPt<false> &point2,
     real &DistEndTop, real &DistEndBot,
-    int32_t &iSmallStepCtr, SSPSegState &iSeg,
+    int32_t &iSmallStepCtr, const Origin<false, false> &org, SSPSegState &iSeg,
     BdryState<false> &bds, BdryType &Bdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl;
-    Step<false>(point0, point1, bds, Beam, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
+    Step<false>(point0, point1, bds, Beam, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -219,13 +219,14 @@ HOST_DEVICE inline int32_t RayUpdate(
             nInt = bd0->n; // normal is constant in a segment
             tInt = bd0->t;
         }
-        Reflect2D(point1, point2, 
+        ReflCurvature<false> rcurv;
+        rcurv.kappa = bd0->kappa;
+        Reflect<false, false>(point1, point2, 
             topRefl ? Bdry.Top.hs : Bdry.Bot.hs,
-            topRefl, tInt, nInt, bd0->kappa, freqinfo->freq0,
-            topRefl ? refl->RTop : refl->RBot,
-            topRefl ? refl->NTopPts : refl->NBotPts,
-            Beam, ssp, iSeg);
-        //Incrementing bounce count moved to Reflect2D
+            topRefl, tInt, nInt, rcurv, freqinfo->freq0,
+            topRefl ? refl->top : refl->bot,
+            Beam, org, ssp, iSeg);
+        //Incrementing bounce count moved to Reflect
         numRaySteps = 2;
         Distances2D(point2.x, bds.top.x, bds.bot.x, dEndTop, dEndBot,
             bds.top.n, bds.bot.n, DistEndTop, DistEndBot);

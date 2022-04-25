@@ -172,13 +172,24 @@ template<> struct Origin<true, false> {
 //Reflections
 ////////////////////////////////////////////////////////////////////////////////
 
+template<bool O3D> struct ReflCurvature {};
+template<> struct ReflCurvature<false> {
+    real kappa;
+};
+template<> struct ReflCurvature<true> {
+    real z_xx, z_xy, z_yy, kappa_xx, kappa_xy, kappa_yy;
+};
+
 struct ReflectionCoef {
     real theta, r, phi;
 };
 
+struct ReflectionInfoTopBot {
+    int32_t NPts;
+    ReflectionCoef *r;
+};
 struct ReflectionInfo {
-    int32_t NBotPts, NTopPts;
-    ReflectionCoef *RBot, *RTop;
+    ReflectionInfoTopBot bot, top;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

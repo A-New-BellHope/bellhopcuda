@@ -51,16 +51,17 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     vec2 gradc;
     BdryState<false> bds;
     BdryType Bdry;
+    Origin<false, false> org;
     
     rayPt<false> point0, point1, point2;
     InfluenceRayInfo inflray;
     
     if(!RayInit(isrc, ialpha, SrcDeclAngle, point0, gradc,
-        DistBegTop, DistBegBot, iSeg, bds,
+        DistBegTop, DistBegBot, org, iSeg, bds,
         Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) return;
     
     Init_Influence(inflray, point0, isrc, ialpha, Angles->alpha[ialpha], gradc,
-        Pos, ssp, iSeg, Angles, freqinfo, Beam);
+        Pos, org, ssp, iSeg, Angles, freqinfo, Beam);
     
     cpxf *u = &uAllSources[isrc * Pos->NRz_per_range * Pos->NRr];
     int32_t iSmallStepCtr = 0;
@@ -69,17 +70,17 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
         int32_t dStep = RayUpdate(point0, point1, point2, DistEndTop, DistEndBot,
-            iSmallStepCtr, iSeg, bds,
+            iSmallStepCtr, org, iSeg, bds,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(!Step_Influence(point0, point1, inflray, is, u, 
-            ConstBdry, ssp, iSeg, Pos, Beam, eigen, arrinfo)){
+            ConstBdry, org, ssp, iSeg, Pos, Beam, eigen, arrinfo)){
             //printf("Step_Influence terminated ray\n");
             break;
         }
         ++is;
         if(dStep == 2){
             if(!Step_Influence(point1, point2, inflray, is, u, 
-                ConstBdry, ssp, iSeg, Pos, Beam, eigen, arrinfo)) break;
+                ConstBdry, org, ssp, iSeg, Pos, Beam, eigen, arrinfo)) break;
             point0 = point2;
             ++is;
         }else if(dStep == 1){

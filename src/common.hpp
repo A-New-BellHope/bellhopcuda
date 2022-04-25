@@ -242,7 +242,7 @@ DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
 DEFINE_MATH_FUNC_INT_2(max, ::max, std::max)
 DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
 
-inline float RealBitsAddInt(float r, int32_t i){
+HOST_DEVICE inline float RealBitsAddInt(float r, int32_t i){
     #ifdef __CUDA_ARCH__
     return __int_as_float(__float_as_int(r) + i);
     #else
@@ -254,7 +254,7 @@ inline float RealBitsAddInt(float r, int32_t i){
     return x;
     #endif
 }
-inline double RealBitsAddInt(double r, int32_t i){
+HOST_DEVICE inline double RealBitsAddInt(double r, int32_t i){
     #ifdef __CUDA_ARCH__
     return __longlong_as_double(__double_as_longlong(r) + (int64_t)i);
     #else
@@ -267,7 +267,9 @@ inline double RealBitsAddInt(double r, int32_t i){
     #endif
 }
 
-template<bool O3D, bool R3D> VEC23<O3D> RayToOceanX(const VEC23<R3D> &x, const Origin<O3D, R3D> &org){
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanX(
+    const VEC23<R3D> &x, const Origin<O3D, R3D> &org)
+{
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
     if constexpr(O3D && !R3D){
         return vec3(org.xs.x + x.x * org.tradial.x, org.xs.y + x.x * org.tradial.y, x.y);
@@ -275,7 +277,9 @@ template<bool O3D, bool R3D> VEC23<O3D> RayToOceanX(const VEC23<R3D> &x, const O
         return x;
     }
 }
-template<bool O3D, bool R3D> VEC23<O3D> RayToOceanT(const VEC23<R3D> &t, const Origin<O3D, R3D> &org){
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanT(
+    const VEC23<R3D> &t, const Origin<O3D, R3D> &org)
+{
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
     if constexpr(O3D && !R3D){
         return vec3(           t.x * org.tradial.x,            t.x * org.tradial.y, t.y);
@@ -283,33 +287,39 @@ template<bool O3D, bool R3D> VEC23<O3D> RayToOceanT(const VEC23<R3D> &t, const O
         return t;
     }
 }
-template<bool O3D, bool R3D> VEC23<R3D> OceanToRayX(const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t){
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
+    const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t)
+{
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
     if constexpr(O3D && !R3D){
         // LP: Going back and forth through the coordinate transform won't
         // always keep the precise value, so we may have to finesse the floats.
-        vec2 x_cand;
-        x_cand.y = x.z;
+        vec2 x_orig;
+        x_orig.y = x.z;
         if(STD::abs(org.tradial.x) >= STD::abs(org.tradial.y)){
-            x_cand.x = (x.x - org.xs.x) / org.tradial.x;
+            x_orig.x = (x.x - org.xs.x) / org.tradial.x;
         }else{
-            x_cand.x = (x.x - org.xs.y) / org.tradial.y;
+            x_orig.x = (x.x - org.xs.y) / org.tradial.y;
         }
-        vec3 x_res = RayToOceanX(x_cand, org);
+        vec3 x_res = RayToOceanX(x_orig, org);
         if(x_res.x == x.x && x_res.y == x.y){
             // Got lucky--it went through and came back with the same values.
-            return x_cand;
+            return x_orig;
         }
         //Try adding or subtracting one ulp.
-        vec2 x_cand2 = x_cand;
-        x_cand2.x = RealBitsAddInt(x_cand.x, 1);
-        vec2 x_res2 = RayToOceanX(x_cand, org);
-        if(x_res2.x == x.x && x_res2.y == x.y) return x_cand2;
-        x_cand2.y = x_cand.y;
-        x_cand2.x = RealBitsAddInt(x_cand.x, -1);
-        x_res2 = RayToOceanX(x_cand, org);
-        if(x_res2.x == x.x && x_res2.y == x.y) return x_cand2;
-        
+        vec2 x_try = x_orig;
+        x_try.x = RealBitsAddInt(x_orig.x, 1);
+        vec2 x_res2 = RayToOceanX(x_try, org);
+        if(x_res2.x == x.x && x_res2.y == x.y) return x_try;
+        x_try.x = RealBitsAddInt(x_orig.x, -1);
+        x_res2 = RayToOceanX(x_try, org);
+        if(x_res2.x == x.x && x_res2.y == x.y) return x_try;
+        //No hope of being exact. Just try to be slightly forward of the boundary.
+        x_try.x = x_orig.x + RL(1e-6) * t.x;
+        if(x_try.x == x_orig.x){
+            x_try.x = x_orig.x + RL(1e-3) * t.x;
+        }
+        return x_try;
     }else{
         return x;
     }

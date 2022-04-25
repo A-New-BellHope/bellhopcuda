@@ -32,17 +32,17 @@ namespace bhc {
  * LP: C++ supports complex atan, though there is no complex atan2.
  * 
  * RInt: interpolated value of refl. coef.
- * r: Reflection coefficient table
+ * rtb: Reflection coefficient table
  * NPts: # pts in refl. coef.
  */
 HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
-    const ReflectionCoef *r, int32_t NPts)
+    const ReflectionInfoTopBot &rtb)
 {
     int32_t iLeft, iRight, iMid;
     real alpha, thetaIntr;
     
     iLeft = 0;
-    iRight = NPts - 1;
+    iRight = rtb.NPts - 1;
     
     // LP: This was originally the FORTRAN version of RInt.theta.real(), but
     // theta is definitely already a real (originally double).
@@ -50,26 +50,26 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
     
     // Three cases: ThetaInt left, in, or right of tabulated interval
     
-    if(thetaIntr < r[iLeft].theta){
+    if(thetaIntr < rtb.r[iLeft].theta){
         // iRight = 1;
-        RInt.r   = FL(0.0); // r[iLeft].r
-        RInt.phi = FL(0.0); // r[iLeft].phi
+        RInt.r   = FL(0.0); // rtb.r[iLeft].r
+        RInt.phi = FL(0.0); // rtb.r[iLeft].phi
         printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
             "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
-            thetaIntr, r[iLeft].theta);
-    }else if(thetaIntr > r[iRight].theta){
-        // iLeft = NPts - 2;
-        RInt.r   = FL(0.0); // r[iRight].r
-        RInt.phi = FL(0.0); // r[iRight].phi
+            thetaIntr, rtb.r[iLeft].theta);
+    }else if(thetaIntr > rtb.r[iRight].theta){
+        // iLeft = rtb.NPts - 2;
+        RInt.r   = FL(0.0); // rtb.r[iRight].r
+        RInt.phi = FL(0.0); // rtb.r[iRight].phi
         // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
         //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
-        //     thetaIntr, r[iRight].theta);
+        //     thetaIntr, rtb.r[iRight].theta);
     }else{
-        // Search for bracketing abscissas: Log2( NPts ) stabs required for a bracket
+        // Search for bracketing abscissas: log2(rtb.NPts) stabs required for a bracket
         
         while(iLeft != iRight - 1){
             iMid = (iLeft + iRight) / 2;
-            if(r[iMid].theta > thetaIntr){
+            if(rtb.r[iMid].theta > thetaIntr){
                 iRight = iMid;
             }else{
                 iLeft = iMid;
@@ -78,9 +78,9 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
         
         // Linear interpolation for reflection coef
         
-        alpha    = (RInt.theta - r[iLeft].theta) / (r[iRight].theta - r[iLeft].theta);
-        RInt.r   = (FL(1.0) - alpha) * r[iLeft].r   + alpha * r[iRight].r;
-        RInt.phi = (FL(1.0) - alpha) * r[iLeft].phi + alpha * r[iRight].phi;
+        alpha    = (RInt.theta - rtb.r[iLeft].theta) / (rtb.r[iRight].theta - rtb.r[iLeft].theta);
+        RInt.r   = (FL(1.0) - alpha) * rtb.r[iLeft].r   + alpha * rtb.r[iRight].r;
+        RInt.phi = (FL(1.0) - alpha) * rtb.r[iLeft].phi + alpha * rtb.r[iRight].phi;
     }
 }
 
@@ -102,20 +102,20 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             std::abort();
         }
         
-        LIST(BRCFile); BRCFile.Read(refl->NBotPts);
-        PRTFile << "Number of points in bottom reflection coefficient = " << refl->NBotPts << "\n";
+        LIST(BRCFile); BRCFile.Read(refl->bot.NPts);
+        PRTFile << "Number of points in bottom reflection coefficient = " << refl->bot.NPts << "\n";
         
-        checkallocate(refl->RBot, refl->NBotPts);
+        checkallocate(refl->bot.r, refl->bot.NPts);
         
         LIST(BRCFile);
-        for(int32_t itheta=0; itheta<refl->NBotPts; ++itheta){
-            BRCFile.Read(refl->RBot[itheta].theta);
-            BRCFile.Read(refl->RBot[itheta].r);
-            BRCFile.Read(refl->RBot[itheta].phi);
-            refl->RBot->phi *= DegRad; // convert to radians
+        for(int32_t itheta=0; itheta<refl->bot.NPts; ++itheta){
+            BRCFile.Read(refl->bot.r[itheta].theta);
+            BRCFile.Read(refl->bot.r[itheta].r);
+            BRCFile.Read(refl->bot.r[itheta].phi);
+            refl->bot.r[itheta].phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        checkallocate(refl->RBot, 1);
+        checkallocate(refl->bot.r, 1);
     }
     
     // Optionally read in top reflection coefficient
@@ -130,20 +130,20 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
             std::abort();
         }
         
-        LIST(TRCFile); TRCFile.Read(refl->NTopPts);
-        PRTFile << "Number of points in top reflection coefficient = " << refl->NTopPts << "\n";
+        LIST(TRCFile); TRCFile.Read(refl->top.NPts);
+        PRTFile << "Number of points in top reflection coefficient = " << refl->top.NPts << "\n";
         
-        checkallocate(refl->RTop, refl->NTopPts);
+        checkallocate(refl->top.r, refl->top.NPts);
         
         LIST(TRCFile);
-        for(int32_t itheta=0; itheta<refl->NTopPts; ++itheta){
-            TRCFile.Read(refl->RTop[itheta].theta);
-            TRCFile.Read(refl->RTop[itheta].r);
-            TRCFile.Read(refl->RTop[itheta].phi);
-            refl->RTop->phi *= DegRad; // convert to radians
+        for(int32_t itheta=0; itheta<refl->top.NPts; ++itheta){
+            TRCFile.Read(refl->top.r[itheta].theta);
+            TRCFile.Read(refl->top.r[itheta].r);
+            TRCFile.Read(refl->top.r[itheta].phi);
+            refl->top.r[itheta].phi *= DegRad; // convert to radians
         }
     }else{ // should allocate something anyway, since variable is passed
-        checkallocate(refl->RTop, 1);
+        checkallocate(refl->top.r, 1);
     }
     
     // Optionally read in internal reflection coefficient data
@@ -156,19 +156,20 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
 }
 
 /**
- * LP: No function description given.
+ * LP: Given that a reflection has occurred, reflect the ray/beam off the top
+ * or bottom boundary.
  * 
  * hs: half-space properties
  * isTop: Flag indicating bottom or top reflection
  * tBdry, nBdry: Tangent and normal to the boundary
- * kappa: Boundary curvature
- * RefC: reflection coefficient
+ * rcurv: Boundary curvature
+ * rtb: Reflection coefficient table
  */
-HOST_DEVICE inline void Reflect2D(const rayPt<false> &oldPoint, rayPt<false> &newPoint,
-    const HSInfo &hs, bool isTop,
-    const vec2 &tBdry, const vec2 &nBdry, real kappa, real freq,
-    const ReflectionCoef *RefC, int32_t Npts,
-    const BeamStructure *Beam, const SSPStructure *ssp, SSPSegState &iSeg)
+template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
+    const rayPt<R3D> &oldPoint, rayPt<R3D> &newPoint, const HSInfo &hs, bool isTop,
+    VEC23<O3D> tBdry, const VEC23<O3D> &nBdry, const ReflCurvature<O3D> &rcurv, real freq,
+    const ReflectionInfoTopBot &rtb, const BeamStructure *Beam, 
+    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
 {
     SSPOutputs<false> o;
     real rm, rn, Tg, Th;
@@ -193,7 +194,7 @@ HOST_DEVICE inline void Reflect2D(const rayPt<false> &oldPoint, rayPt<false> &ne
     // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
     
     // just to get c [LP: o.ccpx.real(); also, this is wrong, it is also using o.gradc]
-    EvaluateSSP<false, false>(oldPoint.x, oldPoint.t, o, ssp, iSeg);
+    EvaluateSSP<false, false>(oldPoint.x, oldPoint.t, o, org, ssp, iSeg);
     
     // incident unit ray tangent and normal
     rayt = o.ccpx.real() * oldPoint.t; // unit tangent to ray
@@ -203,7 +204,7 @@ HOST_DEVICE inline void Reflect2D(const rayPt<false> &oldPoint, rayPt<false> &ne
     rayt_tilde = o.ccpx.real() * newPoint.t;         // unit tangent to ray
     rayn_tilde = -vec2(-rayt_tilde.y, rayt_tilde.x); // unit normal  to ray
     
-    rn = FL(2.0) * kappa / SQ(o.ccpx.real()) / Th; // boundary curvature correction
+    rn = FL(2.0) * rcurv.kappa / SQ(o.ccpx.real()) / Th; // boundary curvature correction
     
     // get the jumps (this could be simplified, e.g. jump in rayt is roughly 2 * Th * nbdry
     cnjump = -glm::dot(o.gradc, rayn_tilde - rayn);
@@ -239,7 +240,7 @@ HOST_DEVICE inline void Reflect2D(const rayPt<false> &oldPoint, rayPt<false> &ne
     }else if(hs.bc == 'F'){ // file
         RInt.theta = RadDeg * STD::abs(STD::atan2(Th, Tg)); // angle of incidence (relative to normal to bathymetry)
         if(RInt.theta > FL(90.0)) RInt.theta = FL(180.0) - RInt.theta; // reflection coefficient is symmetric about 90 degrees
-        InterpolateReflectionCoefficient(RInt, RefC, Npts);
+        InterpolateReflectionCoefficient(RInt, rtb);
         newPoint.Amp   = oldPoint.Amp * RInt.r;
         newPoint.Phase = oldPoint.Phase + RInt.phi;
     }else if(hs.bc == 'A' || hs.bc == 'G'){ // half-space
@@ -347,7 +348,7 @@ HOST_DEVICE inline void Reflect2D(const rayPt<false> &oldPoint, rayPt<false> &ne
             }
         }
     }else{
-        printf("Reflect2D: Unknown boundary condition type\n");
+        printf("Reflect: Unknown boundary condition type\n");
         bail();
     }
     

@@ -490,6 +490,8 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
         if(iSeg.z != iSeg0.z){         // crossing in depth
             rm =  ray2.t.x / ray2.t.y; // this is tan( alpha ) where alpha is the angle of incidence
         }else{                         // crossing in range
+            // LP: This case is excluded for 2D-3D by the if condition under
+            // which this is called.
             rm = -ray2.t.y / ray2.t.x; // this is tan( alpha ) where alpha is the angle of incidence
         }                              // LP: The case where it crosses in depth and range simultaneously is not handled.
         
@@ -502,9 +504,10 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
  * Does a single step along the ray
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
-    rayPt<R3D> ray0, rayPt<R3D> &ray2, const Origin<O3D, R3D> &org,
-    const BdryState<O3D> &bds, const BeamStructure *Beam, const SSPStructure *ssp,
-    SSPSegState &iSeg, int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
+    rayPt<R3D> ray0, rayPt<R3D> &ray2, 
+    const BdryState<O3D> &bds, const BeamStructure *Beam, 
+    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+    int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
 {
     rayPt<R3D> ray1;
     SSPOutputs<O3D> o0, o1, o2;
@@ -561,7 +564,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     
     // *** Phase 2
     
-    EvaluateSSP<O3D, R3D>(ray1.x, ray1.t, o1, ssp, iSeg);
+    EvaluateSSP<O3D, R3D>(ray1.x, ray1.t, o1, org, ssp, iSeg);
     Get_c_partials<R3D>(ray1, o1, part1);
     pq1 = ComputeDeltaPQ<R3D>(ray1, o1, part1);
     
@@ -588,7 +591,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     // to put this on a boundary, and ensure that the resulting position
     // (ray2.x) gets put precisely on the boundary.
     VEC23<O3D> x2_o;
-    StepToBdry<O3D>(x_o, x2_o, urayt2, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
+    t_o = RayToOceanT(urayt2, org);
+    StepToBdry<O3D>(x_o, x2_o, t_o, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
     ray2.x = OceanToRayX(x2_o, org, urayt2);
     
     // Update other variables with this new h
@@ -610,10 +614,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP<O3D, R3D>(ray2.x, ray2.t, o2, ssp, iSeg);
+    EvaluateSSP<O3D, R3D>(ray2.x, ray2.t, o2, org, ssp, iSeg);
     ray2.c = o2.ccpx.real();
     
-    if(iSeg.z != iSeg0.z || (!R3D && iSeg.r != iSeg0.r) || 
+    if(iSeg.z != iSeg0.z || (!R3D && !O3D && iSeg.r != iSeg0.r) || 
             (R3D && (iSeg.x != iSeg0.x || iSeg.y != iSeg0.y))){
         VEC23<R3D> gradcjump = o2.gradc - o0.gradc;
         CurvatureCorrection<R3D>(ray2, gradcjump, iSeg, iSeg0);
