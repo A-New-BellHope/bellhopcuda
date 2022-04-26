@@ -392,111 +392,150 @@ template<bool R3D> HOST_DEVICE inline void UpdateRayPQ(
 }
 
 /**
+ * LP: Set DMat to zeros to get non-reflect version.
+*/
+template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
+    rayPt<true> &ray, const mat2x2 &DMat, real Tg, real Th,
+    real cn1jump, real cn2jump, real csjump, 
+    const vec3 &rayn1, const vec3 &rayn2, const vec3 &rayt)
+{
+    real rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
+    
+    // Note that Tg, Th need to be multiplied by c to normalize tangent; hence, c^2 below
+    // added the SIGN in R2 to make ati and bty have a symmetric effect on the beam
+    // not clear why that's needed
+    
+    real csq = SQ(ray.c);
+    real r1 = FL(2.0) / csq   * DMat[0][0] / Th + rm * (FL(2.0) * cn1jump - rm * csjump) / csq;
+    real r2 = FL(2.0) / ray.c * DMat[1][0] * STD::copysign(RL(1.0), -Th)  + rm * cn2jump / csq;
+    real r3 = FL(2.0)         * DMat[1][1] * Th;
+    
+    // z-component of unit tangent is sin( theta ); we want cos( theta )
+    //r1 = r1 * (FL(1.0) - SQ(ray.c * ray.t.z))
+    
+    // *** curvature correction ***
+    
+    vec3 e1, e2;
+    // Compute ray normals e1 and e2
+    if constexpr(REFLECTVERSION){
+        // LP: This should not matter, but rayt is computed as ray.t * ray.c,
+        // whereas the non-normalized version actually normalizes ray.c.
+        // This could lead to floating-point differences.
+        RayNormal(ray.t, ray.phi, ray.c, e1, e2);
+    }else{
+        RayNormal_unit(rayt, ray.phi, e1, e2);
+    }
+    
+    /*
+    LP: Arrays in Fortran are stored as A[row][col] where the leftmost index
+    (row) is the small increment to adjacent memory. Arrays in C are stored
+    as A[row][col] where the rightmost index (col) is the small increment to
+    adjacent memory. Arrays in OpenGL and therefore GLM are stored as
+    A[col][row] where the rightmost index (row) is the small increment to
+    adjacent memory. For bellhopcxx/bellhopcuda, we don't care how the data
+    is stored for proper matrices like this, but the indexing has to be
+    swapped compared to the Fortran.
+    */
+    mat2x2 RotMat, pmat, qmat;
+    RotMat[0][0] = glm::dot(rayn1, e1);
+    RotMat[1][0] = glm::dot(rayn1, e2);
+    RotMat[0][1] = -RotMat[1][0]; // glm::dot(rayn2, e1)
+    RotMat[1][1] = glm::dot(rayn2, e2);
+    
+    // rotate p-q values in e1, e2 system, onto rayn1, rayn2 system
+    
+    glm::row(pmat, 0, ray.p_tilde);
+    glm::row(pmat, 1, ray.p_hat);
+    pmat = RotMat * pmat;
+    vec2 p_tilde_in = glm::row(pmat, 0);
+    vec2 p_hat_in   = glm::row(pmat, 1);
+    
+    glm::row(qmat, 0, ray.q_tilde);
+    glm::row(qmat, 1, ray.q_hat);
+    qmat = RotMat * qmat;
+    vec2 q_tilde_in = glm::row(qmat, 0);
+    vec2 q_hat_in   = glm::row(qmat, 1);
+    
+    // here's the actual curvature change
+    
+    vec2 p_tilde_out = p_tilde_in - q_tilde_in * r1 - q_hat_in * r2;
+    vec2 p_hat_out   = p_hat_in   - q_tilde_in * r2 + q_hat_in * r3;
+    
+    // rotate p back to e1, e2 system, q does not change
+    // Note RotMat^(-1) = RotMat^T
+    
+    glm::row(pmat, 0, p_tilde_out);
+    glm::row(pmat, 1, p_hat_out);
+    pmat = glm::transpose(RotMat) * pmat;
+    ray.p_tilde = glm::row(pmat, 0);
+    ray.p_hat   = glm::row(pmat, 1);
+    
+    if constexpr(REFLECTVERSION){
+        // Logic below fixes a bug when the |dot product| is infinitesimally greater than 1 (then ACos is complex)
+        ray.phi += FL(2.0) * STD::acos(bhc::max(bhc::min(glm::dot(rayn1, e1), RL(1.0)), RL(-1.0)));
+    }
+}
+
+HOST_DEVICE inline void CalcTangent_Normals(const rayPt<true> &ray, real c, const vec3 &nBdry,
+    vec3 &rayt, vec3 &rayn1, vec3 &rayn2, real rayn2sign)
+{
+    rayt  = c * ray.t;         // unit tangent to ray
+    rayn2 = rayn2sign * glm::cross(rayt, nBdry); // ray tangent x boundary normal gives refl. plane normal
+    rayn2 /= glm::length(rayn2);          // unit normal
+    rayn1 = -glm::cross(rayt, rayn2);// ray tangent x refl. plane normal is first ray normal
+}
+
+/**
  * correct p-q due to jumps in the gradient of the sound speed
  */
 template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
-    rayPt<R3D> &ray2, const VEC23<R3D> &gradcjump,
+    rayPt<R3D> &ray, const VEC23<R3D> &gradcjump,
     const SSPSegState &iSeg, const SSPSegState &iSeg0)
 {
     if constexpr(R3D){
         vec3 nBdry(RL(0.0), RL(0.0), RL(0.0));
         // what if we cross iSeg.x, iSeg.y, or iSeg.z at the same time?
         if(iSeg.z != iSeg0.z){
-            nBdry.z = -STD::copysign(RL(1.0), ray2.t.z); // inward normal to layer
+            nBdry.z = -STD::copysign(RL(1.0), ray.t.z); // inward normal to layer
         }else if(iSeg.x != iSeg0.x){
-            nBdry.x = -STD::copysign(RL(1.0), ray2.t.x); // inward normal to x-segment
+            nBdry.x = -STD::copysign(RL(1.0), ray.t.x); // inward normal to x-segment
         }else{
-            nBdry.y = -STD::copysign(RL(1.0), ray2.t.y); // inward normal to y-segment
+            nBdry.y = -STD::copysign(RL(1.0), ray.t.y); // inward normal to y-segment
         }
         
-        real Th    = glm::dot(ray2.t, nBdry); // component of ray tangent, normal to boundary
-        vec3 tBdry = ray2.t - Th * nBdry;     // tangent, along the boundary, in the reflection plane
+        real Th    = glm::dot(ray.t, nBdry); // component of ray tangent, normal to boundary
+        vec3 tBdry = ray.t - Th * nBdry;     // tangent, along the boundary, in the reflection plane
         tBdry     /= glm::length(tBdry);      // unit boundary tangent
-        real Tg    = glm::dot(ray2.t, tBdry); // component of ray tangent, along the boundary
+        real Tg    = glm::dot(ray.t, tBdry); // component of ray tangent, along the boundary
 
-        vec3 rayt  = ray2.c * ray2.t;         // unit tangent to ray
-
-        vec3 rayn2 = glm::cross(rayt, nBdry); // ray tangent x boundary normal gives refl. plane normal
-        rayn2 /= glm::length(rayn2);          // unit normal
-        vec3 rayn1 = -glm::cross(rayt, rayn2);// ray tangent x refl. plane normal is first ray normal
+        vec3 rayt, rayn1, rayn2;
+        CalcTangent_Normals(ray, ray.c, nBdry, rayt, rayn1, rayn2, RL(1.0));
         
         // normal and tangential derivatives of the sound speed
         real cn1jump = glm::dot(gradcjump, rayn1);
         real cn2jump = glm::dot(gradcjump, rayn2);
         real csjump  = glm::dot(gradcjump, rayt);
-        
-        real rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
-        real r1 = rm * (FL(2.0) * cn1jump - rm * csjump) / SQ(ray2.c);
-        real r2 = rm * cn2jump / SQ(ray2.c);
-        
-        // *** curvature correction ***
-        
-        vec3 e1, e2;
-        RayNormal_unit(rayt, ray2.phi, e1, e2); // Compute ray normals e1 and e2
-        
-        /*
-        LP: Arrays in Fortran are stored as A[row][col] where the leftmost index
-        (row) is the small increment to adjacent memory. Arrays in C are stored
-        as A[row][col] where the rightmost index (col) is the small increment to
-        adjacent memory. Arrays in OpenGL and therefore GLM are stored as
-        A[col][row] where the rightmost index (row) is the small increment to
-        adjacent memory. For bellhopcxx/bellhopcuda, we don't care how the data
-        is stored for proper matrices like this, but the indexing has to be
-        swapped compared to the Fortran.
-        */
-        mat2x2 RotMat, pmat, qmat;
-        RotMat[0][0] = glm::dot(rayn1, e1);
-        RotMat[1][0] = glm::dot(rayn1, e2);
-        RotMat[0][1] = -RotMat[1][0]; // glm::dot(rayn2, e1)
-        RotMat[1][1] = glm::dot(rayn2, e2);
-        
-        // rotate p-q values in e1, e2 system, onto rayn1, rayn2 system
-        
-        glm::row(pmat, 0, ray2.p_tilde);
-        glm::row(pmat, 1, ray2.p_hat);
-        pmat = RotMat * pmat;
-        vec2 p_tilde_in = glm::row(pmat, 0);
-        vec2 p_hat_in   = glm::row(pmat, 1);
-        
-        glm::row(qmat, 0, ray2.q_tilde);
-        glm::row(qmat, 1, ray2.q_hat);
-        qmat = RotMat * qmat;
-        vec2 q_tilde_in = glm::row(qmat, 0);
-        vec2 q_hat_in   = glm::row(qmat, 1);
-        
-        // here's the actual curvature change
-        
-        vec2 p_tilde_out = p_tilde_in - q_tilde_in * r1 - q_hat_in * r2;
-        vec2 p_hat_out   = p_hat_in   - q_tilde_in * r2;
-        
-        // rotate p back to e1, e2 system, q does not change
-        // Note RotMat^(-1) = RotMat^T
-        
-        glm::row(pmat, 0, p_tilde_out);
-        glm::row(pmat, 1, p_hat_out);
-        pmat = glm::transpose(RotMat) * pmat;
-        ray2.p_tilde = glm::row(pmat, 0);
-        ray2.p_hat   = glm::row(pmat, 1);
-        
+        CurvatureCorrection3D<false>(ray, mat2x2(RL(0.0)), gradcjump, Tg, Th, 
+            cn1jump, cn2jump, csjump, rayn1, rayn2, rayt);
     }else{
         // LP: 2D-3D only:
         // mbp: this needs modifying like the full 3D version to handle jumps in the x-y direction
-        vec2 ray2n = vec2(-ray2.t.y, ray2.t.x); // ray normal
+        vec2 ray2n = vec2(-ray.t.y, ray.t.x); // ray normal
         
         real cnjump = glm::dot(gradcjump, ray2n);
-        real csjump = glm::dot(gradcjump, ray2.t);
+        real csjump = glm::dot(gradcjump, ray.t);
         
         real rm, rn;
-        if(iSeg.z != iSeg0.z){         // crossing in depth
-            rm =  ray2.t.x / ray2.t.y; // this is tan( alpha ) where alpha is the angle of incidence
-        }else{                         // crossing in range
+        if(iSeg.z != iSeg0.z){       // crossing in depth
+            rm =  ray.t.x / ray.t.y; // this is tan( alpha ) where alpha is the angle of incidence
+        }else{                       // crossing in range
             // LP: This case is excluded for 2D-3D by the if condition under
             // which this is called.
-            rm = -ray2.t.y / ray2.t.x; // this is tan( alpha ) where alpha is the angle of incidence
-        }                              // LP: The case where it crosses in depth and range simultaneously is not handled.
+            rm = -ray.t.y / ray.t.x; // this is tan( alpha ) where alpha is the angle of incidence
+        }                            // LP: The case where it crosses in depth and range simultaneously is not handled.
         
-        rn = rm * (FL(2.0) * cnjump - rm * csjump) / ray2.c;
-        ray2.p = ray2.p - ray2.q * rn;
+        rn = rm * (FL(2.0) * cnjump - rm * csjump) / ray.c;
+        ray.p = ray.p - ray.q * rn;
     }
 }
 
