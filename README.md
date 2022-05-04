@@ -1,5 +1,5 @@
 # bellhopcxx / bellhopcuda
-C++/CUDA port of `BELLHOP` underwater acoustics simulator
+C++/CUDA port of `BELLHOP` underwater acoustics simulator.
 
 ### Impressum
 
@@ -24,7 +24,14 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 ### What is C++/CUDA?
 
 This is a single codebase which can be built as multithreaded C++ code for your
-CPU, or as CUDA code for your NVIDIA GPU.
+CPU, or as CUDA code for your NVIDIA GPU. **You can use the CPU version 
+(bellhopcxx) even if you don't have an NVIDIA GPU.**
+
+### What platforms does this run on?
+
+`bellhopcxx` is compatible with all platforms (Linux, Windows, Mac), and
+`bellhopcuda` is compatible with all platforms which support CUDA (Linux and
+Windows).
 
 ### Why should I use `bellhopcxx` / `bellhopcuda` instead of `BELLHOP`?
 
@@ -50,6 +57,16 @@ Yes, simply rename `bellhopcxx.exe` to `bellhop.exe` and replace the Fortran
 `BELLHOP` executable in your MATLAB setup with it. It reads the same `.env` and
 other input files and produces output files in the same formats as `BELLHOP`.
 
+### What about `BELLHOP3D`?
+
+At the time of writing, translation of `BELLHOP3D` (including both full 3D and
+2D-3D simulations) to the same C++/CUDA codebase is in progress. You can view
+progress on the [Bellhop3D
+branch](https://github.com/A-New-BellHope/bellhopcuda/tree/Bellhop3D); keep in
+mind that this is a development branch and likely will not build or work
+correctly. If/when it is done and reasonably stable, it will be merged into the
+main project and included in binary releases.
+
 ### How do I download the project?
 
 We recommend `git clone` and build from source. You can [download pre-compiled
@@ -63,7 +80,9 @@ but these may be outdated compared to recent changes to the repo.
 (see below for version information). Otherwise if you do not want `bellhopcuda`,
 set the environment variable `BHC_NO_CUDA` (to something like "1") or turn off
 the CMake option `BHC_ENABLE_CUDA`.
-- Build the project with CMake as usual.
+- Build the project with CMake in the usual way for your platform. If you are
+not familiar with CMake, there are numerous tutorials online; the process is
+not project-specific, besides the option mentioned above.
 
 ### Why do I get errors about `hypot` when building with CUDA?
 
@@ -71,8 +90,8 @@ If you get an error like `error: ‘float cuda::std::__4::hypot(float, float, fl
 conflicts with a previous declaration` or similar, this is a bug in libcu++
 which was fixed between libcu++ 1.7.0 (included in CUDA Toolkit 11.6) and
 libcu++ 1.8.0. At time of writing, there is no CUDA toolkit download including
-the latter, but if you reading this in the future probably CUDA Toolkit 11.7
-or 12.x will include the fix. Until then, you have to 
+the latter, but if you are reading this in the future probably CUDA Toolkit
+11.7 or 12.x will include the fix. Until then, you have to 
 [download libcu++ source manually](https://github.com/NVIDIA/libcudacxx)
 and replace `include/cuda` and `include/nv` in your CUDA installation with the
 appropriate directories from the Git repo.
@@ -98,44 +117,45 @@ Submit a bug report on the [GitHub issues page](https://github.com/A-New-BellHop
 
 # Results
 
-This section was last updated 3/2022; things may have changed since then.
+This section was last updated 5/2022; things may have changed since then.
 
 ## Accuracy
 
-`bellhopcxx` / `bellhopcuda` includes a semi-automated test system. Tests are
+`bellhopcxx` / `bellhopcuda` includes a semi-automated test system. Tests can be
 run automatically for all four run types (ray, transmission loss, eigenrays,
-arrivals), but only transmission loss and arrivals results are automatically
-checked. The automatic checkers check results based on absolute error, relative
-error, and ULPs, but they don't use any contextual information. So for example
-a receiver being off by 3\% at a level of 1e-7 is considered the same error
-whether the peak of the field is 1e-7 around this receiver (this is a big
-deal), or the peak of the field is 1e-2 hundreds of kilometers away (this is
-negligible).
+arrivals), and all results types are automatically checked, though the
+capabilities of the automatic checkers vary for each type. The automatic
+checkers check results based on absolute error, relative error, and ULPs, but
+they don't use any contextual information. So for example a receiver being off
+by 3\% at a level of 1e-7 is considered the same error whether the peak of the
+field is 1e-7 around this receiver (this is a big deal), or the peak of the
+field is 1e-2 hundreds of kilometers away (this is negligible).
 
-All results are compared to the outputs of [our modified version of BELLHOP](https://github.com/A-New-BellHope/bellhop).
+The version of `BELLHOP` used when generating reference outputs to compare
+results to should be
+[our modified version of BELLHOP](https://github.com/A-New-BellHope/bellhop).
 Many results of the original `BELLHOP` cannot be reproduced, in some cases not
 even by `BELLHOP` itself; for more details, see the discussion on that repo.
 
 Note that rays and eigenrays are generated in a random order due to thread
-scheduling by `bellhopcxx` in multithreading mode and by `bellhopcuda`. Results
-comparison is made to `bellhopcxx -1` (single-threaded mode). However, the
-path of each ray considered independently does not differ significantly between
-C++ and CUDA, as they are generated by the same code. The only slight
-differences which may appear are due to floating-point differences, e.g. CUDA
-merging floating-point multiplies and adds into fused multiply-adds whenever
-possible.
+scheduling by `bellhopcxx` in multithreading mode and by `bellhopcuda`. Thus,
+results comparison is sometimes only made to `bellhopcxx -1` (single-threaded
+mode). However, note that the path of each ray considered independently does not
+differ significantly between C++ and CUDA, as they are generated by the same
+code. The only slight differences which may appear are due to floating-point
+differences, e.g. CUDA merging floating-point multiplies and adds into fused
+multiply-adds whenever possible.
 
 #### Rays
 
-All the ray tests provided in `BELLHOP` match in `bellhopcxx` / `bellhopcuda` as
-evaluated by eye.  The files `ray_tests_pass` and `ray_tests_fail` represent
-tests in which *both* programs succeed or fail, respectively. (That is, the
-latter are environment files with formatting mistakes or other issues.)
+The files `ray_tests_pass` and `ray_tests_fail` represent tests in which *both*
+programs succeed or fail, respectively. That is, the latter are environment
+files with formatting mistakes or other issues. Some of these environment files
+may have been intended for other Acoustics Toolbox programs (not `BELLHOP`).
 
-All the ray files produced in `ray_tests_pass` have the same number of steps,
-except that `BELLHOP` produces an extra infinitesimal step at line 866 of
-`MunkB_ray_rot`. Values are typically accurate to at least 7-8 significant
-figures.
+All the ray files produced in `ray_tests_pass` match, except for `MunkB_ray_rot`
+which has one extra infinitesimal step on one ray in `BELLHOP` and a handful of
+steps with around 0.0001% - 0.01% error.
 
 #### Transmission Loss
 
@@ -144,7 +164,7 @@ cases in `tl_match`, and fails to match on the three test cases in `tl_nomatch`.
 In each of the latter cases, errors are restricted to one ray or one receiver,
 and occur because of slight floating-point differences.
 
-`aetB_TL` and `aetB` in `tl_long` produce results which are completely wrong,
+`aetB_TL` and `aetB` in `tl_long` produce results which have substantial errors,
 but they take so long to run (about 41 minutes in `BELLHOP`) that they have not
 been debugged yet.
 
@@ -184,10 +204,10 @@ could improve the performance.
 
 `bellhopcxx` / `bellhopcuda` includes the `USE_FLOAT` option in CMake, which
 forces the entire project to use single-precision (32-bit) floats.
-Unfortunately, this leads to massive numerical precision issues, and the results
-are unusable. Improving the algorithms' numerical properties to permit
-generation of reasonable results in single-precision mode is one possible future
-research direction.
+This generally works but is not robust; for example, in a ray run, 99% of the
+rays might follow the same trajectories as in the double version, just being off
+by an infinitesimal amount; but 1% of the rays might diverge from their double
+versions due to initially small numerical differences being amplified.
 
 # Miscellaneous
 
