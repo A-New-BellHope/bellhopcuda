@@ -1,5 +1,5 @@
 # bellhopcxx / bellhopcuda
-C++/CUDA port of `BELLHOP` underwater acoustics simulator
+C++/CUDA port of `BELLHOP` underwater acoustics simulator.
 
 ### Impressum
 
@@ -26,6 +26,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 This is a single codebase which can be built as multithreaded C++ code for your
 CPU, or as CUDA code for your NVIDIA GPU. **You can use the CPU version 
 (bellhopcxx) even if you don't have an NVIDIA GPU.**
+
+### What platforms does this run on?
+
+`bellhopcxx` is compatible with all platforms (Linux, Windows, Mac), and
+`bellhopcuda` is compatible with all platforms which support CUDA (Linux and
+Windows).
 
 ### Why should I use `bellhopcxx` / `bellhopcuda` instead of `BELLHOP`?
 
@@ -58,7 +64,7 @@ At the time of writing, translation of `BELLHOP3D` (including both full 3D and
 progress on the [Bellhop3D
 branch](https://github.com/A-New-BellHope/bellhopcuda/tree/Bellhop3D); keep in
 mind that this is a development branch and likely will not build or work
-correctly. When it is done and reasonably stable, it will be merged into the
+correctly. If/when it is done and reasonably stable, it will be merged into the
 main project and included in binary releases.
 
 ### How do I download the project?
@@ -75,9 +81,9 @@ but these may be outdated compared to recent changes to the repo.
 Otherwise if you do not want `bellhopcuda`, set the environment variable
 `BHC_NO_CUDA` (to something like "1") or turn off the CMake option
 `BHC_ENABLE_CUDA`.
-- Build the project with CMake in the usual way. If you are not familiar with
-CMake, there are numerous tutorials online; the process is not project-specific,
-besides the option mentioned above.
+- Build the project with CMake in the usual way for your platform. If you are
+not familiar with CMake, there are numerous tutorials online; the process is
+not project-specific, besides the option mentioned above.
 
 ### How do I use `bellhopcxxlib` as a library in another project?
 
