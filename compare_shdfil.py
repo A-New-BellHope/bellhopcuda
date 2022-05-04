@@ -164,14 +164,23 @@ cxxmultifile = 'test/cxxmulti/{}.shd'.format(sys.argv[1])
 cudafile = 'test/cuda/{}.shd'.format(sys.argv[1])
 forfile = 'test/FORTRAN/{}.shd'.format(sys.argv[1])
 
-with open(cxx1file, 'rb') as cxxf, open(forfile, 'rb') as forf:
-    print('bellhopcxx single-threaded:')
-    compare_files(cxxf, forf)
+try:
+    with open(cxx1file, 'rb') as cxxf, open(forfile, 'rb') as forf:
+        print('bellhopcxx single-threaded:')
+        compare_files(cxxf, forf)
+except(FileNotFoundError):
+    print('bellhopcxx files not found ... ignoring')
 
-with open(cxxmultifile, 'rb') as cxxf, open(forfile, 'rb') as forf:
-    print('bellhopcxx multi-threaded:')
-    compare_files(cxxf, forf)
+try:
+    with open(cxxmultifile, 'rb') as cxxf, open(forfile, 'rb') as forf:
+        print('bellhopcxx multi-threaded:')
+        compare_files(cxxf, forf)
+except(FileNotFoundError):
+    print('bellhopcxx multithread files not found ... ignoring')
 
-with open(cudafile, 'rb') as cxxf, open(forfile, 'rb') as forf:
-    print('bellhopcuda:')
-    compare_files(cxxf, forf)
+try:
+    with open(cudafile, 'rb') as cxxf, open(forfile, 'rb') as forf:
+        print('bellhopcuda:')
+        compare_files(cxxf, forf)
+except(FileNotFoundError):
+    print('bellhopcuda files not found ... ignoring')

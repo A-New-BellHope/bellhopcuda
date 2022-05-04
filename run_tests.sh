@@ -115,8 +115,12 @@ run_test () {
     check_fail $? $runname $1
     runname="bellhopcuda"
     echo $runname
-    ./bin/bellhopcuda test/cuda/$1
-    check_fail $? $runname $1
+    if [ -f ./bin/bellhopcuda ]; then
+        ./bin/bellhopcuda test/cuda/$1
+        check_fail $? $runname $1
+    else
+        echo "bellhopcuda not found ... ignoring"
+    fi
     if [[ $runtype == "ray" ]]; then
         python3 compare_ray.py $1
         m_check_fail $? $1
