@@ -24,7 +24,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 ### What is C++/CUDA?
 
 This is a single codebase which can be built as multithreaded C++ code for your
-CPU, or as CUDA code for your NVIDIA GPU.
+CPU, or as CUDA code for your NVIDIA GPU. **You can use the CPU version 
+(bellhopcxx) even if you don't have an NVIDIA GPU.**
 
 ### Why should I use `bellhopcxx` / `bellhopcuda` instead of `BELLHOP`?
 
@@ -50,6 +51,16 @@ Yes, simply rename `bellhopcxx.exe` to `bellhop.exe` and replace the Fortran
 `BELLHOP` executable in your MATLAB setup with it. It reads the same `.env` and
 other input files and produces output files in the same formats as `BELLHOP`.
 
+### What about `BELLHOP3D`?
+
+At the time of writing, translation of `BELLHOP3D` (including both full 3D and
+2D-3D simulations) to the same C++/CUDA codebase is in progress. You can view
+progress on the [Bellhop3D
+branch](https://github.com/A-New-BellHope/bellhopcuda/tree/Bellhop3D); keep in
+mind that this is a development branch and likely will not build or work
+correctly. When it is done and reasonably stable, it will be merged into the
+main project and included in binary releases.
+
 ### How do I download the project?
 
 We recommend `git clone` and build from source. You can [download pre-compiled
@@ -64,7 +75,9 @@ but these may be outdated compared to recent changes to the repo.
 Otherwise if you do not want `bellhopcuda`, set the environment variable
 `BHC_NO_CUDA` (to something like "1") or turn off the CMake option
 `BHC_ENABLE_CUDA`.
-- Build the project with CMake as usual.
+- Build the project with CMake in the usual way. If you are not familiar with
+CMake, there are numerous tutorials online; the process is not project-specific,
+besides the option mentioned above.
 
 ### How do I use `bellhopcxxlib` as a library in another project?
 
@@ -93,13 +106,13 @@ This section was last updated 3/2022; things may have changed since then.
 
 `bellhopcxx` / `bellhopcuda` includes a semi-automated test system. Tests are
 run automatically for all four run types (ray, transmission loss, eigenrays,
-arrivals), but only transmission loss and arrivals results are automatically
-checked. The automatic checkers check results based on absolute error, relative
-error, and ULPs, but they don't use any contextual information. So for example
-a receiver being off by 3\% at a level of 1e-7 is considered the same error
-whether the peak of the field is 1e-7 around this receiver (this is a big
-deal), or the peak of the field is 1e-2 hundreds of kilometers away (this is
-negligible).
+arrivals). Transmission loss and arrivals results are automatically checked, and
+ray results are semi-automatically checked. The automatic checkers check results
+based on absolute error, relative error, and ULPs, but they don't use any
+contextual information. So for example a receiver being off by 3\% at a level of
+1e-7 is considered the same error whether the peak of the field is 1e-7 around
+this receiver (this is a big deal), or the peak of the field is 1e-2 hundreds of
+kilometers away (this is negligible).
 
 All results are compared to the outputs of [our modified version of BELLHOP](https://github.com/A-New-BellHope/bellhop).
 Many results of the original `BELLHOP` cannot be reproduced, in some cases not
@@ -173,10 +186,10 @@ could improve the performance.
 
 `bellhopcxx` / `bellhopcuda` includes the `USE_FLOAT` option in CMake, which
 forces the entire project to use single-precision (32-bit) floats.
-Unfortunately, this leads to massive numerical precision issues, and the results
-are unusable. Improving the algorithms' numerical properties to permit
-generation of reasonable results in single-precision mode is one possible future
-research direction.
+This generally works but is not robust; for example, in a ray run, 99% of the
+rays might follow the same trajectories as in the double version, just being off
+by an infinitesimal amount; but 1% of the rays might diverge from their double
+versions due to initially small numerical differences being amplified.
 
 # Miscellaneous
 
