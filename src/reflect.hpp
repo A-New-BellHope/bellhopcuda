@@ -18,6 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "step.hpp"
 
 namespace bhc {
 
@@ -65,7 +66,7 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
         //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
         //     thetaIntr, rtb.r[iRight].theta);
     }else{
-        // Search for bracketing abscissas: log2(rtb.NPts) stabs required for a bracket
+        // Search for bracketing abscissas: STD::log2(rtb.NPts) stabs required for a bracket
         
         while(iLeft != iRight - 1){
             iMid = (iLeft + iRight) / 2;
@@ -209,8 +210,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     ReflCurvature<R3D> rcurv_ray = OceanToRayCurvature<O3D, R3D>(rcurv, org, isTop);
         
     // LP: Incrementing bounce count moved here
-    newPoint.NumTopBnc = oldPoint.NumTopBnc + (isTop ? 1 : 0);
-    newPoint.NumBotBnc = oldPoint.NumBotBnc + (isTop ? 0 : 1);
+    newPoint.NumTopBnc = oldPoint.NumTopBnc + (int)isTop;
+    newPoint.NumBotBnc = oldPoint.NumBotBnc + (1 - (int)isTop);
     newPoint.x         = oldPoint.x;
     newPoint.t         = oldPoint.t - FL(2.0) * Th * nBdry; // changing the ray direction
     
@@ -252,9 +253,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         mat2x2 DMat     = glm::transpose(RotMat) * DMatTemp;
         
         // normal and tangential derivatives of the sound speed
-        real cn1jump =  glm::dot(gradc, -rayn1_tilde - rayn1);
-        real cn2jump =  glm::dot(gradc, -rayn2_tilde - rayn2);
-        real csjump  = -glm::dot(gradc,  rayt_tilde  - rayt);
+        real cn1jump =  glm::dot(o.gradc, -rayn1_tilde - rayn1);
+        real cn2jump =  glm::dot(o.gradc, -rayn2_tilde - rayn2);
+        real csjump  = -glm::dot(o.gradc,  rayt_tilde  - rayt);
         
         // // not sure if cn2 needs a sign flip also
         // if(isTop){
@@ -263,12 +264,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         // }
         
         // LP: The routine below modifies newPoint in place, so have to copy first.
-        newPoint.p_tilde = oldPoint.p_tilde;
-        newPoint.p_hat   = oldPoint.p_hat;
-        newPoint.q_tilde = oldPoint.q_tilde;
-        newPoint.q_hat   = oldPoint.q_hat;
-        newPoint.phi     = oldPoint.phi;
-        newPoint.DetQ    = DEBUG_LARGEVAL; // LP: never set
+        newPoint.p    = oldPoint.p;
+        newPoint.q    = oldPoint.q;
+        newPoint.phi  = oldPoint.phi;
+        newPoint.DetQ = DEBUG_LARGEVAL; // LP: never set
         CurvatureCorrection3D<true>(newPoint, DMat, o.gradc, Tg, Th,
             cn1jump, cn2jump, csjump, rayn1, rayn2, rayt);
         
@@ -304,7 +303,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         
         newPoint.p   = oldPoint.p + oldPoint.q * rn;
         newPoint.q   = oldPoint.q;
-    
     }
     
     // account for amplitude and phase change
@@ -346,7 +344,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
             cpx kz = omega * Th; // wavenumber in direction perpendicular to bathymetry (in ocean)
             cpx kx2 = SQ(kx);
             
-            // notation below is a bit mis-leading
+            // notation below is a bit misleading
             // kzS, kzP is really what I called gamma in other codes, and differs by a factor of +/- i
             cpx f, g;
             if(hs.cS.real() > FL(0.0)){
@@ -356,7 +354,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
                 cpx kzP  = STD::sqrt(kzP2);
                 cpx mu   = hs.rho * SQ(hs.cS);
                 
-                cpx y2 = (SQ(kzS2 + kx2) - FL(4.0) * kzS * kzP * kx2) * mu;
+                cpx y2 = (SQ(kzS2 + kx2) - RL(4.0) * kzS * kzP * kx2) * mu;
                 cpx y4 = kzP * (kx2 - kzS2);
                 
                 f = SQ(omega) * y4;

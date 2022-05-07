@@ -227,9 +227,9 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
             params.Beam, RecycledHS);
         ReadBoundary<false>(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
-            PRTFile, &params.bdinfo->top, true); // AlTImetry
+            PRTFile, &params.bdinfo->top, true,  params.freqinfo.freq0, params.fT, params.atten); // AlTImetry
         ReadBoundary<false>(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
-            PRTFile, &params.bdinfo->bot, false); // BaThYmetry
+            PRTFile, &params.bdinfo->bot, false, params.freqinfo.freq0, params.fT, params.atten); // BaThYmetry
         ReadReflectionCoefficient(FileRoot, 
             params.Bdry->Bot.hs.Opt[0], params.Bdry->Top.hs.Opt[1], PRTFile, params.refl); // (top and bottom)
         params.beaminfo->SBPFlag = params.Beam->RunType[2];
@@ -272,41 +272,6 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     if(params.Angles->Nalpha != 1)
         params.Angles->Dalpha = (params.Angles->alpha[params.Angles->Nalpha-1] 
             - params.Angles->alpha[0]) / (params.Angles->Nalpha-1);
-    
-    // convert range-dependent geoacoustic parameters from user to program units
-    if(params.bdinfo->top.type[1] == 'L'){
-        for(int32_t iSeg = 0; iSeg < params.bdinfo->top.NPts; ++iSeg){
-             // compressional wave speed
-            params.bdinfo->top.bd[iSeg].hs.cP = crci(RL(1.0e20),
-                params.bdinfo->top.bd[iSeg].hs.alphaR,
-                params.bdinfo->top.bd[iSeg].hs.alphaI,
-                params.freqinfo->freq0, params.freqinfo->freq0,
-                {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
-             // shear         wave speed
-            params.bdinfo->top.bd[iSeg].hs.cS = crci(RL(1.0e20),
-                params.bdinfo->top.bd[iSeg].hs.betaR,
-                params.bdinfo->top.bd[iSeg].hs.betaI, 
-                params.freqinfo->freq0, params.freqinfo->freq0,
-                {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
-        }
-    }
-    
-    if(params.bdinfo->bot.type[1] == 'L'){
-        for(int32_t iSeg = 0; iSeg < params.bdinfo->bot.NPts; ++iSeg){
-             // compressional wave speed
-            params.bdinfo->bot.bd[iSeg].hs.cP = crci(RL(1.0e20),
-                params.bdinfo->bot.bd[iSeg].hs.alphaR,
-                params.bdinfo->bot.bd[iSeg].hs.alphaI,
-                params.freqinfo->freq0, params.freqinfo->freq0,
-                {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
-             // shear         wave speed
-            params.bdinfo->bot.bd[iSeg].hs.cS = crci(RL(1.0e20),
-                params.bdinfo->bot.bd[iSeg].hs.betaR,
-                params.bdinfo->bot.bd[iSeg].hs.betaI, 
-                params.freqinfo->freq0, params.freqinfo->freq0,
-                {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
-        }
-    }
     
     PRTFile << "\n";
     

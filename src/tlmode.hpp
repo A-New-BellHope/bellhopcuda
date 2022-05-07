@@ -89,8 +89,8 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
             printf("Invalid dStep: %d\n", dStep);
             bail();
         }
-        if(RayTerminate(point0, Nsteps, is, DistBegTop, DistBegBot,
-            DistEndTop, DistEndBot, Beam)) break;
+        if(RayTerminate(point0, point0, Nsteps, is, iSmallStepCtr,
+            DistBegTop, DistBegBot, DistEndTop, DistEndBot, org, bdinfo, Beam)) break;
     }
     
     //printf("Nsteps %d\n", Nsteps);

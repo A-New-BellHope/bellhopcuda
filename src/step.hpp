@@ -363,16 +363,14 @@ template<bool R3D> HOST_DEVICE inline rayPtExtras<R3D> ComputeDeltaPQ(
         mat2x2 c_mat(part.cnn, part.cmn, part.cmn, part.cmm);
         c_mat *= -RL(1.0) / SQ(o.ccpx.real());
         
-        pq.p_tilde = c_mat         * ray.q_tilde;
-        pq.q_tilde = o.ccpx.real() * ray.p_tilde;
-        
-        pq.p_hat   = c_mat         * ray.q_hat;
-        pq.q_hat   = o.ccpx.real() * ray.p_hat;
-        
+        // LP: Want to separately multiply _tilde and _hat by c_mat. If they
+        // were column vectors, we could just multiply the matrix like normal,
+        // but they are row vectors. P^T = C * Q^T --> P = Q * C^T
+        pq.p = ray.q * glm::transpose(c_mat);
     }else{
         pq.p = -part.cnn_csq * ray.q;
-        pq.q = o.ccpx.real() * ray.p;
     }
+    pq.q = o.ccpx.real() * ray.p;
     return pq;
 }
 
@@ -381,14 +379,9 @@ template<bool R3D> HOST_DEVICE inline void UpdateRayPQ(
 {
     if constexpr(R3D){
         ray1.phi     = ray0.phi     + h * pq.phi;
-        ray1.p_tilde = ray0.p_tilde + h * pq.p_tilde;
-        ray1.q_tilde = ray0.q_tilde + h * pq.q_tilde;
-        ray1.p_hat   = ray0.p_hat   + h * pq.p_hat;
-        ray1.q_hat   = ray0.q_hat   + h * pq.q_hat;
-    }else{
-        ray1.p = ray0.p + h * pq.p;
-        ray1.q = ray0.q + h * pq.q;
     }
+    ray1.p = ray0.p + h * pq.p;
+    ray1.q = ray0.q + h * pq.q;
 }
 
 /**
@@ -401,17 +394,26 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
 {
     real rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
     
-    // Note that Tg, Th need to be multiplied by c to normalize tangent; hence, c^2 below
-    // added the SIGN in R2 to make ati and bty have a symmetric effect on the beam
+    // Note that Tg, Th need to be multiplied by c to normalize tangent; hence, csq below
+    // added the copysign in r2 to make ati and bty have a symmetric effect on the beam
     // not clear why that's needed
     
+    mat2x2 rmat;
     real csq = SQ(ray.c);
-    real r1 = FL(2.0) / csq   * DMat[0][0] / Th + rm * (FL(2.0) * cn1jump - rm * csjump) / csq;
-    real r2 = FL(2.0) / ray.c * DMat[1][0] * STD::copysign(RL(1.0), -Th)  + rm * cn2jump / csq;
-    real r3 = FL(2.0)         * DMat[1][1] * Th;
+    rmat[0][0] = FL(2.0) / csq   * DMat[0][0] / Th + rm * (FL(2.0) * cn1jump - rm * csjump) / csq;
+    rmat[0][1] = FL(2.0) / ray.c * DMat[1][0] * STD::copysign(RL(1.0), -Th)  + rm * cn2jump / csq;
+    rmat[1][0] = rmat[0][1];
+    rmat[1][1] = FL(2.0)         * DMat[1][1] * Th;
+    
+    if constexpr(REFLECTVERSION){
+        rmat[1][0] = -rmat[1][0]; // LP: only first row, second column is negative
+        //rmat[1][1] = -rmat[1][1]; // mbp: this one good [LP: The equivalent of this is commented out with this comment]
+    }else{
+        rmat = -rmat; // LP: all terms are negative
+    }
     
     // z-component of unit tangent is sin( theta ); we want cos( theta )
-    //r1 = r1 * (FL(1.0) - SQ(ray.c * ray.t.z))
+    //rmat[0][0] *= (FL(1.0) - SQ(ray.c * ray.t.z))
     
     // *** curvature correction ***
     
@@ -436,39 +438,26 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     is stored for proper matrices like this, but the indexing has to be
     swapped compared to the Fortran.
     */
-    mat2x2 RotMat, pmat, qmat;
+    mat2x2 RotMat;
     RotMat[0][0] = glm::dot(rayn1, e1);
     RotMat[1][0] = glm::dot(rayn1, e2);
     RotMat[0][1] = -RotMat[1][0]; // glm::dot(rayn2, e1)
     RotMat[1][1] = glm::dot(rayn2, e2);
     
     // rotate p-q values in e1, e2 system, onto rayn1, rayn2 system
+    // LP: _tilde and _hat are the first and second ROWS of p / q.
     
-    glm::row(pmat, 0, ray.p_tilde);
-    glm::row(pmat, 1, ray.p_hat);
-    pmat = RotMat * pmat;
-    vec2 p_tilde_in = glm::row(pmat, 0);
-    vec2 p_hat_in   = glm::row(pmat, 1);
-    
-    glm::row(qmat, 0, ray.q_tilde);
-    glm::row(qmat, 1, ray.q_hat);
-    qmat = RotMat * qmat;
-    vec2 q_tilde_in = glm::row(qmat, 0);
-    vec2 q_hat_in   = glm::row(qmat, 1);
+    mat2x2 p_in = RotMat * ray.p;
+    mat2x2 q_in = RotMat * ray.q;
     
     // here's the actual curvature change
     
-    vec2 p_tilde_out = p_tilde_in - q_tilde_in * r1 - q_hat_in * r2;
-    vec2 p_hat_out   = p_hat_in   - q_tilde_in * r2 + q_hat_in * r3;
+    mat2x2 p_out = p_in + rmat * q_in;
     
     // rotate p back to e1, e2 system, q does not change
     // Note RotMat^(-1) = RotMat^T
     
-    glm::row(pmat, 0, p_tilde_out);
-    glm::row(pmat, 1, p_hat_out);
-    pmat = glm::transpose(RotMat) * pmat;
-    ray.p_tilde = glm::row(pmat, 0);
-    ray.p_hat   = glm::row(pmat, 1);
+    ray.p = glm::transpose(RotMat) * p_out;
     
     if constexpr(REFLECTVERSION){
         // Logic below fixes a bug when the |dot product| is infinitesimally greater than 1 (then ACos is complex)
@@ -479,10 +468,10 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
 HOST_DEVICE inline void CalcTangent_Normals(const rayPt<true> &ray, real c, const vec3 &nBdry,
     vec3 &rayt, vec3 &rayn1, vec3 &rayn2, real rayn2sign)
 {
-    rayt  = c * ray.t;         // unit tangent to ray
+    rayt  = c * ray.t;                           // unit tangent to ray
     rayn2 = rayn2sign * glm::cross(rayt, nBdry); // ray tangent x boundary normal gives refl. plane normal
-    rayn2 /= glm::length(rayn2);          // unit normal
-    rayn1 = -glm::cross(rayt, rayn2);// ray tangent x refl. plane normal is first ray normal
+    rayn2 /= glm::length(rayn2);                 // unit normal
+    rayn1 = -glm::cross(rayt, rayn2);            // ray tangent x refl. plane normal is first ray normal
 }
 
 /**
@@ -505,7 +494,7 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
         
         real Th    = glm::dot(ray.t, nBdry); // component of ray tangent, normal to boundary
         vec3 tBdry = ray.t - Th * nBdry;     // tangent, along the boundary, in the reflection plane
-        tBdry     /= glm::length(tBdry);      // unit boundary tangent
+        tBdry     /= glm::length(tBdry);     // unit boundary tangent
         real Tg    = glm::dot(ray.t, tBdry); // component of ray tangent, along the boundary
 
         vec3 rayt, rayn1, rayn2;

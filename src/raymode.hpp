@@ -51,8 +51,8 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
         is += RayUpdate(ray[is], ray[is+1], ray[is+2], DistEndTop, DistEndBot,
             iSmallStepCtr, org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
-        if(RayTerminate(ray[is], Nsteps, is, DistBegTop, DistBegBot,
-            DistEndTop, DistEndBot, Beam)) break;
+        if(RayTerminate<false, false>(ray[is], ray[is], Nsteps, is, iSmallStepCtr,
+            DistBegTop, DistBegBot, DistEndTop, DistEndBot, org, bdinfo, Beam)) break;
         if(Nsteps >= 0 && is > Nsteps){
             Nsteps = is + 1;
             break;

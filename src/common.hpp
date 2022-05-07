@@ -179,8 +179,8 @@ HOST_DEVICE constexpr inline cpx Cpxf2Cpx(const cpxf &c){
 	return cpx((real)c.real(), (real)c.imag());
 }
 
-//CUDA::std::cpx<double> does not like operators being applied with float
-//literals, due to template type deduction issues.
+//CUDA::std::cpx<double> and glm::mat2x2 do not like operators being applied
+//with float literals, due to template type deduction issues.
 #ifndef BHC_USE_FLOATS
 HOST_DEVICE constexpr inline cpx operator-(float a, const cpx &b){
     return cpx(a - b.real(), -b.imag());
@@ -196,6 +196,9 @@ HOST_DEVICE constexpr inline cpx operator/(const cpx &a, float b){
 }
 HOST_DEVICE inline cpx operator/(float a, const cpx &b){
     return (double)a / b;
+}
+HOST_DEVICE inline mat2x2 operator*(float a, const mat2x2 &b){
+    return (double)a * b;
 }
 #endif
 

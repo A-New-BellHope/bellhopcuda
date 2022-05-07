@@ -109,21 +109,26 @@ struct BdryType {
     BdryPtSmall Top, Bot;
 };
 
+template<bool O3D> struct ReflCurvature {};
+template<> struct ReflCurvature<false> {
+    real kappa; // curvature of a segment
+};
+template<> struct ReflCurvature<true> {
+    real z_xx, z_xy, z_yy, kappa_xx, kappa_xy, kappa_yy;
+};
+
 template<bool O3D> struct BdryPtFullExtras {};
 template<> struct BdryPtFullExtras<false> {
     vec2 Nodet; // tangent at the node, if the curvilinear option is used
-    real kappa; // curvature of a segement
     real Dx, Dxx, Dss; // first, second derivatives wrt depth; s is along tangent
     HSInfo hs;
 };
 template<> struct BdryPtFullExtras<true> {
     vec3 n1, n2; // (outward-pointing) normals for each of the triangles in a pair, n is selected from those
     vec3 Noden_unscaled;
-    real kappa_xx, kappa_xy, kappa_yy;
-    real z_xx, z_xy, z_yy;
     real phi_xx, phi_xy, phi_yy;
 };
-template<bool O3D> struct BdryPtFull : public BdryPtFullExtras<O3D>
+template<bool O3D> struct BdryPtFull : public BdryPtFullExtras<O3D>, public ReflCurvature<O3D>
 {
     VEC23<O3D> x; // 2D: coordinate for a segment / 3D: coordinate of boundary
     VEC23<O3D> t; // 2D: tangent for a segment / 3D: tangent for a facet
@@ -171,14 +176,6 @@ template<> struct Origin<true, false> {
 ////////////////////////////////////////////////////////////////////////////////
 //Reflections
 ////////////////////////////////////////////////////////////////////////////////
-
-template<bool O3D> struct ReflCurvature {};
-template<> struct ReflCurvature<false> {
-    real kappa;
-};
-template<> struct ReflCurvature<true> {
-    real z_xx, z_xy, z_yy, kappa_xx, kappa_xy, kappa_yy;
-};
 
 struct ReflectionCoef {
     real theta, r, phi;
@@ -324,7 +321,12 @@ template<> struct rayPtExtras<false> {
     vec2 p, q;
 };
 template<> struct rayPtExtras<true> {
-    vec2 p_tilde, q_tilde, p_hat, q_hat;
+    // LP: p and q don't actually affect the ray trajectory or results; they are
+    // used to update the corresponding variables for the next step, but that's
+    // never actually used for anything else. There is commented out code which
+    // uses them, as well as additional commented-out variables in this struct,
+    // for 3D Cerveny beams.
+    mat2x2 p, q; // LP: The ROWS of p are p_tilde and p_hat; same for q.
     real DetQ, phi;
 };
 template<bool R3D> struct rayPt : public rayPtExtras<R3D>

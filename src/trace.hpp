@@ -29,31 +29,17 @@ namespace bhc {
  * 
  * rayx: ray coordinate
  * Topx, Botx: top, bottom coordinate
- * dTop, dBot: vector pointing from top, bottom bdry to ray
  * Topn, Botn: top, bottom normal vector (outward)
  * DistTop, DistBot: distance (normal to bdry) from the ray to top, bottom boundary
 */
-HOST_DEVICE inline void Distances2D(const vec2 &rayx, 
-    const vec2 &Topx, const vec2 &Botx, vec2 &dTop, vec2 &dBot,
-    const vec2 &Topn, const vec2 &Botn, real &DistTop, real &DistBot)
+template<bool R3D> HOST_DEVICE inline void Distances(const VEC23<R3D> &rayx, 
+    const VEC23<R3D> &Topx, const VEC23<R3D> &Botx,
+    const VEC23<R3D> &Topn, const VEC23<R3D> &Botn, real &DistTop, real &DistBot)
 {
-    dTop = rayx - Topx; // vector pointing from top    to ray
-    dBot = rayx - Botx; // vector pointing from bottom to ray
+    VEC23<R3D> dTop = rayx - Topx; // vector pointing from top    bdry to ray
+    VEC23<R3D> dBot = rayx - Botx; // vector pointing from bottom bdry to ray
     DistTop = -glm::dot(Topn, dTop);
     DistBot = -glm::dot(Botn, dBot);
-}
-
-/**
- * Copy only specific data from the HSInfo (halfspace info) struct.
- * [LP: FORTRAN] compiler is not accepting the copy of the whole structure at once ...
- * LP: maybe this means actually the whole struct should be copied, but he
- * only copied the elements which were needed?
- */
-HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
-{
-    b.cP  = a.cP;
-    b.cS  = a.cS;
-    b.rho = a.rho;
 }
 
 /**
@@ -161,16 +147,16 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
  * LP: Pulled out contents of ray update loop. Returns the number of ray steps
  * taken (i.e. normally 1, or 2 if reflected).
  */
-HOST_DEVICE inline int32_t RayUpdate(
-    const rayPt<false> &point0, rayPt<false> &point1, rayPt<false> &point2,
+template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
+    const rayPt<R3D> &point0, rayPt<R3D> &point1, rayPt<R3D> &point2,
     real &DistEndTop, real &DistEndBot,
-    int32_t &iSmallStepCtr, const Origin<false, false> &org, SSPSegState &iSeg,
-    BdryState<false> &bds, BdryType &Bdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
+    int32_t &iSmallStepCtr, const Origin<O3D, R3D> &org, SSPSegState &iSeg,
+    BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl;
-    Step<false>(point0, point1, bds, Beam, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
+    Step<O3D, R3D>(point0, point1, bds, Beam, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -178,57 +164,81 @@ HOST_DEVICE inline int32_t RayUpdate(
     }
     */
     
-    // New altimetry segment?
-    if(    point1.x.x < bds.top.lSeg.min || (point1.x.x == bds.top.lSeg.min && point1.t.x < FL(0.0))
-        || point1.x.x > bds.top.lSeg.max || (point1.x.x == bds.top.lSeg.max && point1.t.x >= FL(0.0))){
-        GetBdrySeg(point1.x, point1.t, bds.top, &bdinfo->top, true);
-        if(bdinfo->top.type[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->top.bd[bds.top.Iseg].hs); // grab the geoacoustic info for the new segment
-    }
+    VEC23<O3D> x_o = RayToOceanX(point1.x, org);
+    VEC23<O3D> t_o = RayToOceanT(point1.t, org);
+    GetBdrySeg(x_o, t_o, bds.top, &bdinfo->top, true);
+    GetBdrySeg(x_o, t_o, bds.bot, &bdinfo->bot, false);
     
-    // New bathymetry segment?
-    if(    point1.x.x < bds.bot.lSeg.min || (point1.x.x == bds.bot.lSeg.min && point1.t.x < FL(0.0))
-        || point1.x.x > bds.bot.lSeg.max || (point1.x.x == bds.bot.lSeg.max && point1.t.x >= FL(0.0))){
-        GetBdrySeg(point1.x, point1.t, bds.bot, &bdinfo->bot, false);
-        if(bdinfo->bot.type[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->bot.bd[bds.bot.Iseg].hs); // grab the geoacoustic info for the new segment
-    }
-    
+    //TODO
     // Reflections?
     // Tests that ray at step is is inside, and ray at step is+1 is outside
     // to detect only a crossing from inside to outside
     // DistBeg is the distance at point0, which is saved
     // DistEnd is the distance at point1, which needs to be calculated
-    vec2 dEndTop, dEndBot;
-    Distances2D(point1.x, bds.top.x, bds.bot.x, dEndTop, dEndBot,
+    Distances(point1.x, bds.top.x, bds.bot.x,
         bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
     
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl){
         // printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
-        const BdryInfoTopBot<false> &bdi = topRefl ? bdinfo->top : bdinfo->bot;
-        const BdryStateTopBot<false> &bdstb = topRefl ? bds.top : bds.bot;
-        vec2 dEnd = topRefl ? dEndTop : dEndBot;
-        BdryPtFull<false> *bd0 = &bdi.bd[bdstb.Iseg];
-        BdryPtFull<false> *bd1 = &bd0[1]; // LP: next segment
-        vec2 nInt, tInt;
-        // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
-        if(bdi.type[0] == 'C'){
-            real sss = glm::dot(dEnd, bd0->t) / bd0->Len; // proportional distance along segment
-            nInt = (FL(1.0) - sss) * bd0->Noden + sss * bd1->Noden;
-            tInt = (FL(1.0) - sss) * bd0->Nodet + sss * bd1->Nodet;
+        const BdryInfoTopBot<O3D> &bdi = topRefl ? bdinfo->top : bdinfo->bot;
+        const BdryStateTopBot<O3D> &bdstb = topRefl ? bds.top : bds.bot;
+        const HSInfo &hs = topRefl ? Bdry.Top.hs : Bdry.Bot.hs;
+        const ReflectionInfoTopBot &refltb = topRefl ? refl->top : refl->bot;
+        ReflCurvature<O3D> rcurv;
+        VEC23<R3D> tInt(RL(0.0));
+        VEC23<O3D> nInt;
+        
+        if constexpr(O3D){
+            // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
+            if(bdi.type[0] == 'C'){
+                //TODO 2D-3D
+                real s1 = (point1.x - bdstb.x) / (bdstb.lSeg.x.max - bdstb.lSeg.x.min);
+                real s2 = (point1.y - bdstb.y) / (bdstb.lSeg.y.max - bdstb.lSeg.y.min);
+                real m1 = FL(1.0) - s1;
+                real m2 = FL(1.0) - s2;
+                
+                BdryPtFull<true> *bd00 = &bdi.bd[(bdstb.Iseg.x  )*bdi.NPts.y+bdstb.Iseg.y  ];
+                BdryPtFull<true> *bd01 = &bdi.bd[(bdstb.Iseg.x  )*bdi.NPts.y+bdstb.Iseg.y+1];
+                BdryPtFull<true> *bd10 = &bdi.bd[(bdstb.Iseg.x+1)*bdi.NPts.y+bdstb.Iseg.y  ];
+                BdryPtFull<true> *bd11 = &bdi.bd[(bdstb.Iseg.x+1)*bdi.NPts.y+bdstb.Iseg.y+1];
+                
+                nInt = bd00.Noden * m1 * m2 +
+                       bd10.Noden * s1 * m2 +
+                       bd11.Noden * s1 * s2 +
+                       bd01.Noden * m1 * s2;
+                rcurv.z_xx = bd00.z_xx;
+                rcurv.z_xy = bd00.z_xy;
+                rcurv.z_yy = bd00.z_yy;
+                
+                rcurv.kappa_xx = bd00.kappa_xx;
+                rcurv.kappa_xy = bd00.kappa_xy;
+                rcurv.kappa_yy = bd00.kappa_yy;
+            }else{
+                nInt = bdstb.n;
+                rcurv.z_xx = rcurv.z_xy = rcurv.z_yy = FL(0.0);
+                rcurv.kappa_xx = rcurv.kappa_xy = rcurv.kappa_yy = FL(0.0);
+            }
         }else{
-            nInt = bd0->n; // normal is constant in a segment
-            tInt = bd0->t;
+            BdryPtFull<false> *bd0 = &bdi.bd[bdstb.Iseg];
+            BdryPtFull<false> *bd1 = &bd0[1]; // LP: next segment
+            // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
+            if(bdi.type[0] == 'C'){
+                real sss = glm::dot(point1.x - bdstb.x, bd0->t) / bd0->Len; // proportional distance along segment
+                nInt = (FL(1.0) - sss) * bd0->Noden + sss * bd1->Noden;
+                tInt = (FL(1.0) - sss) * bd0->Nodet + sss * bd1->Nodet;
+            }else{
+                nInt = bd0->n; // normal is constant in a segment
+                tInt = bd0->t;
+            }
+            rcurv.kappa = bd0->kappa;
         }
-        ReflCurvature<false> rcurv;
-        rcurv.kappa = bd0->kappa;
-        Reflect<false, false>(point1, point2, 
-            topRefl ? Bdry.Top.hs : Bdry.Bot.hs,
-            topRefl, tInt, nInt, rcurv, freqinfo->freq0,
-            topRefl ? refl->top : refl->bot,
-            Beam, org, ssp, iSeg);
+        
+        Reflect<O3D, R3D>(point1, point2, hs, topRefl, tInt, nInt, rcurv,
+            freqinfo->freq0, refltb, Beam, org, ssp, iSeg);
         //Incrementing bounce count moved to Reflect
         numRaySteps = 2;
-        Distances2D(point2.x, bds.top.x, bds.bot.x, dEndTop, dEndBot,
+        Distances(point2.x, bds.top.x, bds.bot.x,
             bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
     }
     
@@ -238,32 +248,68 @@ HOST_DEVICE inline int32_t RayUpdate(
 /**
  * Has the ray left the box, lost its energy, escaped the boundaries, or 
  * exceeded storage limit?
+ * [LP: 2D-3D only:]
+ * this should be modified to have a single box
+ * no need to test point.x.x, for instance, against several limits; calculate one limit in advance
  * LP: Also updates DistBegTop, DistBegBot.
  */
-HOST_DEVICE inline bool RayTerminate(const rayPt<false> &point, int32_t &Nsteps, int32_t is,
+template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
+    const rayPt<O3D> &opoint, const rayPt<R3D> &rpoint,
+    int32_t &Nsteps, int32_t is, const int32_t &iSmallStepCtr,
     real &DistBegTop, real &DistBegBot, const real &DistEndTop, const real &DistEndBot,
-    const BeamStructure *Beam
+    const Origin<O3D, R3D> &org, const BdryInfo<O3D> *bdinfo, const BeamStructure *Beam
     )
 {
-    bool leftbox = STD::abs(point.x.x) > Beam->Box.r ||
-                   STD::abs(point.x.y) > Beam->Box.z;
-    bool lostenergy = point.Amp < FL(0.005);
-    bool escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0)) ||
-                             (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
-    //bool backward = point.t.x < 0; // this last test kills off a backward traveling ray
-    if(leftbox || lostenergy || escapedboundaries // || backward
-    ){
+    bool leftbox, escapedboundaries, backward, toomanysmallsteps;
+    bool escaped0bdry, escapedNbdry;
+    if constexpr(O3D){
+        leftbox = STD::abs(opoint.x.x - org.xs.x) > Beam->Box.x ||
+                  STD::abs(opoint.x.y - org.xs.y) > Beam->Box.y ||
+                  STD::abs(opoint.x.z - org.xs.z) > Beam->Box.z;
+        escaped0bdry = 
+            x.x < bhc::max(bdinfo->bot.bd[0].x.x, bdinfo->top.bd[0].x.x) ||
+            x.y < bhc::max(bdinfo->bot.bd[0].x.y, bdinfo->top.bd[0].x.y);
+        escapedNbdry =
+            x.x > bhc::max(bdinfo->bot.bd[(bdinfo->bot.NPts.x-1)*bdinfo->bot.NPts.y].x.x, 
+                           bdinfo->top.bd[(bdinfo->top.NPts.x-1)*bdinfo->top.NPts.y].x.x) ||
+            x.y > bhc::max(bdinfo->bot.bd[bdinfo->bot.NPts.y-1].x.y, 
+                           bdinfo->top.bd[bdinfo->top.NPts.y-1].x.y);
+        escapedboundaries = escaped0bdry || escapedNbdry;
+        toomanysmallsteps = iSmallStepCtr > 50;
+    }else{
+        leftbox = STD::abs(rpoint.x.x) > Beam->Box.r ||
+                  STD::abs(rpoint.x.y) > Beam->Box.z;
+        escaped0bdry = escapedNbdry = false;
+        escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0)) ||
+                            (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
+        toomanysmallsteps = false; // LP: Simply never checked in 2D.
+    }
+    bool lostenergy = rpoint.Amp < FL(0.005);
+    if constexpr(O3D && !R3D){
+        backward = rpoint.t.x < FL(0.0); // kills off a backward traveling ray
+    }else{
+        backward = false; // LP: Commented out for 2D, absent for 3D as would not make sense.
+    }
+    if(leftbox || lostenergy || escapedboundaries || backward){
         /*
         if(leftbox){
             printf("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
-        }else if(lostenergy){
-            printf("Ray energy dropped to %g\n", point.Amp);
-        }else{
+        }else if(escapedboundaries){
             printf("Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g DistEndBot %g\n",
                 DistBegTop, DistEndTop, DistBegBot, DistEndBot);
+        }else if(lostenergy){
+            printf("Ray energy dropped to %g\n", point.Amp);
+        }else if(backward){
+            printf("Ray is going backwards\n");
         }
         */
-        Nsteps = is + 1;
+        if(O3D && escaped0bdry){
+            // LP: 2D-3D and 3D: If escapes the boundary only to the negative
+            // side, stop without including the current step.
+            Nsteps = is;
+        }else{
+            Nsteps = is + 1;
+        }
         return true;
     }else if(is >= MaxN - 3){
         printf("Warning in TraceRay: Insufficient storage for ray trajectory\n");

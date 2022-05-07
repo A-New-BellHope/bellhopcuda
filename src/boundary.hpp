@@ -25,11 +25,26 @@ namespace bhc {
 
 constexpr int32_t Bdry_Number_to_Echo = 21;
 
-template<bool X3D> struct bdry_big {};
+template<bool O3D> struct bdry_big {};
 // LP: Can't be constexpr as std::sqrt is not constexpr without GCC extensions
 template<> struct bdry_big<true>  { HOST_DEVICE static inline real value() { return RL(1.0e25); } };
 template<> struct bdry_big<false> { HOST_DEVICE static inline real value() { return STD::sqrt(REAL_MAX) / RL(1.0e5); } };
-#define BDRYBIG bdry_big<X3D>::value()
+#define BDRYBIG bdry_big<O3D>::value()
+
+/**
+ * Copy only some of the geoacoustic data from the position-dependent array to
+ * the current halfspace information. The rest of the fields are left alone from
+ * the global (non-position-dependent) version.
+ * [LP: FORTRAN] compiler is not accepting the copy of the whole structure at once ...
+ * LP: maybe this means actually the whole struct should be copied, but he
+ * only copied the elements which were needed?
+ */
+HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
+{
+    b.cP  = a.cP;
+    b.cS  = a.cS;
+    b.rho = a.rho;
+}
 
 /**
  * Get the top or bottom segment info (index and range interval) for range, r
@@ -41,12 +56,12 @@ template<> struct bdry_big<false> { HOST_DEVICE static inline real value() { ret
  * 
  * LP: BUG: Function comment in 3D forgot to be changed when copy-pasted from 2D.
  */
-template<bool X3D> HOST_DEVICE inline void GetBdrySeg(
-    VEC23<X3D> x, VEC23<X3D> t, 
-    BdryStateTopBot<X3D> &bds, const BdryInfoTopBot<X3D> *bdinfotb,
+template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
+    VEC23<O3D> x, VEC23<O3D> t, 
+    BdryStateTopBot<O3D> &bds, const BdryInfoTopBot<O3D> *bdinfotb, BdryPtSmall &Bdry
     bool isTop)
 {
-    if constexpr(X3D){
+    if constexpr(O3D){
         
         // LP: BUG/TODO: BELLHOP3D has the same edge case problems as 2D did:
         // both endpoints are allowed in the initial check but then only one is
@@ -72,6 +87,16 @@ template<bool X3D> HOST_DEVICE inline void GetBdrySeg(
             while(bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y+1].x.y <  x.y) ++bds.Iseg.y;
             while(bds.Iseg.y >= 0   && bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y  ].x.y >= x.y) --bds.Iseg.y;
         }
+        // LP: According to the original logic, if the ray escapes the box here,
+        // a warning is printed, and the other segment info is not updated. If
+        // the ray escaped the box to the negative side in either dimension, or
+        // the results are NaN below (should never happen), the ray is then
+        // terminated in TraceRay without the current step. However, if the ray
+        // escaped to the positive side, the ray is terminated as part of the
+        // normal stopping conditions, including the current step. In this
+        // implementation, the ray isn't allowed to escape the box here (the
+        // nearest segment is used), and the asymmetrical condition is handled
+        // in the normal ray termination.
         if(bds.Iseg.x < 0 || bds.Iseg.x >= nx-1 || bds.Iseg.y < 0 || bds.Iseg.y >= ny-1){
             printf("Error: Get%s the ray, x=(%g,%g)\n",
                 isTop ? "TopSeg3D: Top altimetry undefined above" : 
@@ -97,11 +122,20 @@ template<bool X3D> HOST_DEVICE inline void GetBdrySeg(
         
         // if the depth is bad (a NaN) then set the segment flags to indicate that
         if(!STD::isfinite(bds.x.z) || !bhc::isfinite(bds.n)){
-            bds.Iseg.x = -1;
-            bds.Iseg.y = -1;
+            // LP: This should never happen.
+            // bds.Iseg.x = -1;
+            // bds.Iseg.y = -1;
+            printf("Error: Boundary segment contains NaN!\n");
+            bail();
         }
         
     }else{
+        // LP: Moved from RayUpdate (TraceRay2D)
+        if(!(    x.x < bds.lSeg.min || (x.x == bds.lSeg.min && t.x <  FL(0.0))
+              || x.x > bds.lSeg.max || (x.x == bds.lSeg.max && t.x >= FL(0.0)) )){
+            return;
+        }
+        
         // LP: bdinfotb->bd.x is checked for being monotonic at load time, so we can
         // linearly search out from the last position, usually only have to move
         // by 1
@@ -129,6 +163,11 @@ template<bool X3D> HOST_DEVICE inline void GetBdrySeg(
         bds.x = bdinfotb->bd[bds.Iseg].x;
         bds.n = bdinfotb->bd[bds.Iseg].n;
         
+        // LP: Moved from RayUpdate (TraceRay2D)
+        if(bdinfotb->type[1] == 'L'){
+            // grab the geoacoustic info for the new segment
+            CopyHSInfo(Bdry.hs, bdinfotb->bd[bds.Iseg].hs);
+        }
     }
 }
 
@@ -139,13 +178,13 @@ template<bool X3D> HOST_DEVICE inline void GetBdrySeg(
  * normals  (.n, .noden), and
  * curvatures (.kappa)
  */
-template<bool X3D> inline void ComputeBdryTangentNormal(
-    BdryInfoTopBot<X3D> *bd, bool isTop)
+template<bool O3D> inline void ComputeBdryTangentNormal(
+    BdryInfoTopBot<O3D> *bd, bool isTop)
 {
-    typename TmplInt12<X3D>::type NPts = bd->NPts;
+    typename TmplInt12<O3D>::type NPts = bd->NPts;
     vec3 tvec;
     
-    if constexpr(X3D){
+    if constexpr(O3D){
         
         // normals on triangle faces
         for(int32_t ix=0; ix<NPts.x - 1; ++ix){
@@ -260,7 +299,7 @@ template<bool X3D> inline void ComputeBdryTangentNormal(
     if(bd->type[0] == 'C'){
         // curvilinear option
         
-        if constexpr(X3D){
+        if constexpr(O3D){
             // compute derivative as centered difference between two nodes
             // compute curvatures in each segment
             
@@ -360,7 +399,7 @@ template<bool X3D> inline void ComputeBdryTangentNormal(
         }
         
     }else{
-        if constexpr(X3D){
+        if constexpr(O3D){
             for(int32_t ix=0; ix<NPts.x; ++ix){
                 for(int32_t iy=0; iy<NPts.y; ++iy){
                     bd->bd[ix*NPts.y+iy].z_xx = RL(0.0);
@@ -378,8 +417,9 @@ template<bool X3D> inline void ComputeBdryTangentNormal(
     }
 }
 
-template<bool X3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMode, real BdryDepth,
-    PrintFileEmu &PRTFile, BdryInfoTopBot<X3D> *bdinfotb, bool isTop)
+template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMode, real BdryDepth,
+    PrintFileEmu &PRTFile, BdryInfoTopBot<O3D> *bdinfotb, bool isTop,
+    real freq, real fT, const AttenInfo &atten)
 {
     const char *s_atibty = isTop ? "ati" : "bty";
     const char *s_ATIBTY = isTop ? "ATI" : "BTY";
@@ -391,7 +431,7 @@ template<bool X3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
     switch(BdryDefMode){
     case '~':
     case '*':{
-        if constexpr(X3D){
+        if constexpr(O3D){
             PRTFile << "*********************************\n";
         }else{
             PRTFile << "__________________________________________________________________________\n\n";
@@ -406,25 +446,25 @@ template<bool X3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             std::abort();
         }
         
-        LIST(BDRYFile); BDRYFile.Read(bdinfotb->type, X3D ? 1 : 2);
-        if constexpr(X3D) bdinfotb->type[1] = ' ';
+        LIST(BDRYFile); BDRYFile.Read(bdinfotb->type, O3D ? 1 : 2);
+        if constexpr(O3D) bdinfotb->type[1] = ' ';
         switch(bdinfotb->type[0]){
         case 'R':
-            if constexpr(X3D){
+            if constexpr(O3D){
                 PRTFile << "Regular grid for a 3D run\n";
             }else{
                 PRTFile << s_atibty << "Type R not supported for 2D runs\n"; std::abort();
             }
             break;
         case 'C':
-            if constexpr(X3D){
+            if constexpr(O3D){
                 PRTFile << "Regular grid for a 3D run (curvilinear)\n";
             }else{
                 PRTFile << "Curvilinear Interpolation\n";
             }
             break;
         case 'L':
-            if constexpr(X3D){
+            if constexpr(O3D){
                 PRTFile << s_atibty << "Type L not supported for 3D runs\n"; std::abort();
             }else{
                 PRTFile << "Piecewise linear interpolation\n";
@@ -436,7 +476,7 @@ template<bool X3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             std::abort();
         }
         
-        if constexpr(X3D){
+        if constexpr(O3D){
             // x values
             LIST(BDRYFile); BDRYFile.Read(bdinfotb->NPts.x);
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x-direction "
@@ -586,7 +626,7 @@ template<bool X3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
         
         }break;
     default:
-        if constexpr(X3D){
+        if constexpr(O3D){
             bdinfotb->atiType[0] = 'R';
             bdinfotb->NPts = int2(2, 2);
             checkallocate(bdinfotb->bd, 2*2);
@@ -631,6 +671,21 @@ template<bool X3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
     
     // LP: TODO/BUG: 3D version has initialization for xTopSeg / yTopSeg here,
     // which probably also means state is carried over from one ray to the next
+    
+    // convert range-dependent geoacoustic parameters from user to program units
+    // LP: Moved from setup.
+    if(bdinfotb->type[1] == 'L'){
+        for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg){
+            // compressional wave speed
+            bdinfotb->bd[iSeg].hs.cP = crci(RL(1.0e20),
+                bdinfotb->bd[iSeg].hs.alphaR, bdinfotb->bd[iSeg].hs.alphaI,
+                freq, freq, {'W', ' '}, betaPowerLaw, fT, atten, PRTFile);
+            // shear         wave speed
+            bdinfotb->bd[iSeg].hs.cS = crci(RL(1.0e20),
+                bdinfotb->bd[iSeg].hs.betaR, bdinfotb->bd[iSeg].hs.betaI, 
+                freq, freq, {'W', ' '}, betaPowerLaw, fT, atten, PRTFile);
+        }
+    }
 }
 
 /**
