@@ -163,7 +163,7 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         bds.x = bdinfotb->bd[bds.Iseg].x;
         bds.n = bdinfotb->bd[bds.Iseg].n;
         
-        // LP: Moved from RayUpdate (TraceRay2D)
+        // LP: Moved from RayInit and RayUpdate (TraceRay2D)
         if(bdinfotb->type[1] == 'L'){
             // grab the geoacoustic info for the new segment
             CopyHSInfo(Bdry.hs, bdinfotb->bd[bds.Iseg].hs);
