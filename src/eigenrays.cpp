@@ -47,7 +47,9 @@ void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
         }
         EigenHit *hit = &outputs.eigen->hits[job];
         int32_t Nsteps = hit->is;
-        if(!RunRay(outputs.rayinfo, params, localmem, job, hit->isrc, hit->ialpha, Nsteps)){
+        RayInitInfo rinit;
+        rinit.isz = hit->isrc; rinit.ialpha = hit->ialpha;
+        if(!RunRay(outputs.rayinfo, params, localmem, job, rinit, Nsteps)){
             printf("EigenModePostWorker RunRay failed\n");
         }
         if(Nsteps != hit->is + 2 && Nsteps != hit->is + 3){

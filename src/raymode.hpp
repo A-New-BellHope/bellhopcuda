@@ -25,7 +25,7 @@ namespace bhc {
 /**
  * Main ray tracing function for ray path output mode.
  */
-HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
+HOST_DEVICE inline void MainRayMode(RayInitInfo &rinit,
     rayPt<false> *ray, int32_t &Nsteps,
     const BdryType *ConstBdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
@@ -33,12 +33,12 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     SSPSegState iSeg;
-    vec2 gradc;
+    vec2 xs, gradc;
     BdryState<false> bds;
     BdryType Bdry;
     Origin<false, false> org;
     
-    if(!RayInit(isrc, ialpha, SrcDeclAngle, ray[0], gradc, DistBegTop, DistBegBot,
+    if(!RayInit<false, false>(rinit, xs, ray[0], gradc, DistBegTop, DistBegBot,
         org, iSeg, bds, Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo))
     {
         Nsteps = 1;
@@ -49,9 +49,10 @@ HOST_DEVICE inline void MainRayMode(int32_t isrc, int32_t ialpha, real &SrcDeclA
     int32_t is = 0; // index for a step along the ray
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
-        is += RayUpdate(ray[is], ray[is+1], ray[is+2], DistEndTop, DistEndBot,
-            iSmallStepCtr, org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
-        if(RayTerminate<false, false>(ray[is], ray[is], Nsteps, is, iSmallStepCtr,
+        is += RayUpdate<false, false>(ray[is], ray[is+1], ray[is+2],
+            DistEndTop, DistEndBot, iSmallStepCtr,
+            org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
+        if(RayTerminate<false, false>(ray[is], Nsteps, is, xs, iSmallStepCtr,
             DistBegTop, DistBegBot, DistEndTop, DistEndBot, org, bdinfo, Beam)) break;
         if(Nsteps >= 0 && is > Nsteps){
             Nsteps = is + 1;
@@ -75,7 +76,7 @@ inline bool IsRayCopyMode(const RayInfo *rayinfo)
 }
 
 inline bool RunRay(RayInfo *rayinfo, const bhcParams &params, rayPt<false> *localmem,
-    int32_t job, int32_t isrc, int32_t ialpha, int32_t &Nsteps)
+    int32_t job, RayInitInfo &rinit, int32_t &Nsteps)
 {
     rayPt<false> *ray;
     if(IsRayCopyMode(rayinfo)){
@@ -85,8 +86,7 @@ inline bool RunRay(RayInfo *rayinfo, const bhcParams &params, rayPt<false> *loca
     }
     memset(ray, 0xFE, MaxN * sizeof(rayPt<false>)); //Set to garbage values for debugging
     
-    real SrcDeclAngle;
-    MainRayMode(isrc, ialpha, SrcDeclAngle, ray, Nsteps,
+    MainRayMode(rinit, ray, Nsteps,
         params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
         params.Angles, params.freqinfo, params.Beam, params.beaminfo);
     
@@ -104,7 +104,7 @@ inline bool RunRay(RayInfo *rayinfo, const bhcParams &params, rayPt<false> *loca
     }else{
         rayinfo->results[job].ray = ray;
     }
-    rayinfo->results[job].SrcDeclAngle = SrcDeclAngle;
+    rayinfo->results[job].SrcDeclAngle = rinit.SrcDeclAngle;
     rayinfo->results[job].Nsteps = Nsteps;
     
     return ret;

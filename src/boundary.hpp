@@ -58,7 +58,7 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  */
 template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
     VEC23<O3D> x, VEC23<O3D> t, 
-    BdryStateTopBot<O3D> &bds, const BdryInfoTopBot<O3D> *bdinfotb, BdryPtSmall &Bdry
+    BdryStateTopBot<O3D> &bds, const BdryInfoTopBot<O3D> *bdinfotb, BdryPtSmall &Bdry,
     bool isTop)
 {
     if constexpr(O3D){

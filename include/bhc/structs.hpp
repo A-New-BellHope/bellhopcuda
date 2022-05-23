@@ -102,8 +102,9 @@ struct BdryPtSmall {
 };
 
 /**
- * LP: There are two boundary structures. This one actually existed in the
- * FORTRAN, and is called Bdry. The other is BdryInfo bdinfo (below).
+ * LP: There are three boundary structures. This one actually existed in the
+ * FORTRAN, and is called Bdry. This holds the boundary properties for the
+ * current segment.
  */
 struct BdryType {
     BdryPtSmall Top, Bot;
@@ -143,8 +144,8 @@ template<bool O3D> struct BdryInfoTopBot {
     BdryPtFull<O3D> *bd; // 2D: 1D array / 3D: 2D array
 };
 /**
- * LP: There are two boundary structures. This one represents data in the
- * FORTRAN which was not within any structure, and is called bdinfo.
+ * LP: There are three boundary structures. This one represents static/global 
+ * data in the FORTRAN which was not within any structure, and is called bdinfo.
  */
 template<bool O3D> struct BdryInfo {
     BdryInfoTopBot<O3D> top, bot;
@@ -161,12 +162,17 @@ template<bool O3D> struct BdryStateTopBot {
     VEC23<O3D> x, n; // only explicitly written in 3D, but effectively present in 2D
 };
 /**
- * LP: Variables holding current state of active segment(s) ray is in.
+ * LP: There are three boundary structures. This one holds variables describing
+ * where the ray currently is in terms of boundary segments, and is called bds.
  */
 template<bool O3D> struct BdryState {
     BdryStateTopBot<O3D> top, bot;
 };
 
+/**
+ * LP: In 2D-3D mode, describes the position of the 2D ray space relative to the
+ * 3D ocean. Unused (empty struct) in 2D and full 3D mode.
+ */
 template<bool O3D, bool R3D> struct Origin {};
 template<> struct Origin<true, false> {
     vec3 xs;
@@ -364,10 +370,10 @@ struct RayInfo {
     int32_t NRays;
 };
 
-template<bool R3D> struct RayInitInfo {
+struct RayInitInfo {
     int32_t isx, isy, isz, ialpha, ibeta;
+    real alpha;
     real SrcDeclAngle, SrcAzimAngle;
-    VEC23<R3D> xs;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

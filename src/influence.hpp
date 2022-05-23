@@ -372,29 +372,29 @@ HOST_DEVICE inline cpx Compute_gamma(const rayPt<false> &point, const cpx &pB, c
 // 
 
 HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
-    const rayPt<false> &point0, int32_t isrc, int32_t ialpha, real alpha, vec2 gradc,
+    const rayPt<false> &point0, RayInitInfo &rinit, vec2 gradc,
     const Position *Pos, const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
-    inflray.isrc = isrc;
-    inflray.ialpha = ialpha;
+    inflray.isrc = rinit.isz;
+    inflray.ialpha = rinit.ialpha;
     inflray.freq0 = freqinfo->freq0;
     inflray.omega = FL(2.0) * REAL_PI * inflray.freq0;
     // LP: The 5x version is changed to 50x on both codepaths before it is used.
     // inflray.RadMax = FL(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
     inflray.RadMax = FL(50.0) * point0.c / freqinfo->freq0; // 50 wavelength max radius
     inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
-    inflray.SrcDeclAngle = RadDeg * alpha;
+    inflray.SrcDeclAngle = rinit.SrcDeclAngle;
     inflray.Dalpha = Angles->Dalpha;
     if(Beam->RunType[3] == 'R'){
         // LP: Did not have the abs for SGB, but it has been added.
-        inflray.Ratio1 = STD::sqrt(STD::abs(STD::cos(alpha))); // point source
+        inflray.Ratio1 = STD::sqrt(STD::abs(STD::cos(rinit.alpha))); // point source
     }else{
         inflray.Ratio1 = RL(1.0); // line source
     }
     if(Beam->Type[0] == 'R' || Beam->Type[0] == 'C'){
         inflray.epsilon = PickEpsilon(Beam->Type[0], Beam->Type[1], inflray.omega,
-            point0.c, gradc, alpha, Angles->Dalpha, Beam->rLoop, Beam->epsMultiplier);
+            point0.c, gradc, rinit.alpha, Angles->Dalpha, Beam->rLoop, Beam->epsMultiplier);
     }
     
     // LP: For all except Cerveny

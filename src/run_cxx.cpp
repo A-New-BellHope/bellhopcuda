@@ -40,9 +40,10 @@ void RayModeWorker(const bhcParams &params, bhcOutputs &outputs)
         
     while(true){
         int32_t job = jobID++;
-        int32_t isrc, ialpha, Nsteps = -1;
-        if(!GetJobIndices(isrc, ialpha, job, params.Pos, params.Angles)) break;
-        if(!RunRay(outputs.rayinfo, params, localmem, job, isrc, ialpha, Nsteps)) break;
+        int32_t Nsteps = -1;
+        RayInitInfo rinit;
+        if(!GetJobIndices(rinit, job, params.Pos, params.Angles)) break;
+        if(!RunRay(outputs.rayinfo, params, localmem, job, rinit, Nsteps)) break;
     }
     
     }catch(const std::exception &e){
@@ -63,11 +64,10 @@ void FieldModesWorker(const bhcParams &params, bhcOutputs &outputs)
     
     while(true){
         int32_t job = jobID++;
-        int32_t isrc, ialpha;
-        if(!GetJobIndices(isrc, ialpha, job, params.Pos, params.Angles)) break;
+        RayInitInfo rinit;
+        if(!GetJobIndices(rinit, job, params.Pos, params.Angles)) break;
         
-        real SrcDeclAngle;
-        MainFieldModes(isrc, ialpha, SrcDeclAngle, outputs.uAllSources,
+        MainFieldModes(rinit, outputs.uAllSources,
             params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
             params.Angles, params.freqinfo, params.Beam, params.beaminfo,
             outputs.eigen, outputs.arrinfo);

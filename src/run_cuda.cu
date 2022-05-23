@@ -25,11 +25,11 @@ __launch_bounds__(512, 1)
 FieldModesKernel(bhcParams params, bhcOutputs outputs)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
-        int32_t isrc, ialpha;
-        if(!GetJobIndices(isrc, ialpha, job, params.Pos, params.Angles)) break;
+        RayInitInfo rinit;
+        if(!GetJobIndices(rinit, job, params.Pos, params.Angles)) break;
         
         real SrcDeclAngle;
-        MainFieldModes(isrc, ialpha, SrcDeclAngle, outputs.uAllSources,
+        MainFieldModes(rinit, SrcDeclAngle, outputs.uAllSources,
             params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
             params.Angles, params.freqinfo, params.Beam, params.beaminfo, 
             outputs.eigen, outputs.arrinfo);

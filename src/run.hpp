@@ -34,17 +34,18 @@ HOST_DEVICE inline int32_t GetNumJobs(const Position *Pos, const AnglesStructure
  * Returns whether the job should continue.
  * `is` changed to `isrc` because `is` is used for steps
  */
-HOST_DEVICE inline bool GetJobIndices(int32_t &isrc, int32_t &ialpha, int32_t job,
+HOST_DEVICE inline bool GetJobIndices(RayInitInfo &rinit, int32_t job,
     const Position *Pos, const AnglesStructure *Angles)
 {
     if(Angles->iSingle_alpha >= 1){
-        isrc = job;
-        ialpha = Angles->iSingle_alpha - 1; //iSingle_alpha is 1-indexed because how defined in env file
+        rinit.isz = job;
+        rinit.ialpha = Angles->iSingle_alpha - 1; // iSingle_alpha is 1-indexed because how defined in env file
     }else{
-        isrc = job / Angles->Nalpha;
-        ialpha = job % Angles->Nalpha;
+        rinit.isz = job / Angles->Nalpha;
+        rinit.ialpha = job % Angles->Nalpha;
     }
-    return (isrc < Pos->NSz);
+    rinit.isx = rinit.isy = rinit.ibeta = -1234567; // TODO
+    return (rinit.isz < Pos->NSz);
 }
 
 inline void InitSelectedMode(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
