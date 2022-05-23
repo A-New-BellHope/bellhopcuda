@@ -28,8 +28,7 @@ FieldModesKernel(bhcParams params, bhcOutputs outputs)
         RayInitInfo rinit;
         if(!GetJobIndices(rinit, job, params.Pos, params.Angles)) break;
         
-        real SrcDeclAngle;
-        MainFieldModes(rinit, SrcDeclAngle, outputs.uAllSources,
+        MainFieldModes(rinit, outputs.uAllSources,
             params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
             params.Angles, params.freqinfo, params.Beam, params.beaminfo, 
             outputs.eigen, outputs.arrinfo);

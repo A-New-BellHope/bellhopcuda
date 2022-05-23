@@ -127,11 +127,14 @@ run_test () {
     elif [[ $runtype == "tl" ]]; then
         python3 compare_shdfil.py $1
         m_check_fail $? $1
+    elif [[ $runtype == "eigen" ]]; then
+        python3 compare_ray.py $1
+        m_check_fail $? $1
     elif [[ $runtype == "arr" ]]; then
         python3 compare_arrivals.py $1
         m_check_fail $? $1
     else
-        echo "Automated checker not installed for $runtype runs"
+        echo "$runtype is not a valid run type (valid types are ray/tl/eigen/arr)"
     fi
 }
 

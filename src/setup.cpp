@@ -227,9 +227,9 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
             params.Beam, RecycledHS);
         ReadBoundary<false>(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
-            PRTFile, &params.bdinfo->top, true,  params.freqinfo.freq0, params.fT, params.atten); // AlTImetry
+            PRTFile, &params.bdinfo->top, true,  params.freqinfo->freq0, params.fT, params.atten); // AlTImetry
         ReadBoundary<false>(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
-            PRTFile, &params.bdinfo->bot, false, params.freqinfo.freq0, params.fT, params.atten); // BaThYmetry
+            PRTFile, &params.bdinfo->bot, false, params.freqinfo->freq0, params.fT, params.atten); // BaThYmetry
         ReadReflectionCoefficient(FileRoot, 
             params.Bdry->Bot.hs.Opt[0], params.Bdry->Top.hs.Opt[1], PRTFile, params.refl); // (top and bottom)
         params.beaminfo->SBPFlag = params.Beam->RunType[2];

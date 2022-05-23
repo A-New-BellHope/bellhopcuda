@@ -59,7 +59,7 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
 template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
     VEC23<O3D> x, VEC23<O3D> t, 
     BdryStateTopBot<O3D> &bds, const BdryInfoTopBot<O3D> *bdinfotb, BdryPtSmall &Bdry,
-    bool isTop)
+    bool isTop, bool isInit)
 {
     if constexpr(O3D){
         
@@ -131,7 +131,8 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         
     }else{
         // LP: Moved from RayUpdate (TraceRay2D)
-        if(!(    x.x < bds.lSeg.min || (x.x == bds.lSeg.min && t.x <  FL(0.0))
+        if(!isInit &&
+           !(    x.x < bds.lSeg.min || (x.x == bds.lSeg.min && t.x <  FL(0.0))
               || x.x > bds.lSeg.max || (x.x == bds.lSeg.max && t.x >= FL(0.0)) )){
             return;
         }
@@ -419,7 +420,7 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
 
 template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMode, real BdryDepth,
     PrintFileEmu &PRTFile, BdryInfoTopBot<O3D> *bdinfotb, bool isTop,
-    real freq, real fT, const AttenInfo &atten)
+    real freq, real fT, const AttenInfo *atten)
 {
     const char *s_atibty = isTop ? "ati" : "bty";
     const char *s_ATIBTY = isTop ? "ATI" : "BTY";

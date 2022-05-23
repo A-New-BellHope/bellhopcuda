@@ -76,9 +76,14 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         xs = vec2(FL(0.0), Pos->Sz[rinit.isz]); // x-y [LP: r-z] coordinate of the source
     }
     rinit.alpha = Angles->alpha[rinit.ialpha]; // initial angle
-    real beta   = Angles->beta[rinit.ibeta];
     rinit.SrcDeclAngle = RadDeg * rinit.alpha; // take-off declination angle in degrees
-    rinit.SrcAzimAngle = RadDeg * beta; // take-off azimuthal   angle in degrees
+    real beta;
+    if constexpr(O3D){
+        beta = Angles->beta[rinit.ibeta];
+        rinit.SrcAzimAngle = RadDeg * beta; // take-off azimuthal   angle in degrees
+    }else{
+        beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
+    }
     if constexpr(O3D && !R3D){
         org.xs = xs;
         org.tradial = vec2(STD::cos(beta), STD::sin(beta));
@@ -173,13 +178,22 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     }else{
         bds.top.Iseg = bds.bot.Iseg = 0;
     }
-    GetBdrySeg<O3D>(xs, point0.t, bds.top, &bdinfo->top, Bdry.Top, true ); // identify the top    segment above the source
-    GetBdrySeg<O3D>(xs, point0.t, bds.bot, &bdinfo->bot, Bdry.Bot, false); // identify the bottom segment below the source
+    GetBdrySeg<O3D>(xs, point0.t, bds.top, &bdinfo->top, Bdry.Top, true , true); // identify the top    segment above the source
+    GetBdrySeg<O3D>(xs, point0.t, bds.bot, &bdinfo->bot, Bdry.Bot, false, true); // identify the bottom segment below the source
     
     Distances<R3D>(point0.x, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
     
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)){
         printf("Terminating the ray trace because the source is on or outside the boundaries\n");
+        if(DistBegTop <= FL(0.0)){
+            printf("point0.x %f,%f bds.top.x %f,%f bds.top.n %f,%f DistBegTop %f\n",
+                point0.x.x, point0.x.y, bds.top.x.x, bds.top.x.y,
+                bds.top.n.x, bds.top.n.y, DistBegTop);
+        }else{
+            printf("point0.x %f,%f bds.bot.x %f,%f bds.bot.n %f,%f DistBegBot %f\n",
+                point0.x.x, point0.x.y, bds.bot.x.x, bds.bot.x.y,
+                bds.bot.n.x, bds.bot.n.y, DistBegBot);
+        }
         return false; // source must be within the medium
     }
     
@@ -209,8 +223,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
     
     VEC23<O3D> x_o = RayToOceanX(point1.x, org);
     VEC23<O3D> t_o = RayToOceanT(point1.t, org);
-    GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true);
-    GetBdrySeg<O3D>(x_o, t_o, bds.bot, &bdinfo->bot, Bdry.Bot, false);
+    GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true , false);
+    GetBdrySeg<O3D>(x_o, t_o, bds.bot, &bdinfo->bot, Bdry.Bot, false, false);
     
     // Reflections?
     // Tests that ray at step is is inside, and ray at step is+1 is outside
