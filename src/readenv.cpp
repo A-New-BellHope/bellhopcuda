@@ -168,7 +168,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
  */
 void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    Position *Pos)
+    Position *Pos, bool r3d)
 {
     LIST(ENVFile); ENVFile.Read(RunType, 7);
     PRTFile << "\n";
@@ -233,11 +233,18 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
 
     switch(RunType[5]){
     case '2':
-       PRTFile << "N x 2D calculation (neglects horizontal refraction)\n"; break;
+       PRTFile << "N x 2D calculation (neglects horizontal refraction)\n";
+       if(!r3d){
+           std::cout << "This is a 2D or Nx2D environment file, but you are running " BHC_PROGRAMNAME " in 3D mode\n";
+           std::abort();
+       }
+       break;
     case '3':
-       //PRTFile << "3D calculation\n";
-       std::cout << "3D calculation not supported\n";
-       RunType[5] = '2';
+       PRTFile << "3D calculation\n";
+       if(r3d){
+           std::cout << "This is a 3D environment file, but you are running " BHC_PROGRAMNAME " in 2D or Nx2D mode\n";
+           std::abort();
+       }
        break;
     default:
        RunType[5] = '2';
@@ -247,7 +254,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
 void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
-    HSInfo &RecycledHS)
+    HSInfo &RecycledHS, bool r3d)
 {
     //const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;
@@ -350,7 +357,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     ReadSzRz(ZMin, ZMax, ENVFile, PRTFile, Pos);
     ReadRcvrRanges(ENVFile, PRTFile, Pos);
     ReadfreqVec(Bdry->Top.hs.Opt[5], ENVFile, PRTFile, freqinfo);
-    ReadRunType(Beam->RunType, PlotType, ENVFile, PRTFile, Pos);
+    ReadRunType(Beam->RunType, PlotType, ENVFile, PRTFile, Pos, r3d);
     
     Depth = ZMax - ZMin; // water depth
     ReadRayElevationAngles(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, Beam->RunType, 

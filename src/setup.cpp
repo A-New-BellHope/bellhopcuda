@@ -34,8 +34,9 @@ bool api_okay = false;
 
 constexpr bool Init_Inline = false;
 
-BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams &params, bhcOutputs &outputs)
+template<bool O3D, bool R3D> bool setup(
+    const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     api_okay = true;
     params.internal = new PrintFileEmu(FileRoot, outputCallback);
@@ -49,7 +50,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
 
     // Allocate main structs
     params.Bdry = allocate<BdryType>();
-    params.bdinfo = allocate<BdryInfo<false>>();
+    params.bdinfo = allocate<BdryInfo<O3D>>();
     params.refl = allocate<ReflectionInfo>();
     params.ssp = allocate<SSPStructure>();
     params.atten = allocate<AttenInfo>();
@@ -58,7 +59,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     params.freqinfo = allocate<FreqInfo>();
     params.Beam = allocate<BeamStructure>();
     params.beaminfo = allocate<BeamInfo>();
-    outputs.rayinfo = allocate<RayInfo>();
+    outputs.rayinfo = allocate<RayInfo<O3D, R3D>>();
     outputs.eigen = allocate<EigenInfo>();
     outputs.arrinfo = allocate<ArrInfo>();
     HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
@@ -100,8 +101,15 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     // Fill in default / "constructor" data
     params.fT = RL(1.0e20);
     //Bdry: none
-    params.bdinfo->top.NPts = 2;
-    params.bdinfo->bot.NPts = 2;
+    if constexpr(O3D){
+        params.bdinfo->top.NPts.x = 2;
+        params.bdinfo->top.NPts.y = 2;
+        params.bdinfo->bot.NPts.x = 2;
+        params.bdinfo->bot.NPts.y = 2;
+    }else{
+        params.bdinfo->top.NPts = 2;
+        params.bdinfo->bot.NPts = 2;
+    }
     memcpy(params.bdinfo->top.type, "LS", 2);
     memcpy(params.bdinfo->bot.type, "LS", 2);
     //params.refl: none
@@ -135,7 +143,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     RecycledHS.betaI = FL(0.0);
     RecycledHS.rho = FL(1.0);
     
-    if(Init_Inline){
+    if constexpr(!O3D && !R3D && Init_Inline){
         // NPts, Sigma not used by BELLHOP
         std::string TempTitle = BHC_PROGRAMNAME "- Calibration case with envfil passed as parameters";
         size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
@@ -225,10 +233,10 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     }else{
         ReadEnvironment(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
-            params.Beam, RecycledHS);
-        ReadBoundary<false>(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
+            params.Beam, RecycledHS, R3D);
+        ReadBoundary<O3D>(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
             PRTFile, &params.bdinfo->top, true,  params.freqinfo->freq0, params.fT, params.atten); // AlTImetry
-        ReadBoundary<false>(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
+        ReadBoundary<O3D>(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
             PRTFile, &params.bdinfo->bot, false, params.freqinfo->freq0, params.fT, params.atten); // BaThYmetry
         ReadReflectionCoefficient(FileRoot, 
             params.Bdry->Bot.hs.Opt[0], params.Bdry->Top.hs.Opt[1], PRTFile, params.refl); // (top and bottom)
@@ -263,7 +271,9 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     if(params.Beam->deltas == FL(0.0)){
          // Automatic step size selection
         params.Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth) / FL(10.0);
-        PRTFile << "\n Step length,       deltas = " << params.Beam->deltas << " m (automatically selected)\n";
+        if constexpr(!O3D){
+            PRTFile << "\n Step length,       deltas = " << params.Beam->deltas << " m (automatically selected)\n";
+        }
     }
     
     for(int32_t i=0; i<params.Angles->Nalpha; ++i)
@@ -271,7 +281,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     params.Angles->Dalpha = FL(0.0);
     if(params.Angles->Nalpha != 1)
         params.Angles->Dalpha = (params.Angles->alpha[params.Angles->Nalpha-1] 
-            - params.Angles->alpha[0]) / (params.Angles->Nalpha-1);
+            - params.Angles->alpha[0]) / (params.Angles->Nalpha-1); // angular spacing between beams
     
     PRTFile << "\n";
     
@@ -283,7 +293,18 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     return api_okay;
 }
 
-BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
+BHC_API template bool setup<false, false>(
+    const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+BHC_API template bool setup<true, false>(
+    const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+BHC_API template bool setup<true, true>(
+    const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+
+template<bool O3D, bool R3D> void finalize(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     // IMPORTANT--if changes are made here, make the same changes in setup
     // (i.e. setting the pointers to nullptr initially)
@@ -341,5 +362,12 @@ BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
     checkdeallocate(outputs.eigen);
     checkdeallocate(outputs.arrinfo);
 }
+
+BHC_API template void finalize<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+BHC_API template void finalize<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+BHC_API template void finalize<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 }

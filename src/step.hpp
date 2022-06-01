@@ -504,7 +504,7 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
         real cn1jump = glm::dot(gradcjump, rayn1);
         real cn2jump = glm::dot(gradcjump, rayn2);
         real csjump  = glm::dot(gradcjump, rayt);
-        CurvatureCorrection3D<false>(ray, mat2x2(RL(0.0)), gradcjump, Tg, Th, 
+        CurvatureCorrection3D<false>(ray, mat2x2(RL(0.0)), Tg, Th, 
             cn1jump, cn2jump, csjump, rayn1, rayn2, rayt);
     }else{
         // LP: 2D-3D only:
@@ -538,7 +538,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
 {
     rayPt<R3D> ray1;
-    SSPOutputs<O3D> o0, o1, o2;
+    SSPOutputs<R3D> o0, o1, o2;
     StepPartials<R3D> part0, part1;
     rayPtExtras<R3D> pq0, pq1;
     VEC23<R3D> urayt0, urayt1;

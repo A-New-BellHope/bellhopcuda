@@ -34,7 +34,14 @@ inline void InitTLMode(cpxf *&uAllSources, const Position *Pos)
     memset(uAllSources, 0, n * sizeof(cpxf));
 }
 
-void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &outputs);
+template<bool O3D, bool R3D> void FinalizeTLMode(
+    std::string FileRoot, const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+extern template void FinalizeTLMode<false, false>(
+    std::string FileRoot, const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+extern template void FinalizeTLMode<true, false>(
+    std::string FileRoot, const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+extern template void FinalizeTLMode<true, true>(
+    std::string FileRoot, const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 /**
  * Main ray tracing function for TL, eigen, and arrivals runs.

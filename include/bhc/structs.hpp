@@ -356,17 +356,18 @@ template<> struct StepPartials<true> {
     real cnn, cmn, cmm;
 };
 
-struct RayResult {
-    rayPt<false> *ray;
+template<bool O3D, bool R3D> struct RayResult {
+    rayPt<R3D> *ray;
+    Origin<O3D, R3D> org;
     real SrcDeclAngle;
     int32_t Nsteps;
 };
 
-struct RayInfo {
-    rayPt<false> *raymem;
+template<bool O3D, bool R3D> struct RayInfo {
+    rayPt<R3D> *raymem;
     uint32_t NPoints;
     uint32_t MaxPoints;
-    RayResult *results;
+    RayResult<O3D, R3D> *results;
     int32_t NRays;
 };
 
@@ -380,11 +381,11 @@ struct RayInitInfo {
 //Meta-structures
 ////////////////////////////////////////////////////////////////////////////////
 
-struct bhcParams {
+template<bool O3D, bool R3D> struct bhcParams {
     char Title[80]; // Size determined by WriteHeader for TL
     real fT;
     BdryType *Bdry;
-    BdryInfo<false> *bdinfo;
+    BdryInfo<O3D> *bdinfo;
     ReflectionInfo *refl;
     SSPStructure *ssp;
     AttenInfo *atten;
@@ -397,8 +398,8 @@ struct bhcParams {
     void *internal;
 };
 
-struct bhcOutputs {
-    RayInfo *rayinfo;
+template<bool O3D, bool R3D> struct bhcOutputs {
+    RayInfo<O3D, R3D> *rayinfo;
     cpxf *uAllSources;
     EigenInfo *eigen;
     ArrInfo *arrinfo;

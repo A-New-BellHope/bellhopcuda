@@ -31,10 +31,11 @@ static std::string exceptionStr;
 
 // Ray mode
 
-void RayModeWorker(const bhcParams &params, bhcOutputs &outputs)
+template<bool O3D, bool R3D> void RayModeWorker(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    rayPt<false> *localmem = nullptr;
-    if(IsRayCopyMode(outputs.rayinfo)) localmem = new rayPt<false>[MaxN];
+    rayPt<R3D> *localmem = nullptr;
+    if(IsRayCopyMode(outputs.rayinfo)) localmem = new rayPt<R3D>[MaxN];
     
     try{
         
@@ -42,8 +43,8 @@ void RayModeWorker(const bhcParams &params, bhcOutputs &outputs)
         int32_t job = jobID++;
         int32_t Nsteps = -1;
         RayInitInfo rinit;
-        if(!GetJobIndices(rinit, job, params.Pos, params.Angles)) break;
-        if(!RunRay(outputs.rayinfo, params, localmem, job, rinit, Nsteps)) break;
+        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
+        if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)) break;
     }
     
     }catch(const std::exception &e){
@@ -54,18 +55,26 @@ void RayModeWorker(const bhcParams &params, bhcOutputs &outputs)
     if(IsRayCopyMode(outputs.rayinfo)) delete[] localmem;
 }
 
+template void RayModeWorker<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+template void RayModeWorker<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+template void RayModeWorker<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+
+/*
 // TL mode
 
 cpxf *uAllSources;
 
-void FieldModesWorker(const bhcParams &params, bhcOutputs &outputs)
+void FieldModesWorker(const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs)
 {
     try{
     
     while(true){
         int32_t job = jobID++;
         RayInitInfo rinit;
-        if(!GetJobIndices(rinit, job, params.Pos, params.Angles)) break;
+        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
         
         MainFieldModes(rinit, outputs.uAllSources,
             params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
@@ -78,20 +87,22 @@ void FieldModesWorker(const bhcParams &params, bhcOutputs &outputs)
         exceptionStr += std::string(e.what()) + "\n";
     }
 }
+*/
 
-bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
+template<bool O3D, bool R3D> bool run_cxx(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     if(!api_okay) return false;
     exceptionStr = "";
     
     try{
     
-    InitSelectedMode(params, outputs, singlethread);
+    InitSelectedMode<O3D, R3D>(params, outputs, singlethread);
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
     for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(
-        params.Beam->RunType[0] == 'R' ? RayModeWorker : FieldModesWorker,
+        /*params.Beam->RunType[0] == 'R' ? */ RayModeWorker<O3D, R3D> /*: FieldModesWorker*/,
         std::cref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
     
@@ -106,11 +117,28 @@ bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
     return api_okay;
 }
 
+template bool run_cxx<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+template bool run_cxx<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+template bool run_cxx<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+
 #ifndef BHC_BUILD_CUDA
-BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
+
+template<bool O3D, bool R3D> bool run(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     return run_cxx(params, outputs, singlethread);
 }
+
+BHC_API template bool run<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+BHC_API template bool run<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+BHC_API template bool run<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+
 #endif
 
 }

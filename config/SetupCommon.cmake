@@ -83,12 +83,12 @@ set(COMMON_SOURCE
     boundary.hpp
     common.hpp
     curves.hpp
-    eigenrays.cpp
-    eigenrays.hpp
+    #eigenrays.cpp
+    #eigenrays.hpp
     influence.hpp
+    jobs.hpp
     ldio.hpp
     prtfileemu.hpp
-    raymode.cpp
     raymode.hpp
     readenv.cpp
     readenv.hpp
@@ -100,8 +100,8 @@ set(COMMON_SOURCE
     ssp.cpp
     ssp.hpp
     step.hpp
-    tlmode.cpp
-    tlmode.hpp
+    # tlmode.cpp
+    # tlmode.hpp
     trace.hpp
 )
 

@@ -26,7 +26,7 @@ FieldModesKernel(bhcParams params, bhcOutputs outputs)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
         RayInitInfo rinit;
-        if(!GetJobIndices(rinit, job, params.Pos, params.Angles)) break;
+        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
         
         MainFieldModes(rinit, outputs.uAllSources,
             params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
@@ -78,7 +78,7 @@ bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
     
     try{
     
-    InitSelectedMode(params, outputs, false);
+    InitSelectedMode<O3D, R3D>(params, outputs, false);
     FieldModesKernel<<<d_multiprocs,512>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel");
     

@@ -170,8 +170,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCur
             + FL(2.0) * rcurv.kappa_xy * org.tradial.x * org.tradial.y
             + rcurv.kappa_yy * SQ(org.tradial.y);
         if(isTop) rcurv_out.kappa = -rcurv_out.kappa;
+        return rcurv_out;
     }else{
-        (void)isTop; // LP: suppress incorrect warning stating parameter is unused
+        IGNORE_UNUSED(isTop);
         return rcurv;
     }
 }
@@ -213,7 +214,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     newPoint.NumTopBnc = oldPoint.NumTopBnc + (int)isTop;
     newPoint.NumBotBnc = oldPoint.NumBotBnc + (1 - (int)isTop);
     newPoint.x         = oldPoint.x;
-    newPoint.t         = oldPoint.t - FL(2.0) * Th * nBdry; // changing the ray direction
+    newPoint.t         = oldPoint.t - FL(2.0) * Th * nBdry_ray; // changing the ray direction
     
     // Calculate the change in curvature
     // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
@@ -242,10 +243,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         RotMat[1] = n_rot;
         
         mat2x2 kappaMat; // LP: not clear why divided by 2 and then multiplied by 2
-        kappaMat[0][0] = rcurv.z_xx / FL(2.0);
-        kappaMat[1][0] = rcurv.z_xy / FL(2.0);
-        kappaMat[0][1] = rcurv.z_xy / FL(2.0);
-        kappaMat[1][1] = rcurv.z_xy / FL(2.0);
+        kappaMat[0][0] = rcurv_ray.z_xx / FL(2.0);
+        kappaMat[1][0] = rcurv_ray.z_xy / FL(2.0);
+        kappaMat[0][1] = rcurv_ray.z_xy / FL(2.0);
+        kappaMat[1][1] = rcurv_ray.z_xy / FL(2.0);
         
         // apply the rotation to get the matrix D of curvatures (see Popov 1977 for definition of DMat)
         // DMat = RotMat^T * kappaMat * RotMat, with RotMat anti-symmetric
@@ -268,7 +269,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         newPoint.q    = oldPoint.q;
         newPoint.phi  = oldPoint.phi;
         newPoint.DetQ = DEBUG_LARGEVAL; // LP: never set
-        CurvatureCorrection3D<true>(newPoint, DMat, o.gradc, Tg, Th,
+        CurvatureCorrection3D<true>(newPoint, DMat, Tg, Th,
             cn1jump, cn2jump, csjump, rayn1, rayn2, rayt);
         
     }else{

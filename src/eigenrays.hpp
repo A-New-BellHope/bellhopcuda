@@ -43,7 +43,17 @@ inline void InitEigenMode(EigenInfo *eigen)
     checkallocate(eigen->hits, maxhits);
 }
 
-void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs, 
+template<bool O3D, bool R3D> void FinalizeEigenMode(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    std::string FileRoot, bool singlethread);
+extern template void FinalizeEigenMode<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
+    std::string FileRoot, bool singlethread);
+extern template void FinalizeEigenMode<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
+    std::string FileRoot, bool singlethread);
+extern template void FinalizeEigenMode<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
     std::string FileRoot, bool singlethread);
 
 }

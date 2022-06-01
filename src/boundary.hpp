@@ -478,6 +478,8 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
         }
         
         if constexpr(O3D){
+            IGNORE_UNUSED(s_risesdrops);
+            
             // x values
             LIST(BDRYFile); BDRYFile.Read(bdinfotb->NPts.x);
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x-direction "
@@ -628,7 +630,7 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
         }break;
     default:
         if constexpr(O3D){
-            bdinfotb->atiType[0] = 'R';
+            bdinfotb->type[0] = 'R';
             bdinfotb->NPts = int2(2, 2);
             checkallocate(bdinfotb->bd, 2*2);
             
@@ -673,19 +675,25 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
     // LP: TODO/BUG: 3D version has initialization for xTopSeg / yTopSeg here,
     // which probably also means state is carried over from one ray to the next
     
-    // convert range-dependent geoacoustic parameters from user to program units
-    // LP: Moved from setup.
-    if(bdinfotb->type[1] == 'L'){
-        for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg){
-            // compressional wave speed
-            bdinfotb->bd[iSeg].hs.cP = crci(RL(1.0e20),
-                bdinfotb->bd[iSeg].hs.alphaR, bdinfotb->bd[iSeg].hs.alphaI,
-                freq, freq, {'W', ' '}, betaPowerLaw, fT, atten, PRTFile);
-            // shear         wave speed
-            bdinfotb->bd[iSeg].hs.cS = crci(RL(1.0e20),
-                bdinfotb->bd[iSeg].hs.betaR, bdinfotb->bd[iSeg].hs.betaI, 
-                freq, freq, {'W', ' '}, betaPowerLaw, fT, atten, PRTFile);
+    if constexpr(!O3D){
+        // convert range-dependent geoacoustic parameters from user to program units
+        // LP: Moved from setup.
+        if(bdinfotb->type[1] == 'L'){
+            for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg){
+                // compressional wave speed
+                bdinfotb->bd[iSeg].hs.cP = crci(RL(1.0e20),
+                    bdinfotb->bd[iSeg].hs.alphaR, bdinfotb->bd[iSeg].hs.alphaI,
+                    freq, freq, {'W', ' '}, betaPowerLaw, fT, atten, PRTFile);
+                // shear         wave speed
+                bdinfotb->bd[iSeg].hs.cS = crci(RL(1.0e20),
+                    bdinfotb->bd[iSeg].hs.betaR, bdinfotb->bd[iSeg].hs.betaI, 
+                    freq, freq, {'W', ' '}, betaPowerLaw, fT, atten, PRTFile);
+            }
         }
+    }else{
+        IGNORE_UNUSED(freq);
+        IGNORE_UNUSED(fT);
+        IGNORE_UNUSED(atten);
     }
 }
 

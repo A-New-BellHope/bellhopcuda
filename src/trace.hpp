@@ -50,8 +50,8 @@ template<bool R3D> HOST_DEVICE inline void Distances(const VEC23<R3D> &rayx,
  * DistBegTop etc.: Distances from ray beginning, end to top and bottom
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
-    RayInitInfo &rinit, VEC23<R3D> &xs, 
-    rayPt<R3D> &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
+    RayInitInfo &rinit, VEC23<O3D> &xs, 
+    rayPt<R3D> &point0, VEC23<O3D> &gradc, real &DistBegTop, real &DistBegBot, 
     Origin<O3D, R3D> &org, SSPSegState &iSeg, BdryState<O3D> &bds, BdryType &Bdry,
     const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
@@ -101,7 +101,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         tinit = vec2(STD::cos(rinit.alpha), STD::sin(rinit.alpha));
     }
     SSPOutputs<O3D> o;
-    EvaluateSSP<O3D, R3D>(xs, tinit, o, org, ssp, iSeg);
+    EvaluateSSP<O3D, O3D>(xs, tinit, o, Origin<O3D,O3D>(), ssp, iSeg); // LP: O3D,O3D not a typo
     gradc = o.gradc;
     
     bool TODO_PickEpsilon;
@@ -178,8 +178,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     }else{
         bds.top.Iseg = bds.bot.Iseg = 0;
     }
-    GetBdrySeg<O3D>(xs, point0.t, bds.top, &bdinfo->top, Bdry.Top, true , true); // identify the top    segment above the source
-    GetBdrySeg<O3D>(xs, point0.t, bds.bot, &bdinfo->bot, Bdry.Bot, false, true); // identify the bottom segment below the source
+    GetBdrySeg<O3D>(xs, RayToOceanT(point0.t, org), bds.top, &bdinfo->top, Bdry.Top, true , true); // identify the top    segment above the source
+    GetBdrySeg<O3D>(xs, RayToOceanT(point0.t, org), bds.bot, &bdinfo->bot, Bdry.Bot, false, true); // identify the bottom segment below the source
     
     Distances<R3D>(point0.x, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
     
@@ -247,8 +247,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
         if constexpr(O3D){
             // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
             if(bdi.type[0] == 'C'){
-                real s1 = (x_o.x - bdstb.x) / (bdstb.lSeg.x.max - bdstb.lSeg.x.min);
-                real s2 = (x_o.y - bdstb.y) / (bdstb.lSeg.y.max - bdstb.lSeg.y.min);
+                real s1 = (x_o.x - bdstb.x.x) / (bdstb.lSeg.x.max - bdstb.lSeg.x.min);
+                real s2 = (x_o.y - bdstb.x.y) / (bdstb.lSeg.y.max - bdstb.lSeg.y.min);
                 real m1 = FL(1.0) - s1;
                 real m2 = FL(1.0) - s2;
                 
@@ -309,7 +309,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const rayPt<R3D> &point, int32_t &Nsteps, int32_t is,
-    const VEC23<R3D> &xs, const int32_t &iSmallStepCtr,
+    const VEC23<O3D> &xs, const int32_t &iSmallStepCtr,
     real &DistBegTop, real &DistBegBot, const real &DistEndTop, const real &DistEndBot,
     const Origin<O3D, R3D> &org, const BdryInfo<O3D> *bdinfo, const BeamStructure *Beam
     )
@@ -332,7 +332,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         escapedboundaries = escaped0bdry || escapedNbdry;
         toomanysmallsteps = iSmallStepCtr > 50;
     }else{
-        (void)bdinfo; // Suppress incorrect unused warning
+        IGNORE_UNUSED(bdinfo);
         leftbox = STD::abs(point.x.x) > Beam->Box.r ||
                   STD::abs(point.x.y) > Beam->Box.z;
         escaped0bdry = escapedNbdry = false;

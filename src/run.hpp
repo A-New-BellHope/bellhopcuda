@@ -19,36 +19,16 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "common.hpp"
 #include "raymode.hpp"
+/*
 #include "tlmode.hpp"
 #include "eigenrays.hpp"
 #include "arrivals.hpp"
+*/
 
 namespace bhc {
 
-HOST_DEVICE inline int32_t GetNumJobs(const Position *Pos, const AnglesStructure *Angles)
-{
-    return Pos->NSz * (Angles->iSingle_alpha >= 1 ? 1 : Angles->Nalpha);
-}
-
-/**
- * Returns whether the job should continue.
- * `is` changed to `isrc` because `is` is used for steps
- */
-HOST_DEVICE inline bool GetJobIndices(RayInitInfo &rinit, int32_t job,
-    const Position *Pos, const AnglesStructure *Angles)
-{
-    if(Angles->iSingle_alpha >= 1){
-        rinit.isz = job;
-        rinit.ialpha = Angles->iSingle_alpha - 1; // iSingle_alpha is 1-indexed because how defined in env file
-    }else{
-        rinit.isz = job / Angles->Nalpha;
-        rinit.ialpha = job % Angles->Nalpha;
-    }
-    rinit.isx = rinit.isy = rinit.ibeta = -1234567; // TODO
-    return (rinit.isz < Pos->NSz);
-}
-
-inline void InitSelectedMode(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
+template<bool O3D, bool R3D> inline void InitSelectedMode(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     // Common
     // irregular or rectilinear grid
@@ -56,19 +36,27 @@ inline void InitSelectedMode(const bhcParams &params, bhcOutputs &outputs, bool 
     
     // Mode specific
     if(params.Beam->RunType[0] == 'R'){
-        InitRayMode(outputs.rayinfo, params);
-    }else if(params.Beam->RunType[0] == 'C' || params.Beam->RunType[0] == 'S' || params.Beam->RunType[0] == 'I'){
+        InitRayMode<O3D, R3D>(outputs.rayinfo, params);
+    }/*else if(params.Beam->RunType[0] == 'C' || params.Beam->RunType[0] == 'S' || params.Beam->RunType[0] == 'I'){
         InitTLMode(outputs.uAllSources, params.Pos);
     }else if(params.Beam->RunType[0] == 'E'){
         InitEigenMode(outputs.eigen);
     }else if(params.Beam->RunType[0] == 'A' || params.Beam->RunType[0] == 'a'){
         InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, *(PrintFileEmu*)params.internal);
-    }else{
+    }*/else{
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         std::abort();
     }
 }
 
-bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread);
+template<bool O3D, bool R3D> bool run_cxx(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
+extern template bool run_cxx<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+extern template bool run_cxx<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+extern template bool run_cxx<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+
 
 }
