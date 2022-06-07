@@ -25,9 +25,9 @@ template<bool O3D> HOST_DEVICE inline int32_t GetNumJobs(
     const Position *Pos, const AnglesStructure *Angles)
 {
     int32_t ret = 1;
-    if(Angles->iSingle_alpha == 0) ret *= Angles->Nalpha;
+    if(Angles->alpha.iSingle == 0) ret *= Angles->alpha.n;
     if constexpr(O3D){
-        if(Angles->iSingle_beta == 0) ret *= Angles->Nbeta;
+        if(Angles->beta.iSingle == 0) ret *= Angles->beta.n;
         ret *= Pos->NSy;
         ret *= Pos->NSx;
     }
@@ -42,18 +42,18 @@ template<bool O3D> HOST_DEVICE inline int32_t GetNumJobs(
 template<bool O3D> HOST_DEVICE inline bool GetJobIndices(RayInitInfo &rinit, int32_t job,
     const Position *Pos, const AnglesStructure *Angles)
 {
-    if(Angles->iSingle_alpha >= 1){
-        rinit.ialpha = Angles->iSingle_alpha - 1; // iSingle_alpha is 1-indexed because how defined in env file
+    if(Angles->alpha.iSingle >= 1){
+        rinit.ialpha = Angles->alpha.iSingle - 1; // iSingle is 1-indexed because how defined in env file
     }else{
-        rinit.ialpha = job % Angles->Nalpha;
-        job /= Angles->Nalpha;
+        rinit.ialpha = job % Angles->alpha.n;
+        job /= Angles->alpha.n;
     }
     if constexpr(O3D){
-        if(Angles->iSingle_beta >= 1){
-            rinit.ibeta = Angles->iSingle_beta - 1;
+        if(Angles->beta.iSingle >= 1){
+            rinit.ibeta = Angles->beta.iSingle - 1;
         }else{
-            rinit.ibeta = job % Angles->Nbeta;
-            job /= Angles->Nbeta;
+            rinit.ibeta = job % Angles->beta.n;
+            job /= Angles->beta.n;
         }
         rinit.isy = job % Pos->NSy;
         job /= Pos->NSy;

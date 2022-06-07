@@ -78,7 +78,7 @@ template<bool O3D, bool R3D> inline void OpenRAYFile(
     RAYFile << params.Title << '\n';
     RAYFile << params.freqinfo->freq0 << '\n';
     RAYFile << params.Pos->NSx << params.Pos->NSy << params.Pos->NSz << '\n';
-    RAYFile << params.Angles->Nalpha << params.Angles->Nbeta << '\n';
+    RAYFile << params.Angles->alpha.n << params.Angles->beta.n << '\n';
     RAYFile << params.Bdry->Top.hs.Depth << '\n';
     RAYFile << params.Bdry->Bot.hs.Depth << '\n';
     RAYFile << (O3D ? "xyz" : "rz") << '\n';

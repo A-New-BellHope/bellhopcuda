@@ -385,7 +385,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
     inflray.RadMax = FL(50.0) * point0.c / freqinfo->freq0; // 50 wavelength max radius
     inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
     inflray.SrcDeclAngle = rinit.SrcDeclAngle;
-    inflray.Dalpha = Angles->Dalpha;
+    inflray.Dalpha = Angles->alpha.d;
     if(Beam->RunType[3] == 'R'){
         // LP: Did not have the abs for SGB, but it has been added.
         inflray.Ratio1 = STD::sqrt(STD::abs(STD::cos(rinit.alpha))); // point source
@@ -394,7 +394,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
     }
     if(Beam->Type[0] == 'R' || Beam->Type[0] == 'C'){
         inflray.epsilon = PickEpsilon(Beam->Type[0], Beam->Type[1], inflray.omega,
-            point0.c, gradc, rinit.alpha, Angles->Dalpha, Beam->rLoop, Beam->epsMultiplier);
+            point0.c, gradc, rinit.alpha, Angles->alpha.d, Beam->rLoop, Beam->epsMultiplier);
     }
     
     // LP: For all except Cerveny

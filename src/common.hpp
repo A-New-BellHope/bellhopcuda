@@ -167,6 +167,8 @@ if(!(statement)){ \
 // should have one or the other macro on it, making it easier to spot errors.
 #define FL(a) (a##f)
 
+#define CHECK_REAL_T() static_assert(std::is_floating_point<REAL>::value, "Invalid type for REAL!")
+
 ////////////////////////////////////////////////////////////////////////////////
 //Complex types
 ////////////////////////////////////////////////////////////////////////////////
@@ -212,6 +214,7 @@ constexpr real RadDeg = RL(180.0) / REAL_PI;
 constexpr real DegRad = REAL_PI / RL(180.0);
 
 template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v){
+    CHECK_REAL_T();
 	return STD::abs(STD::nextafter(v, (REAL)(0.0f)) - v);
 }
 
@@ -466,6 +469,7 @@ template<> inline void Sort(cpx *arr, size_t n){
  * mbp: tests whether an input vector is strictly monotonically increasing
  */
 template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n){
+    CHECK_REAL_T();
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
 		if(arr[i+1] <= arr[i]) return false;
@@ -483,6 +487,7 @@ template<typename VEC2> HOST_DEVICE inline bool monotonic(VEC2 *arr, size_t n,
 template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n,
 	const int32_t stridereals, const int32_t offset)
 {
+    CHECK_REAL_T();
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
 		if(arr[(i+1)*stridereals+offset] <= arr[i*stridereals+offset]) return false;
@@ -501,6 +506,7 @@ template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n,
 template<typename REAL> HOST_DEVICE inline int32_t BinarySearchLEQ(REAL *arr, 
 	int32_t n, const int32_t stride, const int32_t offset, real target)
 {
+    CHECK_REAL_T();
 	int32_t low = 0; //Low is included
 	int32_t hi = n; //Hi is excluded
 	while(low < hi){
@@ -529,6 +535,7 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchLEQ(REAL *arr,
 template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGEQ(REAL *arr,
 	int32_t n, const int32_t stride, const int32_t offset, real target)
 {
+    CHECK_REAL_T();
 	int32_t low = -1; //Low is excluded
 	int32_t hi = n-1; //Hi is included
 	while(low < hi){
@@ -557,6 +564,7 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGEQ(REAL *arr,
 template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGT(REAL *arr,
 	int32_t n, const int32_t stride, const int32_t offset, real target)
 {
+    CHECK_REAL_T();
 	int32_t low = -1; //Low is excluded
 	int32_t hi = n-1; //Hi is included
 	while(low < hi){
@@ -579,6 +587,7 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGT(REAL *arr,
  */
 template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *angles,
 	int32_t &n){
+    CHECK_REAL_T();
 	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], FL(360.0)))
             < FL(10.0) * spacing(RL(1.0)))
         --n;
@@ -587,6 +596,7 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *ang
 template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv,
     PrintFileEmu &PRTFile, int32_t NEcho = 10)
 {
+    CHECK_REAL_T();
     PRTFile << std::setprecision(6);
     for(int32_t i=0, r=0; i<bhc::min(Nv, NEcho); ++i){
         PRTFile << std::setw(14) << v[i] << " ";
@@ -607,6 +617,7 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv,
 
 template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 {
+    CHECK_REAL_T();
     if(Nx >= 3){
         if(STD::abs(x[2] - (REAL)(-999.9f)) < (REAL)(0.01f)){ 
             if(STD::abs(x[1] - (REAL)(-999.9f)) < (REAL)(0.01f)) x[1] = x[0];

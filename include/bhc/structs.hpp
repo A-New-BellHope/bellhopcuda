@@ -230,11 +230,15 @@ struct Position {
 //Source angles
 ////////////////////////////////////////////////////////////////////////////////
 
+struct AngleInfo {
+    int32_t n, iSingle;
+    real d; // angular spacing between beams
+    real *angles;
+};
+
 struct AnglesStructure {
-    int32_t Nalpha, Nbeta, iSingle_alpha, iSingle_beta;
-    real Dalpha, Dbeta; // angular spacing between beams
-    real *alpha; // LP: elevation angles
-    real *beta; // LP: azimuth angles
+    AngleInfo alpha; // LP: elevation angles
+    AngleInfo beta; // LP: azimuth angles
 };
 
 ////////////////////////////////////////////////////////////////////////////////

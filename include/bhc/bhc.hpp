@@ -72,16 +72,16 @@ BHC_API extern template bool setup<true, true>(
     
 /**
  * Runs the selected run type and places the results in the appropriate struct
- * within outputs. outputs need not be initialized prior to the call.
+ * within outputs.
  * 
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
  * 
- * Don't call this from multiple threads at the same time (e.g. with different
- * parameters); there is only one static copy of the functionality for
- * synchronizing the different threads launched by these functions, so this will
- * not work correctly from multiple calls simultaneously. Don't do this even
- * if singlethread is set.
+ * Don't call this from multiple threads at the same time (with different
+ * parameters or in different 2D / Nx2D / 3D modes); there is only one static
+ * copy of the functionality for synchronizing the different threads launched by
+ * these functions, so this will not work correctly from multiple calls
+ * simultaneously. Don't do this even if singlethread is set.
  */
 template<bool O3D, bool R3D> bool run(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);

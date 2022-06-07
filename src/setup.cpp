@@ -87,8 +87,8 @@ template<bool O3D, bool R3D> bool setup(
     params.Pos->ws = nullptr;
     params.Pos->wr = nullptr;
     params.Pos->theta = nullptr;
-    params.Angles->alpha = nullptr;
-    params.Angles->beta = nullptr;
+    params.Angles->alpha.angles = nullptr;
+    params.Angles->beta.angles = nullptr;
     params.freqinfo->freqVec = nullptr;
     params.beaminfo->SrcBmPat = nullptr;
     outputs.rayinfo->raymem = nullptr;
@@ -120,13 +120,13 @@ template<bool O3D, bool R3D> bool setup(
     params.atten->z_bar = FL(0.0);
     params.Pos->NSx = 1;
     params.Pos->NSy = 1;
-    params.Angles->Nalpha = 0;
-    params.Angles->Nbeta = 1;
+    params.Angles->alpha.n = 0;
+    params.Angles->beta.n = 1;
     //LP: not a typo; this is an index, one less than the start of the array,
     //which in Fortran (and in the env file!) is 0. This gets converted to 0-
     //indexed when it is used.
-    params.Angles->iSingle_alpha = 0;
-    params.Angles->iSingle_beta = 0;
+    params.Angles->alpha.iSingle = 0;
+    params.Angles->beta.iSingle = 0;
     //params.freqinfo: none
     params.Beam->epsMultiplier = FL(1.0);
     memcpy(params.Beam->Type, "G S ", 4);
@@ -196,10 +196,10 @@ template<bool O3D, bool R3D> bool setup(
         params.Beam->Box.z   = FL(101.0);
         params.Beam->Box.r   = FL(5100.0); // meters
         
-        params.Angles->Nalpha = 1789;
-        //params.Angles->alpha = {-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80}; // -89 89
-        for(int32_t jj=0; jj<params.Angles->Nalpha; ++jj){
-            params.Angles->alpha[jj] = (FL(180.0) / params.Angles->Nalpha) 
+        params.Angles->alpha.n = 1789;
+        //params.Angles->alpha.angles = {-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80}; // -89 89
+        for(int32_t jj=0; jj<params.Angles->alpha.n; ++jj){
+            params.Angles->alpha.angles[jj] = (FL(180.0) / params.Angles->alpha.n) 
                 * (real)jj - FL(90.0);
         }
         
@@ -233,7 +233,7 @@ template<bool O3D, bool R3D> bool setup(
     }else{
         ReadEnvironment(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
-            params.Beam, RecycledHS, R3D);
+            params.Beam, RecycledHS, O3D, R3D);
         ReadBoundary<O3D>(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
             PRTFile, &params.bdinfo->top, true,  params.freqinfo->freq0, params.fT, params.atten); // AlTImetry
         ReadBoundary<O3D>(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
@@ -275,13 +275,6 @@ template<bool O3D, bool R3D> bool setup(
             PRTFile << "\n Step length,       deltas = " << params.Beam->deltas << " m (automatically selected)\n";
         }
     }
-    
-    for(int32_t i=0; i<params.Angles->Nalpha; ++i)
-        params.Angles->alpha[i] *= DegRad; // convert to radians
-    params.Angles->Dalpha = FL(0.0);
-    if(params.Angles->Nalpha != 1)
-        params.Angles->Dalpha = (params.Angles->alpha[params.Angles->Nalpha-1] 
-            - params.Angles->alpha[0]) / (params.Angles->Nalpha-1); // angular spacing between beams
     
     PRTFile << "\n";
     
@@ -337,8 +330,8 @@ template<bool O3D, bool R3D> void finalize(
     checkdeallocate(params.Pos->ws);
     checkdeallocate(params.Pos->wr);
     checkdeallocate(params.Pos->theta);
-    checkdeallocate(params.Angles->alpha);
-    checkdeallocate(params.Angles->beta);
+    checkdeallocate(params.Angles->alpha.angles);
+    checkdeallocate(params.Angles->beta.angles);
     checkdeallocate(params.freqinfo->freqVec);
     checkdeallocate(params.beaminfo->SrcBmPat);
     checkdeallocate(outputs.rayinfo->raymem);

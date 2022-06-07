@@ -507,7 +507,7 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
         CurvatureCorrection3D<false>(ray, mat2x2(RL(0.0)), Tg, Th, 
             cn1jump, cn2jump, csjump, rayn1, rayn2, rayt);
     }else{
-        // LP: 2D-3D only:
+        // LP: Nx2D only:
         // mbp: this needs modifying like the full 3D version to handle jumps in the x-y direction
         vec2 ray2n = vec2(-ray.t.y, ray.t.x); // ray normal
         
@@ -518,7 +518,7 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
         if(iSeg.z != iSeg0.z){       // crossing in depth
             rm =  ray.t.x / ray.t.y; // this is tan( alpha ) where alpha is the angle of incidence
         }else{                       // crossing in range
-            // LP: This case is excluded for 2D-3D by the if condition under
+            // LP: This case is excluded for Nx2D by the if condition under
             // which this is called.
             rm = -ray.t.y / ray.t.x; // this is tan( alpha ) where alpha is the angle of incidence
         }                            // LP: The case where it crosses in depth and range simultaneously is not handled.

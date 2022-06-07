@@ -189,7 +189,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     case 'a':
        PRTFile << "Arrivals calculation, binary file output\n"; break;
     default:
-       std::cout << "ReadEnvironment: Unknown RunType selected\n";
+       std::cout << "ReadEnvironment: Unknown RunType '" << RunType[0] << "' selected\n";
        std::abort();
     }
 
@@ -234,14 +234,14 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     switch(RunType[5]){
     case '2':
        PRTFile << "N x 2D calculation (neglects horizontal refraction)\n";
-       if(!r3d){
+       if(r3d){
            std::cout << "This is a 2D or Nx2D environment file, but you are running " BHC_PROGRAMNAME " in 3D mode\n";
            std::abort();
        }
        break;
     case '3':
        PRTFile << "3D calculation\n";
-       if(r3d){
+       if(!r3d){
            std::cout << "This is a 3D environment file, but you are running " BHC_PROGRAMNAME " in 2D or Nx2D mode\n";
            std::abort();
        }
@@ -254,7 +254,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
 void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
-    HSInfo &RecycledHS, bool r3d)
+    HSInfo &RecycledHS, bool o3d, bool r3d)
 {
     //const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;
@@ -264,7 +264,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     real Sigma, Depth;
     char PlotType[10];
     
-    PRTFile << BHC_PROGRAMNAME "\n\n";
+    PRTFile << BHC_PROGRAMNAME << (r3d ? "3D" : o3d ? "Nx2D" : "") << "\n\n";
     
     // Open the environmental file
     LDIFile ENVFile(FileRoot + ".env");
@@ -346,7 +346,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     
     // *** source and receiver locations ***
     
-    ReadSxSy(false, ENVFile, PRTFile, Pos);
+    ReadSxSy(o3d, ENVFile, PRTFile, Pos);
     
     ZMin = Bdry->Top.hs.Depth;
     ZMax = Bdry->Bot.hs.Depth;
@@ -356,15 +356,20 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     //     ENVFile, PRTFile);
     ReadSzRz(ZMin, ZMax, ENVFile, PRTFile, Pos);
     ReadRcvrRanges(ENVFile, PRTFile, Pos);
+    if(o3d) ReadRcvrBearings(ENVFile, PRTFile, Pos);
     ReadfreqVec(Bdry->Top.hs.Opt[5], ENVFile, PRTFile, freqinfo);
     ReadRunType(Beam->RunType, PlotType, ENVFile, PRTFile, Pos, r3d);
     
     Depth = ZMax - ZMin; // water depth
-    ReadRayElevationAngles(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, Beam->RunType, 
-        ENVFile, PRTFile, Angles, Pos);
+    ReadRayAngles<false>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, Beam->RunType, 
+        ENVFile, PRTFile, Angles->alpha, Pos);
+    if(o3d) ReadRayAngles<true>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, Beam->RunType, 
+        ENVFile, PRTFile, Angles->beta, Pos);
     
+    PRTFile << "\n__________________________________________________________________________\n\n";
+        
     //LP: Moved to separate function for clarity and modularity.
-    ReadBeamInfo(ENVFile, PRTFile, Beam);
+    ReadBeamInfo(ENVFile, PRTFile, Beam, Bdry, o3d);
 } 
 
 }

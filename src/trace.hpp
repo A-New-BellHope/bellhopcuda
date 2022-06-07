@@ -58,11 +58,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
 {
     if(    rinit.isz < 0    || rinit.isz >= Pos->NSz 
-        || rinit.ialpha < 0 || rinit.ialpha >= Angles->Nalpha
+        || rinit.ialpha < 0 || rinit.ialpha >= Angles->alpha.n
         || (O3D && (
             rinit.isx < 0   || rinit.isx >= Pos->NSx ||
             rinit.isy < 0   || rinit.isy >= Pos->NSy ||
-            rinit.ibeta < 0 || rinit.ibeta >= Angles->Nbeta
+            rinit.ibeta < 0 || rinit.ibeta >= Angles->beta.n
     ))){
         printf("Invalid ray init indexes!\n");
         bail();
@@ -75,11 +75,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     }else{
         xs = vec2(FL(0.0), Pos->Sz[rinit.isz]); // x-y [LP: r-z] coordinate of the source
     }
-    rinit.alpha = Angles->alpha[rinit.ialpha]; // initial angle
+    rinit.alpha = Angles->alpha.angles[rinit.ialpha]; // initial angle
     rinit.SrcDeclAngle = RadDeg * rinit.alpha; // take-off declination angle in degrees
     real beta;
     if constexpr(O3D){
-        beta = Angles->beta[rinit.ibeta];
+        beta = Angles->beta.angles[rinit.ibeta];
         rinit.SrcAzimAngle = RadDeg * beta; // take-off azimuthal   angle in degrees
     }else{
         beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
@@ -109,9 +109,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     if constexpr(!O3D){
         // Are there enough beams?
         real DalphaOpt = STD::sqrt(o.ccpx.real() / (FL(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
-        int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
+        int32_t NalphaOpt = 2 + (int)((Angles->alpha.angles[Angles->alpha.n-1] - Angles->alpha.angles[0]) / DalphaOpt);
         
-        if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && rinit.ialpha == 0){
+        if(Beam->RunType[0] == 'C' && Angles->alpha.n < NalphaOpt && rinit.ialpha == 0){
             printf("Warning in " BHC_PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
         }
     }
@@ -302,7 +302,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
 /**
  * Has the ray left the box, lost its energy, escaped the boundaries, or 
  * exceeded storage limit?
- * [LP: 2D-3D only:]
+ * [LP: Nx2D only:]
  * this should be modified to have a single box
  * no need to test point.x.x, for instance, against several limits; calculate one limit in advance
  * LP: Also updates DistBegTop, DistBegBot.
@@ -362,7 +362,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         }
         */
         if(O3D && escaped0bdry){
-            // LP: 2D-3D and 3D: If escapes the boundary only to the negative
+            // LP: Nx2D and 3D: If escapes the boundary only to the negative
             // side, stop without including the current step.
             Nsteps = is;
         }else{

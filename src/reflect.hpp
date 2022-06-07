@@ -199,7 +199,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     real Th = glm::dot(oldPoint.t, nBdry_ray); // component of ray tangent, normal to boundary
     
     if constexpr(O3D){
-        // LP: tBdry is computed here for 2D-3D and 3D. It is not only precomputed,
+        // LP: tBdry is computed here for Nx2D and 3D. It is not only precomputed,
         // but computed differently from this formula, in 2D.
         tBdry = oldPoint.t - Th * nBdry_ray;
         tBdry *= RL(1.0) / glm::length(tBdry);

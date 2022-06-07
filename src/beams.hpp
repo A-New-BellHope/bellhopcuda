@@ -66,18 +66,31 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile,
  * Limits for tracing beams
  */
 inline void ReadBeamInfo(LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    BeamStructure *Beam)
+    BeamStructure *Beam, const BdryType *Bdry, bool o3d)
 {
-    PRTFile << "\n__________________________________________________________________________\n\n";
-
-    LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.z); ENVFile.Read(Beam->Box.r);
+    if(o3d){
+        LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.x);
+        ENVFile.Read(Beam->Box.y); ENVFile.Read(Beam->Box.z);
+        Beam->Box.x *= FL(1000.0); // convert km to m
+        Beam->Box.y *= FL(1000.0); // convert km to m
+        
+        if(Beam->deltas == FL(0.0)) Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth) / FL(10.0); // Automatic step size selection
+    }else{
+        LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.z); ENVFile.Read(Beam->Box.r);
+    }
     
     PRTFile << std::setprecision(4);
     PRTFile << "\n Step length,       deltas = " << std::setw(11) << Beam->deltas << " m\n\n";
-    PRTFile << "Maximum ray depth, Box.z  = " << std::setw(11) << Beam->Box.z << " m\n";
-    PRTFile << "Maximum ray range, Box.r  = " << std::setw(11) << Beam->Box.r << "km\n";
-    
-    Beam->Box.r *= FL(1000.0); // convert km to m
+    if(o3d){
+        PRTFile << "Maximum ray x-range, Box.x  = " << std::setw(11) << Beam->Box.x << " m\n";
+        PRTFile << "Maximum ray y-range, Box.x  = " << std::setw(11) << Beam->Box.y << " m\n";
+        PRTFile << "Maximum ray z-range, Box.x  = " << std::setw(11) << Beam->Box.z << " m\n";
+    }else{
+        PRTFile << "Maximum ray depth, Box.z  = " << std::setw(11) << Beam->Box.z << " m\n";
+        PRTFile << "Maximum ray range, Box.r  = " << std::setw(11) << Beam->Box.r << "km\n";
+        
+        Beam->Box.r *= FL(1000.0); // convert km to m
+    }
     
     // *** Beam characteristics ***
     

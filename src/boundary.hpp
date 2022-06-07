@@ -492,7 +492,7 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             EchoVector(Globalx, bdinfotb->NPts.x, PRTFile, Bdry_Number_to_Echo);
             // LP: BUG/TODO: This monotonic check is absent from BELLHOP3D,
             // needed for new GetBdrySeg and even implicitly for GetTop/BotSeg3D
-            if(!monotonic(&Globalx, bdinfotb->NPts.x)){
+            if(!monotonic(Globalx, bdinfotb->NPts.x)){
                 std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
                     << " X values are not monotonically increasing\n";
                 std::abort();
@@ -506,11 +506,11 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             real *Globaly = allocate<real>(std::max(bdinfotb->NPts.y, 3));
             Globaly[2] = FL(-999.9);
             LIST(BDRYFile); BDRYFile.Read(Globaly, bdinfotb->NPts.y);
-            SubTab(Globalx, bdinfotb->NPts.y);
-            EchoVector(Globalx, bdinfotb->NPts.y, PRTFile, Bdry_Number_to_Echo);
+            SubTab(Globaly, bdinfotb->NPts.y);
+            EchoVector(Globaly, bdinfotb->NPts.y, PRTFile, Bdry_Number_to_Echo);
             // LP: BUG/TODO: This monotonic check is absent from BELLHOP3D,
             // needed for new GetBdrySeg and even implicitly for GetTop/BotSeg3D
-            if(!monotonic(&Globaly, bdinfotb->NPts.y)){
+            if(!monotonic(Globaly, bdinfotb->NPts.y)){
                 std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
                     << " Y values are not monotonically increasing\n";
                 std::abort();

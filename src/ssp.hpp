@@ -391,7 +391,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         if constexpr(O3D){
             // LP: TODO: I don't think there's any reason P (PCHIP) should not be supported,
             // it's very similar to cubic.
-            printf("EvaluateSSP: '%c' profile not supported in 3D or 2D3D mode\n", ssp->Type);
+            printf("EvaluateSSP: '%c' profile not supported in 3D or Nx2D mode\n", ssp->Type);
             bail();
         }else{
             if(ssp->Type == 'P'){ // monotone PCHIP ACS profile option
