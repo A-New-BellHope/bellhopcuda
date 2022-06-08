@@ -545,9 +545,16 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     real csq0, csq1, h, w0, w1, hw0, hw1;
     
     #ifdef STEP_DEBUGGING
-    printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
-        ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
+    // printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
+    //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
     // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
+    if constexpr(R3D){
+        printf("\nray0 x t (%20.17f,%20.17f,%20.17f) (%20.17f,%20.17f,%20.17f)\n",
+            ray0.x.x, ray0.x.y, ray0.x.z, ray0.t.x, ray0.t.y, ray0.t.z);
+    }else{
+        printf("\nray0 x t (%20.17f,%20.17f) (%20.17f,%20.17f)\n",
+            ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y);
+    }
     #endif
     
     /*

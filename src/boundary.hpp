@@ -93,10 +93,23 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         // the results are NaN below (should never happen), the ray is then
         // terminated in TraceRay without the current step. However, if the ray
         // escaped to the positive side, the ray is terminated as part of the
-        // normal stopping conditions, including the current step. In this
-        // implementation, the ray isn't allowed to escape the box here (the
-        // nearest segment is used), and the asymmetrical condition is handled
-        // in the normal ray termination.
+        // normal stopping conditions, including the current step.
+        // On top of that weird asymmetry, of course the original logic allowed
+        // for steps to the edge of the same segment they are currently in,
+        // whereas we always step into the next segment according to the tangent.
+        // Finally, in 2D, the altimetry / bathymetry are extended to very large
+        // values so this never gets hit, whereas in Nx2D and 3D it is not so
+        // this is a common case.
+        // The approach here is:
+        // - An override so being at the outer edge of a segment is OK for the
+        //   last segment (just for this step)
+        // - Changed the stopping condition to stop if on the boundary and
+        //   pointing outwards.
+        if(bds.Iseg.x == -1   && bdinfotb->bd[0        ].x.x == x.x) bds.Iseg.x = 0;
+        if(bds.Iseg.x == nx-1 && bdinfotb->bd[(nx-1)*ny].x.x == x.x) bds.Iseg.x = nx-2;
+        if(bds.Iseg.y == -1   && bdinfotb->bd[0        ].x.y == x.y) bds.Iseg.y = 0;
+        if(bds.Iseg.y == ny-1 && bdinfotb->bd[ny-1     ].x.y == x.y) bds.Iseg.y = ny-2;
+        
         if(bds.Iseg.x < 0 || bds.Iseg.x >= nx-1 || bds.Iseg.y < 0 || bds.Iseg.y >= ny-1){
             printf("Error: Get%s the ray, x=(%g,%g)\n",
                 isTop ? "TopSeg3D: Top altimetry undefined above" : 

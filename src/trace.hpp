@@ -318,17 +318,28 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     bool escaped0bdry, escapedNbdry;
     if constexpr(O3D){
         vec3 x_o = RayToOceanX(point.x, org);
+        vec3 t_o = RayToOceanT(point.t, org);
         leftbox = STD::abs(x_o.x - xs.x) > Beam->Box.x ||
                   STD::abs(x_o.y - xs.y) > Beam->Box.y ||
                   STD::abs(x_o.z - xs.z) > Beam->Box.z;
-        escaped0bdry = 
-            x_o.x < bhc::max(bdinfo->bot.bd[0].x.x, bdinfo->top.bd[0].x.x) ||
-            x_o.y < bhc::max(bdinfo->bot.bd[0].x.y, bdinfo->top.bd[0].x.y);
-        escapedNbdry =
-            x_o.x > bhc::max(bdinfo->bot.bd[(bdinfo->bot.NPts.x-1)*bdinfo->bot.NPts.y].x.x, 
-                             bdinfo->top.bd[(bdinfo->top.NPts.x-1)*bdinfo->top.NPts.y].x.x) ||
-            x_o.y > bhc::max(bdinfo->bot.bd[bdinfo->bot.NPts.y-1].x.y, 
+        real minx = bhc::max(bdinfo->bot.bd[0].x.x, bdinfo->top.bd[0].x.x);
+        real miny = bhc::max(bdinfo->bot.bd[0].x.y, bdinfo->top.bd[0].x.y);
+        real maxx = bhc::min(bdinfo->bot.bd[(bdinfo->bot.NPts.x-1)*bdinfo->bot.NPts.y].x.x, 
+                             bdinfo->top.bd[(bdinfo->top.NPts.x-1)*bdinfo->top.NPts.y].x.x);
+        real maxy = bhc::min(bdinfo->bot.bd[bdinfo->bot.NPts.y-1].x.y, 
                              bdinfo->top.bd[bdinfo->top.NPts.y-1].x.y);
+        escaped0bdry = x_o.x < minx || x_o.y < miny;
+        escapedNbdry = x_o.x > maxx || x_o.y > maxy;
+        // LP: See discussion in GetBdrySeg for why this was changed from the
+        // original BELLHOP3D version.
+        // TODO this may be a problem in Nx2D because X is converted from ocean
+        // to ray and back after being clamped to the boundary
+        escaped0bdry = escaped0bdry ||
+            (x_o.x == minx && t_o.x < RL(0.0)) ||
+            (x_o.y == miny && t_o.y < RL(0.0));
+        escapedNbdry = escapedNbdry ||
+            (x_o.x == maxx && t_o.x > RL(0.0)) ||
+            (x_o.y == maxy && t_o.y > RL(0.0));
         escapedboundaries = escaped0bdry || escapedNbdry;
         toomanysmallsteps = iSmallStepCtr > 50;
     }else{
@@ -338,7 +349,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         escaped0bdry = escapedNbdry = false;
         escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0)) ||
                             (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
-        toomanysmallsteps = false; // LP: Simply never checked in 2D.
+        toomanysmallsteps = false; // LP: The small step counter is never checked in 2D.
     }
     bool lostenergy = point.Amp < FL(0.005);
     if constexpr(O3D && !R3D){
@@ -361,9 +372,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
             printf("Too many small steps\n");
         }
         */
-        if(O3D && escaped0bdry){
-            // LP: Nx2D and 3D: If escapes the boundary only to the negative
-            // side, stop without including the current step.
+        constexpr bool EscapeBoxAsymmetry = false;
+        if(O3D && escaped0bdry && EscapeBoxAsymmetry){
+            // LP: The original behavior of Nx2D and 3D is that if the ray
+            // escapes the boundary to the negative side, stop without including
+            // the current step, but if to the positive side the current step is
+            // included.
             Nsteps = is;
         }else{
             Nsteps = is + 1;
