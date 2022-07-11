@@ -62,15 +62,29 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
     bool isTop, bool isInit)
 {
     if constexpr(O3D){
-        
-        // LP: BUG/TODO: BELLHOP3D has the same edge case problems as 2D did:
-        // both endpoints are allowed in the initial check but then only one is
-        // allowed when searching, furthermore if the ray goes out of bounds
-        // it is only a warning, and the old values are used (possibly
-        // uninitialized or from a previous ray).
+        // LP: According to the original logic, if the ray escapes the box here,
+        // a warning is printed, and the other segment info is not updated. If
+        // the ray escaped the box to the negative side in either dimension, or
+        // the results are NaN below (should never happen), the ray is then
+        // terminated in TraceRay without the current step. However, if the ray
+        // escaped to the positive side, the ray is terminated as part of the
+        // normal stopping conditions, including the current step.
+        // On top of that weird asymmetry, of course the original logic allowed
+        // for steps to the edge of the same segment they are currently in,
+        // whereas we always step into the next segment according to the tangent.
+        // Finally, in 2D, the altimetry / bathymetry are extended to very large
+        // values so this never gets hit, whereas in Nx2D and 3D it is not so
+        // almost all rays hit this case.
+        // This has been changed to:
+        // - An override so being at the outer edge of a segment is OK for the
+        //   last segment (just for this step)
+        // - If the position is actually outside the segment, print a warning
+        //   and put it in the nearest valid segment.
+        // - Changed the stopping condition to stop if on the boundary and
+        //   pointing outwards.
         
         int32_t nx = bdinfotb->NPts.x;
-        int32_t ny = bdinfotb->NPts.x;
+        int32_t ny = bdinfotb->NPts.y;
         bds.Iseg.x = bhc::min(bhc::max(bds.Iseg.x, 0), nx-2);
         bds.Iseg.y = bhc::min(bhc::max(bds.Iseg.y, 0), ny-2);
         if(t.x >= FL(0.0)){
@@ -87,35 +101,21 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
             while(bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y+1].x.y <  x.y) ++bds.Iseg.y;
             while(bds.Iseg.y >= 0   && bds.Iseg.y < ny-1 && bdinfotb->bd[bds.Iseg.y  ].x.y >= x.y) --bds.Iseg.y;
         }
-        // LP: According to the original logic, if the ray escapes the box here,
-        // a warning is printed, and the other segment info is not updated. If
-        // the ray escaped the box to the negative side in either dimension, or
-        // the results are NaN below (should never happen), the ray is then
-        // terminated in TraceRay without the current step. However, if the ray
-        // escaped to the positive side, the ray is terminated as part of the
-        // normal stopping conditions, including the current step.
-        // On top of that weird asymmetry, of course the original logic allowed
-        // for steps to the edge of the same segment they are currently in,
-        // whereas we always step into the next segment according to the tangent.
-        // Finally, in 2D, the altimetry / bathymetry are extended to very large
-        // values so this never gets hit, whereas in Nx2D and 3D it is not so
-        // this is a common case.
-        // The approach here is:
-        // - An override so being at the outer edge of a segment is OK for the
-        //   last segment (just for this step)
-        // - Changed the stopping condition to stop if on the boundary and
-        //   pointing outwards.
+        
         if(bds.Iseg.x == -1   && bdinfotb->bd[0        ].x.x == x.x) bds.Iseg.x = 0;
         if(bds.Iseg.x == nx-1 && bdinfotb->bd[(nx-1)*ny].x.x == x.x) bds.Iseg.x = nx-2;
         if(bds.Iseg.y == -1   && bdinfotb->bd[0        ].x.y == x.y) bds.Iseg.y = 0;
         if(bds.Iseg.y == ny-1 && bdinfotb->bd[ny-1     ].x.y == x.y) bds.Iseg.y = ny-2;
         
         if(bds.Iseg.x < 0 || bds.Iseg.x >= nx-1 || bds.Iseg.y < 0 || bds.Iseg.y >= ny-1){
-            printf("Error: Get%s the ray, x=(%g,%g)\n",
+            printf("Warning: Get%s the ray, x=(%g,%g)\n",
                 isTop ? "TopSeg3D: Top altimetry undefined above" : 
                 "BotSeg3D: Bottom bathymetry undefined below", x.x, x.y);
-            bail();
+            bds.Iseg.x = bhc::min(bhc::max(bds.Iseg.x, 0), nx-2);
+            bds.Iseg.y = bhc::min(bhc::max(bds.Iseg.y, 0), ny-2);
         }
+        
+        // segment limits in range
         bds.lSeg.x.min = bdinfotb->bd[(bds.Iseg.x  )*ny].x.x;
         bds.lSeg.x.max = bdinfotb->bd[(bds.Iseg.x+1)*ny].x.x;
         bds.lSeg.y.min = bdinfotb->bd[bds.Iseg.y  ].x.y;
@@ -124,20 +124,16 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         bds.x = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].x;
         
         // identify the normal based on the active triangle of a pair
-        
+        // normal of triangle side pointing up and to the left
         vec2 tri_n = vec2(-(bds.lSeg.y.max - bds.lSeg.y.min), bds.lSeg.x.max - bds.lSeg.x.min);
-        
         if(glm::dot(vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y), tri_n) < RL(0.0)){
             bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n1;
         }else{
             bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n2;
         }
         
-        // if the depth is bad (a NaN) then set the segment flags to indicate that
+        // if the depth is bad (a NaN) then error out
         if(!STD::isfinite(bds.x.z) || !bhc::isfinite(bds.n)){
-            // LP: This should never happen.
-            // bds.Iseg.x = -1;
-            // bds.Iseg.y = -1;
             printf("Error: Boundary segment contains NaN!\n");
             bail();
         }

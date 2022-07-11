@@ -332,8 +332,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         escapedNbdry = x_o.x > maxx || x_o.y > maxy;
         // LP: See discussion in GetBdrySeg for why this was changed from the
         // original BELLHOP3D version.
-        // TODO this may be a problem in Nx2D because X is converted from ocean
-        // to ray and back after being clamped to the boundary
         escaped0bdry = escaped0bdry ||
             (x_o.x == minx && t_o.x < RL(0.0)) ||
             (x_o.y == miny && t_o.y < RL(0.0));
@@ -358,7 +356,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         backward = false; // LP: Commented out for 2D, absent for 3D as would not make sense.
     }
     if(leftbox || lostenergy || escapedboundaries || backward || toomanysmallsteps){
-        /*
         if(leftbox){
             printf("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
         }else if(escapedboundaries){
@@ -371,7 +368,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         }else if(toomanysmallsteps){
             printf("Too many small steps\n");
         }
-        */
         constexpr bool EscapeBoxAsymmetry = false;
         if(O3D && escaped0bdry && EscapeBoxAsymmetry){
             // LP: The original behavior of Nx2D and 3D is that if the ray

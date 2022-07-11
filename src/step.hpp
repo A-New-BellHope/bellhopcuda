@@ -23,7 +23,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-//#define STEP_DEBUGGING 1
+#define STEP_DEBUGGING 1
 
 #ifdef BHC_USE_FLOATS
 #define INFINITESIMAL_STEP_SIZE (RL(1e-3))
@@ -46,6 +46,9 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
     if(STD::abs(DEP(urayt)) > REAL_EPSILON){
         if(      ssp->z[iSeg0.z]     > DEP(x) && (!O3D || iSeg0.z > 0)){
             h = (ssp->z[iSeg0.z]     - DEP(x0)) / DEP(urayt);
+            #ifdef STEP_DEBUGGING
+            printf("Shallower bound SSP Z %g > z %g; h = %g\n", ssp->z[iSeg0.z], DEP(x), h);
+            #endif
             if(stepTo){
                 x = x0 + h * urayt; // X or X,Y
                 DEP(x) = ssp->z[iSeg0.z];
@@ -53,9 +56,6 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
                 printf("to %20.17f %20.17f\n", x.x, x.y);
                 #endif
             }
-            #ifdef STEP_DEBUGGING
-            printf("Shallower bound SSP Z %g > z %g; h = %g\n", ssp->z[iSeg0.z], DEP(x), h);
-            #endif
         }else if(ssp->z[iSeg0.z + 1] < DEP(x) && (!O3D || iSeg0.z + 1 < ssp->Nz-1)){
             h = (ssp->z[iSeg0.z + 1] - DEP(x0)) / DEP(urayt);
             #ifdef STEP_DEBUGGING
@@ -82,8 +82,8 @@ template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
     d0 = x0 - bd.x; // vector from top / bottom node to ray origin
     // Originally, this value had to be > a small positive number, meaning the
     // new step really had to be outside the boundary, not just to the boundary.
-    // Also, this is not missing a normalization factor, Topn is normalized so
-    // this is actually the distance above the top in meters.
+    // Also, this is not missing a normalization factor, bd.n is normalized so
+    // this is actually the distance above the top / below the bottom in meters.
     real w = glm::dot(bd.n, d);
     if(stepTo ? (w > -INFINITESIMAL_STEP_SIZE) : (w >= RL(0.0))){
         h = -glm::dot(d0, bd.n) / glm::dot(urayt, bd.n);
@@ -108,6 +108,7 @@ template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
 
 /**
  * top or bottom segment crossing in range / x / y
+ * LP: w = range, x, or y
  */
 template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
     real &h, const BdryLimits &TopSeg, const BdryLimits &BotSeg,
@@ -115,44 +116,52 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
     const VEC23<O3D> &x0, const VEC23<O3D> &urayt, char qh, 
     const SSPStructure *ssp, bool stepTo, bool &topRefl, bool &botRefl, bool isY)
 {
-    BdryLimits rSeg;
-    rSeg.min = bhc::max(TopSeg.min, BotSeg.min);
-    rSeg.max = bhc::min(TopSeg.max, BotSeg.max);
+    BdryLimits segLim;
+    segLim.min = bhc::max(TopSeg.min, BotSeg.min);
+    segLim.max = bhc::min(TopSeg.max, BotSeg.max);
     
     if(ssp->Type == qh){
-        rSeg.min = bhc::max(rSeg.min, seg_w[iSeg  ]);
-        rSeg.max = bhc::min(rSeg.max, seg_w[iSeg+1]);
+        segLim.min = bhc::max(segLim.min, seg_w[iSeg  ]);
+        segLim.max = bhc::min(segLim.max, seg_w[iSeg+1]);
     }
     
     real &x_w    = isY ?     x.y :     x.x;
     real x0_w    = isY ?    x0.y :    x0.x;
     real urayt_w = isY ? urayt.y : urayt.x;
+    const char *wlbl = O3D ? (isY ? "Y" : "X") : "R";
     if(!stepTo) h = REAL_MAX;
     if(STD::abs(urayt_w) > REAL_EPSILON){
-        if(x_w < rSeg.min){
-            h = -(x0_w - rSeg.min) / urayt_w;
+        if(x_w < segLim.min){
+            h = -(x0_w - segLim.min) / urayt_w;
             if(stepTo){
                 x = x0 + h * urayt;
-                x_w = rSeg.min;
+                x_w = segLim.min;
                 topRefl = botRefl = false;
             }
             #ifdef STEP_DEBUGGING
-            printf("Min bound SSP R %g > r %g; h4 = %g\n", rSeg.min, x_w, h);
+            printf("Min bound SSP %s %g > %s %g; h = %g\n",
+                wlbl, segLim.min, wlbl, x_w, h);
             #endif
-        }else if(x_w > rSeg.max){
-            h = -(x0_w - rSeg.max) / urayt_w;
+        }else if(x_w > segLim.max){
+            h = -(x0_w - segLim.max) / urayt_w;
             if(stepTo){
                 x = x0 + h * urayt;
-                x_w = rSeg.max;
+                x_w = segLim.max;
                 topRefl = botRefl = false;
             }
             #ifdef STEP_DEBUGGING
-            printf("Max bound SSP R %g < r %g; h4 = %g; top.max %g; bot.max %g; ssp r up %g\n",
-                rSeg.max, x_w, h, TopSeg.max, BotSeg.max,
-                ssp->Type == qh ? seg_w[iSeg+1] : INFINITY);
+            printf("Max bound SSP %s %g < %s %g; h = %g\n",
+                wlbl, segLim.max, wlbl, x_w, h);
             #endif
         }
     }
+}
+
+HOST_DEVICE inline bool CheckDiagCrossing(const vec3 &tri_n, const vec3 &d0,
+    const vec3 &d)
+{
+    return (glm::dot(tri_n, d0) > RL(0.0) && glm::dot(tri_n, d) <= RL(0.0)) ||
+           (glm::dot(tri_n, d0) < RL(0.0) && glm::dot(tri_n, d) >= RL(0.0));
 }
 
 /**
@@ -168,8 +177,7 @@ HOST_DEVICE inline void TriDiagCrossing(
     vec3 tri_n = vec3(-(bd.lSeg.y.max - bd.lSeg.y.min), bd.lSeg.x.max - bd.lSeg.x.min, RL(0.0));
     
     if(!stepTo) h = REAL_MAX;
-    if( (glm::dot(tri_n, d0) > RL(0.0) && glm::dot(tri_n, d) <= RL(0.0)) ||
-        (glm::dot(tri_n, d0) < RL(0.0) && glm::dot(tri_n, d) >= RL(0.0)) ){
+    if(CheckDiagCrossing(tri_n, d0, d)){
         h = -glm::dot(d0, tri_n) / glm::dot(urayt, tri_n);
         #ifdef STEP_DEBUGGING
         printf("Tri diag crossing h = %g\n", h);
@@ -180,10 +188,7 @@ HOST_DEVICE inline void TriDiagCrossing(
                 x = x0 + h * urayt;
                 // LP: Since this is not an exact floating-point value to step
                 // to, make sure we have stepped over the boundary.
-                if( (glm::dot(tri_n, d0) > RL(0.0) && glm::dot(tri_n, x - bd.x) <= RL(0.0)) ||
-                    (glm::dot(tri_n, d0) < RL(0.0) && glm::dot(tri_n, x - bd.x) >= RL(0.0)) ){
-                    break;
-                }
+                if(CheckDiagCrossing(tri_n, d0, x - bd.x)) break;
                 // Slightly increase h if not.
                 h *= FL(1.000001);
             }
@@ -398,7 +403,7 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     // added the copysign in r2 to make ati and bty have a symmetric effect on the beam
     // not clear why that's needed
     
-    mat2x2 rmat;
+    mat2x2 rmat; // originally R1, R2
     real csq = SQ(ray.c);
     rmat[0][0] = FL(2.0) / csq   * DMat[0][0] / Th + rm * (FL(2.0) * cn1jump - rm * csjump) / csq;
     rmat[0][1] = FL(2.0) / ray.c * DMat[1][0] * STD::copysign(RL(1.0), -Th)  + rm * cn2jump / csq;
@@ -549,11 +554,13 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
     // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
     if constexpr(R3D){
-        printf("\nray0 x t (%20.17f,%20.17f,%20.17f) (%20.17f,%20.17f,%20.17f)\n",
+        printf("\nray0 x t (%20.17f,%20.17f,%20.17f) (%20.17e,%20.17e,%20.17e)\n",
             ray0.x.x, ray0.x.y, ray0.x.z, ray0.t.x, ray0.t.y, ray0.t.z);
+        printf("iSegx iSegy iSegz %d %d %d\n", iSeg.x + 1, iSeg.y + 1, iSeg.z + 1);
     }else{
-        printf("\nray0 x t (%20.17f,%20.17f) (%20.17f,%20.17f)\n",
+        printf("\nray0 x t (%20.17f,%20.17f) (%20.17e,%20.17e)\n",
             ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y);
+        printf("iSegr iSegz %d %d\n", iSeg.r + 1, iSeg.z + 1);
     }
     #endif
     
@@ -636,7 +643,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     ray2.t   = ray0.t   - hw0 * o0.gradc / csq0         - hw1 * o1.gradc / csq1;
     ray2.tau = ray0.tau + hw0 / o0.ccpx                 + hw1 / o1.ccpx;
     UpdateRayPQ<R3D>(ray2, ray0, hw0, pq0);
-    UpdateRayPQ<R3D>(ray2, ray2, hw1, pq1);
+    UpdateRayPQ<R3D>(ray2, ray2, hw1, pq1); // Not a typo, accumulating into 2
     
     // printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
     //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
