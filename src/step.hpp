@@ -157,11 +157,12 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
     }
 }
 
-HOST_DEVICE inline bool CheckDiagCrossing(const vec3 &tri_n, const vec3 &d0,
-    const vec3 &d)
+HOST_DEVICE inline bool CheckDiagCrossing(const vec3 &tri_n,
+    const vec3 &d, const bool &tridiag_pos)
 {
-    return (glm::dot(tri_n, d0) > RL(0.0) && glm::dot(tri_n, d) <= RL(0.0)) ||
-           (glm::dot(tri_n, d0) < RL(0.0) && glm::dot(tri_n, d) >= RL(0.0));
+    real dend   = glm::dot(tri_n, d);
+    return (tridiag_pos && dend < -TRIDIAG_THRESH) ||
+          (!tridiag_pos && dend >  TRIDIAG_THRESH);
 }
 
 /**
@@ -170,33 +171,34 @@ HOST_DEVICE inline bool CheckDiagCrossing(const vec3 &tri_n, const vec3 &d0,
 HOST_DEVICE inline void TriDiagCrossing(
     real &h, const BdryStateTopBot<true> &bd,
     vec3 &x, const vec3 &x0, const vec3 &urayt,
-    bool stepTo, bool &topRefl, bool &botRefl)
+    bool stepTo, bool &topRefl, bool &botRefl, bool &flipDiag)
 {
     vec3 d     = x  - bd.x; // vector from top / bottom node to ray end
     vec3 d0    = x0 - bd.x; // vector from top / bottom node to ray origin
     vec3 tri_n = vec3(-(bd.lSeg.y.max - bd.lSeg.y.min), bd.lSeg.x.max - bd.lSeg.x.min, RL(0.0));
+    tri_n /= glm::length(tri_n);
     
     if(!stepTo) h = REAL_MAX;
-    if(CheckDiagCrossing(tri_n, d0, d)){
-        h = -glm::dot(d0, tri_n) / glm::dot(urayt, tri_n);
+    if(CheckDiagCrossing(tri_n, d, bd.tridiag_pos)){
+        real hnew = -glm::dot(d0, tri_n) / glm::dot(urayt, tri_n);
+        if(hnew < RL(0.0)){
+            BASSERT(STD::abs(glm::dot(urayt, tri_n)) < RL(1e-3));
+            h = RL(0.0);
+        }else{
+            BASSERT(hnew < h);
+            h = hnew;
+        }
         #ifdef STEP_DEBUGGING
-        printf("Tri diag crossing h = %g\n", h);
+        printf("Tri diag crossing h = %g, dot(n, d0) = %g, dot(n, d) = %g\n", h, 
+            glm::dot(tri_n, d0), glm::dot(tri_n, d));
         #endif
         if(stepTo){
-            int32_t i;
-            for(i=0; i<100; ++i){
-                x = x0 + h * urayt;
-                // LP: Since this is not an exact floating-point value to step
-                // to, make sure we have stepped over the boundary.
-                if(CheckDiagCrossing(tri_n, d0, x - bd.x)) break;
-                // Slightly increase h if not.
-                h *= FL(1.000001);
-            }
-            if(i == 100){
-                printf("Warning, TriDiagCrossing did not converge\n");
-            }
-            topRefl = botRefl = false;
+            x = x0 + h * urayt;
         }
+        flipDiag = true;
+        topRefl = botRefl = false;
+    }else{
+        flipDiag = false;
     }
 }
 
@@ -233,8 +235,8 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
             x, x0, urayt, 'H', ssp, false, dummy, dummy, false);
         TopBotSegCrossing<O3D>(h5, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
             x, x0, urayt, 'H', ssp, false, dummy, dummy, true);
-        TriDiagCrossing(h6, bds.top, x, x0, urayt, false, dummy, dummy);
-        TriDiagCrossing(h7, bds.bot, x, x0, urayt, false, dummy, dummy);
+        TriDiagCrossing(h6, bds.top, x, x0, urayt, false, dummy, dummy, dummy);
+        TriDiagCrossing(h7, bds.bot, x, x0, urayt, false, dummy, dummy, dummy);
     }else{
         TopBotSegCrossing<O3D>(h4, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
             x, x0, urayt, 'Q', ssp, false, dummy, dummy, false);
@@ -266,6 +268,10 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
     }
     */
     
+    if(h < RL(-1e-4)){
+        printf("ReduceStep WARNING: negative h %f\n", h);
+        bail();
+    }
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
         h = INFINITESIMAL_STEP_SIZE * Beam->deltas; // make sure we make some motion
         ++iSmallStepCtr; // keep a count of the number of sequential small steps
@@ -277,10 +283,13 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
 
 template<bool O3D> HOST_DEVICE inline void StepToBdry(
     const VEC23<O3D> &x0, VEC23<O3D> &x2, const VEC23<O3D> &urayt,
-    real &h, bool &topRefl, bool &botRefl,
+    real &h, bool &topRefl, bool &botRefl, bool &flipTopDiag, bool &flipBotDiag,
     const SSPSegState &iSeg0, const BdryState<O3D> &bds,
     const BeamStructure *Beam, const SSPStructure *ssp)
 {
+    #ifdef STEP_DEBUGGING
+    printf("StepToBdry:\n");
+    #endif
     // Original step due to maximum step size
     h = Beam->deltas;
     x2 = x0 + h * urayt;
@@ -295,8 +304,8 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
             x2, x0, urayt, 'H', ssp, true, topRefl, botRefl, false);
         TopBotSegCrossing<O3D>(h, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
             x2, x0, urayt, 'H', ssp, true, topRefl, botRefl, true);
-        TriDiagCrossing(h, bds.top, x2, x0, urayt, true, topRefl, botRefl);
-        TriDiagCrossing(h, bds.bot, x2, x0, urayt, true, topRefl, botRefl);
+        TriDiagCrossing(h, bds.top, x2, x0, urayt, true, topRefl, botRefl, flipTopDiag);
+        TriDiagCrossing(h, bds.bot, x2, x0, urayt, true, topRefl, botRefl, flipBotDiag);
     }else{
         TopBotSegCrossing<O3D>(h, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
             x2, x0, urayt, 'Q', ssp, true, topRefl, botRefl, false);
@@ -313,6 +322,8 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
         d = x2 - bds.top.x; // vector from top to ray
         if(glm::dot(bds.top.n, d) > REAL_EPSILON){
             topRefl = true;
+            flipTopDiag = false;
+            flipBotDiag = false;
         }else{
             topRefl = false;
         }
@@ -320,6 +331,8 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
         if(glm::dot(bds.bot.n, d) > REAL_EPSILON){
             botRefl = true;
             topRefl = false;
+            flipTopDiag = false;
+            flipBotDiag = false;
         }else{
             botRefl = false;
         }
@@ -537,10 +550,10 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
  * Does a single step along the ray
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
-    rayPt<R3D> ray0, rayPt<R3D> &ray2, 
-    const BdryState<O3D> &bds, const BeamStructure *Beam, 
-    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
-    int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
+    rayPt<R3D> ray0, rayPt<R3D> &ray2, const BdryState<O3D> &bds,
+    const BeamStructure *Beam, const Origin<O3D, R3D> &org,
+    const SSPStructure *ssp, SSPSegState &iSeg, int32_t &iSmallStepCtr,
+    bool &topRefl, bool &botRefl, bool &flipTopDiag, bool &flipBotDiag)
 {
     rayPt<R3D> ray1;
     SSPOutputs<R3D> o0, o1, o2;
@@ -634,7 +647,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     // (ray2.x) gets put precisely on the boundary.
     VEC23<O3D> x2_o;
     t_o = RayToOceanT(urayt2, org);
-    StepToBdry<O3D>(x_o, x2_o, t_o, h, topRefl, botRefl, iSeg0, bds, Beam, ssp);
+    StepToBdry<O3D>(x_o, x2_o, t_o, h, topRefl, botRefl, flipTopDiag, flipBotDiag,
+        iSeg0, bds, Beam, ssp);
     ray2.x = OceanToRayX(x2_o, org, urayt2);
     
     // Update other variables with this new h

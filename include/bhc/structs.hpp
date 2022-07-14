@@ -156,7 +156,9 @@ struct BdryLimits2 { BdryLimits x, y; };
 template<bool O3D> struct TmplBdryLimits12 {};
 template<> struct TmplBdryLimits12<false> { typedef BdryLimits type; };
 template<> struct TmplBdryLimits12<true>  { typedef BdryLimits2 type; };
-template<bool O3D> struct BdryStateTopBot {
+template<bool O3D> struct BdryStateTopBotExtras {};
+template<> struct BdryStateTopBotExtras<true> { bool tridiag_pos; };
+template<bool O3D> struct BdryStateTopBot : public BdryStateTopBotExtras<O3D> {
     IORI2<O3D> Iseg; // indices that point to the current active segment
     typename TmplBdryLimits12<O3D>::type lSeg; // LP: limits of current segment
     VEC23<O3D> x, n; // only explicitly written in 3D, but effectively present in 2D

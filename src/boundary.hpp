@@ -31,6 +31,15 @@ template<> struct bdry_big<true>  { HOST_DEVICE static inline real value() { ret
 template<> struct bdry_big<false> { HOST_DEVICE static inline real value() { return STD::sqrt(REAL_MAX) / RL(1.0e5); } };
 #define BDRYBIG bdry_big<O3D>::value()
 
+/*
+#ifdef BHC_USE_FLOATS
+#define TRIDIAG_THRESH (RL(3e-3))
+#else
+#define TRIDIAG_THRESH (RL(3e-6))
+#endif
+*/
+#define TRIDIAG_THRESH (RL(1e-2))
+
 /**
  * Copy only some of the geoacoustic data from the position-dependent array to
  * the current halfspace information. The rest of the fields are left alone from
@@ -126,7 +135,12 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         // identify the normal based on the active triangle of a pair
         // normal of triangle side pointing up and to the left
         vec2 tri_n = vec2(-(bds.lSeg.y.max - bds.lSeg.y.min), bds.lSeg.x.max - bds.lSeg.x.min);
-        if(glm::dot(vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y), tri_n) < RL(0.0)){
+        tri_n /= glm::length(tri_n);
+        real over_diag_amount = glm::dot(vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y), tri_n);
+        if(isInit || STD::abs(over_diag_amount) > TRIDIAG_THRESH){
+            bds.tridiag_pos = over_diag_amount >= RL(0.0);
+        }
+        if(!bds.tridiag_pos){
             bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n1;
         }else{
             bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n2;

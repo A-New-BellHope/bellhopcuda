@@ -212,8 +212,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
     const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
     int32_t numRaySteps = 1;
-    bool topRefl, botRefl;
-    Step<O3D, R3D>(point0, point1, bds, Beam, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl);
+    bool topRefl, botRefl, flipTopDiag, flipBotDiag;
+    Step<O3D, R3D>(point0, point1, bds, Beam, org, ssp, iSeg, iSmallStepCtr,
+        topRefl, botRefl, flipTopDiag, flipBotDiag);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -221,6 +222,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
     }
     */
     
+    if constexpr(O3D){
+        if(flipTopDiag) bds.top.tridiag_pos = !bds.top.tridiag_pos;
+        if(flipBotDiag) bds.bot.tridiag_pos = !bds.bot.tridiag_pos;
+    }
     VEC23<O3D> x_o = RayToOceanX(point1.x, org);
     VEC23<O3D> t_o = RayToOceanT(point1.t, org);
     GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true , false);
@@ -357,7 +362,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     }
     if(leftbox || lostenergy || escapedboundaries || backward || toomanysmallsteps){
         if(leftbox){
-            printf("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
+            if constexpr(O3D){
+                printf("Ray left beam box (%g,%g,%g)\n", Beam->Box.x, Beam->Box.y, Beam->Box.z);
+            }else{
+                printf("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
+            }
         }else if(escapedboundaries){
             printf("Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g DistEndBot %g\n",
                 DistBegTop, DistEndTop, DistBegBot, DistEndBot);
@@ -368,16 +377,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         }else if(toomanysmallsteps){
             printf("Too many small steps\n");
         }
-        constexpr bool EscapeBoxAsymmetry = false;
-        if(O3D && escaped0bdry && EscapeBoxAsymmetry){
-            // LP: The original behavior of Nx2D and 3D is that if the ray
-            // escapes the boundary to the negative side, stop without including
-            // the current step, but if to the positive side the current step is
-            // included.
-            Nsteps = is;
-        }else{
-            Nsteps = is + 1;
-        }
+        Nsteps = is + 1;
         return true;
     }else if(is >= MaxN - 3){
         printf("Warning in TraceRay: Insufficient storage for ray trajectory\n");
