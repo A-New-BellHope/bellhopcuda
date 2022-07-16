@@ -74,8 +74,12 @@ def compare_files(cxxf, forf):
                     return False
                 if ci == fi:
                     continue
-                elif len(cxxt) == 3 and i == 0 and (ci == fi + 1 or ci + 1 == fi):
+                elif len(cxxt) == 3 and i == 0 and \
+                    all('.' not in t for t in (cxxt + fort)) and \
+                    int(cxxt[1]) == int(fort[1]) and int(cxxt[2]) == int(fort[2]):
                     printlns()
+                    if abs(ci - fi) > 1:
+                        print('Warning, CXX {} steps / FOR {} steps'.format(ci, fi))
                 else:
                     return False
         return True

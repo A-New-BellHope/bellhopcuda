@@ -23,7 +23,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-#define STEP_DEBUGGING 1
+//#define STEP_DEBUGGING 1
 
 #ifdef BHC_USE_FLOATS
 #define INFINITESIMAL_STEP_SIZE (RL(1e-3))
@@ -128,7 +128,9 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
     real &x_w    = isY ?     x.y :     x.x;
     real x0_w    = isY ?    x0.y :    x0.x;
     real urayt_w = isY ? urayt.y : urayt.x;
+    #ifdef STEP_DEBUGGING
     const char *wlbl = O3D ? (isY ? "Y" : "X") : "R";
+    #endif
     if(!stepTo) h = REAL_MAX;
     if(STD::abs(urayt_w) > REAL_EPSILON){
         if(x_w < segLim.min){
@@ -161,6 +163,7 @@ HOST_DEVICE inline bool CheckDiagCrossing(const vec3 &tri_n,
     const vec3 &d, const bool &tridiag_pos)
 {
     real dend   = glm::dot(tri_n, d);
+    //printf("pos %s dend %g\n", tridiag_pos ? "true" : "false", dend);
     return (tridiag_pos && dend < -TRIDIAG_THRESH) ||
           (!tridiag_pos && dend >  TRIDIAG_THRESH);
 }
@@ -220,6 +223,10 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
     real h1, h2, h3, h4, h5, h6, h7;
     bool dummy;
     
+    #ifdef STEP_DEBUGGING
+    printf("ReduceStep%s\n", O3D ? "3D" : "2D");
+    #endif
+    
     // Detect interface or boundary crossing and reduce step, if necessary, to land on that crossing.
     // Keep in mind possibility that user put source right on an interface
     // and that multiple events can occur (crossing interface, top, and bottom in a single step).
@@ -275,7 +282,9 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
         h = INFINITESIMAL_STEP_SIZE * Beam->deltas; // make sure we make some motion
         ++iSmallStepCtr; // keep a count of the number of sequential small steps
-        // printf("Small step forced to %g\n", h);
+        #ifdef STEP_DEBUGGING
+        printf("Small step forced to %g\n", h);
+        #endif
     }else{
         iSmallStepCtr = 0;
     }

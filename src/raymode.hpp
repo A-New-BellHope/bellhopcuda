@@ -94,7 +94,7 @@ template<bool O3D, bool R3D> inline void OpenRAYFile(
  * The 2D version is for ray traces in (r,z) coordinates
  * The 3D version is for ray traces in (x,y,z) coordinates
  * 
- * alpha0: take-off angle of this ray
+ * alpha0: take-off angle of this ray [LP: 2D: degrees, 3D: radians]
  */
 template<bool O3D, bool R3D> void WriteRay(real alpha0, int32_t Nsteps1, LDOFile &RAYFile,
     const BdryType *Bdry, const Origin<O3D, R3D> &org, rayPt<R3D> *ray)
@@ -116,6 +116,8 @@ template<bool O3D, bool R3D> void WriteRay(real alpha0, int32_t Nsteps1, LDOFile
     }
     
     // write to ray file
+    
+    if constexpr(O3D) alpha0 *= DegRad;
     
     RAYFile << alpha0 << '\n';
     RAYFile << n2 << ray[Nsteps1-1].NumTopBnc << ray[Nsteps1-1].NumBotBnc << '\n';

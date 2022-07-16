@@ -361,6 +361,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         backward = false; // LP: Commented out for 2D, absent for 3D as would not make sense.
     }
     if(leftbox || lostenergy || escapedboundaries || backward || toomanysmallsteps){
+        /*
         if(leftbox){
             if constexpr(O3D){
                 printf("Ray left beam box (%g,%g,%g)\n", Beam->Box.x, Beam->Box.y, Beam->Box.z);
@@ -377,6 +378,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         }else if(toomanysmallsteps){
             printf("Too many small steps\n");
         }
+        */
         Nsteps = is + 1;
         return true;
     }else if(is >= MaxN - 3){

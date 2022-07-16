@@ -132,13 +132,21 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         
         bds.x = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].x;
         
+        // printf("Iseg%s %d %d\n", isTop ? "Top" : "Bot", bds.Iseg.x+1, bds.Iseg.y+1);
+        // printf("Bdryx %g,%g,%g x %g,%g,%g\n", bds.x.x, bds.x.y, bds.x.z, x.x, x.y, x.z);
+        
         // identify the normal based on the active triangle of a pair
         // normal of triangle side pointing up and to the left
         vec2 tri_n = vec2(-(bds.lSeg.y.max - bds.lSeg.y.min), bds.lSeg.x.max - bds.lSeg.x.min);
         tri_n /= glm::length(tri_n);
-        real over_diag_amount = glm::dot(vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y), tri_n);
-        if(isInit || STD::abs(over_diag_amount) > TRIDIAG_THRESH){
+        vec2 temp = vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y);
+        real over_diag_amount = glm::dot(temp, tri_n);
+        // printf("temp %g,%g | tri_n %g,%g | over_diag_amount %g\n",
+        //     temp.x, temp.y, tri_n.x, tri_n.y, over_diag_amount);
+        if(STD::abs(over_diag_amount) > TRIDIAG_THRESH){
             bds.tridiag_pos = over_diag_amount >= RL(0.0);
+        }else if(isInit){
+            bds.tridiag_pos = glm::dot(vec2(t.x, t.y), tri_n) >= RL(0.0);
         }
         if(!bds.tridiag_pos){
             bds.n = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].n1;

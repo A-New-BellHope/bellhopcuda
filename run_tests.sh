@@ -23,11 +23,17 @@ if [[ -z $1 || -z $2 ]]; then
     exit 1
 fi
 
-if [[ $1 != "ray" && $1 != "tl" && $1 != "eigen" && $1 != "arr" ]]; then
-    echo "Invalid run type (first arg), must be: ray, tl, eigen, arr"
+if [[ $1 != ray* && $1 != tl* && $1 != eigen* && $1 != arr* ]]; then
+    echo "Invalid run type (first arg), must be: ray, tl, eigen, arr, ray3d, tl3d, eigen3d, arr3d"
     exit 1
 fi
-runtype=$1
+runtype=`echo $1 | sed 's/3d//g'`
+threedopt="-2"
+bhexec=bellhop.exe
+if [[ $1 == *3d ]]; then
+    threedopt="-3"
+    bhexec=bellhop3d.exe
+fi
 
 if [[ $2 == *.txt ]]; then
     echo "BELLHOP syntax prohibits including the file extension on input files (drop the .txt)"
@@ -101,22 +107,22 @@ run_test () {
     forres=0
     runname="BELLHOP"
     echo $runname
-    forout=$(time ../bellhop/Bellhop/bellhop.exe test/FORTRAN/$1 2>&1)
+    forout=$(time ../bellhop/Bellhop/$bhexec test/FORTRAN/$1 2>&1)
     if [[ $? != "0" ]]; then forres=1; fi
     if [[ "$forout" == *"STOP Fatal Error"* ]]; then forres=1; fi
     check_fail $forres $runname
     runname="bellhopcxx single-threaded"
     echo $runname
-    ./bin/bellhopcxx -1 test/cxx1/$1
+    ./bin/bellhopcxx -1 $threedopt test/cxx1/$1
     check_fail $? $runname $1
     runname="bellhopcxx multi-threaded"
     echo $runname
-    ./bin/bellhopcxx test/cxxmulti/$1
+    ./bin/bellhopcxx $threedopt test/cxxmulti/$1
     check_fail $? $runname $1
     runname="bellhopcuda"
     echo $runname
     if [ -f ./bin/bellhopcuda ]; then
-        ./bin/bellhopcuda test/cuda/$1
+        ./bin/bellhopcuda $threedopt test/cuda/$1
         check_fail $? $runname $1
     else
         echo "bellhopcuda not found ... ignoring"
