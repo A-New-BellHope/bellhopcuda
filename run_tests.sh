@@ -19,7 +19,7 @@
 #set -x
 
 if [[ -z $1 || -z $2 ]]; then
-    echo "Usage: ./run_tests.sh (ray/tl/eigen/arr) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore]"
+    echo "Usage: ./run_tests.sh (ray/tl/eigen/arr)(3d) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore]"
     exit 1
 fi
 

@@ -66,7 +66,9 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
             std::abort();
         }
         } break;
-    /*case 'H':{
+    case 'H':{
+        //LP: This just checks for existence, moved actual open for reading
+        //to InitHexahedral.
         PRTFile << "    Hexahedral approximation to SSP\n";
         std::ifstream SSPFile;
         SSPFile.open(FileRoot + ".ssp");
@@ -74,7 +76,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
             std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
         }
-        } break;*/
+        } break;
     case 'A':
         PRTFile << "    Analytic SSP option\n"; break;
     default:

@@ -510,19 +510,18 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
         
         if constexpr(O3D){
             IGNORE_UNUSED(s_risesdrops);
+            real *Globalx, *Globaly;
             
             // x values
             LIST(BDRYFile); BDRYFile.Read(bdinfotb->NPts.x);
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x-direction "
                 << bdinfotb->NPts.x << "\n";
             
-            real *Globalx = allocate<real>(std::max(bdinfotb->NPts.x, 3));
+            Globalx = allocate<real>(std::max(bdinfotb->NPts.x, 3));
             Globalx[2] = FL(-999.9);
             LIST(BDRYFile); BDRYFile.Read(Globalx, bdinfotb->NPts.x);
             SubTab(Globalx, bdinfotb->NPts.x);
             EchoVector(Globalx, bdinfotb->NPts.x, PRTFile, Bdry_Number_to_Echo);
-            // LP: BUG/TODO: This monotonic check is absent from BELLHOP3D,
-            // needed for new GetBdrySeg and even implicitly for GetTop/BotSeg3D
             if(!monotonic(Globalx, bdinfotb->NPts.x)){
                 std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
                     << " X values are not monotonically increasing\n";
@@ -534,13 +533,11 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in y-direction "
                 << bdinfotb->NPts.y << "\n";
             
-            real *Globaly = allocate<real>(std::max(bdinfotb->NPts.y, 3));
+            Globaly = allocate<real>(std::max(bdinfotb->NPts.y, 3));
             Globaly[2] = FL(-999.9);
             LIST(BDRYFile); BDRYFile.Read(Globaly, bdinfotb->NPts.y);
             SubTab(Globaly, bdinfotb->NPts.y);
             EchoVector(Globaly, bdinfotb->NPts.y, PRTFile, Bdry_Number_to_Echo);
-            // LP: BUG/TODO: This monotonic check is absent from BELLHOP3D,
-            // needed for new GetBdrySeg and even implicitly for GetTop/BotSeg3D
             if(!monotonic(Globaly, bdinfotb->NPts.y)){
                 std::cout << "BELLHOP:Read" << s_ATIBTY << ": " << s_AltimetryBathymetry 
                     << " Y values are not monotonically increasing\n";
@@ -570,6 +567,9 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
                     x.y = Globaly[iy];
                 }
             }
+            
+            checkdeallocate(Globalx);
+            checkdeallocate(Globaly);
         }else{
         
             LIST(BDRYFile); BDRYFile.Read(bdinfotb->NPts);
@@ -665,32 +665,16 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             bdinfotb->NPts = int2(2, 2);
             checkallocate(bdinfotb->bd, 2*2);
             
-            // LP: TODO/BUG: Top_deltax and Top_deltay initialized here. This
-            // value is only used if the ray goes outside the region where
-            // altimetry is defined. But there's 2 problems with this:
-            // 1) It will contain the leftover value from a previous step--or a
-            //    previous ray!--rather than the initial value from here.
-            // 2) This initial value is only written on this codepath with no
-            //    altimetry data--it's not written on the other codepath where
-            //    altimetry is defined. This means, on that codepath, if the
-            //    initial value would ever be used, it will be uninitialized.
-            //    Furthermore, it is much more likely the ray will go out of
-            //    bounds of the altimetry definition when it is manually defined
-            //    over a specific region, than on this codepath where the
-            //    altimetry is defined to be 10,000x the diameter of the Milky
-            //    Way!
-            //Top_deltax = FL(2.0) * BDRYBIG;
-            //Top_deltay = FL(2.0) * BDRYBIG;
-            
             bdinfotb->bd[0].x = vec3(-BDRYBIG, -BDRYBIG, BdryDepth);
             bdinfotb->bd[1].x = vec3(-BDRYBIG,  BDRYBIG, BdryDepth);
             bdinfotb->bd[2].x = vec3( BDRYBIG, -BDRYBIG, BdryDepth);
             bdinfotb->bd[3].x = vec3( BDRYBIG,  BDRYBIG, BdryDepth);
             
+            real defaultnz = isTop ? FL(-1.0) : FL(1.0);
             for(int32_t i=0; i<4; ++i){
-                bdinfotb->bd[i].t  = vec3(FL(1.0), FL(0.0), FL( 0.0));
-                bdinfotb->bd[i].n1 = vec3(FL(0.0), FL(0.0), FL(-1.0));
-                bdinfotb->bd[i].n2 = vec3(FL(0.0), FL(0.0), FL(-1.0));
+                bdinfotb->bd[i].t  = vec3(FL(1.0), FL(0.0), FL(0.0));
+                bdinfotb->bd[i].n1 = vec3(FL(0.0), FL(0.0), defaultnz);
+                bdinfotb->bd[i].n2 = vec3(FL(0.0), FL(0.0), defaultnz);
             }
             
             return; // LP: No ComputeBdryTangentNormal cause done manually here

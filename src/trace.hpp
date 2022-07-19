@@ -185,6 +185,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)){
         printf("Terminating the ray trace because the source is on or outside the boundaries\n");
+        /*
         if(DistBegTop <= FL(0.0)){
             printf("point0.x %f,%f bds.top.x %f,%f bds.top.n %f,%f DistBegTop %f\n",
                 point0.x.x, point0.x.y, bds.top.x.x, bds.top.x.y,
@@ -194,6 +195,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
                 point0.x.x, point0.x.y, bds.bot.x.x, bds.bot.x.y,
                 bds.bot.n.x, bds.bot.n.y, DistBegBot);
         }
+        */
         return false; // source must be within the medium
     }
     

@@ -1,0 +1,8 @@
+//Pass
+DoubleSeamount3D_ray
+HyperBot_ray
+munk3d_ray_nodiag
+Munk3Dz_ray
+PerfectWedge3d_ray
+Seamount_ray
+TruncatedWedge3d_ray

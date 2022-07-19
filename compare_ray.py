@@ -58,6 +58,8 @@ def compare_files(cxxf, forf):
                     ff = float(f)
                 except ValueError:
                     return False
+                if abs(cf - ff) < 1e-8:
+                    continue # Ignore relative error if abs error very small
                 if (cf == 0.0) != (ff == 0.0):
                     return False
                 if cf != 0.0:
