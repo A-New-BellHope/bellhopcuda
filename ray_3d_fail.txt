@@ -1,9 +1,3 @@
-//Fails due to ray exactly along diagonal
-munk3d_ray
-//Assertion hit with diagonal
-KR3d_ray
-Weymouth3D_ray
-
 //Diverges
 KoreanSea_3D_ray
 Taiwan3D_ray

@@ -31,14 +31,11 @@ template<> struct bdry_big<true>  { HOST_DEVICE static inline real value() { ret
 template<> struct bdry_big<false> { HOST_DEVICE static inline real value() { return STD::sqrt(REAL_MAX) / RL(1.0e5); } };
 #define BDRYBIG bdry_big<O3D>::value()
 
-/*
 #ifdef BHC_USE_FLOATS
 #define TRIDIAG_THRESH (RL(3e-3))
 #else
 #define TRIDIAG_THRESH (RL(3e-6))
 #endif
-*/
-#define TRIDIAG_THRESH (RL(1e-2))
 
 /**
  * Copy only some of the geoacoustic data from the position-dependent array to
@@ -131,6 +128,7 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         bds.lSeg.y.max = bdinfotb->bd[bds.Iseg.y+1].x.y;
         
         bds.x = bdinfotb->bd[bds.Iseg.x*ny+bds.Iseg.y].x;
+        bds.xmid = (bds.x + bdinfotb->bd[(bds.Iseg.x+1)*ny+(bds.Iseg.y+1)].x) * RL(0.5);
         
         // printf("Iseg%s %d %d\n", isTop ? "Top" : "Bot", bds.Iseg.x+1, bds.Iseg.y+1);
         // printf("Bdryx %g,%g,%g x %g,%g,%g\n", bds.x.x, bds.x.y, bds.x.z, x.x, x.y, x.z);
@@ -139,7 +137,7 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         // normal of triangle side pointing up and to the left
         vec2 tri_n = vec2(-(bds.lSeg.y.max - bds.lSeg.y.min), bds.lSeg.x.max - bds.lSeg.x.min);
         tri_n /= glm::length(tri_n);
-        vec2 temp = vec2(x.x, x.y) - vec2(bds.x.x, bds.x.y);
+        vec2 temp = vec2(x.x, x.y) - vec2(bds.xmid.x, bds.xmid.y);
         real over_diag_amount = glm::dot(temp, tri_n);
         // printf("temp %g,%g | tri_n %g,%g | over_diag_amount %g\n",
         //     temp.x, temp.y, tri_n.x, tri_n.y, over_diag_amount);
@@ -193,6 +191,7 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         // LP: Only explicitly loaded in this function in 3D, loaded in containing
         // code in 2D
         bds.x = bdinfotb->bd[bds.Iseg].x;
+        //bds.xmid = (bds.x + bdinfotb->bd[bds.Iseg+1].x) * RL(0.5);
         bds.n = bdinfotb->bd[bds.Iseg].n;
         
         // LP: Moved from RayInit and RayUpdate (TraceRay2D)

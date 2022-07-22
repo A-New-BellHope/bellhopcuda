@@ -163,7 +163,7 @@ HOST_DEVICE inline bool CheckDiagCrossing(const vec3 &tri_n,
     const vec3 &d, const bool &tridiag_pos)
 {
     real dend   = glm::dot(tri_n, d);
-    //printf("pos %s dend %g\n", tridiag_pos ? "true" : "false", dend);
+    // printf("pos %s dend %g\n", tridiag_pos ? "true" : "false", dend);
     return (tridiag_pos && dend < -TRIDIAG_THRESH) ||
           (!tridiag_pos && dend >  TRIDIAG_THRESH);
 }
@@ -176,8 +176,8 @@ HOST_DEVICE inline void TriDiagCrossing(
     vec3 &x, const vec3 &x0, const vec3 &urayt,
     bool stepTo, bool &topRefl, bool &botRefl, bool &flipDiag)
 {
-    vec3 d     = x  - bd.x; // vector from top / bottom node to ray end
-    vec3 d0    = x0 - bd.x; // vector from top / bottom node to ray origin
+    vec3 d     = x  - bd.xmid; // vector from top / bottom center to ray end
+    vec3 d0    = x0 - bd.xmid; // vector from top / bottom center to ray origin
     vec3 tri_n = vec3(-(bd.lSeg.y.max - bd.lSeg.y.min), bd.lSeg.x.max - bd.lSeg.x.min, RL(0.0));
     tri_n /= glm::length(tri_n);
     

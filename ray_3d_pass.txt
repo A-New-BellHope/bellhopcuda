@@ -1,8 +1,12 @@
 //Pass
 DoubleSeamount3D_ray
 HyperBot_ray
+KR3d_ray
 munk3d_ray_nodiag
 Munk3Dz_ray
 PerfectWedge3d_ray
 Seamount_ray
 TruncatedWedge3d_ray
+Weymouth3D_ray
+//Some divergence, but passes
+munk3d_ray

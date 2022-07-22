@@ -162,6 +162,8 @@ template<bool O3D> struct BdryStateTopBot : public BdryStateTopBotExtras<O3D> {
     IORI2<O3D> Iseg; // indices that point to the current active segment
     typename TmplBdryLimits12<O3D>::type lSeg; // LP: limits of current segment
     VEC23<O3D> x, n; // only explicitly written in 3D, but effectively present in 2D
+    VEC23<O3D> xmid; // coordinates of center of active rectangle (3D) / segment (2D)
+    // because corners may be at big number and mess up floating point precision
 };
 /**
  * LP: There are three boundary structures. This one holds variables describing
