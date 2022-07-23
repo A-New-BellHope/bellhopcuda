@@ -185,7 +185,7 @@ HOST_DEVICE inline void TriDiagCrossing(
     if(CheckDiagCrossing(tri_n, d, bd.tridiag_pos)){
         real hnew = -glm::dot(d0, tri_n) / glm::dot(urayt, tri_n);
         if(hnew < RL(0.0)){
-            BASSERT(STD::abs(glm::dot(urayt, tri_n)) < RL(1e-3));
+            BASSERT(hnew > RL(-1e-3) || STD::abs(glm::dot(urayt, tri_n)) < RL(1e-3));
             h = RL(0.0);
         }else{
             BASSERT(hnew < h);
@@ -687,6 +687,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
         VEC23<R3D> gradcjump = o2.gradc - o0.gradc;
         CurvatureCorrection<R3D>(ray2, gradcjump, iSeg, iSeg0);
     }
+    
 }
 
 }

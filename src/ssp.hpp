@@ -220,16 +220,16 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
     UpdateSSPSegment(x.z, t.z, ssp->Seg.z, ssp->Nz, iSeg.z);
     
     // cz at the corners of the current rectangle
-    real cz11 = ssp->czMat[((iSeg.x  )*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z];
-    real cz12 = ssp->czMat[((iSeg.x+1)*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z];
-    real cz21 = ssp->czMat[((iSeg.x  )*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z];
-    real cz22 = ssp->czMat[((iSeg.x+1)*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z];
+    real cz11 = ssp->czMat[((iSeg.x  )*ssp->Ny+iSeg.y  )*(ssp->Nz-1)+iSeg.z];
+    real cz12 = ssp->czMat[((iSeg.x+1)*ssp->Ny+iSeg.y  )*(ssp->Nz-1)+iSeg.z];
+    real cz21 = ssp->czMat[((iSeg.x  )*ssp->Ny+iSeg.y+1)*(ssp->Nz-1)+iSeg.z];
+    real cz22 = ssp->czMat[((iSeg.x+1)*ssp->Ny+iSeg.y+1)*(ssp->Nz-1)+iSeg.z];
     
     // for this depth, x.z get the sound speed at the corners of the current rectangle
     real s3 = x.z - ssp->Seg.z[iSeg.z];
     real c11 = ssp->cMat[((iSeg.x  )*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z] + s3*cz11;
-    real c12 = ssp->cMat[((iSeg.x+1)*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z] + s3*cz12;
-    real c21 = ssp->cMat[((iSeg.x  )*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z] + s3*cz21;
+    real c21 = ssp->cMat[((iSeg.x+1)*ssp->Ny+iSeg.y  )*ssp->Nz+iSeg.z] + s3*cz12;
+    real c12 = ssp->cMat[((iSeg.x  )*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z] + s3*cz21;
     real c22 = ssp->cMat[((iSeg.x+1)*ssp->Ny+iSeg.y+1)*ssp->Nz+iSeg.z] + s3*cz22;
     
     // s1 = proportional distance of x.x in x
