@@ -54,14 +54,14 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
         // iRight = 1;
         RInt.r   = FL(0.0); // r[iLeft].r
         RInt.phi = FL(0.0); // r[iLeft].phi
-        printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
+        GlobalLog("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
             "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
             thetaIntr, r[iLeft].theta);
     }else if(thetaIntr > r[iRight].theta){
         // iLeft = NPts - 2;
         RInt.r   = FL(0.0); // r[iRight].r
         RInt.phi = FL(0.0); // r[iRight].phi
-        // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
+        // GlobalLog("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
         //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
         //     thetaIntr, r[iRight].theta);
     }else{

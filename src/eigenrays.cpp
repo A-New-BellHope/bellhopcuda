@@ -41,17 +41,17 @@ void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
         uint32_t job = jobID++;
         if(job >= outputs.eigen->neigen) break;
         if(job >= outputs.eigen->memsize){
-            printf("Had %d eigenrays but only %d fit in memory\n",
+            GlobalLog("Had %d eigenrays but only %d fit in memory\n",
                 outputs.eigen->neigen, outputs.eigen->memsize);
             break;
         }
         EigenHit *hit = &outputs.eigen->hits[job];
         int32_t Nsteps = hit->is;
         if(!RunRay(outputs.rayinfo, params, localmem, job, hit->isrc, hit->ialpha, Nsteps)){
-            printf("EigenModePostWorker RunRay failed\n");
+            GlobalLog("EigenModePostWorker RunRay failed\n");
         }
         if(Nsteps != hit->is + 2 && Nsteps != hit->is + 3){
-            printf("Eigenray isrc %d ialpha %d hit rcvr on step %d but on retrace had %d steps\n",
+            GlobalLog("Eigenray isrc %d ialpha %d hit rcvr on step %d but on retrace had %d steps\n",
                 hit->isrc, hit->ialpha, hit->is, Nsteps);
         }
     }

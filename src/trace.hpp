@@ -165,9 +165,9 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
         
         Refl = -(rho * f - J * kz * g) / (rho * f + J * kz * g); // complex reflection coef.
         /*
-        printf("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
+        GlobalLog("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
             hs.cP.real(), hs.cP.imag(), hs.rho);
-        printf("kx kz f g Refl (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
+        GlobalLog("kx kz f g Refl (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
             kx.real(), kx.imag(), kz.real(), kz.imag(), f.real(), f.imag(),
             g.real(), g.imag(), Refl.real(), Refl.imag());
         */
@@ -239,11 +239,11 @@ HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
             }
         }
     }else{
-        printf("Reflect2D: Unknown boundary condition type\n");
+        GlobalLog("Reflect2D: Unknown boundary condition type\n");
         bail();
     }
     
-    // printf("Reflection amp changed from to %g %g\n", oldPoint.Amp, newPoint.Amp);
+    // GlobalLog("Reflection amp changed from to %g %g\n", oldPoint.Amp, newPoint.Amp);
 }
 
 /**
@@ -277,7 +277,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
 {
     if(isrc < 0 || ialpha < 0 || isrc >= Pos->NSz || ialpha >= Angles->Nalpha){
-        printf("Invalid isrc %d ialpha %d\n", isrc, ialpha);
+        GlobalLog("Invalid isrc %d ialpha %d\n", isrc, ialpha);
         bail();
     }
     
@@ -300,7 +300,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
     
     if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && ialpha == 0){
-        printf("Warning in " BHC_PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
+        GlobalLog("Warning in " BHC_PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
     }
     
     int32_t ibp = BinarySearchLEQ(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
@@ -344,7 +344,7 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
     Bdry = *ConstBdry;
     if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs);
     if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs);
-    // printf("btyType cP top bot %c%c (%g,%g) (%g,%g)\n", bdinfo->btyType[0], bdinfo->btyType[1],
+    // GlobalLog("btyType cP top bot %c%c (%g,%g) (%g,%g)\n", bdinfo->btyType[0], bdinfo->btyType[1],
     //     Bdry.Top.hs.cP.real(), Bdry.Top.hs.cP.imag(),
     //     Bdry.Bot.hs.cP.real(), Bdry.Bot.hs.cP.imag());
     
@@ -354,8 +354,8 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
         bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistBegTop, DistBegBot);
         
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)){
-        printf("Terminating the ray trace because the source is on or outside the boundaries\n");
-        // printf("xs (%g,%g) Bot.x (%g,%g) Bot.n (%g,%g) DistBegBot %g\n",
+        GlobalLog("Terminating the ray trace because the source is on or outside the boundaries\n");
+        // GlobalLog("xs (%g,%g) Bot.x (%g,%g) Bot.n (%g,%g) DistBegBot %g\n",
         //     xs.x, xs.y,
         //     bdinfo->Bot[IsegBot].x.x, bdinfo->Bot[IsegBot].x.y,
         //     bdinfo->Bot[IsegBot].n.x, bdinfo->Bot[IsegBot].n.y, DistBegBot);
@@ -384,7 +384,7 @@ HOST_DEVICE inline int32_t RayUpdate(
         freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr, topRefl, botRefl);
     /*
     if(point0.x == point1.x){
-        printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
+        GlobalLog("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
         bail();
     }
     */
@@ -415,7 +415,7 @@ HOST_DEVICE inline int32_t RayUpdate(
     
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl){
-        // printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
+        // GlobalLog(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
         vec2 dEnd = topRefl ? dEndTop : dEndBot;
         BdryPtFull *bd0 = topRefl ? &bdinfo->Top[IsegTop] : &bdinfo->Bot[IsegBot];
         BdryPtFull *bd1 = &bd0[1]; // LP: next segment
@@ -464,18 +464,18 @@ HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int3
     ){
         /*
         if(leftbox){
-            printf("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
+            GlobalLog("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
         }else if(lostenergy){
-            printf("Ray energy dropped to %g\n", point.Amp);
+            GlobalLog("Ray energy dropped to %g\n", point.Amp);
         }else{
-            printf("Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g DistEndBot %g\n",
+            GlobalLog("Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g DistEndBot %g\n",
                 DistBegTop, DistEndTop, DistBegBot, DistEndBot);
         }
         */
         Nsteps = is + 1;
         return true;
     }else if(is >= MaxN - 3){
-        printf("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
+        GlobalLog("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
         Nsteps = is;
         return true;
     }

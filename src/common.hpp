@@ -107,7 +107,7 @@ inline const char *SOURCE_FILENAME(const char *file){
 #define bail __trap
 #define BASSERT(statement) \
 if(__builtin_expect(!(statement), 0)) { \
-	printf("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
+	GlobalLog("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
 	__trap(); \
 } REQUIRESEMICOLON
 #else
@@ -553,5 +553,36 @@ public:
 private:
     std::chrono::high_resolution_clock::time_point tstart;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// A global log that can stream to an external source (like unreal).
+// Intended to replace calls to printf when stdout is not available.
+// Not thread safe or intended for speed.
+////////////////////////////////////////////////////////////////////////////////
+
+static void (*EXTERNAL_GLOBAL_LOG)(const char* message) = nullptr;
+
+#ifdef BHC_CPU
+inline void GlobalLog(const char* message, ...) {
+	va_list argp;
+	va_start(argp, message);
+	if (EXTERNAL_GLOBAL_LOG == nullptr) {
+		vprintf(message, argp);
+	}
+	else {
+		char* buffer = new char[strlen(message)];
+		vsprintf(buffer, message, argp);
+		EXTERNAL_GLOBAL_LOG(buffer);
+	}
+	va_end(argp);
+}
+#else
+HOST_DEVICE inline void GlobalLog(const char* message, ...) {
+	va_list argp;
+	va_start(argp, message);
+	printf(message, argp); //should be vprintf?
+	va_end(argp);
+}
+#endif
 
 }

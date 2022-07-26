@@ -210,7 +210,7 @@ void InitializeSSP(SSP_INIT_ARGS)
     case 'A': // Analytic profile option
         break; //LP: No init for analytic.
     default:
-        printf("InitializeSSP: Invalid profile option %c\n", ssp->Type);
+        GlobalLog("InitializeSSP: Invalid profile option %c\n", ssp->Type);
         std::abort();
     }
 }

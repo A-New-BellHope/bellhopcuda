@@ -213,7 +213,7 @@ HOST_DEVICE inline cpx PickEpsilon(char BeamType0, char BeamType1, real omega,
             }
             break;
         default:
-            printf("Invalid BeamType[1]: %c\n", BeamType1);
+            GlobalLog("Invalid BeamType[1]: %c\n", BeamType1);
             bail();
         }
         break;
@@ -229,7 +229,7 @@ HOST_DEVICE inline cpx PickEpsilon(char BeamType0, char BeamType1, real omega,
         epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
         break;
     case 'b':
-        printf(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
+        GlobalLog(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
             "implemented in BELLHOP (and therefore not in " BHC_PROGRAMNAME ")\n");
         bail();
         break;
@@ -239,7 +239,7 @@ HOST_DEVICE inline cpx PickEpsilon(char BeamType0, char BeamType1, real omega,
         epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
         break;
     default:
-        printf("Invalid BeamType[0]: %c\n", BeamType0);
+        GlobalLog("Invalid BeamType[0]: %c\n", BeamType0);
         bail();
     }
     
@@ -308,7 +308,7 @@ HOST_DEVICE inline real FlipBeamForImage(real xy, int32_t image, const BdryType 
     }else if(image == 3){ // Bottom-reflected beam
         return FL(2.0) * Bdry->Bot.hs.Depth - xy;
     }else{
-        printf("Image index %d must be 1, 2, or 3\n", image);
+        GlobalLog("Image index %d must be 1, 2, or 3\n", image);
         bail();
     }
 }
@@ -529,7 +529,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                     nSq   = SQ(n);
                     if(gamma.imag() > 0){
                         #ifndef BHC_USE_FLOATS
-                        printf("Unbounded beam\n");
+                        GlobalLog("Unbounded beam\n");
                         #endif
                         continue;
                     }
@@ -637,7 +637,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
         
         if(gamma.imag() > FL(0.0)){
             #ifndef BHC_USE_FLOATS
-            printf("Unbounded beam\n");
+            GlobalLog("Unbounded beam\n");
             #endif
             continue;
         }
@@ -665,7 +665,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
                     deltaz = -zR + FL(2.0) * Bdry->Bot.hs.Depth - x.y;
                     Polarity = RL(1.0); // assumes rigid bottom
                 }else{
-                    printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
+                    GlobalLog("Invalid Beam->Nimage %d\n", Beam->Nimage);
                     bail();
                 }
                 if(inflray.omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2){
@@ -870,7 +870,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                     delay = point0.tau + s * dtauds; // interpolated delay
                     if(STD::abs(q) == RL(0.0)){
                         vec2 dx = x_rcvr - x_ray;
-                        printf("Divide by q=zero, point0.q.x %f, s %f, dqds %f, iz %d, ir %d, is %d, rayt (%f,%f), rlen %f, x_rcvr - x_ray (%f,%f), x_ray (%f,%f)\n",
+                        GlobalLog("Divide by q=zero, point0.q.x %f, s %f, dqds %f, iz %d, ir %d, is %d, rayt (%f,%f), rlen %f, x_rcvr - x_ray (%f,%f), x_ray (%f,%f)\n",
                             point0.q.x, s, dqds, iz, inflray.ir, is, rayt.x, rayt.y, rlen, dx.x, dx.y, x_ray.x, x_ray.y);
                         bail();
                     }

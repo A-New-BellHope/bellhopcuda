@@ -24,5 +24,5 @@ add_executable(bellhopcxx ${COMMON_INCLUDES} ${COMMON_SOURCE}
     ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
 )
 
-target_compile_definitions(bellhopcxx PUBLIC BHC_CMDLINE=1)
+target_compile_definitions(bellhopcxx PUBLIC BHC_CMDLINE=1 BHC_CPU=1)
 bellhop_setup_target(bellhopcxx)

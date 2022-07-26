@@ -55,7 +55,7 @@ HOST_DEVICE inline void GetTopSeg(real r, real t, int32_t &IsegTop, vec2 &rTopSe
     }
     if(IsegTop < 0 || IsegTop >= n-1){
         // IsegTop MUST LIE IN [0, NATIPts-2]
-        printf("Error: GetTopSeg: Top altimetry undefined above the ray, r=%g\n", r);
+        GlobalLog("Error: GetTopSeg: Top altimetry undefined above the ray, r=%g\n", r);
         bail();
     }
     rTopSeg.x = bdinfo->Top[IsegTop].x.x;
@@ -88,7 +88,7 @@ HOST_DEVICE inline void GetBotSeg(real r, real t, int32_t &IsegBot, vec2 &rBotSe
     }
     if(IsegBot < 0 || IsegBot >= n-1){
         // IsegBot MUST LIE IN [0, NBTYPts-2]
-        printf("Error: GetBotSeg: Bottom bathymetry undefined below the source, r=%g\n", r);
+        GlobalLog("Error: GetBotSeg: Bottom bathymetry undefined below the source, r=%g\n", r);
         bail();
     }
     rBotSeg.x = bdinfo->Bot[IsegBot].x.x;
@@ -448,9 +448,9 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         
         hs.cP  = crci(zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
         hs.cS  = crci(zTemp, RecycledHS.betaR,  RecycledHS.betaI,  freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
-        // printf("%g %g %g %g %c%c %g %g\n", zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq,
+        // GlobalLog("%g %g %g %g %c%c %g %g\n", zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq,
         //     AttenUnit[0], AttenUnit[1], betaPowerLaw, fT);
-        // printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
+        // GlobalLog("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
         
         hs.rho = RecycledHS.rho;
     }else if(hs.bc == 'G'){ // *** Grain size (formulas from UW-APL HF Handbook)

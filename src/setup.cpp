@@ -40,6 +40,8 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     api_okay = true;
     params.internal = new PrintFileEmu(FileRoot, outputCallback);
     PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
+
+    bhc::EXTERNAL_GLOBAL_LOG = outputCallback;
     
     try {
     
