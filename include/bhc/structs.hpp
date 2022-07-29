@@ -43,11 +43,22 @@ template<> HOST_DEVICE inline real &DEP(vec3 &v) { return v.z; }
 template<typename VEC> HOST_DEVICE inline const real &DEP(const VEC &v);
 template<> HOST_DEVICE inline const real &DEP(const vec2 &v) { return v.y; }
 template<> HOST_DEVICE inline const real &DEP(const vec3 &v) { return v.z; }
+inline HOST_DEVICE vec2 XYCOMP(const vec3 &v){
+    return vec2(v.x, v.y);
+}
+inline HOST_DEVICE void SETXY(vec3 &v, const vec2 &xy){
+    v.x = xy.x; v.y = xy.y;
+}
 
 template<bool X3D> struct TmplInt12 {};
 template<> struct TmplInt12<false> { typedef int32_t type; };
 template<> struct TmplInt12<true>  { typedef int2 type; };
 template<bool X3D> using IORI2 = typename TmplInt12<X3D>::type;
+
+template<bool X3D> struct TmplVec2Mat2 {};
+template<> struct TmplVec2Mat2<false> { typedef vec2 type; };
+template<> struct TmplVec2Mat2<true>  { typedef mat2x2 type; };
+template<bool X3D> using V2M2 = typename TmplVec2Mat2<X3D>::type;
 
 ////////////////////////////////////////////////////////////////////////////////
 //SSP / Boundary

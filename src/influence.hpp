@@ -23,25 +23,27 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-struct InfluenceRayInfo {
+template<bool R3D> struct InfluenceRayInfo {
     // LP: Variables carried over between iterations.
-    real phase, qOld;
-    vec2 x;
+    real phase;
+    real qOld; // LP: Det_QOld in 3D
+    VEC23<R3D> x;
     bool lastValid;
     real zn, rn;
     int32_t kmah;
     int32_t ir;
     cpx gamma;
     // LP: Constants.
-    int32_t isrc, ialpha; // LP: Uniquely identifies the beam
-    real q0;
+    RayInitInfo init;
+    real Dalpha, Dbeta; // angular spacing
+    real c0; // LP: c at start of ray
     cpx epsilon; // beam constant
+    VEC23<R3D> xs; // source
     real freq0, omega;
     real RadMax;
     int32_t iBeamWindow2;
-    real SrcDeclAngle; // take-off angle in degrees
-    real Dalpha; // angular spacing
     real Ratio1; // scale factor (point source vs. line source)
+    real rcp_q0, rcp_qhat0;
 };
 
 /**
@@ -137,7 +139,7 @@ HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
 
 HOST_DEVICE inline void ApplyContribution(
     cpxf *u, real cnst, real w, real omega, cpx delay, real phaseInt,
-    real SrcDeclAngle, real RcvrDeclAngle, int32_t ir, int32_t iz, int32_t is,
+    real RcvrDeclAngle, int32_t ir, int32_t iz, int32_t is,
     const InfluenceRayInfo &inflray, const rayPt<false> &point1,
     const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
@@ -145,13 +147,13 @@ HOST_DEVICE inline void ApplyContribution(
     switch(Beam->RunType[0]){
     case 'E':
         // eigenrays
-        RecordEigenHit(ir, iz, inflray.isrc, inflray.ialpha, is, eigen);
+        RecordEigenHit(ir, iz, inflray.init.isz, inflray.init.ialpha, is, eigen);
         break;
     case 'A':
     case 'a':
         // arrivals
-        AddArr(omega, inflray.isrc, iz, ir, cnst * w, phaseInt, delay, 
-            SrcDeclAngle, RcvrDeclAngle, point1.NumTopBnc, point1.NumBotBnc,
+        AddArr(omega, inflray.init.isz, iz, ir, cnst * w, phaseInt, delay, 
+            inflray.init.SrcDeclAngle, RcvrDeclAngle, point1.NumTopBnc, point1.NumBotBnc,
             arrinfo, Pos);
         break;
     case 'C':
@@ -369,47 +371,83 @@ HOST_DEVICE inline cpx Compute_gamma(const rayPt<false> &point, const cpx &pB, c
     }
 }
 
+/**
+ * pre-apply some scaling
+ */
+template<bool R3D> HOST_DEVICE inline rayPt<R3D> ScaleBeamIf3D(
+    const rayPt<R3D> &point, const InfluenceRayInfo<R3D> &inflray)
+{
+    if constexpr(R3D){
+        rayPt<true> ret = point;
+        // scaling for geometric beams
+        ret.DetQ = glm::determinant(ret.q);
+        ret.q[0][0] *= inflray.rcp_q0;
+        ret.q[1][0] *= inflray.rcp_q0;
+        ret.q[0][1] *= inflray.rcp_qhat0;
+        ret.q[1][0] *= inflray.rcp_qhat0;
+    }else{
+        return point;
+    }
+}
+
+template<typename MV> HOST_DEVICE inline real QScalar(const MV &q);
+template<> HOST_DEVICE inline real QScalar(const vec2 &q) { return q.x; }
+template<> HOST_DEVICE inline real QScalar(const mat2x2 &q) { return glm::determinant(q); }
+
 // 
 
-HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
-    const rayPt<false> &point0, RayInitInfo &rinit, vec2 gradc,
-    const Position *Pos, const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
+    InfluenceRayInfo<R3D> &inflray,
+    const rayPt<R3D> &point0, RayInitInfo &rinit, vec2 gradc,
+    const Position *Pos, const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
-    inflray.isrc = rinit.isz;
-    inflray.ialpha = rinit.ialpha;
+    inflray.init = rinit;
     inflray.freq0 = freqinfo->freq0;
     inflray.omega = FL(2.0) * REAL_PI * inflray.freq0;
+    inflray.c0 = point0.c;
+    inflray.xs = point0.x;
     // LP: The 5x version is changed to 50x on both codepaths before it is used.
     // inflray.RadMax = FL(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
     inflray.RadMax = FL(50.0) * point0.c / freqinfo->freq0; // 50 wavelength max radius
     inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
-    inflray.SrcDeclAngle = rinit.SrcDeclAngle;
     inflray.Dalpha = Angles->alpha.d;
-    if(Beam->RunType[3] == 'R'){
-        // LP: Did not have the abs for SGB, but it has been added.
-        inflray.Ratio1 = STD::sqrt(STD::abs(STD::cos(rinit.alpha))); // point source
+    inflray.Dbeta = Angles->beta.d;
+    
+    // LP: Did not have the abs for SGB, but it has been added.
+    inflray.Ratio1 = STD::sqrt(STD::abs(STD::cos(rinit.alpha))); // point source
+    if constexpr(R3D){
+        inflray.Ratio1 *= STD::sqrt(inflray.Dalpha * inflray.Dbeta) / point0.c;
+        if(Beam->Type[0] == 'B' || Beam->Type[0] == 'b'){
+            inflray.Ratio1 *= RL(1.0) / (FL(2.0) * REAL_PI); // Gaussian beams
+        }
     }else{
-        inflray.Ratio1 = RL(1.0); // line source
+        if(Beam->RunType[3] != 'R'){
+            inflray.Ratio1 = RL(1.0); // line source
+        }
     }
+    
     if(Beam->Type[0] == 'R' || Beam->Type[0] == 'C'){
         inflray.epsilon = PickEpsilon(Beam->Type[0], Beam->Type[1], inflray.omega,
             point0.c, gradc, rinit.alpha, Angles->alpha.d, Beam->rLoop, Beam->epsMultiplier);
     }
     
-    // LP: For all except Cerveny
+    // LP: For all geometric types
+    inflray.rcp_q0 = inflray.Dalpha / point0.c; // Reference for J = q0 / q = q * rcp_q0
+    if constexpr(R3D){
+        inflray.rcp_qhat0 = STD::abs(STD::cos(inflray.init.alpha)) * inflray.Dbeta / point0.c;
+    }
+    
+    // LP: For all geometric types
     inflray.phase = FL(0.0);
     
     if(Beam->Type[0] == 'S'){
         // LP: For SGB
         inflray.qOld = FL(1.0);
     }else{
-        // LP: For GeoHat and Gaussian
-        inflray.qOld = point0.q.x; // used to track KMAH index
+        // LP: For Cartesian types
+        inflray.qOld = QScalar(point0.q); // used to track KMAH index
     }
-    
-    // LP: For GeoHat and Gaussian
-    inflray.q0 = point0.c / inflray.Dalpha; // Reference for J = q0 / q
     
     // LP: For RayCen types
     if(Beam->Type[0] == 'g'){
@@ -428,7 +466,7 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
         inflray.x = vec2(RL(0.0), RL(0.0));
         inflray.lastValid = false;
     }else{
-        // LP: For geo Cartesian types
+        // LP: For Cartesian types
         inflray.x = point0.x;
     }
     
@@ -439,12 +477,22 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
         // LP: For SGB
         inflray.ir = 0;
     }else if(Beam->Type[0] == 'B' || Beam->Type[0] == 'G'){
-        // LP: For GeoHat and Gaussian
+        // LP: For Cartesian types
         // what if never satisfied?
         // what if there is a single receiver (ir = -1 possible)
         // LP: ir is always valid, even if it means not meeting the condition.
-        inflray.ir = BinarySearchGT(Pos->Rr, Pos->NRr, 1, 0, point0.x.x); // find index of first receiver to the right of rA
-        if(point0.t.x < RL(0.0) && inflray.ir > 0) --inflray.ir; // if ray is left-traveling, get the first receiver to the left of rA
+        real r;
+        if constexpr(R3D){
+            // LP: Originally something like glm::distance(point0.x[0:1], inflray.xs[0:1])
+            // but the ray always starts at the source
+            r = RL(0.0);
+        }else{
+            r = point0.x.x;
+        }
+        inflray.ir = BinarySearchGT(Pos->Rr, Pos->NRr, 1, 0, r); // find index of first receiver to the right of rA
+        if constexpr(!R3D){
+            if(point0.t.x < RL(0.0) && inflray.ir > 0) --inflray.ir; // if ray is left-traveling, get the first receiver to the left of rA
+        }
     }
     
     if(Beam->Type[0] == 'C'){
@@ -456,6 +504,8 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
         // LP: not used
         inflray.gamma = RL(0.0);
     }
+    
+    
 }
 
 // LP: Main functions.
@@ -464,7 +514,8 @@ HOST_DEVICE inline void Init_Influence(InfluenceRayInfo &inflray,
  * Paraxial (Cerveny-style) beams in ray-centered coordinates
  */
 HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
-    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
+    const rayPt<false> &point0, const rayPt<false> &point1,
+    InfluenceRayInfo<false> &inflray, 
     int32_t is, cpxf *u,
     const BdryType *Bdry, const Position *Pos, const BeamStructure *Beam)
 {
@@ -580,10 +631,11 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
 /**
  * Paraxial (Cerveny-style) beams in Cartesian coordinates
  */
-HOST_DEVICE inline bool Step_InfluenceCervenyCart(
-    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
+template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
+    const rayPt<false> &point0, const rayPt<false> &point1,
+    InfluenceRayInfo<false> &inflray, 
     int32_t is, cpxf *u, const BdryType *Bdry, 
-    const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+    const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam)
 {
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
@@ -691,8 +743,9 @@ HOST_DEVICE inline bool Step_InfluenceCervenyCart(
 /**
  * Geometrically-spreading beams with a hat-shaped beam in ray-centered coordinates
  */
-HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
-    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray,
+template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
+    const rayPt<R3D> &point0, const rayPt<R3D> &point1,
+    InfluenceRayInfo<R3D> &inflray,
     int32_t is, cpxf *u, const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -750,7 +803,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
             w = (Pos->Rr[ir] - rA) / (rB - rA);
             n = STD::abs(nA + w * (nB - nA));
             q = point0.q.x + w * dq; // interpolated amplitude
-            l = STD::abs(q) / inflray.q0; // beam radius
+            l = STD::abs(q) * inflray.rcp_q0; // beam radius
             
             if(n < l){ // in beamwindow?
                 delay = point0.tau + w * dtau;
@@ -760,7 +813,7 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
                 
                 ApplyContribution(&u[iz*Pos->NRr+ir], 
                     cnst, w, inflray.omega, delay, phaseInt,
-                    inflray.SrcDeclAngle, RcvrDeclAngle, ir, iz, is,
+                    RcvrDeclAngle, ir, iz, is,
                     inflray, point1, Pos, Beam, eigen, arrinfo);
             }
         }
@@ -778,63 +831,94 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
  *
  * u: complex pressure field
  */
-HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
-    bool isGaussian, 
-    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpxf *u, const Position *Pos, const BeamStructure *Beam,
-    EigenInfo *eigen, const ArrInfo *arrinfo)
+template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
+    bool isGaussian, const rayPt<R3D> &point0, const rayPt<R3D> &point1,
+    InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *u, const Position *Pos,
+    const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     const int32_t BeamWindow = 4; // beam window: kills beams outside e**(-0.5 * ibwin**2 )
     
-    vec2 x_ray, rayt, rayn, x_rcvr;
-    real rA, rB, RcvrDeclAngle;
-    real rlen, q, s, n, cnst, w, phaseInt, RadiusMax, zmin, zmax, sigma, lambda, a, dqds;
-    cpx dtauds, delay;
-    int32_t irTT;
-    
-    rA = inflray.x.x; // LP: This is different from point0.x.x due to early return for duplicate points.
-    rB = point1.x.x;
-    x_ray = point0.x;
+    real rA, rB;
+    if constexpr(R3D){
+        // LP: 3D updates rA even in the early return conditions below, so
+        // it doesn't use inflray.x at all.
+        rA = glm::length(vec2(point0.x.x, point0.x.y) - vec2(inflray.xs.x, inflray.xs.y));
+        rB = glm::length(vec2(point1.x.x, point1.x.y) - vec2(inflray.xs.x, inflray.xs.y));
+        if(STD::abs(rB - rA) <= RL(1e3) * spacing(rA)) return true;
+        // LP: This is silly logic, see comments in influence3D.f90
+        if(is == 0){
+            inflray.ir = (rB > rA) ? 0 : Pos->NRr-1;
+        }
+    }else{
+        // LP: This is different from point0.x.x due to early return for duplicate points.
+        rA = inflray.x.x;
+        rB = point1.x.x;
+    }
+    VEC23<R3D> x_ray = point0.x;
     
     // compute normalized tangent (compute it because we need to measure the step length)
-    rayt = point1.x - point0.x;
-    rlen = glm::length(rayt);
+    VEC23<R3D> rayt = point1.x - point0.x;
+    real rlen = glm::length(rayt);
     // if duplicate point in ray, skip to next step along the ray
-    // LP: and don't update rA (inflray.x) for next time
-    if(rlen < RL(1.0e3) * spacing(point1.x.x)) return true;
+    // LP: 2D: and don't update rA (inflray.x) for next time
+    real rlen_small = RL(1.0e3) * spacing(point1.x.x);
+    if(rlen < rlen_small || (R3D && rlen == rlen_small)) return true;
     rayt /= rlen;
-    rayn = vec2(-rayt.y, rayt.x); // unit normal to ray
-    RcvrDeclAngle = RadDeg * STD::atan2(rayt.y, rayt.x);
     
-    dqds   = point1.q.x - point0.q.x;
-    dtauds = point1.tau - point0.tau;
-    
-    q = point0.q.x;
-    IncPhaseIfCaustic(inflray, q, true);
-    inflray.qOld = q;
-    
-    sigma = bhc::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) / 
-        (inflray.q0 * STD::abs(rayt.x)); // beam radius projected onto vertical line
-    if(isGaussian){
-        // calculate beam width
-        lambda    = point0.c / inflray.freq0;
-        sigma     = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
-        RadiusMax = BeamWindow * sigma;
+    // LP: Ray normals
+    VEC23<R3D> rayn1, rayn2; // LP: e1, e2 in 3D; rayn, (none) in 2D
+    real RcvrDeclAngle;
+    vec2 n_ray_theta = vec2(-rayt.y, rayt.x); // 3D: normal to the ray in the horizontal receiver plane
+    if constexpr(R3D){
+        RayNormal_unit(rayt, point1.phi, rayn1, rayn2);
     }else{
-        lambda    = RL(0.0); // LP: compiler incorrectly complains maybe uninitialized
-        RadiusMax = sigma;
+        rayn1 = n_ray_theta; // unit normal to ray
+        IGNORE_UNUSED(rayn2);
+        RcvrDeclAngle = RadDeg * STD::atan2(rayt.y, rayt.x);
     }
     
-    // depth limits of beam
-    // LP: For rays shot at exactly 60 degrees, they will hit this edge case.
-    // This is a sharp edge--the handling on each side of this edge may be
-    // significantly different. So, moved the edge away from the round number.
-    if(STD::abs(rayt.x) > FL(0.50001)){ // shallow angle ray
-        zmin = bhc::min(point0.x.y, point1.x.y) - RadiusMax;
-        zmax = bhc::max(point0.x.y, point1.x.y) + RadiusMax;
-    }else{ // steep angle ray
-        zmin = -REAL_MAX;
-        zmax =  REAL_MAX;
+    // LP: Quantities to be interpolated between steps
+    V2M2 dq   = point1.q   - point0.q; // LP: dqds in 2D
+    cpx  dtau = point1.tau - point0.tau; // LP: dtauds in 2D
+    
+    // phase shifts at caustics
+    real phaseq = QScalar(point0.q);
+    IncPhaseIfCaustic(inflray, phaseq, true);
+    inflray.qOld = phaseq;
+    TODO; //DetQ and q matrix scaling
+    
+    real lambda, L_diag; // LP: For 2D and 3D respectively
+    real zmin, zmax; // LP: 2D here, 3D later
+    if constexpr(R3D){
+        // beamwidths / LP: Variable values don't carry over to per-receiver beamwidth below
+        real l1 = bhc::max(glm::length(glm::row(point0.q, 0)), glm::length(glm::row(point1.q, 0)));
+        real l2 = bhc::max(glm::length(glm::row(point0.q, 1)), glm::length(glm::row(point1.q, 1)));
+        // worst case is when rectangle is rotated to catch the hypotenuse
+        L_diag = STD::sqrt(l1 * l1 + l2 * l2);
+    }else{
+        real sigma, RadiusMax;
+        sigma = bhc::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) * inflray.rcp_q0
+            / STD::abs(rayt.x); // beam radius projected onto vertical line
+        if(isGaussian){
+            // calculate beam width
+            lambda    = point0.c / inflray.freq0;
+            sigma     = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
+            RadiusMax = BeamWindow * sigma;
+        }else{
+            lambda    = RL(0.0); // LP: compiler incorrectly complains maybe uninitialized
+            RadiusMax = sigma;
+        }
+        // depth limits of beam
+        // LP: For rays shot at exactly 60 degrees, they will hit this edge case.
+        // This is a sharp edge--the handling on each side of this edge may be
+        // significantly different. So, moved the edge away from the round number.
+        if(STD::abs(rayt.x) > FL(0.50001)){ // shallow angle ray
+            zmin = bhc::min(point0.x.y, point1.x.y) - RadiusMax;
+            zmax = bhc::max(point0.x.y, point1.x.y) + RadiusMax;
+        }else{ // steep angle ray
+            zmin = -REAL_MAX;
+            zmax =  REAL_MAX;
+        }
     }
     
     // compute beam influence for this segment of the ray
@@ -844,55 +928,124 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
         // which direction the ray goes, we only have to check this side.
         if(Pos->Rr[inflray.ir] >= bhc::min(rA, rB) && Pos->Rr[inflray.ir] < bhc::max(rA, rB)){
             
-            for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
-                if(Beam->RunType[4] == 'I'){
-                    x_rcvr = vec2(Pos->Rr[inflray.ir], Pos->Rz[inflray.ir]); // irregular grid
-                }else{
-                    x_rcvr = vec2(Pos->Rr[inflray.ir], Pos->Rz[iz]); // rectilinear grid
-                }
-                if(x_rcvr.y < zmin || x_rcvr.y > zmax) continue;
+            int32_t itheta = -1;
+            do{
+                VEC23<R3D> x_rcvr;
                 
-                s     = glm::dot(x_rcvr - x_ray, rayt) / rlen; // proportional distance along ray
-                n     = STD::abs(glm::dot(x_rcvr - x_ray, rayn)); // normal distance to ray
-                q     = point0.q.x + s * dqds; // interpolated amplitude
-                sigma = STD::abs(q / inflray.q0); // beam radius
-                real beamWCompare;
-                if(isGaussian){
-                    sigma = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
-                    beamWCompare = BeamWindow * sigma;
-                }else{
-                    RadiusMax = sigma;
-                    beamWCompare = RadiusMax;
-                }
-                
-                if(n < beamWCompare){ // Within beam window?
-                    delay = point0.tau + s * dtauds; // interpolated delay
-                    if(STD::abs(q) == RL(0.0)){
-                        vec2 dx = x_rcvr - x_ray;
-                        printf("Divide by q=zero, point0.q.x %f, s %f, dqds %f, iz %d, ir %d, is %d, rayt (%f,%f), rlen %f, x_rcvr - x_ray (%f,%f), x_ray (%f,%f)\n",
-                            point0.q.x, s, dqds, iz, inflray.ir, is, rayt.x, rayt.y, rlen, dx.x, dx.y, x_ray.x, x_ray.y);
-                        bail();
-                    }
-                    cnst  = inflray.Ratio1 * STD::sqrt(point1.c / STD::abs(q)) * point1.Amp;
-                    if(isGaussian){
-                        // sqrt( 2 * pi ) represents a sum of Gaussians in free space
-                        cnst /= STD::sqrt(FL(2.0) * REAL_PI);
-                        a = STD::abs(inflray.q0 / q);
-                        w = STD::exp(FL(-0.5) * SQ(n / sigma)) / (sigma * a); // Gaussian decay
-                    }else{
-                        w = (RadiusMax - n) / RadiusMax; // hat function: 1 on center, 0 on edge
-                    }
-                    phaseInt = FinalPhase((isGaussian ? point1 : point0), inflray, q);
+                ++itheta;
+                if constexpr(R3D){
+                    // LP: Loop logic
+                    if(itheta >= Pos->Ntheta) break;
                     
-                    ApplyContribution(&u[iz*Pos->NRr+inflray.ir],
+                    vec2 t_rcvr = Pos->t_rcvr[itheta];
+                    SETXY(x_rcvr, XYCOMP(inflray.xs) + Pos->Rr[inflray.ir] * t_rcvr);
+                    // normal distance from rcvr to ray segment
+                    real m_prime = STD::abs(glm::dot(XYCOMP(x_rcvr) - XYCOMP(x_ray), n_ray_theta));
+                    if(m_prime > L_diag) continue;
+                    
+                    // The set of possible receivers is a ring
+                    // However, extrapolating the beam backwards produces contributions with s negative and large
+                    // We do not want to accept these contributions--- they have the proper range but are 180 degrees
+                    // away from this segment of the ray
+                    // LP: This s value is not reused below
+                    // vector to rcvr dotted into vector to ray point
+                    real s = glm::dot(XYCOMP(x_rcvr) - XYCOMP(inflray.xs), XYCOMP(x_ray) - XYCOMP(inflray.xs));
+                    if(s < RL(0.0)) continue;
+                    
+                    // calculate z-limits for the beam (could be pre-cacluated for each itheta)
+                    vec2 e_theta = vec2(-t_rcvr.y, t_rcvr.x); // normal to the vertical receiver plane
+                    real n_ray_z = rayt.x * e_theta.y - rayt.y * e_theta.x; // normal to the ray in the vertical receiver plane
+                    
+                    if(STD::abs(n_ray_z) < RL(1e-9)) continue; // avoid divide by zero
+                    real L_z = L_diag / STD::abs(n_ray_z);
+                    
+                    zmin = bhc::min(point0.x.z, point1.x.z) - L_z; // min depth of ray segment
+                    zmax = bhc::max(point0.x.z, point1.x.z) + L_z; // max depth of ray segment
+                }else{
+                    IGNORE_UNUSED(itheta);
+                }
+            
+                for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
+                    int32_t tempiz = iz;
+                    if constexpr(!R3D){
+                        if(Beam->RunType[4] == 'I') tempiz = inflray.ir; // irregular grid
+                    } // else rectilinear grid
+                    DEP(x_rcvr) = Pos->Rz[tempiz];
+                    if(DEP(x_rcvr) < zmin || DEP(x_rcvr) > zmax) continue;
+                    
+                    VEC23<R3D> x_rcvr_ray = x_rcvr - x_ray;
+                    
+                    // linear interpolation of q's
+                    real s, n1, n2;
+                    s      = glm::dot(x_rcvr_ray, rayt) / rlen; // proportional distance along ray
+                    n1     = STD::abs(glm::dot(x_rcvr_ray, rayn1)); // normal distance to ray
+                    if constexpr(R3D){
+                        n2 = STD::abs(glm::dot(x_rcvr_ray, rayn2)); // normal distance to ray
+                    }else{
+                        IGNORE_UNUSED(n2);
+                    }
+                    V2M2 qInterp = point0.q + s * dq; // interpolated amplitude
+                    real qFinal = QScalar(qInterp); // area of parallelogram formed by ray tube
+                    
+                    real n1prime, n2prime; // LP: equal to n1 in 2D, rotated & normalized in 3D (were a, b)
+                    real sigma, sigma_orig; // beam radius
+                    if constexpr(R3D){
+                        real l1 = glm::length(glm::row(qInterp, 0));
+                        real l2 = glm::length(glm::row(qInterp, 1));
+                        if(l1 == FL(0.0) || l2 == FL(0.0)) continue;
+                        
+                        if(qFinal == FL(0.0)) continue;
+                        
+                        n1prime = STD::abs((-qInterp[0][1] * n2 + qInterp[1][1] * n1) / qFinal);
+                        n2prime = STD::abs(( qInterp[0][0] * n2 - qInterp[1][0] * n1) / qFinal);
+                        
+                        if(bhc::max(n1prime, n2prime) > FL(1.0)) continue;
+                    }else{
+                        real beamWCompare;
+                        sigma = sigma_orig = STD::abs(qFinal * inflray.rcp_q0); // LP: called RadiusMax in non-Gaussian
+                        if(isGaussian){
+                            sigma = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
+                            beamWCompare = BeamWindow * sigma;
+                        }else{
+                            beamWCompare = sigma;
+                        }
+                        
+                        n1prime = n1; IGNORE_UNUSED(n2prime);
+                        if(n1prime >= beamWCompare) continue; // Within beam window?
+                    }
+                    
+                    cpx delay = point0.tau + s * dtau; // interpolated delay
+                    real cnst = inflray.Ratio1 * point1.Amp / STD::sqrt(STD::abs(qFinal));
+                    real w;
+                    if constexpr(R3D){
+                        cnst *= point1.c;
+                        if(isGaussian){
+                            //TODO
+                        }else{
+                            w = (FL(1.0) - n1prime) * (FL(1.0) - n2prime);
+                        }
+                    }else{
+                        cnst *= STD::sqrt(point1.c);
+                        if(isGaussian){
+                            // sqrt(2*pi) represents a sum of Gaussians in free space
+                            cnst /= STD::sqrt(FL(2.0) * REAL_PI);
+                            w = STD::exp(FL(-0.5) * SQ(n1prime / sigma)) * (sigma_orig / sigma); // Gaussian decay
+                        }else{
+                            w = (sigma - n1prime) / sigma; // hat function: 1 on center, 0 on edge
+                        }
+                    }
+                    real phaseInt = FinalPhase((!R3D && isGaussian ? point1 : point0), inflray, qFinal);
+                    
+                    ApplyContribution(&u[(itheta*Pos->NRz_per_range+iz)*Pos->NRr+inflray.ir],
                         cnst, w, inflray.omega, delay, phaseInt,
-                        inflray.SrcDeclAngle, RcvrDeclAngle, inflray.ir, iz, is,
+                        RcvrDeclAngle, inflray.ir, iz, is,
                         inflray, point1, Pos, Beam, eigen, arrinfo);
                 }
-            }
+            } while(R3D);
         }
         
         // receiver not bracketed; bump receiver index, inflray.ir, towards rB
+        int32_t irTT;
         if(rB > Pos->Rr[inflray.ir]){
             if(inflray.ir >= Pos->NRr - 1) break; // go to next step on ray
             irTT = inflray.ir + 1; // bump right
@@ -913,8 +1066,8 @@ HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
  * Bucker's Simple Gaussian Beams in Cartesian coordinates
  */
 HOST_DEVICE inline bool Step_InfluenceSGB(
-    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray,
-    int32_t is, cpxf *u,
+    const rayPt<false> &point0, const rayPt<false> &point1,
+    InfluenceRayInfo<false> &inflray, int32_t is, cpxf *u,
     const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -974,7 +1127,7 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
                 real phaseInt = point1.Phase + inflray.phase;
                 ApplyContribution(&u[iz*Pos->NRr + inflray.ir],
                     cnst, w, inflray.omega, delay, phaseInt,
-                    inflray.SrcDeclAngle, RcvrDeclAngle, inflray.ir, iz, is,
+                    RcvrDeclAngle, inflray.ir, iz, is,
                     inflray, point1, Pos, Beam, eigen, arrinfo);
             }
         }
@@ -990,23 +1143,66 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
 /**
  * LP: Returns whether to continue the ray.
  */
-HOST_DEVICE inline bool Step_Influence(
-    const rayPt<false> &point0, const rayPt<false> &point1, InfluenceRayInfo &inflray, 
-    int32_t is, cpxf *u, const BdryType *Bdry,
-    const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
+    const rayPt<R3D> &point0, const rayPt<R3D> &point1,
+    InfluenceRayInfo<O3D, R3D> &inflray, int32_t is, cpxf *u, const BdryType *Bdry,
+    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     switch(Beam->Type[0]){
-    case 'R': return Step_InfluenceCervenyRayCen(
-            point0, point1, inflray, is, u, Bdry, Pos, Beam);
-    case 'C': return Step_InfluenceCervenyCart(
-            point0, point1, inflray, is, u, Bdry, org, ssp, iSeg, Pos, Beam);
-    case 'g': return Step_InfluenceGeoHatRayCen(
+    case 'R': 
+        if constexpr(R3D){
+            printf("Invalid Run Type\n");
+            bail();
+            return false;
+        }else{
+            return Step_InfluenceCervenyRayCen(
+                point0, point1, inflray, is, u, Bdry, Pos, Beam);
+        }
+    case 'C':
+        if constexpr(O3D){
+            printf("Run Type 'C' not supported at this time\n");
+            bail();
+        }
+        if constexpr(R3D){
+            // LP: Commented out code to "assemble f, g, h from p-q"
+            // using the commented out variables in the 3D ray step
+            // return Step_Influence3D(...);
+            return false;
+        }else{
+            // LP: After the error, which does stop the program, Nx2D continues
+            // to compute InfluenceCervenyCart! Nx2D also supports CervenyRayCen above.
+            return Step_InfluenceCervenyCart<O3D>(
+                point0, point1, inflray, is, u, Bdry, org, ssp, iSeg, Pos, Beam);
+        }
+    case 'g': return Step_InfluenceGeoHatRayCen<R3D>(
             point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
-    case 'S': return Step_InfluenceSGB(
-            point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
+    case 'S':
+        if constexpr(R3D){
+            printf("Invalid Run Type\n");
+            bail();
+            return false;
+        }else{
+            return Step_InfluenceSGB(
+                point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
+        }
     case 'B':
-    default:  return Step_InfluenceGeoHatOrGaussianCart(Beam->Type[0] == 'B',
+    default:
+        if constexpr(O3D){
+            switch(Beam->Type[0]){
+            case 'b':
+                return Step_InfluenceGeoGaussianRayCen(TODO);
+            case 'B':
+            case 'G':
+            case '^':
+                break; //GeoHatOrGaussian below
+            default:
+                printf("Invalid Run Type\n");
+                bail();
+                return false;
+            }
+        }
+        return Step_InfluenceGeoHatOrGaussianCart<R3D>(Beam->Type[0] == 'B',
             point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
     }
 }
