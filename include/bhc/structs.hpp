@@ -352,7 +352,9 @@ template<> struct rayPtExtras<true> {
     // uses them, as well as additional commented-out variables in this struct,
     // for 3D Cerveny beams.
     mat2x2 p, q; // LP: The ROWS of p are p_tilde and p_hat; same for q.
-    real DetQ, phi;
+    // real DetQ; LP: Precomputed at the start of Influence functions, only used
+    // for detecting phase inversions. Changed to compute when needed.
+    real phi;
 };
 template<bool R3D> struct rayPt : public rayPtExtras<R3D>
 {

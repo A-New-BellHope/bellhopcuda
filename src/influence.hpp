@@ -41,6 +41,7 @@ template<bool R3D> struct InfluenceRayInfo {
     VEC23<R3D> xs; // source
     real freq0, omega;
     real RadMax;
+    real BeamWindow;
     int32_t iBeamWindow2;
     real Ratio1; // scale factor (point source vs. line source)
     real rcp_q0, rcp_qhat0;
@@ -380,7 +381,6 @@ template<bool R3D> HOST_DEVICE inline rayPt<R3D> ScaleBeamIf3D(
     if constexpr(R3D){
         rayPt<true> ret = point;
         // scaling for geometric beams
-        ret.DetQ = glm::determinant(ret.q);
         ret.q[0][0] *= inflray.rcp_q0;
         ret.q[1][0] *= inflray.rcp_q0;
         ret.q[0][1] *= inflray.rcp_qhat0;
@@ -410,21 +410,25 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     // LP: The 5x version is changed to 50x on both codepaths before it is used.
     // inflray.RadMax = FL(5.0) * ccpx.real() / freqinfo->freq0; // 5 wavelength max radius
     inflray.RadMax = FL(50.0) * point0.c / freqinfo->freq0; // 50 wavelength max radius
-    inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
     inflray.Dalpha = Angles->alpha.d;
     inflray.Dbeta = Angles->beta.d;
+    
+    const real BeamWindow = RL(4.0); // LP: Integer (!) in 2D
+    inflray.BeamWindow = (Beam->Type[0] == 'B' || Beam->Type[0] == 'b') ? BeamWindow : RL(1.0);
+    inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
     
     // LP: Did not have the abs for SGB, but it has been added.
     inflray.Ratio1 = STD::sqrt(STD::abs(STD::cos(rinit.alpha))); // point source
     if constexpr(R3D){
         inflray.Ratio1 *= STD::sqrt(inflray.Dalpha * inflray.Dbeta) / point0.c;
-        if(Beam->Type[0] == 'B' || Beam->Type[0] == 'b'){
-            inflray.Ratio1 *= RL(1.0) / (FL(2.0) * REAL_PI); // Gaussian beams
-        }
     }else{
         if(Beam->RunType[3] != 'R'){
             inflray.Ratio1 = RL(1.0); // line source
         }
+    }
+    if(Beam->Type[0] == 'B' || Beam->Type[0] == 'b'){
+        // Gaussian beams
+        inflray.Ratio1 /= FL(2.0) * REAL_PI; // sqrt(2*pi) represents a sum of Gaussians in free space
     }
     
     if(Beam->Type[0] == 'R' || Beam->Type[0] == 'C'){
@@ -451,7 +455,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     
     // LP: For RayCen types
     if(Beam->Type[0] == 'g'){
-        // LP: For GeoHat
+        // LP: For hat raycen
         inflray.zn = -point0.t.x * point0.c;
         inflray.rn =  point0.t.y * point0.c;
         inflray.x = point0.x;
@@ -836,7 +840,8 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *u, const Position *Pos,
     const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
-    const int32_t BeamWindow = 4; // beam window: kills beams outside e**(-0.5 * ibwin**2 )
+    // LP: Replaced ScaleBeam in 3D with applying the same scale factors below.
+    // This avoids modifying the ray and makes the codepaths more similar.
     
     real rA, rB;
     if constexpr(R3D){
@@ -885,29 +890,30 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     real phaseq = QScalar(point0.q);
     IncPhaseIfCaustic(inflray, phaseq, true);
     inflray.qOld = phaseq;
-    TODO; //DetQ and q matrix scaling
     
-    real lambda, L_diag; // LP: For 2D and 3D respectively
+    real lambda = isGaussian ? (point0.c / inflray.freq0) : RL(0.0); // local wavelength
+    real L_diag; // LP: 3D
     real zmin, zmax; // LP: 2D here, 3D later
+    // beam window: kills beams outside exp(RL(-0.5) * SQ(ibwin))
     if constexpr(R3D){
         // beamwidths / LP: Variable values don't carry over to per-receiver beamwidth below
-        real l1 = bhc::max(glm::length(glm::row(point0.q, 0)), glm::length(glm::row(point1.q, 0)));
-        real l2 = bhc::max(glm::length(glm::row(point0.q, 1)), glm::length(glm::row(point1.q, 1)));
+        real l1 = bhc::max(
+            glm::length(glm::row(point0.q, 0) * inflray.rcp_q0   ),
+            glm::length(glm::row(point1.q, 0) * inflray.rcp_q0   ));
+        real l2 = bhc::max(
+            glm::length(glm::row(point0.q, 1) * inflray.rcp_qhat0),
+            glm::length(glm::row(point1.q, 1) * inflray.rcp_qhat0));
         // worst case is when rectangle is rotated to catch the hypotenuse
-        L_diag = STD::sqrt(l1 * l1 + l2 * l2);
+        L_diag = STD::sqrt(SQ(l1) + SQ(l2));
     }else{
         real sigma, RadiusMax;
         sigma = bhc::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) * inflray.rcp_q0
             / STD::abs(rayt.x); // beam radius projected onto vertical line
         if(isGaussian){
             // calculate beam width
-            lambda    = point0.c / inflray.freq0;
             sigma     = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
-            RadiusMax = BeamWindow * sigma;
-        }else{
-            lambda    = RL(0.0); // LP: compiler incorrectly complains maybe uninitialized
-            RadiusMax = sigma;
         }
+        RadiusMax = inflray.BeamWindow * sigma; // LP: 1 * sigma for non-Gaussian
         // depth limits of beam
         // LP: For rays shot at exactly 60 degrees, they will hit this edge case.
         // This is a sharp edge--the handling on each side of this edge may be
@@ -941,7 +947,8 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                     SETXY(x_rcvr, XYCOMP(inflray.xs) + Pos->Rr[inflray.ir] * t_rcvr);
                     // normal distance from rcvr to ray segment
                     real m_prime = STD::abs(glm::dot(XYCOMP(x_rcvr) - XYCOMP(x_ray), n_ray_theta));
-                    if(m_prime > L_diag) continue;
+                    // LP: Commented out in Gaussian
+                    if(!isGaussian && m_prime > inflray.BeamWindow * L_diag) continue;
                     
                     // The set of possible receivers is a ring
                     // However, extrapolating the beam backwards produces contributions with s negative and large
@@ -957,12 +964,13 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                     real n_ray_z = rayt.x * e_theta.y - rayt.y * e_theta.x; // normal to the ray in the vertical receiver plane
                     
                     if(STD::abs(n_ray_z) < RL(1e-9)) continue; // avoid divide by zero
-                    real L_z = L_diag / STD::abs(n_ray_z);
+                    real L_z = inflray.BeamWindow * L_diag / STD::abs(n_ray_z);
                     
                     zmin = bhc::min(point0.x.z, point1.x.z) - L_z; // min depth of ray segment
                     zmax = bhc::max(point0.x.z, point1.x.z) + L_z; // max depth of ray segment
                 }else{
                     IGNORE_UNUSED(itheta);
+                    x_rcvr.x = Pos->Rr[inflray.ir];
                 }
             
                 for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
@@ -985,10 +993,17 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                         IGNORE_UNUSED(n2);
                     }
                     V2M2 qInterp = point0.q + s * dq; // interpolated amplitude
+                    if constexpr(R3D){
+                        qInterp[0][0] *= inflray.rcp_q0;
+                        qInterp[1][0] *= inflray.rcp_q0;
+                        qInterp[0][1] *= inflray.rcp_qhat0;
+                        qInterp[1][1] *= inflray.rcp_qhat0;
+                    }
                     real qFinal = QScalar(qInterp); // area of parallelogram formed by ray tube
                     
                     real n1prime, n2prime; // LP: equal to n1 in 2D, rotated & normalized in 3D (were a, b)
                     real sigma, sigma_orig; // beam radius
+                    real beamCoordDist;
                     if constexpr(R3D){
                         real l1 = glm::length(glm::row(qInterp, 0));
                         real l2 = glm::length(glm::row(qInterp, 1));
@@ -999,36 +1014,32 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                         n1prime = STD::abs((-qInterp[0][1] * n2 + qInterp[1][1] * n1) / qFinal);
                         n2prime = STD::abs(( qInterp[0][0] * n2 - qInterp[1][0] * n1) / qFinal);
                         
-                        if(bhc::max(n1prime, n2prime) > FL(1.0)) continue;
+                        beamCoordDist = isGaussian ? (n1prime + n2prime) : bhc::max(n1prime, n2prime);
+                        sigma = FL(1.0);
                     }else{
-                        real beamWCompare;
                         sigma = sigma_orig = STD::abs(qFinal * inflray.rcp_q0); // LP: called RadiusMax in non-Gaussian
                         if(isGaussian){
                             sigma = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
-                            beamWCompare = BeamWindow * sigma;
-                        }else{
-                            beamWCompare = sigma;
                         }
                         
-                        n1prime = n1; IGNORE_UNUSED(n2prime);
-                        if(n1prime >= beamWCompare) continue; // Within beam window?
+                        beamCoordDist = n1prime = n1; IGNORE_UNUSED(n2prime);
                     }
+                    if(beamCoordDist > inflray.BeamWindow * sigma || 
+                        (R3D && beamCoordDist == inflray.BeamWindow * sigma)) continue;
                     
                     cpx delay = point0.tau + s * dtau; // interpolated delay
-                    real cnst = inflray.Ratio1 * point1.Amp / STD::sqrt(STD::abs(qFinal));
+                    real cnst = inflray.Ratio1 * point1.Amp * STD::sqrt(RL(1.0) / STD::abs(qFinal));
                     real w;
                     if constexpr(R3D){
-                        cnst *= point1.c;
+                        cnst *= point1.c; // LP: From ScaleBeam
                         if(isGaussian){
-                            //TODO
+                            w = STD::exp(FL(-0.5) * (SQ(n1prime) + SQ(n2prime)));
                         }else{
                             w = (FL(1.0) - n1prime) * (FL(1.0) - n2prime);
                         }
                     }else{
                         cnst *= STD::sqrt(point1.c);
                         if(isGaussian){
-                            // sqrt(2*pi) represents a sum of Gaussians in free space
-                            cnst /= STD::sqrt(FL(2.0) * REAL_PI);
                             w = STD::exp(FL(-0.5) * SQ(n1prime / sigma)) * (sigma_orig / sigma); // Gaussian decay
                         }else{
                             w = (sigma - n1prime) / sigma; // hat function: 1 on center, 0 on edge
