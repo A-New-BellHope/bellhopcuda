@@ -302,19 +302,24 @@ struct BeamInfo {
 //Eigenrays
 ////////////////////////////////////////////////////////////////////////////////
 
-struct EigenHit {
+template<bool R3D> struct EigenHitExtras {};
+template<> struct EigenHitExtras<true> {
+    int32_t itheta; // LP: Receiver this hit pertains to
+    int32_t isx, isy, ibeta; // LP: Identifying info to re-trace this ray
+};
+template<bool R3D> struct EigenHit : EigenHitExtras<R3D> {
+    // LP: Number of steps until the ray hit the receiver
+    int32_t is;
     // LP: Receiver this hit pertains to
     int32_t ir, iz;
     // LP: Identifying info to re-trace this ray
-    int32_t isrc, ialpha;
-    // LP: Number of steps until the ray hit the receiver
-    int32_t is;
+    int32_t isz, ialpha;
 };
 
-struct EigenInfo {
+template<bool R3D> struct EigenInfo {
     uint32_t neigen;
     uint32_t memsize;
-    EigenHit *hits;
+    EigenHit<R3D> *hits;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -399,6 +404,34 @@ struct RayInitInfo {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+//Influence / transmission loss
+////////////////////////////////////////////////////////////////////////////////
+
+template<bool R3D> struct InfluenceRayInfo {
+    // LP: Constants.
+    RayInitInfo init;
+    real Dalpha, Dbeta; // angular spacing
+    real c0; // LP: c at start of ray
+    cpx epsilon; // beam constant
+    VEC23<R3D> xs; // source
+    real freq0, omega;
+    real RadMax;
+    real BeamWindow;
+    int32_t iBeamWindow2;
+    real Ratio1; // scale factor (point source vs. line source)
+    real rcp_q0, rcp_qhat0;
+    // LP: Variables carried over between iterations.
+    real phase;
+    real qOld; // LP: Det_QOld in 3D
+    VEC23<R3D> x;
+    bool lastValid;
+    real zn, rn;
+    int32_t kmah;
+    int32_t ir;
+    cpx gamma;
+};
+
+////////////////////////////////////////////////////////////////////////////////
 //Meta-structures
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -422,7 +455,7 @@ template<bool O3D, bool R3D> struct bhcParams {
 template<bool O3D, bool R3D> struct bhcOutputs {
     RayInfo<O3D, R3D> *rayinfo;
     cpxf *uAllSources;
-    EigenInfo *eigen;
+    EigenInfo<R3D> *eigen;
     ArrInfo *arrinfo;
 };
 

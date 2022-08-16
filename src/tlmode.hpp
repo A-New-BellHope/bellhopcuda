@@ -29,7 +29,8 @@ namespace bhc {
  */
 inline void InitTLMode(cpxf *&uAllSources, const Position *Pos)
 {
-    size_t n = Pos->NSz * Pos->NRz_per_range * Pos->NRr;
+    size_t n = (size_t)Pos->NSz * (size_t)Pos->NSx * (size_t)Pos->NSy *
+        (size_t)Pos->Ntheta * (size_t)Pos->NRz_per_range * (size_t)Pos->NRr;
     checkallocate(uAllSources, n);
     memset(uAllSources, 0, n * sizeof(cpxf));
 }
@@ -46,8 +47,9 @@ extern template void FinalizeTLMode<true, true>(
 /**
  * Main ray tracing function for TL, eigen, and arrivals runs.
  */
-HOST_DEVICE inline void MainFieldModes(RayInitInfo &rinit, cpxf *uAllSources,
-    const BdryType *ConstBdry, const BdryInfo<false> *bdinfo, const ReflectionInfo *refl,
+template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
+    RayInitInfo &rinit, cpxf *uAllSources,
+    const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
     const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
     EigenInfo *eigen, const ArrInfo *arrinfo)
@@ -55,39 +57,38 @@ HOST_DEVICE inline void MainFieldModes(RayInitInfo &rinit, cpxf *uAllSources,
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     SSPSegState iSeg;
     vec2 xs, gradc;
-    BdryState<false> bds;
+    BdryState<O3D> bds;
     BdryType Bdry;
-    Origin<false, false> org;
+    Origin<O3D, R3D> org;
     
-    rayPt<false> point0, point1, point2;
+    rayPt<R3D> point0, point1, point2;
     InfluenceRayInfo inflray;
     
-    if(!RayInit<false, false>(rinit, xs, point0, gradc, DistBegTop, DistBegBot,
+    if(!RayInit<O3D, R3D>(rinit, xs, point0, gradc, DistBegTop, DistBegBot,
         org, iSeg, bds, Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo))
     {
         return;
     }
     
-    Init_Influence(inflray, point0, rinit, gradc,
+    Init_Influence<O3D, R3D>(inflray, point0, rinit, gradc,
         Pos, org, ssp, iSeg, Angles, freqinfo, Beam);
     
-    cpxf *u = &uAllSources[rinit.isz * Pos->NRz_per_range * Pos->NRr];
     int32_t iSmallStepCtr = 0;
     int32_t is = 0; // index for a step along the ray
     int32_t Nsteps = 0; // not actually needed in TL mode, debugging only
     
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
-        int32_t dStep = RayUpdate<false, false>(point0, point1, point2,
+        int32_t dStep = RayUpdate<O3D, R3D>(point0, point1, point2,
             DistEndTop, DistEndBot, iSmallStepCtr,
             org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
-        if(!Step_Influence(point0, point1, inflray, is, u, 
+        if(!Step_Influence<O3D, R3D>(point0, point1, inflray, is, uAllSources, 
             ConstBdry, org, ssp, iSeg, Pos, Beam, eigen, arrinfo)){
             //printf("Step_Influence terminated ray\n");
             break;
         }
         ++is;
         if(dStep == 2){
-            if(!Step_Influence(point1, point2, inflray, is, u, 
+            if(!Step_Influence<O3D, R3D>(point1, point2, inflray, is, uAllSources, 
                 ConstBdry, org, ssp, iSeg, Pos, Beam, eigen, arrinfo)) break;
             point0 = point2;
             ++is;
@@ -97,7 +98,7 @@ HOST_DEVICE inline void MainFieldModes(RayInitInfo &rinit, cpxf *uAllSources,
             printf("Invalid dStep: %d\n", dStep);
             bail();
         }
-        if(RayTerminate(point0, Nsteps, is, xs, iSmallStepCtr,
+        if(RayTerminate<O3D, R3D>(point0, Nsteps, is, xs, iSmallStepCtr,
             DistBegTop, DistBegBot, DistEndTop, DistEndBot, org, bdinfo, Beam)) break;
     }
     

@@ -23,30 +23,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-template<bool R3D> struct InfluenceRayInfo {
-    // LP: Variables carried over between iterations.
-    real phase;
-    real qOld; // LP: Det_QOld in 3D
-    VEC23<R3D> x;
-    bool lastValid;
-    real zn, rn;
-    int32_t kmah;
-    int32_t ir;
-    cpx gamma;
-    // LP: Constants.
-    RayInitInfo init;
-    real Dalpha, Dbeta; // angular spacing
-    real c0; // LP: c at start of ray
-    cpx epsilon; // beam constant
-    VEC23<R3D> xs; // source
-    real freq0, omega;
-    real RadMax;
-    real BeamWindow;
-    int32_t iBeamWindow2;
-    real Ratio1; // scale factor (point source vs. line source)
-    real rcp_q0, rcp_qhat0;
-};
-
 /**
  * Calculates a smoothing function based on the h0 hermite cubic
  * x is the point where the function is to be evaluated
@@ -138,39 +114,48 @@ HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
         (q1 > FL(0.0) && q2 <= FL(0.0)) ) kmah = -kmah;
 }
 
-HOST_DEVICE inline void ApplyContribution(
-    cpxf *u, real cnst, real w, real omega, cpx delay, real phaseInt,
-    real RcvrDeclAngle, int32_t ir, int32_t iz, int32_t is,
-    const InfluenceRayInfo &inflray, const rayPt<false> &point1,
+HOST_DEVICE inline void AddToField(
+    cpxf *uAllSources, const cpxf &dfield, int32_t itheta, int32_t ir, int32_t iz,
+    const InfluenceRayInfo &inflray, const Position *Pos)
+{
+    size_t base = GetFieldAddr(inflray.init.isx, inflray.init.isy, inflray.init.isz,
+        itheta, iz, ir, Pos);
+    AtomicAddCpx(&uAllSources[base], dfield);
+}
+
+template<bool R3D> HOST_DEVICE inline void ApplyContribution(
+    cpxf *uAllSources, real cnst, real w, real omega, cpx delay, real phaseInt,
+    real RcvrDeclAngle, real RcvrAzimAngle,
+    int32_t itheta, int32_t ir, int32_t iz, int32_t is,
+    const InfluenceRayInfo &inflray, const rayPt<R3D> &point1,
     const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
-    switch(Beam->RunType[0]){
-    case 'E':
+    if(Beam->RunType[0] == 'E'){
         // eigenrays
-        RecordEigenHit(ir, iz, inflray.init.isz, inflray.init.ialpha, is, eigen);
-        break;
-    case 'A':
-    case 'a':
+        RecordEigenHit<R3D>(ir, itheta, iz, is, inflray.init, eigen);
+    }else if(IsArrivalsRun(Beam)){
         // arrivals
-        AddArr(omega, inflray.init.isz, iz, ir, cnst * w, phaseInt, delay, 
-            inflray.init.SrcDeclAngle, RcvrDeclAngle, point1.NumTopBnc, point1.NumBotBnc,
+        AddArr<R3D>(itheta, iz, ir, cnst * w, omega, phaseInt, delay, 
+            inflray.init, RcvrDeclAngle, RcvrAzimAngle, point1.NumTopBnc, point1.NumBotBnc,
             arrinfo, Pos);
-        break;
-    case 'C':
-        // coherent TL
-        AtomicAddCpx(u, Cpx2Cpxf(cnst * w * STD::exp(-J * (omega * delay - phaseInt))));
-        // omega * SQ(n) / (FL(2.0) * SQ(point1.c) * delay)))) // curvature correction
-        break;
-    default:
-        // incoherent/semicoherent TL
-        real v = cnst * STD::exp((omega * delay).imag());
-        v = SQ(v) * w;
-        if(Beam->Type[0] == 'B'){
-            // Gaussian beam
-            v *= STD::sqrt(FL(2.0) * REAL_PI);
+    }else{
+        cpxf dfield;
+        if(Beam->RunType[0] == 'C'){
+            // coherent TL
+            dfield = Cpx2Cpxf(cnst * w * STD::exp(-J * (omega * delay - phaseInt)));
+            // omega * SQ(n) / (FL(2.0) * SQ(point1.c) * delay)))) // curvature correction [LP: 2D only]
+        }else{
+            // incoherent/semicoherent TL
+            real v = cnst * STD::exp((omega * delay).imag());
+            v = SQ(v) * w;
+            if(Beam->Type[0] == 'B'){
+                // Gaussian beam
+                v *= STD::sqrt(FL(2.0) * REAL_PI);
+            }
+            dfield = cpxf((float)v, 0.0f);
         }
-        AtomicAddCpx(u, cpxf((float)v, 0.0f));
+        AddToField(uAllSources, dfield, itheta, ir, iz, inflray, Pos);
     }
 }
 
@@ -348,14 +333,15 @@ HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
 /**
  * Form gamma
  */
-HOST_DEVICE inline cpx Compute_gamma(const rayPt<false> &point, const cpx &pB, const cpx &qB,
-    const Origin<false, false> &org, const SSPStructure *ssp, SSPSegState &iSeg)
+template<bool O3D> HOST_DEVICE inline cpx Compute_gamma(
+    const rayPt<false> &point, const cpx &pB, const cpx &qB,
+    const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg)
 {
     vec2 rayt = point.c * point.t; // unit tangent
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
     
     SSPOutputs<false> o;
-    EvaluateSSP<false, false>(point.x, point.t, o, org, ssp, iSeg);
+    EvaluateSSP<O3D, false>(point.x, point.t, o, org, ssp, iSeg);
     
     real csq = SQ(o.ccpx.real());
     real cS = glm::dot(o.gradc, rayt);
@@ -501,9 +487,15 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     
     if(Beam->Type[0] == 'C'){
         // LP: For Cerveny cart
-        cpx eps0, pB0, qB0;
-        Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
-        inflray.gamma = Compute_gamma(point0, pB0, qB0, org, ssp, iSeg);
+        if constexpr(R3D){
+            printf("Run Type 'C' not supported at this time\n");
+            bail();
+        }else{
+            // LP: Partially supported in Nx2D (O3D but not R3D)
+            cpx eps0, pB0, qB0;
+            Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
+            inflray.gamma = Compute_gamma<O3D>(point0, pB0, qB0, org, ssp, iSeg);
+        }
     }else{
         // LP: not used
         inflray.gamma = RL(0.0);
@@ -520,7 +512,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
 HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     const rayPt<false> &point0, const rayPt<false> &point1,
     InfluenceRayInfo<false> &inflray, 
-    int32_t is, cpxf *u,
+    int32_t is, cpxf *uAllSources,
     const BdryType *Bdry, const Position *Pos, const BeamStructure *Beam)
 {
     IGNORE_UNUSED(is);
@@ -616,9 +608,9 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                         if(Beam->RunType[0] == 'I' || Beam->RunType[0] == 'S'){ // Incoherent or Semi-coherent TL
                             contri = contri * STD::conj(contri);
                         }
+                        contri *= Hermite(n, inflray.RadMax, FL(2.0) * inflray.RadMax);
                         
-                        AtomicAddCpx(&u[iz*Pos->NRr+ir], Cpx2Cpxf(
-                            Hermite(n, inflray.RadMax, FL(2.0) * inflray.RadMax) * contri));
+                        AddToField(uAllSources, Cpx2Cpxf(contri), 0, ir, iz, inflray, Pos);
                     }
                 }
             }
@@ -638,7 +630,7 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
 template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     const rayPt<false> &point0, const rayPt<false> &point1,
     InfluenceRayInfo<false> &inflray, 
-    int32_t is, cpxf *u, const BdryType *Bdry, 
+    int32_t is, cpxf *uAllSources, const BdryType *Bdry, 
     const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam)
 {
@@ -737,7 +729,8 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
                 contri = cnst * contri;
                 contri = contri * STD::conj(contri);
             }
-            AtomicAddCpx(&u[iz*Pos->NRr+ir], Cpx2Cpxf(contri));
+            
+            AddToField(uAllSources, Cpx2Cpxf(contri), 0, ir, iz, inflray, Pos);
         }
     }
     
@@ -750,7 +743,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
 template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
     InfluenceRayInfo<R3D> &inflray,
-    int32_t is, cpxf *u, const Position *Pos, const BeamStructure *Beam,
+    int32_t is, cpxf *uAllSources, const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     real RcvrDeclAngle;
@@ -815,9 +808,9 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
                 w     = (l - n) / l; // hat function: 1 on center, 0 on edge
                 phaseInt = FinalPhase(point0, inflray, q);
                 
-                ApplyContribution(&u[iz*Pos->NRr+ir], 
+                ApplyContribution(uAllSources,
                     cnst, w, inflray.omega, delay, phaseInt,
-                    RcvrDeclAngle, ir, iz, is,
+                    RcvrDeclAngle, RcvrAzimAngle, itheta, ir, iz, is,
                     inflray, point1, Pos, Beam, eigen, arrinfo);
             }
         }
@@ -833,11 +826,11 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
 /**
  * Geometric, hat-shaped or Gaussian beams in Cartesian coordintes
  *
- * u: complex pressure field
+ * uAllSources: complex pressure field
  */
 template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     bool isGaussian, const rayPt<R3D> &point0, const rayPt<R3D> &point1,
-    InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *u, const Position *Pos,
+    InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *uAllSources, const Position *Pos,
     const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     // LP: Replaced ScaleBeam in 3D with applying the same scale factors below.
@@ -1047,9 +1040,9 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                     }
                     real phaseInt = FinalPhase((!R3D && isGaussian ? point1 : point0), inflray, qFinal);
                     
-                    ApplyContribution(&u[(itheta*Pos->NRz_per_range+iz)*Pos->NRr+inflray.ir],
+                    ApplyContribution(uAllSources,
                         cnst, w, inflray.omega, delay, phaseInt,
-                        RcvrDeclAngle, inflray.ir, iz, is,
+                        RcvrDeclAngle, RcvrAzimAngle, itheta, inflray.ir, iz, is,
                         inflray, point1, Pos, Beam, eigen, arrinfo);
                 }
             } while(R3D);
@@ -1078,7 +1071,7 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
  */
 HOST_DEVICE inline bool Step_InfluenceSGB(
     const rayPt<false> &point0, const rayPt<false> &point1,
-    InfluenceRayInfo<false> &inflray, int32_t is, cpxf *u,
+    InfluenceRayInfo<false> &inflray, int32_t is, cpxf *uAllSources,
     const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -1123,8 +1116,7 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
             // LP: Reinstated this condition for eigenrays and arrivals, as
             // without it every ray would be an eigenray / arrival.
             real Adeltaz = STD::abs(deltaz);
-            if(Adeltaz < inflray.RadMax || Beam->RunType[0] == 'C'
-                    || Beam->RunType[0] == 'I' || Beam->RunType[0] == 'S'){
+            if(Adeltaz < inflray.RadMax || IsTLRun(Beam)){
                 // LP: Changed to use ApplyContribution in order to support 
                 // incoherent, semi-coherent, and arrivals.
                 real cpa = STD::abs(deltaz * (rB - rA)) / STD::sqrt(SQ(rB - rA) 
@@ -1136,9 +1128,9 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
                 real cnst = inflray.Ratio1 * cn * point1.Amp / STD::sqrt(sx1);
                 w = STD::exp(-a * SQ(thet));
                 real phaseInt = point1.Phase + inflray.phase;
-                ApplyContribution(&u[iz*Pos->NRr + inflray.ir],
+                ApplyContribution(uAllSources,
                     cnst, w, inflray.omega, delay, phaseInt,
-                    RcvrDeclAngle, inflray.ir, iz, is,
+                    RcvrDeclAngle, RL(0.0), 0, inflray.ir, iz, is,
                     inflray, point1, Pos, Beam, eigen, arrinfo);
             }
         }
@@ -1156,7 +1148,7 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
-    InfluenceRayInfo<O3D, R3D> &inflray, int32_t is, cpxf *u, const BdryType *Bdry,
+    InfluenceRayInfo<O3D, R3D> &inflray, int32_t is, cpxf *uAllSources, const BdryType *Bdry,
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -1168,7 +1160,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             return false;
         }else{
             return Step_InfluenceCervenyRayCen(
-                point0, point1, inflray, is, u, Bdry, Pos, Beam);
+                point0, point1, inflray, is, uAllSources, Bdry, Pos, Beam);
         }
     case 'C':
         if constexpr(O3D){
@@ -1184,10 +1176,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             // LP: After the error, which does stop the program, Nx2D continues
             // to compute InfluenceCervenyCart! Nx2D also supports CervenyRayCen above.
             return Step_InfluenceCervenyCart<O3D>(
-                point0, point1, inflray, is, u, Bdry, org, ssp, iSeg, Pos, Beam);
+                point0, point1, inflray, is, uAllSources, Bdry, org, ssp, iSeg, Pos, Beam);
         }
-    case 'g': return Step_InfluenceGeoHatRayCen<R3D>(
-            point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
+    case 'g':
+        return Step_InfluenceGeoHatRayCen<R3D>(
+            point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
     case 'S':
         if constexpr(R3D){
             printf("Invalid Run Type\n");
@@ -1195,7 +1188,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             return false;
         }else{
             return Step_InfluenceSGB(
-                point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
+                point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
         }
     case 'B':
     default:
@@ -1206,7 +1199,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             case 'B':
             case 'G':
             case '^':
-                break; //GeoHatOrGaussian below
+                break; //HatOrGaussianCart below
             default:
                 printf("Invalid Run Type\n");
                 bail();
@@ -1214,7 +1207,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             }
         }
         return Step_InfluenceGeoHatOrGaussianCart<R3D>(Beam->Type[0] == 'B',
-            point0, point1, inflray, is, u, Pos, Beam, eigen, arrinfo);
+            point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
     }
 }
 

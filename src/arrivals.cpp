@@ -23,6 +23,7 @@ namespace bhc {
 void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD)
 {
+    // LP: originally most of OpenOutputFiles
     bool isAscii;
     LDOFile AARRFile;
     UnformattedOFile BARRFile;
@@ -74,62 +75,76 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         bail();
         return;
     }
-    for(int32_t isrc = 0; isrc < Pos->NSz; ++isrc){
-        int32_t maxn = 0;
-        for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
-            for(int32_t ir=0; ir<Pos->NRr; ++ir){
-                int32_t base = (isrc * Pos->NRz_per_range + iz) * Pos->NRr + ir;
-                if(arrinfo->NArr[base] > maxn) maxn = arrinfo->NArr[base];
-            }
-        }
-        if(isAscii){
-            AARRFile << maxn << '\n';
-        }else{
-            BARRFile.rec(); BARRFile.write(maxn);
-        }
-        
-        for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
-            for(int32_t ir=0; ir<Pos->NRr; ++ir){
-                int32_t base = (isrc * Pos->NRz_per_range + iz) * Pos->NRr + ir;
-                real factor;
-                if(Beam->RunType[3] == 'X'){ // line source
-                    factor = FL(4.0) * STD::sqrt(REAL_PI);
-                }else{                       // point source
-                    if(Pos->Rr[ir] == FL(0.0)){
-                        factor = FL(1e5); // avoid /0 at origin
-                    }else{
-                        factor = FL(1.0) / STD::sqrt(Pos->Rr[ir]); // cyl. spreading
+    // LP: originally most of WriteArrivals[ASCII/Binary][3D]
+    for(int32_t isz = 0; isz < Pos->NSz; ++isz){
+        for(int32_t isx = 0; isx < Pos->NSx; ++isx){
+            for(int32_t isy = 0; isy < Pos->NSy; ++isy){
+                // LP: Maximum number of arrivals
+                int32_t maxn = 0;
+                for(int32_t itheta=0; itheta<Pos->Ntheta; ++itheta){
+                    for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
+                        for(int32_t ir=0; ir<Pos->NRr; ++ir){
+                            size_t base = GetFieldAddr(isx, isy, isz, itheta, id, ir, Pos);
+                            if(arrinfo->NArr[base] > maxn) maxn = arrinfo->NArr[base];
+                        }
                     }
                 }
-                
-                int32_t narr = arrinfo->NArr[base];
                 if(isAscii){
-                    AARRFile << narr << '\n';
+                    AARRFile << maxn << '\n';
                 }else{
-                    BARRFile.rec(); BARRFile.write(narr);
+                    BARRFile.rec(); BARRFile.write(maxn);
                 }
                 
-                for(int32_t iArr=0; iArr<narr; ++iArr){
-                    Arrival *arr = &arrinfo->Arr[base * arrinfo->MaxNArr + iArr];
-                    if(isAscii){
-                        AARRFile << (float)factor * arr->a
-                                 << (float)RadDeg * arr->Phase
-                                 << arr->delay.real()
-                                 << arr->delay.imag()
-                                 << arr->SrcDeclAngle
-                                 << arr->RcvrDeclAngle
-                                 << arr->NTopBnc
-                                 << arr->NBotBnc
-                                 << '\n';
-                    }else{
-                        BARRFile.rec();
-                        BARRFile.write((float)(factor * arr->a)); // LP: not a typo; cast in different order
-                        BARRFile.write((float)(RadDeg * arr->Phase)); // compared to ascii version
-                        BARRFile.write(arr->delay);
-                        BARRFile.write(arr->SrcDeclAngle);
-                        BARRFile.write(arr->RcvrDeclAngle);
-                        BARRFile.write((float)arr->NTopBnc);
-                        BARRFile.write((float)arr->NBotBnc);
+                for(int32_t itheta=0; itheta<Pos->Ntheta; ++itheta){
+                    for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
+                        for(int32_t ir=0; ir<Pos->NRr; ++ir){
+                            size_t base = GetFieldAddr(isx, isy, isz, itheta, id, ir, Pos);
+                            real factor;
+                            if(ThreeD){
+                                factor = FL(1.0);
+                            }else if(Beam->RunType[3] == 'X'){ // line source
+                                factor = FL(4.0) * STD::sqrt(REAL_PI);
+                            }else if(Pos->Rr[ir] == FL(0.0)){
+                                factor = FL(1e5); // avoid /0 at origin
+                            }else{
+                                factor = FL(1.0) / STD::sqrt(Pos->Rr[ir]); // cyl. spreading
+                            }
+                            
+                            int32_t narr = arrinfo->NArr[base];
+                            if(isAscii){
+                                AARRFile << narr << '\n';
+                            }else{
+                                BARRFile.rec(); BARRFile.write(narr);
+                            }
+                            
+                            for(int32_t iArr=0; iArr<narr; ++iArr){
+                                Arrival *arr = &arrinfo->Arr[base * arrinfo->MaxNArr + iArr];
+                                if(isAscii){
+                                    AARRFile << (float)factor * arr->a
+                                             << (float)RadDeg * arr->Phase
+                                             << arr->delay.real()
+                                             << arr->delay.imag()
+                                             << arr->SrcDeclAngle;
+                                    if(ThreeD) AARRFile << arr->SrcAzimAngle;
+                                    AARRFile << arr->RcvrDeclAngle;
+                                    if(ThreeD) AARRFile << arr->RcvrAzimAngle;
+                                    AARRFile << arr->NTopBnc
+                                             << arr->NBotBnc
+                                             << '\n';
+                                }else{
+                                    BARRFile.rec();
+                                    BARRFile.write((float)(factor * arr->a)); // LP: not a typo; cast in different order
+                                    BARRFile.write((float)(RadDeg * arr->Phase)); // compared to ascii version
+                                    BARRFile.write(arr->delay);
+                                    BARRFile.write(arr->SrcDeclAngle);
+                                    if(ThreeD) BARRFile.write(arr->SrcAzimAngle);
+                                    BARRFile.write(arr->RcvrDeclAngle);
+                                    if(ThreeD) BARRFile.write(arr->RcvrAzimAngle);
+                                    BARRFile.write((float)arr->NTopBnc);
+                                    BARRFile.write((float)arr->NBotBnc);
+                                }
+                            }
+                        }
                     }
                 }
             }

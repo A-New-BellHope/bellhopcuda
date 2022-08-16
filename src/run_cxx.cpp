@@ -102,7 +102,7 @@ template<bool O3D, bool R3D> bool run_cxx(
     uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
     for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(
-        /*params.Beam->RunType[0] == 'R' ? */ RayModeWorker<O3D, R3D> /*: FieldModesWorker*/,
+        params.Beam->RunType[0] == 'R' ? RayModeWorker<O3D, R3D> : FieldModesWorker<O3D, R3D>,
         std::cref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
     

@@ -30,7 +30,8 @@ static std::atomic<uint32_t> jobID;
 static std::mutex exceptionMutex;
 static std::string exceptionStr;
 
-void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
+template<bool O3D, bool R3D> void EigenModePostWorker(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     rayPt<false> *localmem = nullptr;
     if(IsRayCopyMode(outputs.rayinfo)) localmem = new rayPt<false>[MaxN];
@@ -45,11 +46,17 @@ void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
                 outputs.eigen->neigen, outputs.eigen->memsize);
             break;
         }
-        EigenHit *hit = &outputs.eigen->hits[job];
+        EigenHit<R3D> *hit = &outputs.eigen->hits[job];
         int32_t Nsteps = hit->is;
         RayInitInfo rinit;
-        rinit.isz = hit->isrc; rinit.ialpha = hit->ialpha;
-        if(!RunRay(outputs.rayinfo, params, localmem, job, rinit, Nsteps)){
+        rinit.isz = hit->isz;
+        rinit.ialpha = hit->ialpha;
+        if constexpr(R3D){
+            rinit.isx = hit->isx;
+            rinit.isy = hit->isy;
+            rinit.ibeta = hit->ibeta;
+        }
+        if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)){
             printf("EigenModePostWorker RunRay failed\n");
         }
         if(Nsteps != hit->is + 2 && Nsteps != hit->is + 3){
@@ -66,22 +73,41 @@ void EigenModePostWorker(const bhcParams &params, bhcOutputs &outputs)
     if(IsRayCopyMode(outputs.rayinfo)) delete[] localmem;
 }
 
-void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs, 
+template void EigenModePostWorker<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+template void EigenModePostWorker<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+template void EigenModePostWorker<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+
+template<bool O3D, bool R3D> void FinalizeEigenMode(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
     std::string FileRoot, bool singlethread)
 {
-    InitRayMode(outputs.rayinfo, params);
+    InitRayMode<O3D, R3D>(outputs.rayinfo, params);
     
     std::cout << (int)outputs.eigen->neigen << " eigenrays\n";
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
-    for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(EigenModePostWorker,
+    for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(
+        EigenModePostWorker<O3D, R3D>,
         std::cref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
     
     if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
     
-    FinalizeRayMode(outputs.rayinfo, FileRoot, params);
+    FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
 }
+
+template void FinalizeEigenMode<false, false>(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    std::string FileRoot, bool singlethread);
+template void FinalizeEigenMode<true, false>(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    std::string FileRoot, bool singlethread);
+template void FinalizeEigenMode<true, true>(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    std::string FileRoot, bool singlethread);
 
 }

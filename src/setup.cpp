@@ -120,6 +120,7 @@ template<bool O3D, bool R3D> bool setup(
     params.atten->z_bar = FL(0.0);
     params.Pos->NSx = 1;
     params.Pos->NSy = 1;
+    params.Pos->Ntheta = 1;
     params.Angles->alpha.n = 0;
     params.Angles->beta.n = 1;
     //LP: not a typo; this is an index, one less than the start of the array,

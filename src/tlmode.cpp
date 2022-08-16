@@ -87,7 +87,8 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
 /**
  * LP: Write TL results
  */
-void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &outputs)
+ template<bool O3D, bool R3D> void FinalizeTLMode(
+     std::string FileRoot, const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     real atten = FL(0.0);
     std::string PlotType;
@@ -128,5 +129,13 @@ void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &o
     
     deallocate(outputs.uAllSources);
 }
+
+template void FinalizeTLMode<false, false>(
+    std::string FileRoot, const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+template void FinalizeTLMode<true, false>(
+    std::string FileRoot, const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+template void FinalizeTLMode<true, true>(
+    std::string FileRoot, const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+
 
 }

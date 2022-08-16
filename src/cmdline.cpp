@@ -36,21 +36,21 @@ template<bool O3D, bool R3D> int mainmain()
     if(!bhc::run<O3D, R3D>(params, outputs, singlethread)) return 1;
     sw.tock();
     
-    char r = params.Beam->RunType[0];
-    if(r == 'R'){
+    char r = ;
+    if(params.Beam->RunType[0] == 'R'){
         // Ray mode
         bhc::FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
-    }/*else if(r == 'C' || r == 'S' || r == 'I'){
+    }else if(IsTLRun(params.Beam)){
         // TL mode
         bhc::FinalizeTLMode(FileRoot, params, outputs);
-    }else if(r == 'E'){
+    }else if(params.Beam->RunType[0] == 'E'){
         // Eigenrays mode
-        bhc::FinalizeEigenMode(params, outputs, FileRoot, singlethread);
-    }else if(r == 'A' || r == 'a'){
+        bhc::FinalizeEigenMode<O3D, R3D>(params, outputs, FileRoot, singlethread);
+    }else if(IsArrivalsRun(params.Beam)){
         // Arrivals mode
         bhc::FinalizeArrivalsMode(outputs.arrinfo, params.Pos, params.freqinfo,
-            params.Beam, FileRoot, false);
-    }*/else{
+            params.Beam, FileRoot, R3D);
+    }else{
         std::cout << "Invalid RunType " << r << "\n";
         std::abort();
     }

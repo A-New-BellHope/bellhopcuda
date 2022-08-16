@@ -31,19 +31,23 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     // Common
+    int32_t ns = params.Pos.NSx * params.Pos.NSy * params.Pos.NSz;
+    BASSERT(ns >= 1);
+    
     // irregular or rectilinear grid
     params.Pos->NRz_per_range = (params.Beam->RunType[4] == 'I') ? 1 : params.Pos->NRz;
     
     // Mode specific
     if(params.Beam->RunType[0] == 'R'){
         InitRayMode<O3D, R3D>(outputs.rayinfo, params);
-    }/*else if(params.Beam->RunType[0] == 'C' || params.Beam->RunType[0] == 'S' || params.Beam->RunType[0] == 'I'){
+    }else if(IsTLRun(params.Beam)){
         InitTLMode(outputs.uAllSources, params.Pos);
     }else if(params.Beam->RunType[0] == 'E'){
-        InitEigenMode(outputs.eigen);
-    }else if(params.Beam->RunType[0] == 'A' || params.Beam->RunType[0] == 'a'){
-        InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, *(PrintFileEmu*)params.internal);
-    }*/else{
+        InitEigenMode<R3D>(outputs.eigen);
+    }else if(IsArrivalsRun(params.Beam)){
+        InitArrivalsMode(outputs.arrinfo, singlethread, R3D, params.Pos,
+            *(PrintFileEmu*)params.internal);
+    }else{
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         std::abort();
     }

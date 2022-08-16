@@ -21,6 +21,16 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+HOST_DEVICE inline bool IsTLRun(const BeamStructure *Beam){
+    char r = Beam->RunType[0];
+    return r == 'C' || r == 'S' || r == 'I';
+}
+
+HOST_DEVICE inline bool IsArrivalsRun(const BeamStructure *Beam){
+    char r = Beam->RunType[0];
+    return r == 'A' || r == 'a';
+}
+
 template<bool O3D> HOST_DEVICE inline int32_t GetNumJobs(
     const Position *Pos, const AnglesStructure *Angles)
 {
@@ -60,10 +70,22 @@ template<bool O3D> HOST_DEVICE inline bool GetJobIndices(RayInitInfo &rinit, int
         rinit.isx = job % Pos->NSx;
         job /= Pos->NSx;
     }else{
-        rinit.isx = rinit.isy = rinit.ibeta = -1234567;
+        rinit.isx = rinit.isy = rinit.ibeta = 0;
     }
     rinit.isz = job;
     return (rinit.isz < Pos->NSz);
+}
+
+HOST_DEVICE inline size_t GetFieldAddr(
+    int32_t isx, int32_t isy, int32_t isz, int32_t itheta, int32_t id, int32_t ir,
+    const Position *Pos)
+{
+    return ((((                      (size_t)rinit.isz  *
+        (size_t)Pos->NSx           + (size_t)rinit.isx) *
+        (size_t)Pos->NSy           + (size_t)rinit.isy) *
+        (size_t)Pos->Ntheta        + (size_t)itheta   ) *
+        (size_t)Pos->NRz_per_range + (size_t)id       ) *
+        (size_t)Pos->NRr           + (size_t)ir;
 }
 
 }
