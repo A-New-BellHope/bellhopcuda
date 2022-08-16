@@ -35,7 +35,7 @@ bool api_okay = false;
 constexpr bool Init_Inline = false;
 
 BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams &params, bhcOutputs &outputs)
+    bhcParams &params, bhcOutputs &outputs, bool resetParams)
 {
     api_okay = true;
     params.internal = new PrintFileEmu(FileRoot, outputCallback);
@@ -49,96 +49,101 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     setupGPU();
     #endif
 
-    // Allocate main structs
-    params.Bdry = allocate<BdryType>();
-    params.bdinfo = allocate<BdryInfo>();
-    params.refl = allocate<ReflectionInfo>();
-    params.ssp = allocate<SSPStructure>();
-    params.atten = allocate<AttenInfo>();
-    params.Pos = allocate<Position>();
-    params.Angles = allocate<AnglesStructure>();
-    params.freqinfo = allocate<FreqInfo>();
-    params.Beam = allocate<BeamStructure>();
-    params.beaminfo = allocate<BeamInfo>();
-    outputs.rayinfo = allocate<RayInfo>();
-    outputs.eigen = allocate<EigenInfo>();
-    outputs.arrinfo = allocate<ArrInfo>();
     HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
+    RecycledHS.alphaR = FL(1500.0);
+    RecycledHS.betaR = FL(0.0);
+    RecycledHS.alphaI = FL(0.0);
+    RecycledHS.betaI = FL(0.0);
+    RecycledHS.rho = FL(1.0);
+
+    if (resetParams) {
+        // Allocate main structs
+        params.Bdry = allocate<BdryType>();
+        params.bdinfo = allocate<BdryInfo>();
+        params.refl = allocate<ReflectionInfo>();
+        params.ssp = allocate<SSPStructure>();
+        params.atten = allocate<AttenInfo>();
+        params.Pos = allocate<Position>();
+        params.Angles = allocate<AnglesStructure>();
+        params.freqinfo = allocate<FreqInfo>();
+        params.Beam = allocate<BeamStructure>();
+        params.beaminfo = allocate<BeamInfo>();
+        outputs.rayinfo = allocate<RayInfo>();
+        outputs.eigen = allocate<EigenInfo>();
+        outputs.arrinfo = allocate<ArrInfo>();
+
+        // Set pointers to null because we always check if they are not null (and
+        // deallocate them if so) before allocating them
+        // IMPORTANT--if changes are made here, make the same changes in finalize
+        params.bdinfo->Top = nullptr;
+        params.bdinfo->Bot = nullptr;
+        params.refl->RBot = nullptr;
+        params.refl->RTop = nullptr;
+        params.ssp->cMat = nullptr;
+        params.ssp->czMat = nullptr;
+        params.ssp->cMat3 = nullptr;
+        params.ssp->czMat3 = nullptr;
+        params.ssp->Seg.r = nullptr;
+        params.ssp->Seg.x = nullptr;
+        params.ssp->Seg.y = nullptr;
+        params.ssp->Seg.z = nullptr;
+        params.Pos->iSz = nullptr;
+        params.Pos->iRz = nullptr;
+        params.Pos->Sx = nullptr;
+        params.Pos->Sy = nullptr;
+        params.Pos->Sz = nullptr;
+        params.Pos->Rr = nullptr;
+        params.Pos->Rz = nullptr;
+        params.Pos->ws = nullptr;
+        params.Pos->wr = nullptr;
+        params.Pos->theta = nullptr;
+        params.Angles->alpha = nullptr;
+        params.Angles->beta = nullptr;
+        params.freqinfo->freqVec = nullptr;
+        params.beaminfo->SrcBmPat = nullptr;
+
+        // Fill in default / "constructor" data
+        params.fT = RL(1.0e20);
+        //Bdry: none
+        params.bdinfo->NATIPts = 2;
+        params.bdinfo->NBTYPts = 2;
+        memcpy(params.bdinfo->atiType, "LS", 2);
+        memcpy(params.bdinfo->btyType, "LS", 2);
+        //params.refl: none
+        //params.ssp: Unphysical z's to indicate no data.
+        for (int i = 0; i < MaxSSP; ++i) params.ssp->z[i] = -1;
+        params.atten->t = FL(20.0);
+        params.atten->Salinity = FL(35.0);
+        params.atten->pH = FL(8.0);
+        params.atten->z_bar = FL(0.0);
+        params.Pos->NSx = 1;
+        params.Pos->NSy = 1;
+        params.Angles->Nalpha = 0;
+        params.Angles->Nbeta = 1;
+        //LP: not a typo; this is an index, one less than the start of the array,
+        //which in Fortran (and in the env file!) is 0. This gets converted to 0-
+        //indexed when it is used.
+        params.Angles->iSingle_alpha = 0;
+        params.Angles->iSingle_beta = 0;
+        //params.freqinfo: none
+        params.Beam->epsMultiplier = FL(1.0);
+        memcpy(params.Beam->Type, "G S ", 4);
+        //params.beaminfo: none
+    }
     
-    // Set pointers to null because we always check if they are not null (and
-    // deallocate them if so) before allocating them
-    // IMPORTANT--if changes are made here, make the same changes in finalize
-    params.bdinfo->Top = nullptr;
-    params.bdinfo->Bot = nullptr;
-    params.refl->RBot = nullptr;
-    params.refl->RTop = nullptr;
-    params.ssp->cMat = nullptr;
-    params.ssp->czMat = nullptr;
-    params.ssp->cMat3 = nullptr;
-    params.ssp->czMat3 = nullptr;
-    params.ssp->Seg.r = nullptr;
-    params.ssp->Seg.x = nullptr;
-    params.ssp->Seg.y = nullptr;
-    params.ssp->Seg.z = nullptr;
-    params.Pos->iSz = nullptr;
-    params.Pos->iRz = nullptr;
-    params.Pos->Sx = nullptr;
-    params.Pos->Sy = nullptr;
-    params.Pos->Sz = nullptr;
-    params.Pos->Rr = nullptr;
-    params.Pos->Rz = nullptr;
-    params.Pos->ws = nullptr;
-    params.Pos->wr = nullptr;
-    params.Pos->theta = nullptr;
-    params.Angles->alpha = nullptr;
-    params.Angles->beta = nullptr;
-    params.freqinfo->freqVec = nullptr;
-    params.beaminfo->SrcBmPat = nullptr;
-    outputs.rayinfo->raymem = nullptr;
-    outputs.rayinfo->results = nullptr;
-    outputs.uAllSources = nullptr;
-    outputs.eigen->hits = nullptr;
-    outputs.arrinfo->Arr = nullptr;
-    outputs.arrinfo->NArr = nullptr;
-    
-    // Fill in default / "constructor" data
-    params.fT = RL(1.0e20);
-    //Bdry: none
-    params.bdinfo->NATIPts = 2;
-    params.bdinfo->NBTYPts = 2;
-    memcpy(params.bdinfo->atiType, "LS", 2);
-    memcpy(params.bdinfo->btyType, "LS", 2);
-    //params.refl: none
-    //params.ssp: none
-    params.atten->t = FL(20.0);
-    params.atten->Salinity = FL(35.0);
-    params.atten->pH = FL(8.0);
-    params.atten->z_bar = FL(0.0);
-    params.Pos->NSx = 1;
-    params.Pos->NSy = 1;
-    params.Angles->Nalpha = 0;
-    params.Angles->Nbeta = 1;
-    //LP: not a typo; this is an index, one less than the start of the array,
-    //which in Fortran (and in the env file!) is 0. This gets converted to 0-
-    //indexed when it is used.
-    params.Angles->iSingle_alpha = 0;
-    params.Angles->iSingle_beta = 0;
-    //params.freqinfo: none
-    params.Beam->epsMultiplier = FL(1.0);
-    memcpy(params.Beam->Type, "G S ", 4);
-    //params.beaminfo: none
     outputs.rayinfo->NPoints = 0;
     outputs.rayinfo->MaxPoints = 0;
     outputs.rayinfo->NRays = 0;
     outputs.eigen->neigen = 0;
     outputs.eigen->memsize = 0;
     outputs.arrinfo->MaxNArr = 1;
-    RecycledHS.alphaR = FL(1500.0);
-    RecycledHS.betaR = FL(0.0);
-    RecycledHS.alphaI = FL(0.0);
-    RecycledHS.betaI = FL(0.0);
-    RecycledHS.rho = FL(1.0);
-    
+    outputs.rayinfo->raymem = nullptr;
+    outputs.rayinfo->results = nullptr;
+    outputs.uAllSources = nullptr;
+    outputs.eigen->hits = nullptr;
+    outputs.arrinfo->Arr = nullptr;
+    outputs.arrinfo->NArr = nullptr;
+
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
         std::string TempTitle = BHC_PROGRAMNAME "- Calibration case with envfil passed as parameters";

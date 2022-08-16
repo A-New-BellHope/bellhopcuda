@@ -28,6 +28,8 @@ namespace bhc {
 
 /**
  * reads the SSP data from the environmental file and convert to Nepers/m
+ * update 8/9/2022 - only updates the ssp if it is unset. Flag 'unset' state
+ * by setting the depth negative.
  */
 void ReadSSP(READ_SSP_ARGS)
 {
@@ -37,17 +39,35 @@ void ReadSSP(READ_SSP_ARGS)
     ssp->NPts = 1;
     
     for(int32_t iz=0; iz<MaxSSP; ++iz){
-        LIST_WARNLINE(ENVFile); ENVFile.Read(ssp->z[iz]); 
-        ENVFile.Read(RecycledHS.alphaR); ENVFile.Read(RecycledHS.betaR);
-        ENVFile.Read(RecycledHS.rho);
-        ENVFile.Read(RecycledHS.alphaI); ENVFile.Read(RecycledHS.betaI);
-        PRTFile << std::setprecision(2) << ssp->z[iz] << " " << RecycledHS.alphaR
-            << " " << RecycledHS.betaR << " " << RecycledHS.rho << " " 
-            << std::setprecision(4) << RecycledHS.alphaI << " " << RecycledHS.betaI << "\n";
+        double zIn, alphaRIn, betaRIn, rhoIn, alphaIIn, betaIIn;
+        LIST_WARNLINE(ENVFile); ENVFile.Read(zIn);
+        ENVFile.Read(alphaRIn); ENVFile.Read(betaRIn);
+        ENVFile.Read(rhoIn);
+        ENVFile.Read(alphaIIn); ENVFile.Read(betaIIn);
+
+        if (ssp->z[iz] < 0) {
+            ssp->z[iz] = zIn;
+            RecycledHS.alphaR = alphaRIn;
+            RecycledHS.betaR = betaRIn;
+            RecycledHS.rho = rhoIn;
+            RecycledHS.alphaI = alphaIIn;
+            RecycledHS.betaI = betaIIn;
+            PRTFile << std::setprecision(2) << ssp->z[iz] << " " << RecycledHS.alphaR
+                << " " << RecycledHS.betaR << " " << RecycledHS.rho << " "
+                << std::setprecision(4) << RecycledHS.alphaI << " " << RecycledHS.betaI << "\n";
+            ssp->rho[iz] = RecycledHS.rho;
+            ssp->alphaR[iz] = RecycledHS.alphaR;
+            ssp->alphaI[iz] = RecycledHS.alphaI;
+        } else {
+            GlobalLog("Using existing sound speed profile. Set unphysical depths (negative) to reload: %g %g.\n",
+                ssp->alphaR[iz], ssp->alphaI[iz]);
+            RecycledHS.alphaR = ssp->alphaR[iz];
+            RecycledHS.alphaI = ssp->alphaI[iz];
+            // I'm not sure what to do with rho (density) and beta -- JS
+        }
         
         ssp->c[iz] = crci(ssp->z[iz], RecycledHS.alphaR, RecycledHS.alphaI, freq, freq,
             ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile);
-        ssp->rho[iz] = RecycledHS.rho;
         
         // verify that the depths are monotone increasing
         if(iz > 0){

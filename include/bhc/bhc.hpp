@@ -45,11 +45,15 @@ namespace bhc {
  * params, outputs: Just create uninitialized structs and pass them in to be
  * initialized.
  * 
+ * resetParams: Does everything except (re)initialization of the parameters.
+ * Use when you want adjust a param and need to reset derived quantities, eg ssp.
+ * Should be called before finalize (or it will segfault on the unallocated parts).
+ * 
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
  */
 BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams &params, bhcOutputs &outputs);
+    bhcParams &params, bhcOutputs &outputs, bool resetParams = true);
     
 /**
  * Runs the selected run type and places the results in the appropriate struct

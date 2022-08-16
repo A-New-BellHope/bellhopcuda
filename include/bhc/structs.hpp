@@ -44,6 +44,7 @@ struct SSPStructure {
     rxyz_vector Seg;
     char Type;
     char AttenUnit[2];
+    real alphaR[MaxSSP], alphaI[MaxSSP];
 };
 
 struct HSInfo {
