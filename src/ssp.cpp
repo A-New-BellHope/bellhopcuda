@@ -23,7 +23,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 #define READ_SSP_ARGS real Depth, real freq, const real &fT, SSPStructure *ssp, \
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS, \
+    bool resetParams = true
 #define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, RecycledHS
 
 /**
@@ -44,7 +45,7 @@ void ReadSSP(READ_SSP_ARGS)
         ENVFile.Read(RecycledHS.rho);
         ENVFile.Read(RecycledHS.alphaI); ENVFile.Read(RecycledHS.betaI);
 
-        if (ssp->z[iz] < 0) {
+        if (resetParams) {
             PRTFile << std::setprecision(2) << ssp->z[iz] << " " << RecycledHS.alphaR
                 << " " << RecycledHS.betaR << " " << RecycledHS.rho << " "
                 << std::setprecision(4) << RecycledHS.alphaI << " " << RecycledHS.betaI << "\n";
@@ -52,7 +53,7 @@ void ReadSSP(READ_SSP_ARGS)
             ssp->alphaR[iz] = RecycledHS.alphaR;
             ssp->alphaI[iz] = RecycledHS.alphaI;
         } else {
-            GlobalLog("Using existing sound speed profile. Set unphysical depths (negative) to reload: %g %g.\n",
+            GlobalLog("Using existing sound speed profile: %g %g.\n",
                 ssp->alphaR[iz], ssp->alphaI[iz]);
             RecycledHS.alphaR = ssp->alphaR[iz];
             RecycledHS.alphaI = ssp->alphaI[iz];

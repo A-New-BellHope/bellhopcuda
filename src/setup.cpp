@@ -234,7 +234,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     }else{
         ReadEnvironment(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
-            params.Beam, RecycledHS);
+            params.Beam, RecycledHS, resetParams);
         ReadATI(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
             PRTFile, params.bdinfo); // AlTImetry
         ReadBTY(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,

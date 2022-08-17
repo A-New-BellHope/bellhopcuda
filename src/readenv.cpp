@@ -247,7 +247,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
 void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
-    HSInfo &RecycledHS)
+    HSInfo &RecycledHS, bool resetParams = true)
 {
     //const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;

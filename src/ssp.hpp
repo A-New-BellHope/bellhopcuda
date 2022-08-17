@@ -31,7 +31,8 @@ constexpr real betaPowerLaw = FL(1.0);
 #define SSP_INIT_ARGS vec2 x, const real &fT, \
     LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot, \
     SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
-#define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
+#define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS, \
+    resetParams
 
 HOST_DEVICE inline void UpdateDepthSegmentT(const vec2 &x, const vec2 &t,
     const SSPStructure *ssp, int32_t &iSegz)
