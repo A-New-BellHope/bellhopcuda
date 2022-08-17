@@ -24,6 +24,6 @@ namespace bhc {
 void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
     Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
-    HSInfo &RecycledHS);
+    HSInfo &RecycledHS, bool resetParams);
 
 }

@@ -25,7 +25,8 @@ namespace bhc {
 #define READ_SSP_ARGS real Depth, real freq, const real &fT, SSPStructure *ssp, \
     LDIFile &ENVFile, PrintFileEmu &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS, \
     bool resetParams = true
-#define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, RecycledHS
+#define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, \
+    RecycledHS, resetParams
 
 /**
  * reads the SSP data from the environmental file and convert to Nepers/m
