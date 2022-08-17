@@ -39,19 +39,12 @@ void ReadSSP(READ_SSP_ARGS)
     ssp->NPts = 1;
     
     for(int32_t iz=0; iz<MaxSSP; ++iz){
-        double zIn, alphaRIn, betaRIn, rhoIn, alphaIIn, betaIIn;
-        LIST_WARNLINE(ENVFile); ENVFile.Read(zIn);
-        ENVFile.Read(alphaRIn); ENVFile.Read(betaRIn);
-        ENVFile.Read(rhoIn);
-        ENVFile.Read(alphaIIn); ENVFile.Read(betaIIn);
+        LIST_WARNLINE(ENVFile); ENVFile.Read(ssp->z[iz]);
+        ENVFile.Read(RecycledHS.alphaR); ENVFile.Read(RecycledHS.betaR);
+        ENVFile.Read(RecycledHS.rho);
+        ENVFile.Read(RecycledHS.alphaI); ENVFile.Read(RecycledHS.betaI);
 
         if (ssp->z[iz] < 0) {
-            ssp->z[iz] = zIn;
-            RecycledHS.alphaR = alphaRIn;
-            RecycledHS.betaR = betaRIn;
-            RecycledHS.rho = rhoIn;
-            RecycledHS.alphaI = alphaIIn;
-            RecycledHS.betaI = betaIIn;
             PRTFile << std::setprecision(2) << ssp->z[iz] << " " << RecycledHS.alphaR
                 << " " << RecycledHS.betaR << " " << RecycledHS.rho << " "
                 << std::setprecision(4) << RecycledHS.alphaI << " " << RecycledHS.betaI << "\n";
