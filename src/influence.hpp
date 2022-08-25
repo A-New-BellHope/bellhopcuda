@@ -49,48 +49,81 @@ HOST_DEVICE inline real Hermite(real x, real x1, real x2)
  * Scale the pressure field
  * 
  * r: ranges (LP: [Nr])
- * Dalpha: angular spacing between rays
+ * Dalpha, Dbeta: angular spacing between rays
  * freq: source frequency
- * c: nominal sound speed (LP: [NRz][Nr])
- * u: Pressure field
+ * c: nominal sound speed
+ * u [LP: 3D: P]: Pressure field (LP: [NRz][Nr])
+ * 
+ * [LP: 3D only:] mbp: this routine should be eliminated
+ * LP: The conversion of intensity to pressure can't be eliminated (moved into
+ * the Influence* functions) because it must occur after the summing of
+ * contributions from different rays/beams.
  */
-HOST_DEVICE inline void ScalePressure(real Dalpha, real c, float *r, 
-    cpxf *u, int32_t NRz, int32_t Nr, const char (&RunType)[7], real freq)
+template<bool R3D> HOST_DEVICE inline void ScalePressure(
+    real Dalpha, real Dbeta, real c, cpx epsilon1, cpx epsilon2, float *r, 
+    cpxf *u, int32_t Ntheta, int32_t NRz, int32_t Nr, const char (&RunType)[7], real freq)
 {
     const float local_pi = 3.14159265f;
+    real cnst;
+    cpx cnst3d;
     
     // Compute scale factor for field
-    real cnst;
-    if(RunType[1] == 'C' || RunType[1] == 'R'){
-        // Cerveny Gaussian beams in Cartesian or Ray-centered coordinates
-        cnst = -Dalpha * STD::sqrt(freq) / c;
+    if constexpr(R3D){
+        if(RunType[1] == 'C'){
+            // Cerveny Gaussian beams in Cartesian coordinates
+            // epsilon is normally imaginary here, so cnst is complex
+            real sqrtc = STD::sqrt(c);
+            real sqrtc3 = CUBE(sqrtc);
+            // put this factor into the beam instead?
+            cnst3d = STD::sqrt(epsilon1 * epsilon2) * freq * Dbeta * Dalpha / sqrtc3;
+            // LP: This is applied before the intensity to pressure conversion.
+            for(int32_t itheta=0; itheta<Ntheta; ++itheta){
+                for(int32_t irz=0; irz<NRz; ++irz){
+                    for(int32_t ir=0; ir<Nr; ++ir){
+                        size_t addr = ((size_t)itheta * NRz + irz) * Nr + ir;
+                        u[addr] *= Cpx2Cpxf(cnst3d);
+                    }
+                }
+            }
+        }else{
+            cnst3d = cpx(FL(1.0), FL(0.0)); // LP: set but not used
+        }
     }else{
-        cnst = FL(-1.0);
+        if(RunType[1] == 'C' || RunType[1] == 'R'){
+            cnst = -Dalpha * STD::sqrt(freq) / c, RL(0.0);
+        }else{
+            cnst = FL(-1.0);
+        }
     }
     
     // For incoherent run, convert intensity to pressure
     if(RunType[0] != 'C'){
-        for(int32_t irz=0; irz<NRz; ++irz){
-            for(int32_t ir=0; ir<Nr; ++ir){
-                u[irz*Nr+ir] = cpxf((float)STD::sqrt(u[irz*Nr+ir].real()), 0.0f);
+        for(int32_t itheta=0; itheta<Ntheta; ++itheta){
+            for(int32_t irz=0; irz<NRz; ++irz){
+                for(int32_t ir=0; ir<Nr; ++ir){
+                    size_t addr = ((size_t)itheta * NRz + irz) * Nr + ir;
+                    u[addr] = cpxf(STD::sqrt(u[addr].real()), 0.0f);
+                }
             }
         }
     }
     
-    // scale and/or incorporate cylindrical spreading
-    for(int32_t ir=0; ir<Nr; ++ir){
-        real factor;
-        if(RunType[3] == 'X'){ // line source
-            factor = FL(-4.0) * STD::sqrt(local_pi) * cnst;
-        }else{ // point source
-            if(r[ir] == 0.0f){
-                factor = RL(0.0); // avoid /0 at origin, return pressure = 0
-            }else{
-                factor = cnst / (real)STD::sqrt(STD::abs(r[ir]));
+    if constexpr(!R3D){
+        // scale and/or incorporate cylindrical spreading
+        for(int32_t ir=0; ir<Nr; ++ir){
+            real factor;
+            if(RunType[3] == 'X'){ // line source
+                factor = FL(-4.0) * STD::sqrt(local_pi) * cnst;
+            }else{ // point source
+                if(r[ir] == 0.0f){
+                    factor = RL(0.0); // avoid /0 at origin, return pressure = 0
+                }else{
+                    factor = cnst / (real)STD::sqrt(STD::abs(r[ir]));
+                }
             }
-        }
-        for(int32_t irz=0; irz<NRz; ++irz){
-            u[irz*Nr+ir] *= (float)factor;
+            for(int32_t irz=0; irz<NRz; ++irz){
+                u[irz*Nr+ir] *= (float)factor;
+            }
         }
     }
 }
@@ -123,7 +156,7 @@ HOST_DEVICE inline void AddToField(
     AtomicAddCpx(&uAllSources[base], dfield);
 }
 
-template<bool R3D> HOST_DEVICE inline void ApplyContribution(
+template<bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribution(
     cpxf *uAllSources, real cnst, real w, real omega, cpx delay, real phaseInt,
     real RcvrDeclAngle, real RcvrAzimAngle,
     int32_t itheta, int32_t ir, int32_t iz, int32_t is,
@@ -131,9 +164,12 @@ template<bool R3D> HOST_DEVICE inline void ApplyContribution(
     const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
+    if constexpr(O3D && !R3D){
+        itheta = inflray.init.ibeta;
+    }
     if(Beam->RunType[0] == 'E'){
         // eigenrays
-        RecordEigenHit<R3D>(ir, itheta, iz, is, inflray.init, eigen);
+        RecordEigenHit(itheta, ir, iz, is, inflray.init, eigen);
     }else if(IsArrivalsRun(Beam)){
         // arrivals
         AddArr<R3D>(itheta, iz, ir, cnst * w, omega, phaseInt, delay, 
@@ -160,75 +196,125 @@ template<bool R3D> HOST_DEVICE inline void ApplyContribution(
 }
 
 /**
- * Picks the optimum value for epsilon
+ * Picks the optimum value for epsilon (LP: "beam constant" / "beam initial conditions")
  * 
  * omega: angular frequency
  * c: sound speed
  * gradc: gradient
- * alpha: angular spacing for ray fan
+ * Dangle: angular spacing for ray fan (LP: either Dalpha or Dbeta)
  * rLoop: loop range
  * EpsMultiplier: multiplier to manually adjust result
+ * 
+ * LP: For 3D, called twice, once for alpha and once for beta
  */
-HOST_DEVICE inline cpx PickEpsilon(char BeamType0, char BeamType1, real omega, 
-    real c, vec2 gradc, real alpha, real Dalpha, real rLoop, real EpsMultiplier)
+template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
+    char BeamType0, char BeamType1, real omega, real c, vec2 gradc, real angle,
+    real Dangle, real rLoop, real EpsMultiplier)
 {
-    real halfwidth, cz;
-    cpx epsilonOpt;
+    // LP: BUG: Multiple codepaths do not set epsilonOpt, leads to UB
+    real halfwidth = R3D ? RL(0.0) : DEBUG_LARGEVAL;
+    cpx epsilonOpt = cpx(DEBUG_LARGEVAL, DEBUG_LARGEVAL);
+    bool defaultHalfwidth = true, defaultEps = true, zeroEps = false;
     //const char *tag;
     switch(BeamType0){
     case 'C':
     case 'R':
-        //tag = "Paraxial beams";
+        //tag = R3D ? "Cerveny style beam" : "Paraxial beams";
         switch(BeamType1){
         case 'F':
             //tag = "Space filling beams";
-            halfwidth = FL(2.0) / ((omega / c) * Dalpha);
-            epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
             break;
         case 'M':
             //tag = "Minimum width beams";
+            defaultHalfwidth = false;
             halfwidth = STD::sqrt(FL(2.0) * c * FL(1000.0) * rLoop / omega);
-            epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
             break;
         case 'W':
             //tag = "WKB beams";
-            halfwidth = REAL_MAX;
-            cz = gradc.y;
-            if(cz == FL(0.0)){
-                epsilonOpt = RL(1e10);
-            }else{
-                epsilonOpt = (-STD::sin(alpha) / STD::cos(SQ(alpha))) * c * c / cz;
+            if(R3D){
+                printf("Warning, BeamType[1] = W unimplemented in BELLHOP3D\n");
+                defaultHalfwidth = defaultEps = false;
+                break;
             }
+            halfwidth = REAL_MAX;
+            real cz = gradc.y;
+            epsilonOpt = (cz == FL(0.0)) ? RL(1e10) :
+                ((-STD::sin(angle) / STD::cos(SQ(angle))) * c * c / cz);
+            defaultHalfwidth = defaultEps = false;
+            break;
+        case 'C':
+            if(R3D){
+                //tag = "Cerveny style beam";
+                printf("Warning, BeamType[1] = C buggy in BELLHOP3D\n");
+            }else{
+                printf("Warning, BeamType[1] = C not implemented in BELLHOP (2D)\n");
+            }
+            defaultHalfwidth = defaultEps = false;
             break;
         default:
-            printf("Invalid BeamType[1]: %c\n", BeamType1);
-            bail();
+            printf("Invalid BeamType[1] %c buggily ignored in PickEpsilon\n", BeamType1);
+            defaultHalfwidth = defaultEps = false;
         }
         break;
     case 'G':
+        if constexpr(R3D){
+            //tag = "Geometric beam, hat-shaped, Cart. coord.";
+            zeroEps = true;
+        }else{
+            //tag = "Geometric hat beams";
+        }
+        break;
+    case '^':
+        if constexpr(R3D){
+            //tag = "Geometric beam, hat-shaped, Cart. coord.";
+            zeroEps = true;
+        }else{
+            printf("Warning, BeamType[1] = ^ not properly handled in BELLHOP (2D)\n");
+            defaultHalfwidth = defaultEps = false;
+        }
+        break;
     case 'g':
-        //tag = "Geometric hat beams";
-        halfwidth = FL(2.0) / ((omega / c) * Dalpha);
-        epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
+        if constexpr(R3D){
+            //tag = "Geometric beam, hat-shaped, Ray coord.";
+            zeroEps = true;
+        }else{
+            //tag = "Geometric hat beams";
+        }
         break;
     case 'B':
-        //tag = "Geometric Gaussian beams";
-        halfwidth = FL(2.0) / ((omega / c) * Dalpha);
-        epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
+        if constexpr(R3D){
+            //tag = "Geometric beam, Gaussian-shaped, Cart. coord.";
+            zeroEps = true;
+        }else{
+            //tag = "Geometric Gaussian beams";
+        }
         break;
     case 'b':
-        printf(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
-            "implemented in BELLHOP (and therefore not in " BHC_PROGRAMNAME ")\n");
-        bail();
+        if constexpr(R3D){
+            //tag = "Geometric beam, Gaussian-shaped, Ray coord.";
+            zeroEps = true;
+        }else{
+            printf(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
+                "implemented in BELLHOP (2D)\n");
+            bail();
+        }
         break;
     case 'S':
         //tag = "Simple Gaussian beams";
-        halfwidth = FL(2.0) / ((omega / c) * Dalpha);
-        epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
+        // LP: Supported here in 3D even though not supported in Influence 3D.
         break;
     default:
-        printf("Invalid BeamType[0]: %c\n", BeamType0);
-        bail();
+        printf("Invalid BeamType[0] %c ignored in PickEpsilon\n", BeamType0);
+        defaultHalfwidth = defaultEps = false;
+    }
+    
+    if(zeroEps){
+        epsilonOpt = FL(0.0);
+    }else if(defaultEps){
+        if(defaultHalfwidth){
+            halfwidth  = (Dangle == FL(0.0)) ? FL(0.0) : (FL(2.0) / ((omega / c) * Dangle));
+        }
+        epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
     }
     
     /*
@@ -418,8 +504,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     }
     
     if(Beam->Type[0] == 'R' || Beam->Type[0] == 'C'){
-        inflray.epsilon = PickEpsilon(Beam->Type[0], Beam->Type[1], inflray.omega,
+        inflray.epsilon1 = PickEpsilon<R3D>(Beam->Type[0], Beam->Type[1], inflray.omega,
             point0.c, gradc, rinit.alpha, Angles->alpha.d, Beam->rLoop, Beam->epsMultiplier);
+        if constexpr(R3D){
+            inflray.epsilon2 = PickEpsilon<R3D>(Beam->Type[0], Beam->Type[1], inflray.omega,
+                point0.c, gradc, rinit.beta, Angles->beta.d, Beam->rLoop, Beam->epsMultiplier);
+        }
     }
     
     // LP: For all geometric types
@@ -509,7 +599,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
 /**
  * Paraxial (Cerveny-style) beams in ray-centered coordinates
  */
-HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
+template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     const rayPt<false> &point0, const rayPt<false> &point1,
     InfluenceRayInfo<false> &inflray, 
     int32_t is, cpxf *uAllSources,
@@ -610,7 +700,8 @@ HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                         }
                         contri *= Hermite(n, inflray.RadMax, FL(2.0) * inflray.RadMax);
                         
-                        AddToField(uAllSources, Cpx2Cpxf(contri), 0, ir, iz, inflray, Pos);
+                        AddToField(uAllSources, Cpx2Cpxf(contri), O3D ? inflray.init.ibeta : 0,
+                            ir, iz, inflray, Pos);
                     }
                 }
             }
@@ -730,17 +821,20 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
                 contri = contri * STD::conj(contri);
             }
             
-            AddToField(uAllSources, Cpx2Cpxf(contri), 0, ir, iz, inflray, Pos);
+            AddToField(uAllSources, Cpx2Cpxf(contri), O3D ? inflray.init.ibeta : 0,
+                ir, iz, inflray, Pos);
         }
     }
     
     return true;
 }
 
+#if 0
+TODO 3D not implemented yet
 /**
  * Geometrically-spreading beams with a hat-shaped beam in ray-centered coordinates
  */
-template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
+template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
     InfluenceRayInfo<R3D> &inflray,
     int32_t is, cpxf *uAllSources, const Position *Pos, const BeamStructure *Beam,
@@ -808,7 +902,7 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
                 w     = (l - n) / l; // hat function: 1 on center, 0 on edge
                 phaseInt = FinalPhase(point0, inflray, q);
                 
-                ApplyContribution(uAllSources,
+                ApplyContribution<O3D, R3D>(uAllSources,
                     cnst, w, inflray.omega, delay, phaseInt,
                     RcvrDeclAngle, RcvrAzimAngle, itheta, ir, iz, is,
                     inflray, point1, Pos, Beam, eigen, arrinfo);
@@ -822,13 +916,14 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
     inflray.rn = rn;
     return true;
 }
+#endif
 
 /**
  * Geometric, hat-shaped or Gaussian beams in Cartesian coordintes
  *
  * uAllSources: complex pressure field
  */
-template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
+template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
     bool isGaussian, const rayPt<R3D> &point0, const rayPt<R3D> &point1,
     InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *uAllSources, const Position *Pos,
     const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
@@ -1040,7 +1135,7 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
                     }
                     real phaseInt = FinalPhase((!R3D && isGaussian ? point1 : point0), inflray, qFinal);
                     
-                    ApplyContribution(uAllSources,
+                    ApplyContribution<O3D, R3D>(uAllSources,
                         cnst, w, inflray.omega, delay, phaseInt,
                         RcvrDeclAngle, RcvrAzimAngle, itheta, inflray.ir, iz, is,
                         inflray, point1, Pos, Beam, eigen, arrinfo);
@@ -1069,7 +1164,7 @@ template<bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
 /**
  * Bucker's Simple Gaussian Beams in Cartesian coordinates
  */
-HOST_DEVICE inline bool Step_InfluenceSGB(
+template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
     const rayPt<false> &point0, const rayPt<false> &point1,
     InfluenceRayInfo<false> &inflray, int32_t is, cpxf *uAllSources,
     const Position *Pos, const BeamStructure *Beam,
@@ -1128,7 +1223,7 @@ HOST_DEVICE inline bool Step_InfluenceSGB(
                 real cnst = inflray.Ratio1 * cn * point1.Amp / STD::sqrt(sx1);
                 w = STD::exp(-a * SQ(thet));
                 real phaseInt = point1.Phase + inflray.phase;
-                ApplyContribution(uAllSources,
+                ApplyContribution<O3D, false>(uAllSources,
                     cnst, w, inflray.omega, delay, phaseInt,
                     RcvrDeclAngle, RL(0.0), 0, inflray.ir, iz, is,
                     inflray, point1, Pos, Beam, eigen, arrinfo);
@@ -1159,7 +1254,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             bail();
             return false;
         }else{
-            return Step_InfluenceCervenyRayCen(
+            return Step_InfluenceCervenyRayCen<O3D>(
                 point0, point1, inflray, is, uAllSources, Bdry, Pos, Beam);
         }
     case 'C':
@@ -1174,13 +1269,19 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             return false;
         }else{
             // LP: After the error, which does stop the program, Nx2D continues
-            // to compute InfluenceCervenyCart! Nx2D also supports CervenyRayCen above.
+            // to compute InfluenceCervenyCart! So this has to compile.
+            // Nx2D also supports CervenyRayCen above.
             return Step_InfluenceCervenyCart<O3D>(
                 point0, point1, inflray, is, uAllSources, Bdry, org, ssp, iSeg, Pos, Beam);
         }
     case 'g':
+        /*
         return Step_InfluenceGeoHatRayCen<R3D>(
             point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
+        */
+        printf("3D RayCen not implemented yet\n");
+        bail();
+        return false;
     case 'S':
         if constexpr(R3D){
             printf("Invalid Run Type\n");

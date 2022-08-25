@@ -106,24 +106,51 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     WriteHeader(SHDFile, FileRoot + ".shd", params.Title, atten, PlotType,
         params.Pos, params.freqinfo);
     
-    for(int32_t isrc=0; isrc<params.Pos->NSz; ++isrc){
-        SSPSegState iSeg; iSeg.r = 0; iSeg.z = 0;
-        SSPOutputs<false> o;
-        Origin<false, false> org;
-        EvaluateSSP<false, false>(vec2(RL(0.0), params.Pos->Sz[isrc]), vec2(RL(1.0), RL(0.0)),
-            o, org, params.ssp, iSeg);
-        ScalePressure(params.Angles->alpha.d, o.ccpx.real(), params.Pos->Rr, 
-            &outputs.uAllSources[isrc * params.Pos->NRz_per_range * params.Pos->NRr], 
-            params.Pos->NRz_per_range, params.Pos->NRr, params.Beam->RunType,
-            params.freqinfo->freq0);
-        int32_t IRec = 10 + params.Pos->NRz_per_range * isrc;
-        for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1){
-            SHDFile.rec(IRec);
-            for(int32_t r=0; r < params.Pos->NRr; ++r){
-                DOFWRITEV(SHDFile, outputs.uAllSources[
-                    (isrc * params.Pos->NRz_per_range + Irz1) * params.Pos->NRr + r]);
+    for(int32_t isz=0; isz<params.Pos->NSz; ++isz){
+        for(int32_t isx=0; isx<params.Pos->NSx; ++isx){
+            for(int32_t isy=0; isy<params.Pos->NSy; ++isy){
+                TODO; // For Nx2D: for each azimuthal angle (for all declination angles added),
+                // do ScalePressure (2D) then overwrite radial slice of 3D field with this
+                SSPSegState iSeg; iSeg.r = 0; iSeg.z = 0;
+                VEC23<O3D> xs, tinit;
+                SSPOutputs<O3D> o = RayStartNominalSSP(isx, isy, isz, FL(0.0),
+                    iSeg, Pos, xs, tinit);
+                cpx epsilon1, epsilon2;
+                if constexpr(R3D){
+                    epsilon1 = PickEpsilon<R3D>(Beam->Type[0], Beam->Type[1], FL(2.0) * REAL_PI * freqinfo->freq0,
+                        o.ccpx.real(), o.gradc, FL(0.0), Angles->alpha.d, Beam->rLoop, Beam->epsMultiplier);
+                    epsilon2 = PickEpsilon<R3D>(Beam->Type[0], Beam->Type[1], FL(2.0) * REAL_PI * freqinfo->freq0,
+                        o.ccpx.real(), o.gradc, FL(0.0), Angles->beta.d, Beam->rLoop, Beam->epsMultiplier);
+                }else{
+                    epsilon1 = epsilon2 = RL(0.0);
+                }
+                ScalePressure<R3D>(
+                    params.Angles->alpha.d, params.Angles->beta.d, o.ccpx.real(),
+                    epsilon1, epsilon2, params.Pos->Rr, 
+                    &outputs.uAllSources[GetFieldAddr(isx, isy, isz, 0, 0, 0, params.Pos)], 
+                    params.Pos->Ntheta, params.Pos->NRz_per_range, params.Pos->NRr,
+                    params.Beam->RunType, params.freqinfo->freq0);
+                for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1){ // LP: depth
+                    for(int32_t itheta = 0; itheta < params.Pos->Ntheta; ++itheta){
+                        // LP: This is in a different order from the field.
+                        // Field: (largest) Z, X, Y, theta, depth, radius (smallest)
+                        // File:  (largest) X, Y, theta, Z, depth, radius (smallest)
+                        // (XYZ are source; theta depth radius are receiver)
+                        // Also, for 3D, mbp iterates over theta inside depth, which does
+                        // not match the order of writing to the file.
+                        size_t IRec = 10 + (((                      (size_t)isx     *
+                                (size_t)params.Pos->NSy           + (size_t)isy)    *
+                                (size_t)params.Pos->Ntheta        + (size_t)itheta) *
+                                (size_t)params.Pos->NSz           + (size_t)isz)    *
+                                (size_t)params.Pos->NRz_per_range + (size_t)Irz1;
+                        SHDFile.rec(IRec);
+                        for(int32_t r=0; r < params.Pos->NRr; ++r){
+                            DOFWRITEV(SHDFile, outputs.uAllSources[GetFieldAddr(
+                                isx, isy, isz, itheta, Irz1, r, params.Pos)]);
+                        }
+                    }
+                }
             }
-            ++IRec;
         }
     }
     

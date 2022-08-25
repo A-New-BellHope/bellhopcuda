@@ -49,13 +49,11 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
         EigenHit<R3D> *hit = &outputs.eigen->hits[job];
         int32_t Nsteps = hit->is;
         RayInitInfo rinit;
+        rinit.isx = hit->isx;
+        rinit.isy = hit->isy;
         rinit.isz = hit->isz;
         rinit.ialpha = hit->ialpha;
-        if constexpr(R3D){
-            rinit.isx = hit->isx;
-            rinit.isy = hit->isy;
-            rinit.ibeta = hit->ibeta;
-        }
+        rinit.ibeta = hit->ibeta;
         if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)){
             printf("EigenModePostWorker RunRay failed\n");
         }

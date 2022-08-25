@@ -43,6 +43,25 @@ template<bool R3D> HOST_DEVICE inline void Distances(const VEC23<R3D> &rayx,
 }
 
 /**
+ * LP: Not a typo that this is templated on O3D only
+ */
+template<bool O3D> inline SSPOutputs<O3D> RayStartNominalSSP(
+    int32_t isx, int32_t isy, int32_t isz, real alpha,
+    SSPSegState &iSeg, const Position *Pos, VEC23<O3D> &xs, VEC23<O3D> &tinit)
+{
+    if constexpr(O3D){
+        xs = vec3(Pos->Sx[isx], Pos->Sy[isy], Pos->Sz[isz]);
+        tinit = vec3(FL(0.0), FL(0.0), FL(1.0));
+    }else{
+        xs = vec2(FL(0.0), Pos->Sz[isz]); // x-y [LP: r-z] coordinate of the source
+        tinit = vec2(STD::cos(alpha), STD::sin(alpha));
+    }
+    SSPOutputs<O3D> o;
+    EvaluateSSP<O3D, O3D>(xs, tinit, o, Origin<O3D,O3D>(), ssp, iSeg);
+    return o;
+}
+
+/**
  * LP: Pulled out ray update loop initialization. Returns whether to continue
  * with the ray trace. Only call for valid ialpha w.r.t. Angles->iSingleAlpha.
  * Original comments follow.
@@ -70,11 +89,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     
     // LP: This part from BellhopCore
     
-    if constexpr(O3D){
-        xs = vec3(Pos->Sx[rinit.isx], Pos->Sy[rinit.isy], Pos->Sz[rinit.isz]);
-    }else{
-        xs = vec2(FL(0.0), Pos->Sz[rinit.isz]); // x-y [LP: r-z] coordinate of the source
-    }
+    VEC23<O3D> tinit;
+    SSPOutputs<O3D> o = RayStartNominalSSP(rinit.isx, rinit.isy, rinit.isz, rinit.alpha,
+        iSeg, Pos, xs, tinit);
+    gradc = o.gradc;
+    
     rinit.alpha = Angles->alpha.angles[rinit.ialpha]; // initial angle
     rinit.SrcDeclAngle = RadDeg * rinit.alpha; // take-off declination angle in degrees
     real beta;
@@ -93,18 +112,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
     
     bool TODO_x_rcvrMat_init;
-    
-    VEC23<O3D> tinit;
-    if constexpr(O3D){
-        tinit = vec3(FL(0.0), FL(0.0), FL(1.0));
-    }else{
-        tinit = vec2(STD::cos(rinit.alpha), STD::sin(rinit.alpha));
-    }
-    SSPOutputs<O3D> o;
-    EvaluateSSP<O3D, O3D>(xs, tinit, o, Origin<O3D,O3D>(), ssp, iSeg); // LP: O3D,O3D not a typo
-    gradc = o.gradc;
-    
-    bool TODO_PickEpsilon;
     
     if constexpr(!O3D){
         // Are there enough beams?
@@ -155,7 +162,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     if constexpr(R3D){
         point0.p     = mat2x2(FL(1.0)); // LP: identity
         point0.q     = mat2x2(FL(0.0)); // LP: zero matrix
-        point0.DetQ  = DEBUG_LARGEVAL; //epsilon.x * epsilon.y // LP: commented out
+        point0.DetQ  = DEBUG_LARGEVAL; //epsilon1 * epsilon2 // LP: commented out
         point0.phi   = FL(0.0);
     }else{
         point0.p     = vec2(FL(1.0), FL(0.0));

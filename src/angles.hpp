@@ -76,7 +76,7 @@ template<bool BEARING> inline void ReadRayAngles(real freq, real Depth,
             
             a.n = Pos->Ntheta;
             checkallocate(a.angles, bhc::max(3, a.n));
-            for(int32_t i=0; i<a.n; ++i) a.angles[i] = Pos->theta[i]; // a. should = Pos->Ntheta
+            for(int32_t i=0; i<a.n; ++i) a.angles[i] = Pos->theta[i]; // a.n should = Pos->Ntheta
         }
     }
     

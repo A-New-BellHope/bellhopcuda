@@ -21,30 +21,26 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-template<bool R3D> HOST_DEVICE inline void RecordEigenHit(
-    int32_t ir, int32_t itheta, int32_t iz, 
-    int32_t is, const RayInitInfo &rinit, EigenInfo<R3D> *eigen)
+HOST_DEVICE inline void RecordEigenHit(
+    int32_t itheta, int32_t ir, int32_t iz, 
+    int32_t is, const RayInitInfo &rinit, EigenInfo *eigen)
 {
     uint32_t mi = AtomicFetchAdd(&eigen->neigen, 1u);
     if(mi >= eigen->memsize) return;
     // printf("Eigenray hit %d ir %d iz %d isrc %d ialpha %d is %d\n",
     //     mi, ir, iz, isrc, ialpha, is);
     eigen->hits[mi].is = is;
+    eigen->hits[mi].iz = iz;
     eigen->hits[mi].ir = ir;
-    if constexpr(R3D){
-        eigen->hits[mi].itheta = itheta;
-        eigen->hits[mi].isx = rinit.isx;
-        eigen->hits[mi].isy = rinit.isy;
-    }
+    eigen->hits[mi].itheta = itheta;
+    eigen->hits[mi].isx = rinit.isx;
+    eigen->hits[mi].isy = rinit.isy;
     eigen->hits[mi].isz = rinit.isz;
-    eigen->hits[mi].isrc = isrc;
     eigen->hits[mi].ialpha = rinit.ialpha;
-    if constexpr(R3D){
-        eigen->hits[mi].ibeta = rinit.ibeta;
-    }
+    eigen->hits[mi].ibeta = rinit.ibeta;
 }
 
-inline void InitEigenMode(EigenInfo<R3D> *eigen)
+inline void InitEigenMode(EigenInfo *eigen)
 {
     constexpr uint32_t maxhits = 1000000u;
     eigen->neigen = 0;

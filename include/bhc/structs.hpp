@@ -302,24 +302,19 @@ struct BeamInfo {
 //Eigenrays
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool R3D> struct EigenHitExtras {};
-template<> struct EigenHitExtras<true> {
-    int32_t itheta; // LP: Receiver this hit pertains to
-    int32_t isx, isy, ibeta; // LP: Identifying info to re-trace this ray
-};
-template<bool R3D> struct EigenHit : EigenHitExtras<R3D> {
+struct EigenHit {
     // LP: Number of steps until the ray hit the receiver
     int32_t is;
     // LP: Receiver this hit pertains to
-    int32_t ir, iz;
+    int32_t itheta, ir, iz;
     // LP: Identifying info to re-trace this ray
-    int32_t isz, ialpha;
+    int32_t isx, isy, isz, ialpha, ibeta;
 };
 
-template<bool R3D> struct EigenInfo {
+struct EigenInfo {
     uint32_t neigen;
     uint32_t memsize;
-    EigenHit<R3D> *hits;
+    EigenHit *hits;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -412,7 +407,7 @@ template<bool R3D> struct InfluenceRayInfo {
     RayInitInfo init;
     real Dalpha, Dbeta; // angular spacing
     real c0; // LP: c at start of ray
-    cpx epsilon; // beam constant
+    cpx epsilon1, epsilon2; // beam constant
     VEC23<R3D> xs; // source
     real freq0, omega;
     real RadMax;
@@ -455,7 +450,7 @@ template<bool O3D, bool R3D> struct bhcParams {
 template<bool O3D, bool R3D> struct bhcOutputs {
     RayInfo<O3D, R3D> *rayinfo;
     cpxf *uAllSources;
-    EigenInfo<R3D> *eigen;
+    EigenInfo *eigen;
     ArrInfo *arrinfo;
 };
 

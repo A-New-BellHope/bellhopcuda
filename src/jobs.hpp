@@ -80,9 +80,9 @@ HOST_DEVICE inline size_t GetFieldAddr(
     int32_t isx, int32_t isy, int32_t isz, int32_t itheta, int32_t id, int32_t ir,
     const Position *Pos)
 {
-    return ((((                      (size_t)rinit.isz  *
-        (size_t)Pos->NSx           + (size_t)rinit.isx) *
-        (size_t)Pos->NSy           + (size_t)rinit.isy) *
+    return ((((                      (size_t)isz  *
+        (size_t)Pos->NSx           + (size_t)isx) *
+        (size_t)Pos->NSy           + (size_t)isy) *
         (size_t)Pos->Ntheta        + (size_t)itheta   ) *
         (size_t)Pos->NRz_per_range + (size_t)id       ) *
         (size_t)Pos->NRr           + (size_t)ir;
