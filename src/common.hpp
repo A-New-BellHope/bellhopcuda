@@ -313,11 +313,11 @@ static inline std::string trim_copy(std::string s) {
 }
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
+#include "logging.hpp"
 #include "ldio.hpp"
 #include "bino.hpp"
 #include "prtfileemu.hpp"
 #include "atomics.hpp"
-#include "logging.hpp"
 
 #ifdef BHC_BUILD_CUDA
 #include "UtilsCUDA.cuh"
@@ -553,7 +553,7 @@ public:
         high_resolution_clock::time_point tend = high_resolution_clock::now();
         double dt = (duration_cast<duration<double>>(tend - tstart)).count();
         dt *= 1000.0;
-        std::cout << dt << " ms\n";
+        GlobalLog("%f ms\n", dt);
     }
 private:
     std::chrono::high_resolution_clock::time_point tstart;
