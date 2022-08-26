@@ -49,7 +49,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #ifdef BHC_BUILD_CUDA
 #include "cuda_runtime.h"
-#include "UtilsCUDA.cuh"
 #define HOST_DEVICE __host__ __device__
 //Requires libcu++ 1.4 or higher, which is included in the normal CUDA Toolkit
 //install since somewhere between CUDA 11.3 and 11.5. (I.e. 11.5 and later has
@@ -318,6 +317,12 @@ static inline std::string trim_copy(std::string s) {
 #include "bino.hpp"
 #include "prtfileemu.hpp"
 #include "atomics.hpp"
+#include "logging.hpp"
+
+#ifdef BHC_BUILD_CUDA
+#include "UtilsCUDA.cuh"
+#endif
+
 #undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {
@@ -553,36 +558,5 @@ public:
 private:
     std::chrono::high_resolution_clock::time_point tstart;
 };
-
-////////////////////////////////////////////////////////////////////////////////
-// A global log that can stream to an external source (like unreal).
-// Intended to replace calls to printf when stdout is not available.
-// Not thread safe or intended for speed.
-////////////////////////////////////////////////////////////////////////////////
-
-static void (*EXTERNAL_GLOBAL_LOG)(const char* message) = nullptr;
-
-#ifdef BHC_CPU
-inline void GlobalLog(const char* message, ...) {
-	va_list argp;
-	va_start(argp, message);
-	if (EXTERNAL_GLOBAL_LOG == nullptr) {
-		vprintf(message, argp);
-	}
-	else {
-		char* buffer = new char[strlen(message)];
-		vsprintf(buffer, message, argp);
-		EXTERNAL_GLOBAL_LOG(buffer);
-	}
-	va_end(argp);
-}
-#else
-HOST_DEVICE inline void GlobalLog(const char* message, ...) {
-	va_list argp;
-	va_start(argp, message);
-	printf(message, argp); //should be vprintf?
-	va_end(argp);
-}
-#endif
 
 }
