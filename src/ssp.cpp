@@ -28,10 +28,49 @@ namespace bhc {
 #define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, \
     RecycledHS, resetParams
 
+void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp, 
+    PrintFileEmu& PRTFile, const AttenInfo* atten, 
+    bool resetParams)
+{
+    for (int32_t iz = 0; iz < ssp->NPts; ++iz) {
+
+        ssp->c[iz] = crci(ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], freq, freq,
+            ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile);
+
+        // verify that the depths are monotone increasing
+        if (iz > 0) {
+            if (ssp->z[iz] <= ssp->z[iz - 1]) {
+                std::cout << "ReadSSP: The depths in the SSP must be monotone increasing (" << ssp->z[iz] << ")\n";
+                std::abort();
+            }
+        }
+
+        // compute gradient, cz
+        if (iz > 0) ssp->cz[iz - 1] = (ssp->c[iz] - ssp->c[iz - 1]) /
+            (ssp->z[iz] - ssp->z[iz - 1]);
+
+        // Did we read the last point?
+        if (std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON) { // LP: FLT_EPSILON is not a typo
+            // LP: Gradient at iz is uninitialized.
+            ssp->cz[iz] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP: debugging
+
+            ssp->Nz = ssp->NPts;
+            if (ssp->NPts == 1) {
+                std::cout << "ReadSSP: The SSP must have at least 2 points\n";
+                std::abort();
+            }
+
+            return;
+        }
+    }
+
+    // Fall through means too many points in the profile
+    std::cout << "ReadSSP: Number of SSP points exceeds limit\n";
+    std::abort();
+}
+
 /**
  * reads the SSP data from the environmental file and convert to Nepers/m
- * update 8/9/2022 - only updates the ssp if it is unset. Flag 'unset' state
- * by setting the depth negative.
  */
 void ReadSSP(READ_SSP_ARGS)
 {
@@ -61,36 +100,16 @@ void ReadSSP(READ_SSP_ARGS)
             // I'm not sure what to do with rho (density) and beta -- JS
         }
         
-        ssp->c[iz] = crci(ssp->z[iz], RecycledHS.alphaR, RecycledHS.alphaI, freq, freq,
-            ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile);
-        
-        // verify that the depths are monotone increasing
-        if(iz > 0){
-            if(ssp->z[iz] <= ssp->z[iz-1]){
-                std::cout << "ReadSSP: The depths in the SSP must be monotone increasing (" << ssp->z[iz] << ")\n";
-                std::abort();
-            }
-        }
-        
-        // compute gradient, cz
-        if(iz > 0) ssp->cz[iz-1] = (ssp->c[iz] - ssp->c[iz-1]) /
-                                   (ssp->z[iz] - ssp->z[iz-1]);
-        
         // Did we read the last point?
         if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
             // LP: Gradient at iz is uninitialized.
-            ssp->cz[iz] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP: debugging
-            
-            ssp->Nz = ssp->NPts;
-            if(ssp->NPts == 1){
-                std::cout << "ReadSSP: The SSP must have at least 2 points\n";
-                std::abort();
-            }
-            
+
+            //UpdateSSP(Depth, freq, fT, ssp, ENVFile, PRTFile, atten, RecycledHS, resetParams);
             return;
         }
-        
+
         ++ssp->NPts;
+
     }
     
     // Fall through means too many points in the profile

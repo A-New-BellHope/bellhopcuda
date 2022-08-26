@@ -62,7 +62,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
  */
-BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread);
+BHC_API bool run(bhcParams &params, bhcOutputs &outputs, bool singlethread);
 
 /**
  * Frees memory. You may call run() many times, you do not have to call setup

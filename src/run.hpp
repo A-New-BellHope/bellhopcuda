@@ -22,6 +22,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "tlmode.hpp"
 #include "eigenrays.hpp"
 #include "arrivals.hpp"
+#include "ssp.hpp"
 
 namespace bhc {
 
@@ -47,8 +48,13 @@ HOST_DEVICE inline bool GetJobIndices(int32_t &isrc, int32_t &ialpha, int32_t jo
     return (isrc < Pos->NSz);
 }
 
-inline void InitSelectedMode(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
+inline void InitSelectedMode(bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
+    //this is always called from run_*
+    PrintFileEmu& PRTFile = *(PrintFileEmu*)params.internal;
+    bhc::UpdateSSP(params.Bdry->Bot.hs.Depth, params.freqinfo->freq0, 
+        params.fT, params.ssp, PRTFile, params.atten);
+
     // Common
     // irregular or rectilinear grid
     params.Pos->NRz_per_range = (params.Beam->RunType[4] == 'I') ? 1 : params.Pos->NRz;
@@ -68,6 +74,6 @@ inline void InitSelectedMode(const bhcParams &params, bhcOutputs &outputs, bool 
     }
 }
 
-bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread);
+bool run_cxx(bhcParams &params, bhcOutputs &outputs, bool singlethread);
 
 }

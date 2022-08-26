@@ -73,7 +73,7 @@ void setupGPU()
     checkCudaErrors(cudaSetDevice(m_gpu));
 }
 
-bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
+bool run_cuda(bhcParams &params, bhcOutputs &outputs)
 {
     if(!api_okay) return false;
     
@@ -92,7 +92,7 @@ bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
     return api_okay;
 }
 
-BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
+BHC_API bool run(bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     if(singlethread){
         std::cout << "Single threaded mode is nonsense on CUDA, ignoring\n";
