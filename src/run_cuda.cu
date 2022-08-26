@@ -20,8 +20,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+#define MAX_THREADS 256
 __global__ void 
-__launch_bounds__(256, 1)
+__launch_bounds__(MAX_THREADS, 1)
 FieldModesKernel(bhcParams params, bhcOutputs outputs)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
@@ -80,7 +81,7 @@ bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
     try{
     
     InitSelectedMode(params, outputs, false);
-    FieldModesKernel<<<d_multiprocs,512>>>(params, outputs);
+    FieldModesKernel<<<d_multiprocs,MAX_THREADS>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel");
     
     }catch(const std::exception &e){

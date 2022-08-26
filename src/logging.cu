@@ -28,10 +28,11 @@ void CudaPostKernelLog(){
     uint32_t gpos = gpu_log_buf_pos & (gpu_log_buf_size - 1);
     uint32_t &cpos = gpu_log_buf_pos_cpu; // rename to shorter name
     uint32_t len = (gpos < cpos) ? (gpos + gpu_log_buf_size - cpos) : (gpos - cpos);
+    if(len == 0) return;
     char *buf = new char[len+1];
     buf[len] = '\0';
     memcpy(&buf[0], &gpu_log_buf[cpos], std::min(len, gpu_log_buf_size - cpos));
-    if(gpos + len > gpu_log_buf_size){
+    if(cpos + len > gpu_log_buf_size){
         memcpy(&buf[gpu_log_buf_size - cpos], &gpu_log_buf[0], gpos);
     }
     GlobalLogImpl(buf);

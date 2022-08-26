@@ -61,12 +61,12 @@ inline void GlobalLogImpl(const char *message){
 HOST_DEVICE inline void GlobalLog(const char *message, ...){
     #ifdef __CUDA_ARCH__
     uint32_t outlen = strlen_d(message);
-    uint32_t pos = atomicAdd(&gpu_log_buf_pos, outlen) & (gpu_log_buf_size - 1);
-    memcpy(&gpu_log_buf[gpu_log_buf_pos], &message[0],
-        ::min((uint32_t)outlen, (uint32_t)(gpu_log_buf_size - pos)));
-    if(pos + outlen > gpu_log_buf_size){
-        memcpy(&gpu_log_buf[0], &message[gpu_log_buf_size - pos],
-            pos + outlen - gpu_log_buf_size);
+    uint32_t startpos = atomicAdd(&gpu_log_buf_pos, outlen) & (gpu_log_buf_size - 1);
+    memcpy(&gpu_log_buf[startpos], &message[0],
+        ::min((uint32_t)outlen, (uint32_t)(gpu_log_buf_size - startpos)));
+    if(startpos + outlen > gpu_log_buf_size){
+        memcpy(&gpu_log_buf[0], &message[gpu_log_buf_size - startpos],
+            startpos + outlen - gpu_log_buf_size);
     }
     #else
     constexpr uint32_t maxbufsize = 1024;
