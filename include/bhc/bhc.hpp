@@ -55,9 +55,9 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
  * Runs the selected run type and places the results in the appropriate struct
  * within outputs. outputs need not be initialized prior to the call.
  * 
- * There are two intended uses. An env file should usually be read directly first, 
- * by calling setup then run-finalize. But, before calling finalize, you may use 
- * edit parameters and rerun with an expected pattern
+ * An env file should usually be read directly first, by calling setup then 
+ * run-finalize. But, before calling finalize, you may edit parameters and rerun 
+ * with an expected pattern
  *     setup-run-change params-run-change params...-finalize.
  * TODO: Only a few parameters can be updated, notably sources and 1D SSP - JS, 8/25/2022.
  * 
