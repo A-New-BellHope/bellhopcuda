@@ -23,107 +23,14 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 #define READ_SSP_ARGS real Depth, real freq, const real &fT, SSPStructure *ssp, \
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS, \
-    bool resetParams = true
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS
 #define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, \
-    RecycledHS, resetParams
+    RecycledHS
 
-void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp, 
-    PrintFileEmu& PRTFile, const AttenInfo* atten, 
-    bool resetParams)
-{
-    for (int32_t iz = 0; iz < ssp->NPts; ++iz) {
-
-        ssp->c[iz] = crci(ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], freq, freq,
-            ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile);
-
-        // verify that the depths are monotone increasing
-        if (iz > 0) {
-            if (ssp->z[iz] <= ssp->z[iz - 1]) {
-                std::cout << "ReadSSP: The depths in the SSP must be monotone increasing (" << ssp->z[iz] << ")\n";
-                std::abort();
-            }
-        }
-
-        // compute gradient, cz
-        if (iz > 0) ssp->cz[iz - 1] = (ssp->c[iz] - ssp->c[iz - 1]) /
-            (ssp->z[iz] - ssp->z[iz - 1]);
-
-        // Did we read the last point?
-        if (std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON) { // LP: FLT_EPSILON is not a typo
-            // LP: Gradient at iz is uninitialized.
-            ssp->cz[iz] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP: debugging
-
-            ssp->Nz = ssp->NPts;
-            if (ssp->NPts == 1) {
-                std::cout << "ReadSSP: The SSP must have at least 2 points\n";
-                std::abort();
-            }
-
-            return;
-        }
-    }
-
-    // Fall through means too many points in the profile
-    std::cout << "ReadSSP: Number of SSP points exceeds limit\n";
-    std::abort();
-}
-
-/**
- * reads the SSP data from the environmental file and convert to Nepers/m
- */
-void ReadSSP(READ_SSP_ARGS)
-{
-    PRTFile << "\nSound speed profile:\n";
-    PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
-    
-    ssp->NPts = 1;
-    
-    for(int32_t iz=0; iz<MaxSSP; ++iz){
-        LIST_WARNLINE(ENVFile); ENVFile.Read(ssp->z[iz]);
-        ENVFile.Read(RecycledHS.alphaR); ENVFile.Read(RecycledHS.betaR);
-        ENVFile.Read(RecycledHS.rho);
-        ENVFile.Read(RecycledHS.alphaI); ENVFile.Read(RecycledHS.betaI);
-
-        if (resetParams) {
-            PRTFile << std::setprecision(2) << ssp->z[iz] << " " << RecycledHS.alphaR
-                << " " << RecycledHS.betaR << " " << RecycledHS.rho << " "
-                << std::setprecision(4) << RecycledHS.alphaI << " " << RecycledHS.betaI << "\n";
-            ssp->rho[iz] = RecycledHS.rho;
-            ssp->alphaR[iz] = RecycledHS.alphaR;
-            ssp->alphaI[iz] = RecycledHS.alphaI;
-        } else {
-            GlobalLog("Using existing sound speed profile: %g %g.\n",
-                ssp->alphaR[iz], ssp->alphaI[iz]);
-            RecycledHS.alphaR = ssp->alphaR[iz];
-            RecycledHS.alphaI = ssp->alphaI[iz];
-            // I'm not sure what to do with rho (density) and beta -- JS
-        }
-        
-        // Did we read the last point?
-        if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
-            // LP: Gradient at iz is uninitialized.
-
-            //UpdateSSP(Depth, freq, fT, ssp, ENVFile, PRTFile, atten, RecycledHS, resetParams);
-            return;
-        }
-
-        ++ssp->NPts;
-
-    }
-    
-    // Fall through means too many points in the profile
-    std::cout << "ReadSSP: Number of SSP points exceeds limit\n";
-    std::abort();
-}
-
-void Initn2Linear(SSP_INIT_ARGS)
+void Initn2Linear(SSP_PARAM_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
-    
-    real Depth = x[1];
-    ReadSSP(CALL_READ_SSP_ARGS);
-    
+
     for(int32_t i=0; i<ssp->NPts; ++i) ssp->n2[i] = FL(1.0) / SQ(ssp->c[i]);
     
     // compute gradient, n2z
@@ -133,20 +40,14 @@ void Initn2Linear(SSP_INIT_ARGS)
     }
 }
 
-void InitcLinear(SSP_INIT_ARGS)
+void InitcLinear(SSP_PARAM_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
-    
-    real Depth = x[1];
-    ReadSSP(CALL_READ_SSP_ARGS);
 }
 
-void InitcPCHIP(SSP_INIT_ARGS)
+void InitcPCHIP(SSP_PARAM_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
-    
-    real Depth = x[1];
-    ReadSSP(CALL_READ_SSP_ARGS);
     
     //                                                               2      3
     // compute coefficients of std cubic polynomial: c0 + c1*x + c2*x + c3*x
@@ -156,12 +57,9 @@ void InitcPCHIP(SSP_INIT_ARGS)
         ssp->CSWork[0], ssp->CSWork[1], ssp->CSWork[2], ssp->CSWork[3]);
 }
 
-void InitcCubic(SSP_INIT_ARGS)
+void InitcCubic(SSP_PARAM_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
-    
-    real Depth = x[1];
-    ReadSSP(CALL_READ_SSP_ARGS);
     
     for(int32_t i=0; i<ssp->NPts; ++i) ssp->cSpline[0][i] = ssp->c[i];
     
@@ -172,11 +70,8 @@ void InitcCubic(SSP_INIT_ARGS)
         ssp->NPts, iBCBeg, iBCEnd, ssp->NPts);
 }
 
-void InitQuad(SSP_INIT_ARGS)
+void InitQuad(SSP_PARAM_INIT_ARGS)
 {
-    real Depth = x[1];
-    ReadSSP(CALL_READ_SSP_ARGS);
-    
     // Read the 2D SSP matrix
     PRTFile << "__________________________________________________________________________\n\n";
     PRTFile << "Using range-dependent sound speed\n";
@@ -223,30 +118,126 @@ void InitQuad(SSP_INIT_ARGS)
     ssp->Nz = ssp->NPts;
 }
 
-void InitializeSSP(SSP_INIT_ARGS)
+/**
+* Update the SSP parameters. Safe to call multiple times with flags.
+* Be sure to flag ssp->dirty if you change the SSP externally.
+* TODO: You have to provide FileRoot if you use a 2D SSP.
+*/
+void UpdateSSP(vec2 x, real Depth, real freq, const real& fT, SSPStructure* ssp, 
+    PrintFileEmu& PRTFile, const AttenInfo* atten, std::string FileRoot)
 {
-    switch(ssp->Type){
-    case 'N': // N2-linear profile option
-        Initn2Linear(SSP_CALL_INIT_ARGS); break;
-    case 'C': // C-linear profile option
-        InitcLinear (SSP_CALL_INIT_ARGS); break;
-    case 'P': // monotone PCHIP ACS profile option
-        InitcPCHIP  (SSP_CALL_INIT_ARGS); break;
-    case 'S': // Cubic spline profile option
-        InitcCubic  (SSP_CALL_INIT_ARGS); break;
-    case 'Q':
-        InitQuad    (SSP_CALL_INIT_ARGS); break;
-    /* case 'H':
-        // this is called by BELLHOP3D only once, during READIN
-        // possibly the logic should be changed to call EvaluateSSP2D or 3D
-        x3 = vec3(RL(0.0), RL(0.0), x.y);
-        InitHexahedral(x3, freq, ssp); break; */
-    case 'A': // Analytic profile option
-        break; //LP: No init for analytic.
-    default:
-        GlobalLog("InitializeSSP: Invalid profile option %c\n", ssp->Type);
+    if (ssp->dirty) {
+        ssp->dirty = false;
+        for (int32_t iz = 0; iz < ssp->NPts; ++iz) {
+
+            ssp->c[iz] = crci(ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], freq, freq,
+                ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile);
+
+            // verify that the depths are monotone increasing
+            if (iz > 0) {
+                if (ssp->z[iz] <= ssp->z[iz - 1]) {
+                    std::cout << "ReadSSP: The depths in the SSP must be monotone increasing (" << ssp->z[iz] << ")\n";
+                    std::abort();
+                }
+            }
+
+            // compute gradient, cz
+            if (iz > 0) ssp->cz[iz - 1] = (ssp->c[iz] - ssp->c[iz - 1]) /
+                (ssp->z[iz] - ssp->z[iz - 1]);
+
+            // Did we read the last point?
+            if (std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON) { // LP: FLT_EPSILON is not a typo
+                // LP: Gradient at iz is uninitialized.
+                ssp->cz[iz] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP: debugging
+
+                ssp->Nz = ssp->NPts;
+                if (ssp->NPts == 1) {
+                    std::cout << "ReadSSP: The SSP must have at least 2 points\n";
+                    std::abort();
+                }
+
+
+                switch (ssp->Type) {
+                case 'N': // N2-linear profile option
+                    Initn2Linear(SSP_CALL_PARAM_INIT_ARGS); break;
+                case 'C': // C-linear profile option
+                    InitcLinear(SSP_CALL_PARAM_INIT_ARGS); break;
+                case 'P': // monotone PCHIP ACS profile option
+                    InitcPCHIP(SSP_CALL_PARAM_INIT_ARGS); break;
+                case 'S': // Cubic spline profile option
+                    InitcCubic(SSP_CALL_PARAM_INIT_ARGS); break;
+                case 'Q':
+                    InitQuad(SSP_CALL_PARAM_INIT_ARGS); break;
+                    /* case 'H':
+                        // this is called by BELLHOP3D only once, during READIN
+                        // possibly the logic should be changed to call EvaluateSSP2D or 3D
+                        x3 = vec3(RL(0.0), RL(0.0), x.y);
+                        InitHexahedral(x3, freq, ssp); break; */
+                default:
+                    GlobalLog("InitializeSSP: Invalid profile option %c\n", ssp->Type);
+                    std::abort();
+                }
+
+                return;
+            }
+        }
+
+        // Fall through means too many points in the profile
+        std::cout << "ReadSSP: Number of SSP points exceeds limit\n";
         std::abort();
     }
+}
+
+/**
+ * reads the SSP data from the environmental file and convert to Nepers/m
+ */
+void ReadSSP(READ_SSP_ARGS)
+{
+    PRTFile << "\nSound speed profile:\n";
+    PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
+    
+    ssp->NPts = 1;
+    
+    for(int32_t iz=0; iz<MaxSSP; ++iz){
+        LIST_WARNLINE(ENVFile); ENVFile.Read(ssp->z[iz]);
+        ENVFile.Read(RecycledHS.alphaR); ENVFile.Read(RecycledHS.betaR);
+        ENVFile.Read(RecycledHS.rho);
+        ENVFile.Read(RecycledHS.alphaI); ENVFile.Read(RecycledHS.betaI);
+
+        PRTFile << std::setprecision(2) << ssp->z[iz] << " " << RecycledHS.alphaR
+            << " " << RecycledHS.betaR << " " << RecycledHS.rho << " "
+            << std::setprecision(4) << RecycledHS.alphaI << " " << RecycledHS.betaI << "\n";
+        ssp->rho[iz] = RecycledHS.rho;
+        ssp->alphaR[iz] = RecycledHS.alphaR;
+        ssp->alphaI[iz] = RecycledHS.alphaI;
+        
+        // Did we read the last point?
+        if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
+            // LP: Gradient at iz is uninitialized.
+
+            return;
+        }
+
+        ++ssp->NPts;
+
+    }
+    
+    // Fall through means too many points in the profile
+    std::cout << "ReadSSP: Number of SSP points exceeds limit\n";
+    std::abort();
+}
+
+void InitializeSSP(SSP_INIT_ARGS)
+{
+    if (ssp->Type == 'A') {
+        //nothing to do for analytic
+        return;
+    }
+
+    real Depth = x[1];
+    ReadSSP(CALL_READ_SSP_ARGS);
+    ssp->dirty = true;
+    UpdateSSP(x, Depth, freqinfo->freq0, fT, ssp, PRTFile, atten, FileRoot);
 }
 
 }

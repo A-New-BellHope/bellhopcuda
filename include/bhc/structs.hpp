@@ -45,6 +45,7 @@ struct SSPStructure {
     char Type;
     char AttenUnit[2];
     real alphaR[MaxSSP], alphaI[MaxSSP];
+    bool dirty = false; //reset and update derived params
 };
 
 struct HSInfo {

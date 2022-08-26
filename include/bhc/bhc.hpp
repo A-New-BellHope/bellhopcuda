@@ -45,19 +45,21 @@ namespace bhc {
  * params, outputs: Just create uninitialized structs and pass them in to be
  * initialized.
  * 
- * resetParams: Does everything except (re)initialization of the parameters.
- * Use when you want adjust a param and need to reset derived quantities, eg ssp.
- * Should be called before finalize (or it will segfault on the unallocated parts).
- * 
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
  */
 BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams &params, bhcOutputs &outputs, bool resetParams = true);
+    bhcParams &params, bhcOutputs &outputs);
     
 /**
  * Runs the selected run type and places the results in the appropriate struct
  * within outputs. outputs need not be initialized prior to the call.
+ * 
+ * There are two intended uses. An env file should usually be read directly first, 
+ * by calling setup then run-finalize. But, before calling finalize, you may use 
+ * edit parameters and rerun with an expected pattern
+ *     setup-run-change params-run-change params...-finalize.
+ * TODO: Only a few parameters can be updated, notably sources and 1D SSP - JS, 8/25/2022.
  * 
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
