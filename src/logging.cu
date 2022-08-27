@@ -24,6 +24,11 @@ __managed__ char gpu_log_buf[gpu_log_buf_size];
 __managed__ uint32_t gpu_log_buf_pos;
 uint32_t gpu_log_buf_pos_cpu;
 
+void CudaInitLog(){
+    gpu_log_buf_pos = 0;
+    gpu_log_buf_pos_cpu = 0;
+}
+
 void CudaPostKernelLog(){
     uint32_t gpos = gpu_log_buf_pos & (gpu_log_buf_size - 1);
     uint32_t &cpos = gpu_log_buf_pos_cpu; // rename to shorter name

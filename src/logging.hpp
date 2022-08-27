@@ -32,7 +32,6 @@ constexpr uint32_t gpu_log_buf_size_bits = 20;
 constexpr uint32_t gpu_log_buf_size = 1 << gpu_log_buf_size_bits;
 extern __managed__ char gpu_log_buf[gpu_log_buf_size]; // Circular buffer
 extern __managed__ uint32_t gpu_log_buf_pos;
-extern uint32_t gpu_log_buf_pos_cpu;
 
 __device__ inline int strlen_d(const char *d){
     int ret = 0;
@@ -79,16 +78,16 @@ HOST_DEVICE inline void GlobalLog(const char *message, ...){
     #endif
 }
 
+#ifdef BHC_BUILD_CUDA
+void CudaInitLog();
+void CudaPostKernelLog();
+#endif
+
 inline void InitLog(void (*outputCallback)(const char *message)){
     external_global_log = outputCallback;
     #ifdef BHC_BUILD_CUDA
-    gpu_log_buf_pos = 0;
-    gpu_log_buf_pos_cpu = 0;
+    CudaInitLog();
     #endif
 }
-
-#ifdef BHC_BUILD_CUDA
-void CudaPostKernelLog();
-#endif
 
 }
