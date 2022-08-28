@@ -30,7 +30,7 @@ void OpenRAYFile(LDOFile &RAYFile, std::string FileRoot, bool ThreeD,
         // Ray trace or Eigenrays
         break;
     default:
-        std::cout << "OpenRAYFile not in ray trace or eigenrays mode\n";
+        GlobalLog("OpenRAYFile not in ray trace or eigenrays mode\n");
         std::abort();
     }
     RAYFile.open(FileRoot + ".ray");

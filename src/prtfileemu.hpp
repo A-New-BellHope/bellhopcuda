@@ -33,7 +33,7 @@ public:
             std::string s(FileRoot);
             ofs.open(s + ".prt");
             if(!ofs.good()){
-                std::cout << "Could not open print file: " << FileRoot << ".prt\n";
+                GlobalLog("Could not open print file: %s.prt\n", FileRoot);
                 bail();
             }
             ofs << std::unitbuf;

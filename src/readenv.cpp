@@ -62,7 +62,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
+            GlobalLog(BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n");
             std::abort();
         }
         } break;
@@ -72,13 +72,13 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()){
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n";
+            GlobalLog(BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file\n");
         }
         } break;*/
     case 'A':
         PRTFile << "    Analytic SSP option\n"; break;
     default:
-        std::cout << "ReadEnvironment: Unknown option for SSP approximation\n";
+        GlobalLog("ReadEnvironment: Unknown option for SSP approximation\n");
         std::abort();
     }
     
@@ -98,7 +98,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
     case 'L':
         PRTFile << "    Attenuation units: Loss parameter\n"; break;
     default:
-        std::cout << "ReadEnvironment: Unknown attenuation units\n";
+        GlobalLog("ReadEnvironment: Unknown attenuation units\n");
         std::abort();
     }
     
@@ -133,7 +133,7 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
     case ' ':
         break;
     default:
-        std::cout << "ReadEnvironment: Unknown top option letter in fourth position\n";
+        GlobalLog("ReadEnvironment: Unknown top option letter in fourth position\n");
         std::abort();
     }
     
@@ -189,7 +189,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     case 'a':
        PRTFile << "Arrivals calculation, binary file output\n"; break;
     default:
-       std::cout << "ReadEnvironment: Unknown RunType selected\n";
+       GlobalLog("ReadEnvironment: Unknown RunType selected\n");
        std::abort();
     }
 
@@ -222,7 +222,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     switch(RunType[4]){
     case 'I':
        PRTFile << "Irregular grid: Receivers at Rr[:] x Rz[:]\n";
-       if(Pos->NRz != Pos->NRr) std::cout << "ReadEnvironment: Irregular grid option selected with NRz not equal to Nr\n";
+       if(Pos->NRz != Pos->NRr) GlobalLog("ReadEnvironment: Irregular grid option selected with NRz not equal to Nr\n");
        memcpy(PlotType, "irregular ", 10);
        break;
     default:
@@ -236,7 +236,7 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
        PRTFile << "N x 2D calculation (neglects horizontal refraction)\n"; break;
     case '3':
        //PRTFile << "3D calculation\n";
-       std::cout << "3D calculation not supported\n";
+       GlobalLog("3D calculation not supported\n");
        RunType[5] = '2';
        break;
     default:
@@ -263,7 +263,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     LDIFile ENVFile(FileRoot + ".env");
     if(!ENVFile.Good()){
         PRTFile << "ENVFile = " << FileRoot << ".env\n";
-        std::cout << BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the environmental file\n";
+        GlobalLog(BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the environmental file\n");
         std::abort();
     }
     
@@ -283,7 +283,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     LIST(ENVFile); ENVFile.Read(NMedia);
     PRTFile << "Dummy parameter NMedia = " << NMedia << "\n";
     if(NMedia != 1){
-        std::cout << "ReadEnvironment: Only one medium or layer is allowed in BELLHOP; sediment layers must be handled using a reflection coefficient\n";
+        GlobalLog("ReadEnvironment: Only one medium or layer is allowed in BELLHOP; sediment layers must be handled using a reflection coefficient\n");
     }
     
     ReadTopOpt(Bdry->Top.hs.Opt, Bdry->Top.hs.bc, FileRoot, 
@@ -329,8 +329,8 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     case ' ':
         break;
     default:
-        std::cout << "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt == '" 
-            << Bdry->Bot.hs.Opt << "'\n";
+        GlobalLog("Unknown bottom option letter in second position: Bdr->Bot.hs.Opt == '%c'\n",
+            Bdry->Bot.hs.Opt);
         std::abort();
     }
     

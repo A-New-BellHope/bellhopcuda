@@ -27,7 +27,7 @@ namespace bhc {
 #define CALL_READ_SSP_ARGS Depth, freqinfo->freq0, fT, ssp, ENVFile, PRTFile, atten, \
     RecycledHS
 
-void Initn2Linear(SSP_PARAM_INIT_ARGS)
+void Initn2Linear(SSP_INIT_ARGS)
 {
     IGNORE_UNUSED(FileRoot);
 

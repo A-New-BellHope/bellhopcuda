@@ -98,7 +98,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
         LDIFile BRCFile(FileRoot + ".brc");
         if(!BRCFile.Good()){
             PRTFile << "BRCFile = " << FileRoot + ".brc\n";
-            std::cout << "ReadReflectionCoefficient: Unable to open Bottom Reflection Coefficient file\n";
+            GlobalLog("ReadReflectionCoefficient: Unable to open Bottom Reflection Coefficient file\n");
             std::abort();
         }
         
@@ -126,7 +126,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
         LDIFile TRCFile(FileRoot + ".trc");
         if(!TRCFile.Good()){
             PRTFile << "TRCFile = " << FileRoot + ".trc\n";
-            std::cout << "ReadReflectionCoefficient: Unable to open Top Reflection Coefficient file\n";
+            GlobalLog("ReadReflectionCoefficient: Unable to open Top Reflection Coefficient file\n");
             std::abort();
         }
         
@@ -149,8 +149,8 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
     // Optionally read in internal reflection coefficient data
     
     if(BotRC == 'P'){
-        std::cout << "Internal reflections not supported by BELLHOP and therefore "
-            "not supported by " BHC_PROGRAMNAME "\n";
+        GlobalLog("Internal reflections not supported by BELLHOP and therefore "
+            "not supported by " BHC_PROGRAMNAME "\n");
         std::abort();
     }
 }

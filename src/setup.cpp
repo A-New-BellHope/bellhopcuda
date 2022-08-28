@@ -38,11 +38,10 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     bhcParams &params, bhcOutputs &outputs)
 {
     api_okay = true;
+    InitLog(outputCallback);
     params.internal = new PrintFileEmu(FileRoot, outputCallback);
     PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
 
-    bhc::EXTERNAL_GLOBAL_LOG = outputCallback;
-    
     try {
     
     #ifdef BHC_BUILD_CUDA
