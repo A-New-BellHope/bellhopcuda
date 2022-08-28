@@ -172,7 +172,7 @@ inline cpx crci(real z, real c, real alpha, real freq, real freq0, const char (&
     if(alphaT > c){
         PRTFile << "Complex sound speed: " << ret << "\n";
         PRTFile << "Usually this means you have an attenuation that is way too high\n";
-        std::cout << "attenuation: crci: The complex sound speed has an imaginary part > real part\n";
+        GlobalLog("attenuation: crci: The complex sound speed has an imaginary part > real part\n");
     }
     
     return ret;

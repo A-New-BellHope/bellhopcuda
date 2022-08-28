@@ -77,7 +77,7 @@ int main(int argc, char **argv)
         bhc::FinalizeArrivalsMode(outputs.arrinfo, params.Pos, params.freqinfo,
             params.Beam, FileRoot, false);
     }else{
-        std::cout << "Invalid RunType " << r << "\n";
+        bhc::GlobalLog("Invalid RunType %c\n", r);
         std::abort();
     }
     

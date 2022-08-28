@@ -20,8 +20,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+#define MAX_THREADS 256
 __global__ void 
-__launch_bounds__(512, 1)
+__launch_bounds__(MAX_THREADS, 1)
 FieldModesKernel(bhcParams params, bhcOutputs outputs)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
@@ -47,21 +48,21 @@ void setupGPU()
     for(int g=0; g<num_gpus; ++g){
         checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
         if(g == m_gpu){
-            std::cout << "CUDA device: " << cudaProperties.name << " / compute "
-                << cudaProperties.major << "." << cudaProperties.minor << "\n";
+            GlobalLog("CUDA device: %s / compute %d.%d\n",
+                cudaProperties.name, cudaProperties.major, cudaProperties.minor);
         }
         /*
-        std::cout << ((g == m_gpu) ? "--> " : "    ");
-        std::cout << "GPU " << g << ": " << cudaProperties.name << ", compute SM " 
-            << cudaProperties.major << "." << cudaProperties.minor << "\n";
-        std::cout << "      --Global/shared/constant memory: " 
-            << cudaProperties.totalGlobalMem << ", " 
-            << cudaProperties.sharedMemPerBlock << ", "
-            << cudaProperties.totalConstMem << "\n";
-        std::cout << "      --Warp/threads/SMPs: " 
-            << cudaProperties.warpSize << ", "
-            << cudaProperties.maxThreadsPerBlock << ", "
-            << cudaProperties.multiProcessorCount << "\n";
+        GlobalLog("%s", (g == m_gpu) ? "--> " : "    ");
+        GlobalLog("GPU %d: %s, compute SM %d.%d\n",
+            g, cudaProperties.name, cudaProperties.major, cudaProperties.minor);
+        GlobalLog("      --Global/shared/constant memory: %lli, %d, %d\n",
+            cudaProperties.totalGlobalMem,
+            cudaProperties.sharedMemPerBlock,
+            cudaProperties.totalConstMem);
+        GlobalLog("      --Warp/threads/SMPs: %d, %d, %d\n" ,
+            cudaProperties.warpSize,
+            cudaProperties.maxThreadsPerBlock,
+            cudaProperties.multiProcessorCount);
         */
     }
     
@@ -80,7 +81,7 @@ bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
     try{
     
     InitSelectedMode(params, outputs, false);
-    FieldModesKernel<<<d_multiprocs,512>>>(params, outputs);
+    FieldModesKernel<<<d_multiprocs,MAX_THREADS>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel");
     
     }catch(const std::exception &e){
@@ -95,7 +96,7 @@ bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
 BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     if(singlethread){
-        std::cout << "Single threaded mode is nonsense on CUDA, ignoring\n";
+        GlobalLog("Single threaded mode is nonsense on CUDA, ignoring\n");
     }
     if(params.Beam->RunType[0] == 'R'){
         return run_cxx(params, outputs, false);

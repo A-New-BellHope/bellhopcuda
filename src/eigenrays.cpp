@@ -69,7 +69,7 @@ void FinalizeEigenMode(const bhcParams &params, bhcOutputs &outputs,
 {
     InitRayMode(outputs.rayinfo, params);
     
-    std::cout << (int)outputs.eigen->neigen << " eigenrays\n";
+    GlobalLog("%d eigenrays\n", (int)outputs.eigen->neigen);
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;

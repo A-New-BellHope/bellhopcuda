@@ -67,7 +67,7 @@ void ReadSSP(READ_SSP_ARGS)
         // verify that the depths are monotone increasing
         if(iz > 0){
             if(ssp->z[iz] <= ssp->z[iz-1]){
-                std::cout << "ReadSSP: The depths in the SSP must be monotone increasing (" << ssp->z[iz] << ")\n";
+                GlobalLog("ReadSSP: The depths in the SSP must be monotone increasing (%g)\n", ssp->z[iz]);
                 std::abort();
             }
         }
@@ -83,7 +83,7 @@ void ReadSSP(READ_SSP_ARGS)
             
             ssp->Nz = ssp->NPts;
             if(ssp->NPts == 1){
-                std::cout << "ReadSSP: The SSP must have at least 2 points\n";
+                GlobalLog("ReadSSP: The SSP must have at least 2 points\n");
                 std::abort();
             }
             
@@ -94,7 +94,7 @@ void ReadSSP(READ_SSP_ARGS)
     }
     
     // Fall through means too many points in the profile
-    std::cout << "ReadSSP: Number of SSP points exceeds limit\n";
+    GlobalLog("ReadSSP: Number of SSP points exceeds limit\n");
     std::abort();
 }
 
