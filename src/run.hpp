@@ -52,8 +52,7 @@ inline void InitSelectedMode(bhcParams &params, bhcOutputs &outputs, bool single
 {
     //this is always called from run_* so update intermediate params
     PrintFileEmu& PRTFile = *(PrintFileEmu*)params.internal;
-    bhc::vec2 x = vec2(RL(0.0), params.Bdry->Bot.hs.Depth);
-    bhc::UpdateSSP(x, params.Bdry->Bot.hs.Depth, params.freqinfo->freq0, 
+    bhc::UpdateSSP(params.Bdry->Bot.hs.Depth, params.freqinfo->freq0, 
         params.fT, params.ssp, PRTFile, params.atten);
 
     // Common

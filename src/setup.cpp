@@ -127,6 +127,12 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     params.Beam->epsMultiplier = FL(1.0);
     memcpy(params.Beam->Type, "G S ", 4);
     //params.beaminfo: none
+    params.ssp->dirty = false;
+
+    if (!strncpy_s(params.ssp->FileRoot, FileRootMax, FileRoot, FileRootMax)) {
+        GlobalLog("Error: Length of FileRoot parameter must be less than %d", FileRootMax);
+        std::abort();
+    }
     
     outputs.rayinfo->NPoints = 0;
     outputs.rayinfo->MaxPoints = 0;

@@ -28,14 +28,6 @@ constexpr real betaPowerLaw = FL(1.0);
     real &crr, real &crz, real &czz, real &rho, real freq, \
     const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr
 #define SSP_CALL_ARGS x, t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
-#define SSP_INIT_ARGS vec2 x, const real &fT, \
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot, \
-    SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
-#define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
-#define SSP_PARAM_INIT_ARGS vec2 x, const real &fT, \
-    PrintFileEmu &PRTFile, std::string FileRoot, \
-    SSPStructure *ssp, const AttenInfo *atten
-#define SSP_CALL_PARAM_INIT_ARGS x, fT, PRTFile, FileRoot, ssp, atten
 
 HOST_DEVICE inline void UpdateDepthSegmentT(const vec2 &x, const vec2 &t,
     const SSPStructure *ssp, int32_t &iSegz)
@@ -305,9 +297,11 @@ HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx
     EvaluateSSP(SSP_CALL_ARGS);
 }
 
-void UpdateSSP(vec2 x, real Depth, real freq, const real& fT, SSPStructure* ssp,
-    PrintFileEmu& PRTFile, const AttenInfo* atten, std::string FileRoot = "");
+void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
+    PrintFileEmu& PRTFile, const AttenInfo* atten);
 
-void InitializeSSP(SSP_INIT_ARGS);
+void InitializeSSP(vec2 x, const real& fT, LDIFile& ENVFile, PrintFileEmu& PRTFile, 
+    std::string FileRoot, SSPStructure* ssp, const AttenInfo* atten, 
+    const FreqInfo* freqinfo, HSInfo& RecycledHS);
  
 }

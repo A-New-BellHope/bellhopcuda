@@ -308,7 +308,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
         ssp->z[1] = Bdry->Bot.hs.Depth;
     }else{
         x = vec2(RL(0.0), Bdry->Bot.hs.Depth);
-        InitializeSSP(SSP_CALL_INIT_ARGS);
+        InitializeSSP(x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS);
     }
     
     Bdry->Top.hs.Depth = ssp->z[0]; // Depth of top boundary is taken from first SSP point
