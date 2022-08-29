@@ -41,19 +41,12 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     InitLog(outputCallback);
     params.internal = new PrintFileEmu(FileRoot, outputCallback);
     PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
-
+    
     try {
     
     #ifdef BHC_BUILD_CUDA
     setupGPU();
     #endif
-
-    HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
-    RecycledHS.alphaR = FL(1500.0);
-    RecycledHS.betaR = FL(0.0);
-    RecycledHS.alphaI = FL(0.0);
-    RecycledHS.betaI = FL(0.0);
-    RecycledHS.rho = FL(1.0);
 
     // Allocate main structs
     params.Bdry = allocate<BdryType>();
@@ -69,7 +62,8 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     outputs.rayinfo = allocate<RayInfo>();
     outputs.eigen = allocate<EigenInfo>();
     outputs.arrinfo = allocate<ArrInfo>();
-
+    HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
+    
     // Set pointers to null because we always check if they are not null (and
     // deallocate them if so) before allocating them
     // IMPORTANT--if changes are made here, make the same changes in finalize
@@ -99,7 +93,13 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     params.Angles->beta = nullptr;
     params.freqinfo->freqVec = nullptr;
     params.beaminfo->SrcBmPat = nullptr;
-
+    outputs.rayinfo->raymem = nullptr;
+    outputs.rayinfo->results = nullptr;
+    outputs.uAllSources = nullptr;
+    outputs.eigen->hits = nullptr;
+    outputs.arrinfo->Arr = nullptr;
+    outputs.arrinfo->NArr = nullptr;
+    
     // Fill in default / "constructor" data
     params.fT = RL(1.0e20);
     //Bdry: none
@@ -108,6 +108,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     memcpy(params.bdinfo->atiType, "LS", 2);
     memcpy(params.bdinfo->btyType, "LS", 2);
     //params.refl: none
+    params.ssp->dirty = false;
     params.atten->t = FL(20.0);
     params.atten->Salinity = FL(35.0);
     params.atten->pH = FL(8.0);
@@ -125,21 +126,18 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     params.Beam->epsMultiplier = FL(1.0);
     memcpy(params.Beam->Type, "G S ", 4);
     //params.beaminfo: none
-    params.ssp->dirty = false;
-
     outputs.rayinfo->NPoints = 0;
     outputs.rayinfo->MaxPoints = 0;
     outputs.rayinfo->NRays = 0;
     outputs.eigen->neigen = 0;
     outputs.eigen->memsize = 0;
     outputs.arrinfo->MaxNArr = 1;
-    outputs.rayinfo->raymem = nullptr;
-    outputs.rayinfo->results = nullptr;
-    outputs.uAllSources = nullptr;
-    outputs.eigen->hits = nullptr;
-    outputs.arrinfo->Arr = nullptr;
-    outputs.arrinfo->NArr = nullptr;
-
+    RecycledHS.alphaR = FL(1500.0);
+    RecycledHS.betaR = FL(0.0);
+    RecycledHS.alphaI = FL(0.0);
+    RecycledHS.betaI = FL(0.0);
+    RecycledHS.rho = FL(1.0);
+    
     if(Init_Inline){
         // NPts, Sigma not used by BELLHOP
         std::string TempTitle = BHC_PROGRAMNAME "- Calibration case with envfil passed as parameters";

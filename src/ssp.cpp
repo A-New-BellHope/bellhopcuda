@@ -59,34 +59,34 @@ void ReadQuad(PrintFileEmu& PRTFile, SSPStructure* ssp, std::string FileRoot)
     // Read the 2D SSP matrix
     PRTFile << "__________________________________________________________________________\n\n";
     PRTFile << "Using range-dependent sound speed\n";
-
+    
     LDIFile SSPFile(FileRoot + ".ssp");
     LIST(SSPFile); SSPFile.Read(ssp->Nr);
     PRTFile << "Number of SSP ranges = " << ssp->Nr << "\n";
-
-    if (ssp->Nr < 2) {
+    
+    if(ssp->Nr < 2){
         PRTFile << "READIN: Quad: You must have a least two profiles in your 2D SSP field\n";
         std::abort();
     }
-
-    checkallocate(ssp->cMat, ssp->NPts * ssp->Nr);
-    checkallocate(ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
+    
+    checkallocate(ssp->cMat ,  ssp->NPts    * ssp->Nr);
+    checkallocate(ssp->czMat, (ssp->NPts-1) * ssp->Nr);
     checkallocate(ssp->Seg.r, ssp->Nr);
-
+    
     LIST(SSPFile); SSPFile.Read(ssp->Seg.r, ssp->Nr);
     PRTFile << "\nProfile ranges (km):\n" << std::setprecision(2);
-    for (int32_t i = 0; i < ssp->Nr; ++i) PRTFile << ssp->Seg.r[i] << " ";
+    for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->Seg.r[i] << " ";
     PRTFile << "\n";
-
-    for (int32_t i = 0; i < ssp->Nr; ++i) ssp->Seg.r[i] *= FL(1000.0); // convert km to m
-
+    
+    for(int32_t i=0; i<ssp->Nr; ++i) ssp->Seg.r[i] *= FL(1000.0); // convert km to m
+    
     PRTFile << "\nSound speed matrix:\n";
     PRTFile << " Depth (m )     Soundspeed (m/s)\n";
-    for (int32_t iz2 = 0; iz2 < ssp->NPts; ++iz2) {
-        LIST(SSPFile); SSPFile.Read(&ssp->cMat[iz2 * ssp->Nr], ssp->Nr);
+    for(int32_t iz2=0; iz2<ssp->NPts; ++iz2){
+        LIST(SSPFile); SSPFile.Read(&ssp->cMat[iz2*ssp->Nr], ssp->Nr);
         // PRTFile << "iSegz depth = " << std::setprecision(2) << ssp->z[iz2] << " m\n";
         PRTFile << std::setprecision(2) << ssp->z[iz2] << " ";
-        for (int32_t i = 0; i < ssp->Nr; ++i) PRTFile << ssp->cMat[iz2 * ssp->Nr + i] << " ";
+        for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->cMat[iz2*ssp->Nr+i] << " ";
         PRTFile << "\n";
     }
 }
@@ -94,14 +94,14 @@ void ReadQuad(PrintFileEmu& PRTFile, SSPStructure* ssp, std::string FileRoot)
 void InitQuad(SSPStructure* ssp)
 {
     // calculate cz
-    for (int32_t iSegt = 0; iSegt < ssp->Nr; ++iSegt) {
-        for (int32_t iz2 = 1; iz2 < ssp->NPts; ++iz2) {
-            real delta_z = ssp->z[iz2] - ssp->z[iz2 - 1];
-            ssp->czMat[(iz2 - 1) * ssp->Nr + iSegt] =
-                (ssp->cMat[iz2 * ssp->Nr + iSegt] - ssp->cMat[(iz2 - 1) * ssp->Nr + iSegt]) / delta_z;
+    for(int32_t iSegt=0; iSegt<ssp->Nr; ++iSegt){
+        for(int32_t iz2=1; iz2<ssp->NPts; ++iz2){
+            real delta_z = ssp->z[iz2] - ssp->z[iz2-1];
+            ssp->czMat[(iz2-1)*ssp->Nr + iSegt] = 
+                (ssp->cMat[iz2*ssp->Nr+iSegt] - ssp->cMat[(iz2-1)*ssp->Nr+iSegt]) / delta_z;
         }
     }
-
+    
     ssp->Nz = ssp->NPts;
 }
 
@@ -114,25 +114,25 @@ void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
 {
     if (!ssp->dirty) return;
     ssp->dirty = false;
-    for (int32_t iz = 0; iz < ssp->NPts; ++iz) {
+    for(int32_t iz=0; iz<ssp->NPts; ++iz) {
 
         ssp->c[iz] = crci(ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], freq, freq,
             ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile);
 
         // verify that the depths are monotone increasing
         if (iz > 0) {
-            if (ssp->z[iz] <= ssp->z[iz - 1]) {
+            if (ssp->z[iz] <= ssp->z[iz-1]) {
                 std::cout << "ReadSSP: The depths in the SSP must be monotone increasing (" << ssp->z[iz] << ")\n";
                 std::abort();
             }
         }
 
         // compute gradient, cz
-        if (iz > 0) ssp->cz[iz - 1] = (ssp->c[iz] - ssp->c[iz - 1]) /
-            (ssp->z[iz] - ssp->z[iz - 1]);
+        if(iz > 0) ssp->cz[iz-1] = (ssp->c[iz] - ssp->c[iz-1]) /
+                                    (ssp->z[iz] - ssp->z[iz-1]);
 
         // Did we read the last point?
-        if (std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON) { // LP: FLT_EPSILON is not a typo
+        if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
             // LP: Gradient at iz is uninitialized.
             ssp->cz[iz] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP: debugging
 
@@ -177,14 +177,14 @@ void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
 /**
  * reads the SSP data from the environmental file and convert to Nepers/m
  */
-void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile, 
+void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile,
     PrintFileEmu& PRTFile, HSInfo& RecycledHS, std::string FileRoot)
 {
     PRTFile << "\nSound speed profile:\n";
     PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
-    
+
     ssp->NPts = 1;
-    
+
     for(int32_t iz=0; iz<MaxSSP; ++iz){
         LIST_WARNLINE(ENVFile); ENVFile.Read(ssp->z[iz]);
         ENVFile.Read(RecycledHS.alphaR); ENVFile.Read(RecycledHS.betaR);
@@ -197,7 +197,7 @@ void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile,
         ssp->rho[iz] = RecycledHS.rho;
         ssp->alphaR[iz] = RecycledHS.alphaR;
         ssp->alphaI[iz] = RecycledHS.alphaI;
-        
+
         // Did we read the last point?
         if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
             if (ssp->Type == 'Q') {
@@ -211,7 +211,7 @@ void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile,
         ++ssp->NPts;
 
     }
-    
+
     // Fall through means too many points in the profile
     std::cout << "ReadSSP: Number of SSP points exceeds limit\n";
     std::abort();
