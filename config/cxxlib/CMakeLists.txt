@@ -31,5 +31,5 @@ add_library(bellhopcxxlib SHARED ${COMMON_SOURCE}
 #include(GenerateExportHeader)
 #generate_export_header(bellhopcxxlib)
 
-target_compile_definitions(bellhopcxxlib PUBLIC BHC_EXPORTS=1 BHC_CPU=1)
+target_compile_definitions(bellhopcxxlib PUBLIC BHC_EXPORTS=1)
 bellhop_setup_target(bellhopcxxlib)
