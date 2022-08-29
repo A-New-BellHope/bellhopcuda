@@ -30,7 +30,7 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile,
         LDIFile SBPFile(FileRoot, ".sbp");
         if(!SBPFile.Good()){
             PRTFile << "SBPFile = " << FileRoot << ".sbp\n";
-            std::cout << "BELLHOP-ReadPat: Unable to open source beampattern file\n";
+            GlobalLog("BELLHOP-ReadPat: Unable to open source beampattern file\n");
             std::abort();
         }
         
@@ -53,7 +53,7 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile,
     }
     
     if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)){
-        std::cout << "BELLHOP-ReadPat: Source beam pattern angles are not monotonic\n";
+        GlobalLog("BELLHOP-ReadPat: Source beam pattern angles are not monotonic\n");
         std::abort();
     }
     
@@ -135,7 +135,7 @@ inline void ReadBeamInfo(LDIFile &ENVFile, PrintFileEmu &PRTFile,
             case 'S':
                 PRTFile << "Standard curvature condition\n"; break;
             default:
-                std::cout << "ReadEnvironment: Unknown curvature condition\n";
+                GlobalLog("ReadEnvironment: Unknown curvature condition\n");
                 std::abort();
             }
             
@@ -154,7 +154,7 @@ inline void ReadBeamInfo(LDIFile &ENVFile, PrintFileEmu &PRTFile,
             PRTFile << "Component                 = " << Beam->Component << "\n";
             break;
         default:
-            std::cout << "ReadEnvironment: Unknown beam type (second letter of run type\n";
+            GlobalLog("ReadEnvironment: Unknown beam type (second letter of run type)\n");
             std::abort();
         }
         

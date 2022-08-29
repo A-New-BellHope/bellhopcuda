@@ -87,6 +87,8 @@ set(COMMON_SOURCE
     eigenrays.hpp
     influence.hpp
     ldio.hpp
+    logging.cpp
+    logging.hpp
     prtfileemu.hpp
     raymode.cpp
     raymode.hpp

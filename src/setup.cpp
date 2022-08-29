@@ -38,6 +38,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     bhcParams &params, bhcOutputs &outputs)
 {
     api_okay = true;
+    InitLog(outputCallback);
     params.internal = new PrintFileEmu(FileRoot, outputCallback);
     PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
     
@@ -107,7 +108,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     memcpy(params.bdinfo->atiType, "LS", 2);
     memcpy(params.bdinfo->btyType, "LS", 2);
     //params.refl: none
-    //params.ssp: none
+    params.ssp->dirty = false;
     params.atten->t = FL(20.0);
     params.atten->Salinity = FL(35.0);
     params.atten->pH = FL(8.0);

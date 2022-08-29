@@ -24,6 +24,7 @@ include(SetupCUDA.cmake)
 add_executable(bellhopcuda ${COMMON_INCLUDES} ${COMMON_SOURCE} 
     ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
     ${CMAKE_SOURCE_DIR}/src/UtilsCUDA.cuh
+    ${CMAKE_SOURCE_DIR}/src/logging.cu
     ${CMAKE_SOURCE_DIR}/src/run_cuda.cu
 )
 

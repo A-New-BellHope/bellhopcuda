@@ -54,14 +54,14 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(ReflectionCoef &RInt,
         // iRight = 1;
         RInt.r   = FL(0.0); // r[iLeft].r
         RInt.phi = FL(0.0); // r[iLeft].phi
-        printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
+        GlobalLog("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
             "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
             thetaIntr, r[iLeft].theta);
     }else if(thetaIntr > r[iRight].theta){
         // iLeft = NPts - 2;
         RInt.r   = FL(0.0); // r[iRight].r
         RInt.phi = FL(0.0); // r[iRight].phi
-        // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
+        // GlobalLog("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
         //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
         //     thetaIntr, r[iRight].theta);
     }else{
@@ -98,7 +98,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
         LDIFile BRCFile(FileRoot + ".brc");
         if(!BRCFile.Good()){
             PRTFile << "BRCFile = " << FileRoot + ".brc\n";
-            std::cout << "ReadReflectionCoefficient: Unable to open Bottom Reflection Coefficient file\n";
+            GlobalLog("ReadReflectionCoefficient: Unable to open Bottom Reflection Coefficient file\n");
             std::abort();
         }
         
@@ -126,7 +126,7 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
         LDIFile TRCFile(FileRoot + ".trc");
         if(!TRCFile.Good()){
             PRTFile << "TRCFile = " << FileRoot + ".trc\n";
-            std::cout << "ReadReflectionCoefficient: Unable to open Top Reflection Coefficient file\n";
+            GlobalLog("ReadReflectionCoefficient: Unable to open Top Reflection Coefficient file\n");
             std::abort();
         }
         
@@ -149,8 +149,8 @@ inline void ReadReflectionCoefficient(std::string FileRoot, char BotRC, char Top
     // Optionally read in internal reflection coefficient data
     
     if(BotRC == 'P'){
-        std::cout << "Internal reflections not supported by BELLHOP and therefore "
-            "not supported by " BHC_PROGRAMNAME "\n";
+        GlobalLog("Internal reflections not supported by BELLHOP and therefore "
+            "not supported by " BHC_PROGRAMNAME "\n");
         std::abort();
     }
 }

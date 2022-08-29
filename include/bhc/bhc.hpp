@@ -55,10 +55,16 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
  * Runs the selected run type and places the results in the appropriate struct
  * within outputs. outputs need not be initialized prior to the call.
  * 
+ * An env file should usually be read directly first, by calling setup then 
+ * run-finalize. But, before calling finalize, you may edit parameters and rerun 
+ * with an expected pattern
+ *     setup-run-change params-run-change params...-finalize.
+ * TODO: Only a few parameters can be updated, notably sources and 1D SSP - JS, 8/25/2022.
+ * 
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
  */
-BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread);
+BHC_API bool run(bhcParams &params, bhcOutputs &outputs, bool singlethread);
 
 /**
  * Frees memory. You may call run() many times, you do not have to call setup

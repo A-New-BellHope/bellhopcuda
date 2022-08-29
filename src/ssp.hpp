@@ -28,10 +28,6 @@ constexpr real betaPowerLaw = FL(1.0);
     real &crr, real &crz, real &czz, real &rho, real freq, \
     const SSPStructure *ssp, int32_t &iSegz, int32_t &iSegr
 #define SSP_CALL_ARGS x, t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr
-#define SSP_INIT_ARGS vec2 x, const real &fT, \
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot, \
-    SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
-#define SSP_CALL_INIT_ARGS x, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
 
 HOST_DEVICE inline void UpdateDepthSegmentT(const vec2 &x, const vec2 &t,
     const SSPStructure *ssp, int32_t &iSegz)
@@ -124,11 +120,11 @@ HOST_DEVICE inline void cPCHIP(SSP_FN_ARGS)
     
     real xt = x.y - ssp->z[iSegz];
     if(STD::abs(xt) > RL(1.0e10)){
-        printf("Invalid xt %g\n", xt);
+        GlobalLog("Invalid xt %g\n", xt);
     }
     for(int32_t i=0; i<4; ++i)
         if(STD::abs(ssp->cCoef[i][iSegz]) > RL(1.0e10))
-            printf("Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSegz,
+            GlobalLog("Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSegz,
                 ssp->cCoef[i][iSegz].real(), ssp->cCoef[i][iSegz].imag());
     
     ccpx = ssp->cCoef[0][iSegz]
@@ -180,7 +176,7 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
     real c1, c2, cz1, cz2, cr, cz, s1, s2, delta_r, delta_z;
     
     if(x.x < ssp->Seg.r[0] || x.x > ssp->Seg.r[ssp->Nr-1]){
-        printf("Quad: ray is outside the box where the soundspeed is defined\n");
+        GlobalLog("Quad: ray is outside the box where the soundspeed is defined\n");
         bail();
     }
     
@@ -188,7 +184,7 @@ HOST_DEVICE inline void Quad(SSP_FN_ARGS)
     UpdateRangeSegmentT(x, t, ssp, iSegr);
     LinInterpDensity(x, ssp, iSegz, rho);
     if(iSegz >= ssp->Nz - 1 || iSegr >= ssp->Nr - 1){
-        printf("iSeg error in Quad: z %d/%d r %d/%d\n",
+        GlobalLog("iSeg error in Quad: z %d/%d r %d/%d\n",
             iSegz, ssp->Nz, iSegr, ssp->Nr);
         bail();
     }
@@ -288,7 +284,7 @@ HOST_DEVICE inline void EvaluateSSP(SSP_FN_ARGS)
     case 'A': // Analytic profile option
         Analytic(SSP_CALL_ARGS); break;
     default:
-        printf("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
+        GlobalLog("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
         bail();
     }
 }
@@ -301,6 +297,10 @@ HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx
     EvaluateSSP(SSP_CALL_ARGS);
 }
 
-void InitializeSSP(SSP_INIT_ARGS);
+void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
+    PrintFileEmu& PRTFile, const AttenInfo* atten);
+
+void InitializeSSP(vec2 x, LDIFile& ENVFile, PrintFileEmu& PRTFile, 
+    std::string FileRoot, SSPStructure* ssp, HSInfo& RecycledHS);
  
 }

@@ -44,6 +44,8 @@ struct SSPStructure {
     rxyz_vector Seg;
     char Type;
     char AttenUnit[2];
+    real alphaR[MaxSSP], alphaI[MaxSSP];
+    bool dirty; //reset and update derived params
 };
 
 struct HSInfo {

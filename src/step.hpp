@@ -57,10 +57,10 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     if(STD::abs(urayt.y) > REAL_EPSILON){
         if(       ssp->z[iSegz0]     >  x.y){
             h1 = (ssp->z[iSegz0]     - x0.y) / urayt.y;
-            // printf("Shallower bound SSP Z %g > z %g; h1 = %g\n", ssp->z[iSegz0], x.y, h1);
+            // GlobalLog("Shallower bound SSP Z %g > z %g; h1 = %g\n", ssp->z[iSegz0], x.y, h1);
         }else if( ssp->z[iSegz0 + 1] <  x.y){
             h1 = (ssp->z[iSegz0 + 1] - x0.y) / urayt.y;
-            // printf("Deeper bound SSP Z %g < z %g; h1 = %g\n", ssp->z[iSegz0+1], x.y, h1);
+            // GlobalLog("Deeper bound SSP Z %g < z %g; h1 = %g\n", ssp->z[iSegz0+1], x.y, h1);
         }
     }
     
@@ -93,36 +93,36 @@ HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
     if(STD::abs(urayt.x) > REAL_EPSILON){
         if(x.x < rSeg.x){
             h4 = -(x0.x - rSeg.x) / urayt.x;
-            // printf("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.x, x.x, h4);
+            // GlobalLog("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.x, x.x, h4);
         }else if(x.x > rSeg.y){
             h4 = -(x0.x - rSeg.y) / urayt.x;
-            // printf("Farther bound SSP R %g < r %g; h4 = %g; rTopSeg up %g; rBotSeg up %g; ssp r up %g\n",
+            // GlobalLog("Farther bound SSP R %g < r %g; h4 = %g; rTopSeg up %g; rBotSeg up %g; ssp r up %g\n",
             //     rSeg.y, x.x, h4, rTopSeg.y, rBotSeg.y,
             //     ssp->Type == 'Q' ? ssp->Seg.r[iSegr0+1] : INFINITY);
         }
     }
     
-    //printf("ReduceStep2D h h1 h2 h3 h4 %g %g %g %g %g\n", h, h1, h2, h3, h4);
+    //GlobalLog("ReduceStep2D h h1 h2 h3 h4 %g %g %g %g %g\n", h, h1, h2, h3, h4);
     // take limit set by shortest distance to a crossing
     h = bhc::min(h, bhc::min(h1, bhc::min(h2, bhc::min(h3, h4))));
     /*
     if(h == h1){
-        printf("Step %g due to Z SSP crossing\n", h);
+        GlobalLog("Step %g due to Z SSP crossing\n", h);
     }else if(h == h2){
-        printf("Step %g due to top crossing\n", h);
+        GlobalLog("Step %g due to top crossing\n", h);
     }else if(h == h3){
-        printf("Step %g due to bottom crossing\n", h);
+        GlobalLog("Step %g due to bottom crossing\n", h);
     }else if(h == h4){
-        printf("Step %g due to R SSP crossing\n", h);
+        GlobalLog("Step %g due to R SSP crossing\n", h);
     }else{
-        printf("Step %g (unchanged)\n", h);
+        GlobalLog("Step %g (unchanged)\n", h);
     }
     */
     
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
         h = INFINITESIMAL_STEP_SIZE * Beam->deltas; // make sure we make some motion
         ++iSmallStepCtr; // keep a count of the number of sequential small steps
-        // printf("Small step forced to %g\n", h);
+        // GlobalLog("Small step forced to %g\n", h);
     }else{
         iSmallStepCtr = 0;
     }
@@ -146,12 +146,12 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
             h = (ssp->z[iSegz0]     - x0.y) / urayt.y;
             x2.x = x0.x + h * urayt.x;
             x2.y = ssp->z[iSegz0];
-            // printf("StepToBdry2D upper depth h %g to (%g,%g)\n", h, x2.x, x2.y);
+            // GlobalLog("StepToBdry2D upper depth h %g to (%g,%g)\n", h, x2.x, x2.y);
         }else if(ssp->z[iSegz0 + 1] < x2.y){
             h = (ssp->z[iSegz0 + 1] - x0.y) / urayt.y;
             x2.x = x0.x + h * urayt.x;
             x2.y = ssp->z[iSegz0 + 1];
-            // printf("StepToBdry2D lower depth h %g to (%g,%g)\n", h, x2.x, x2.y);
+            // GlobalLog("StepToBdry2D lower depth h %g to (%g,%g)\n", h, x2.x, x2.y);
         }
     }
     
@@ -169,7 +169,7 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
         if(STD::abs(Topn.x) < REAL_EPSILON){
             x2.y = Topx.y;
         }
-        // printf("StepToBdry2D top crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
+        // GlobalLog("StepToBdry2D top crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
         topRefl = true;
     }else{
         topRefl = false;
@@ -186,7 +186,7 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
         if(STD::abs(Botn.x) < REAL_EPSILON){
             x2.y = Botx.y;
         }
-        // printf("StepToBdry2D bottom crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
+        // GlobalLog("StepToBdry2D bottom crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
         botRefl = true;
         // Should not ever be able to cross both, but in case it does, make sure
         // only the crossing we exactly landed on is active
@@ -209,14 +209,14 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
             h = -(x0.x - rSeg.x) / urayt.x;
             x2.x = rSeg.x;
             x2.y = x0.y + h * urayt.y;
-            // printf("StepToBdry2D lower range h %g to (%g,%g)\n", h, x2.x, x2.y);
+            // GlobalLog("StepToBdry2D lower range h %g to (%g,%g)\n", h, x2.x, x2.y);
             topRefl = false;
             botRefl = false;
         }else if(x2.x > rSeg.y){
             h = -(x0.x - rSeg.y) / urayt.x;
             x2.x = rSeg.y;
             x2.y = x0.y + h * urayt.y;
-            // printf("StepToBdry2D upper range h %g to (%g,%g)\n", h, x2.x, x2.y);
+            // GlobalLog("StepToBdry2D upper range h %g to (%g,%g)\n", h, x2.x, x2.y);
             topRefl = false;
             botRefl = false;
         }
@@ -225,7 +225,7 @@ HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
         h = INFINITESIMAL_STEP_SIZE * Beam->deltas; // make sure we make some motion
         x2 = x0 + h * urayt;
-        // printf("StepToBdry2D small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
+        // GlobalLog("StepToBdry2D small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
         // Recheck reflection conditions
         d = x2 - Topx; // vector from top to ray
         if(glm::dot(Topn, d) > REAL_EPSILON){
@@ -261,12 +261,12 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     real crr2, crz2, czz2;
     real h, halfh, rm, rn, cnjump, csjump, w0, w1, rho;
     
-    // printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
+    // GlobalLog("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
     //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
-    // printf("iSegz iSegr %d %d\n", iSegz, iSegr);
+    // GlobalLog("iSegz iSegr %d %d\n", iSegz, iSegr);
     
     // if(ray0.x.x > 420.0){
-    //     printf("Enough\n");
+    //     GlobalLog("Enough\n");
     //     bail();
     // }
     
@@ -277,14 +277,14 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // *** Phase 1 (an Euler step)
 
     EvaluateSSP(ray0.x, ray0.t, ccpx0, gradc0, crr0, crz0, czz0, rho, freq, ssp, iSegz, iSegr);
-    // printf("iSegz iSegr %d %d\n", iSegz, iSegr);
+    // GlobalLog("iSegz iSegr %d %d\n", iSegz, iSegr);
     
-    // printf("ccpx0: (%g,%g) gradc0: (%g,%g) crr0 %g crz0 %g czz0 %g, rho %g\n", 
+    // GlobalLog("ccpx0: (%g,%g) gradc0: (%g,%g) crr0 %g crz0 %g czz0 %g, rho %g\n", 
     //    ccpx0.real(), ccpx0.imag(), gradc0.x, gradc0.y, crr0, crz0, czz0, rho);
     
     /*
     if(STD::abs(ccpx0) > DEBUG_LARGEVAL){
-        printf("ccpx0 invalid: (%g,%g)\n", ccpx0.real(), ccpx0.imag());
+        GlobalLog("ccpx0 invalid: (%g,%g)\n", ccpx0.real(), ccpx0.imag());
         bail();
     }
     */
@@ -297,12 +297,12 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     h = Beam->deltas;       // initially set the step h, to the basic one, deltas
     urayt0 = ccpx0.real() * ray0.t; // unit tangent
     
-    // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
+    // GlobalLog("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
     ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
         Beam, ssp, h, iSmallStepCtr);
-    // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
+    // GlobalLog("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
     ray1.x = ray0.x + halfh * urayt0;
@@ -310,24 +310,24 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray1.p = ray0.p - halfh * cnn0_csq0    * ray0.q;
     ray1.q = ray0.q + halfh * ccpx0.real() * ray0.p;
     
-    // printf("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
+    // GlobalLog("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
     //   ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     /*
     if(STD::abs(ray1.x.x) > DEBUG_LARGEVAL || STD::abs(ray1.x.y) > DEBUG_LARGEVAL){
-        printf("ray1.x invalid\n");
+        GlobalLog("ray1.x invalid\n");
         bail();
     }
     if(STD::abs(ray1.t.x) > DEBUG_LARGEVAL || STD::abs(ray1.t.y) > DEBUG_LARGEVAL){
-        printf("ray1.t invalid\n");
+        GlobalLog("ray1.t invalid\n");
         bail();
     }
     if(STD::abs(ray1.p.x) > DEBUG_LARGEVAL || STD::abs(ray1.p.y) > DEBUG_LARGEVAL){
-        printf("ray1.p invalid\n");
+        GlobalLog("ray1.p invalid\n");
         bail();
     }
     if(STD::abs(ray1.q.x) > DEBUG_LARGEVAL || STD::abs(ray1.q.y) > DEBUG_LARGEVAL){
-        printf("ray1.q invalid\n");
+        GlobalLog("ray1.q invalid\n");
         bail();
     }
     */
@@ -336,11 +336,11 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     
     EvaluateSSP(ray1.x, ray1.t, ccpx1, gradc1, crr1, crz1, czz1, rho, freq, ssp, iSegz, iSegr);
     
-    // printf("ccpx1: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
+    // GlobalLog("ccpx1: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
     
     /*
     if(STD::abs(ccpx1) > DEBUG_LARGEVAL){
-        printf("ccpx1 invalid: ray1.x (%g,%g) iSegz %d iSegr %d => ccpx1 (%g,%g)\n", 
+        GlobalLog("ccpx1 invalid: ray1.x (%g,%g) iSegz %d iSegr %d => ccpx1 (%g,%g)\n", 
             ray1.x.x, ray1.x.y, iSegz, iSegr, ccpx1.real(), ccpx1.imag());
         bail();
     }
@@ -355,7 +355,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
 
     urayt1 = ccpx1.real() * ray1.t; // unit tangent
     
-    // printf("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
+    // GlobalLog("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
     
     // reduce h to land on boundary
     ReduceStep2D(ray0.x, urayt1, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
@@ -364,7 +364,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RL(2.0) * halfh);
     w0  = RL(1.0) - w1;
-    // printf("w1 %20.17f w0 %20.17f\n", w1, w0);
+    // GlobalLog("w1 %20.17f w0 %20.17f\n", w1, w0);
     vec2 urayt2   =  w0 * urayt0                + w1 * urayt1;
     vec2 unitdt   = -w0 * gradc0 / csq0         - w1 * gradc1 / csq1;
     vec2 unitdp   = -w0 * cnn0_csq0    * ray0.q - w1 * cnn1_csq1    * ray1.q;
@@ -382,7 +382,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     ray2.tau = ray0.tau + h * unitdtau;
     
     /*
-    printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    GlobalLog("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
         ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
         ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
     
@@ -390,7 +390,7 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     || STD::abs(ray2.t.x) > DEBUG_LARGEVAL || STD::abs(ray2.t.y) > DEBUG_LARGEVAL
     || STD::abs(ray2.p.x) > DEBUG_LARGEVAL || STD::abs(ray2.p.y) > DEBUG_LARGEVAL
     || STD::abs(ray2.q.x) > DEBUG_LARGEVAL || STD::abs(ray2.q.y) > DEBUG_LARGEVAL){
-        printf("ray2 invalid\n");
+        GlobalLog("ray2 invalid\n");
         bail();
     }
     */
@@ -403,10 +403,10 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     // If we crossed an interface, apply jump condition
 
     EvaluateSSP(ray2.x, ray2.t, ccpx2, gradc2, crr2, crz2, czz2, rho, freq, ssp, iSegz, iSegr);
-    //printf("ccpx2: (%g,%g)\n", ccpx2.real(), ccpx2.imag());
+    //GlobalLog("ccpx2: (%g,%g)\n", ccpx2.real(), ccpx2.imag());
     /*
     if(STD::abs(ccpx2) > DEBUG_LARGEVAL){
-        printf("ccpx2 invalid: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
+        GlobalLog("ccpx2 invalid: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
         bail();
     }
     */

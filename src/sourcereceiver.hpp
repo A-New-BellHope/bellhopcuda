@@ -35,7 +35,7 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, PrintFileEmu &PR
         PRTFile << "__________________________________________________________________________\n\n\n";
         PRTFile << "Number of frequencies = " << freqinfo->Nfreq << "\n";
         if(freqinfo->Nfreq <= 0){
-            std::cout << "Number of frequencies must be positive\n";
+            GlobalLog("Number of frequencies must be positive\n");
             std::abort();
         }
     }
@@ -66,7 +66,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
     PRTFile << "Number of " << Description << " = " << Nx << "\n";
     
     if(Nx <= 0){
-        std::cout << "ReadVector: Number of " << Description << " must be positive\n";
+        GlobalLog("ReadVector: Number of %s must be positive\n", Description.c_str());
         std::abort();
     }
     
@@ -158,11 +158,11 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, PrintFileEmu &PRTFi
     
     /*
     if(!monotonic(Pos->sz, Pos->NSz)){
-        std::cout << "SzRzRMod: Source depths are not monotonically increasing\n";
+        GlobalLog("SzRzRMod: Source depths are not monotonically increasing\n");
         std::abort();
     }
     if(!monotonic(Pos->rz, Pos->NRz)){
-        std::cout << "SzRzRMod: Receiver depths are not monotonically increasing\n";
+        GlobalLog("SzRzRMod: Receiver depths are not monotonically increasing\n");
         std::abort();
     }
     */
@@ -178,7 +178,7 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     if(Pos->NRr != 1) Pos->Delta_r = Pos->Rr[Pos->NRr-1] - Pos->Rr[Pos->NRr-2];
     
     if(!monotonic(Pos->Rr, Pos->NRr)){
-        std::cout << "ReadRcvrRanges: Receiver ranges are not monotonically increasing\n";
+        GlobalLog("ReadRcvrRanges: Receiver ranges are not monotonically increasing\n");
         std::abort();
     }
 }
@@ -195,7 +195,7 @@ inline void ReadRcvrBearings(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     if(Pos->Ntheta != 1) Pos->Delta_theta = Pos->theta[Pos->Ntheta-1] - Pos->theta[Pos->Ntheta-2];
     
     if(!monotonic(Pos->theta, Pos->Ntheta)){
-        std::cout << "ReadRcvrBearings: Receiver bearings are not monotonically increasing\n";
+        GlobalLog("ReadRcvrBearings: Receiver bearings are not monotonically increasing\n");
         std::abort();
     }
 }

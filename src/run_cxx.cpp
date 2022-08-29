@@ -79,7 +79,7 @@ void FieldModesWorker(const bhcParams &params, bhcOutputs &outputs)
     }
 }
 
-bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
+bool run_cxx(bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     if(!api_okay) return false;
     exceptionStr = "";
@@ -107,7 +107,7 @@ bool run_cxx(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
 }
 
 #ifndef BHC_BUILD_CUDA
-BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
+BHC_API bool run(bhcParams &params, bhcOutputs &outputs, bool singlethread)
 {
     return run_cxx(params, outputs, singlethread);
 }

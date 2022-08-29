@@ -73,13 +73,13 @@ inline void ReadRayElevationAngles(real freq, real Depth,
     EchoVector(Angles->alpha, Angles->Nalpha, PRTFile);
     
     if(Angles->Nalpha > 1 && Angles->alpha[Angles->Nalpha-1] == Angles->alpha[0]){
-        std::cout << "ReadRayElevationAngles: First and last beam take-off angle are identical\n";
+        GlobalLog("ReadRayElevationAngles: First and last beam take-off angle are identical\n");
         std::abort();
     }
     
     if(TopOpt[5] == 'I'){
         if(Angles->iSingle_alpha < 1 || Angles->iSingle_alpha > Angles->Nalpha){
-            std::cout << "'ReadRayElevationAngles: Selected beam, iSingl not in [1, Angles->Nalpha]\n";
+            GlobalLog("ReadRayElevationAngles: Selected beam, iSingl not in [1, Angles->Nalpha]\n");
             std::abort();
         }
     }

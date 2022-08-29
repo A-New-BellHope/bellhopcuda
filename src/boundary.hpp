@@ -55,7 +55,7 @@ HOST_DEVICE inline void GetTopSeg(real r, real t, int32_t &IsegTop, vec2 &rTopSe
     }
     if(IsegTop < 0 || IsegTop >= n-1){
         // IsegTop MUST LIE IN [0, NATIPts-2]
-        printf("Error: GetTopSeg: Top altimetry undefined above the ray, r=%g\n", r);
+        GlobalLog("Error: GetTopSeg: Top altimetry undefined above the ray, r=%g\n", r);
         bail();
     }
     rTopSeg.x = bdinfo->Top[IsegTop].x.x;
@@ -88,7 +88,7 @@ HOST_DEVICE inline void GetBotSeg(real r, real t, int32_t &IsegBot, vec2 &rBotSe
     }
     if(IsegBot < 0 || IsegBot >= n-1){
         // IsegBot MUST LIE IN [0, NBTYPts-2]
-        printf("Error: GetBotSeg: Bottom bathymetry undefined below the source, r=%g\n", r);
+        GlobalLog("Error: GetBotSeg: Bottom bathymetry undefined below the source, r=%g\n", r);
         bail();
     }
     rBotSeg.x = bdinfo->Bot[IsegBot].x.x;
@@ -138,7 +138,7 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
     for(int32_t ii=0; ii<NPts-1; ++ii){
         Bdry[ii].t  = Bdry[ii+1].x - Bdry[ii].x;
         Bdry[ii].Dx = Bdry[ii].t[1] / Bdry[ii].t[0]; // first derivative
-        // std::cout << "Dx, t " << Bdry[ii].Dx << " " << Bdry[ii].x << " " << (FL(1.0) / (Bdry[ii].x[1] / FL(500.0)) << "\n";
+        // GlobalLog("Dx, t %g %g %g\n", Bdry[ii].Dx, Bdry[ii].x, (FL(1.0) / (Bdry[ii].x[1] / FL(500.0)));
         
         // normalize the tangent vector
         Bdry[ii].Len = glm::length(Bdry[ii].t);
@@ -179,11 +179,11 @@ inline void ComputeBdryTangentNormal(BdryPtFull *Bdry, bool isTop, BdryInfo *bdr
             Bdry[ii].Dxx   = (Bdry[ii+1].Dx - Bdry[ii].Dx) / // second derivative
                              (Bdry[ii+1].x[0] - Bdry[ii].x[0]); 
             Bdry[ii].Dss   = Bdry[ii].Dxx * CUBE(Bdry[ii].t[0]); // derivative in direction of tangent
-            //std::cout << "kappa, Dss, Dxx " << Bdry[ii].kappa << " " << Bdry[ii].Dss << " " << Bdry[ii].Dxx
-            //    << " " << FL(1.0) / ((FL(8.0) / SQ(FL(1000.0))) * CUBE(STD::abs(Bdry[ii].x[1])))
-            //    << " " << Bdry[ii].x[1] << " "
-            //    << FL(-1.0) / (FL(4.0) * CUBE(Bdry[ii].x[1]) / FL(1000000.0))
-            //    << " " << Bdry[ii].x[1] << "\n";
+            // GlobalLog("kappa, Dss, Dxx %g %g %g %g %g %g %g\n", Bdry[ii].kappa, Bdry[ii].Dss, Bdry[ii].Dxx,
+            //    FL(1.0) / ((FL(8.0) / SQ(FL(1000.0))) * CUBE(STD::abs(Bdry[ii].x[1]))),
+            //    Bdry[ii].x[1],
+            //    FL(-1.0) / (FL(4.0) * CUBE(Bdry[ii].x[1]) / FL(1000000.0)),
+            //    Bdry[ii].x[1]);
             
             Bdry[ii].kappa = Bdry[ii].Dss; // over-ride kappa !!!!!
         }
@@ -206,7 +206,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         LDIFile ATIFile(FileRoot + ".ati");
         if(!ATIFile.Good()){
             PRTFile << "ATIFile = " << FileRoot << ".ati\n";
-            std::cout << "ReadATI: Unable to open altimetry file\n";
+            GlobalLog("ReadATI: Unable to open altimetry file\n");
             std::abort();
         }
         
@@ -217,7 +217,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
         case 'L':
             PRTFile << "Piecewise linear interpolation\n"; break;
         default:
-            std::cout << "ReadATI: Unknown option for selecting altimetry interpolation\n";
+            GlobalLog("ReadATI: Unknown option for selecting altimetry interpolation\n");
             std::abort();
         }
         
@@ -258,12 +258,12 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
                 }
                 break;
             default:
-                std::cout << "ReadATI: Unknown option for selecting altimetry option\n";
+                GlobalLog("ReadATI: Unknown option for selecting altimetry option\n");
                 std::abort();
             }
             
             if(bdinfo->Top[ii].x[1] < DepthT){
-                std::cout << "BELLHOP:ReadATI: Altimetry rises above highest point in the sound speed profile\n";
+                GlobalLog("BELLHOP:ReadATI: Altimetry rises above highest point in the sound speed profile\n");
                 std::abort();
             }
         }
@@ -281,7 +281,7 @@ inline void ReadATI(std::string FileRoot, char TopATI, real DepthT,
     ComputeBdryTangentNormal(bdinfo->Top, true, bdinfo);
     
     if(!monotonic(&bdinfo->Top[0].x.x, bdinfo->NATIPts, sizeof(BdryPtFull)/sizeof(real), 0)){
-        std::cout << "BELLHOP:ReadATI: Altimetry ranges are not monotonically increasing\n";
+        GlobalLog("BELLHOP:ReadATI: Altimetry ranges are not monotonically increasing\n");
         std::abort();
     }
 }
@@ -298,7 +298,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         LDIFile BTYFile(FileRoot + ".bty");
         if(!BTYFile.Good()){
             PRTFile << "BTYFile = " << FileRoot << ".bty\n";
-            std::cout << "ReadATI: Unable to open bathymetry file\n";
+            GlobalLog("ReadATI: Unable to open bathymetry file\n");
             std::abort();
         }
         
@@ -310,7 +310,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
         case 'L':
             PRTFile << "Piecewise linear interpolation\n"; break;
         default:
-            std::cout << "ReadBTY: Unknown option for selecting bathymetry interpolation\n";
+            GlobalLog("ReadBTY: Unknown option for selecting bathymetry interpolation\n");
             std::abort();
         }
         
@@ -332,7 +332,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
             PRTFile << "Range (km)  Depth (m)  alphaR (m/s)  betaR  rho (g/cm^3)  alphaI     betaI\n";
             break;
         default:
-            std::cout << "ReadBTY: Unknown option for selecting bathymetry interpolation\n";
+            GlobalLog("ReadBTY: Unknown option for selecting bathymetry interpolation\n");
             std::abort();
         }
         
@@ -365,12 +365,12 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
                 }
                 break;
             default:
-                std::cout << "ReadBTY: Unknown option for selecting bathymetry option\n";
+                GlobalLog("ReadBTY: Unknown option for selecting bathymetry option\n");
                 std::abort();
             }
             
             if(bdinfo->Bot[ii].x[1] > DepthB){
-                std::cout << "BELLHOP:ReadBTY: Bathymetry drops below lowest point in the sound speed profile\n";
+                GlobalLog("BELLHOP:ReadBTY: Bathymetry drops below lowest point in the sound speed profile\n");
                 std::abort();
             }
         }
@@ -388,7 +388,7 @@ inline void ReadBTY(std::string FileRoot, char BotBTY, real DepthB,
     ComputeBdryTangentNormal(bdinfo->Bot, false, bdinfo);
     
     if(!monotonic(&bdinfo->Bot[0].x.x, bdinfo->NBTYPts, sizeof(BdryPtFull)/sizeof(real), 0)){
-        std::cout << "BELLHOP:ReadBTY: Bathymetry ranges are not monotonically increasing\n";
+        GlobalLog("BELLHOP:ReadBTY: Bathymetry ranges are not monotonically increasing\n");
         std::abort();
     }
 }
@@ -423,7 +423,7 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
     case 'P':
         PRTFile << "    reading PRECALCULATED IFL\n"; break;
     default:
-       std::cout << "TopBot: Unknown boundary condition type\n";
+       GlobalLog("TopBot: Unknown boundary condition type\n");
        std::abort();
     }
     
@@ -448,9 +448,9 @@ inline void TopBot(const real &freq, const char (&AttenUnit)[2], real &fT, HSInf
         
         hs.cP  = crci(zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
         hs.cS  = crci(zTemp, RecycledHS.betaR,  RecycledHS.betaI,  freq, freq, AttenUnit, betaPowerLaw, fT, atten, PRTFile);
-        // printf("%g %g %g %g %c%c %g %g\n", zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq,
+        // GlobalLog("%g %g %g %g %c%c %g %g\n", zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq,
         //     AttenUnit[0], AttenUnit[1], betaPowerLaw, fT);
-        // printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
+        // GlobalLog("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
         
         hs.rho = RecycledHS.rho;
     }else if(hs.bc == 'G'){ // *** Grain size (formulas from UW-APL HF Handbook)

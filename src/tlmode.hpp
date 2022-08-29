@@ -72,7 +72,7 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
             Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(!Step_Influence(point0, point1, inflray, is, u, 
             ConstBdry, ssp, iSegz, iSegr, Pos, Beam, eigen, arrinfo)){
-            //printf("Step_Influence terminated ray\n");
+            //GlobalLog("Step_Influence terminated ray\n");
             break;
         }
         ++is;
@@ -84,14 +84,14 @@ HOST_DEVICE inline void MainFieldModes(int32_t isrc, int32_t ialpha, real &SrcDe
         }else if(dStep == 1){
             point0 = point1;
         }else{
-            printf("Invalid dStep: %d\n", dStep);
+            GlobalLog("Invalid dStep: %d\n", dStep);
             bail();
         }
         if(RayTerminate(point0, Nsteps, is, DistBegTop, DistBegBot,
             DistEndTop, DistEndBot, Beam)) break;
     }
     
-    //printf("Nsteps %d\n", Nsteps);
+    //GlobalLog("Nsteps %d\n", Nsteps);
 }
 
 }

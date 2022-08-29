@@ -94,7 +94,7 @@ inline bool RunRay(RayInfo *rayinfo, const bhcParams &params, ray2DPt *localmem,
     if(IsRayCopyMode(rayinfo)){
         uint32_t p = AtomicFetchAdd(&rayinfo->NPoints, (uint32_t)Nsteps);
         if(p + Nsteps > rayinfo->MaxPoints){
-            std::cout << "Ran out of memory for rays\n";
+            GlobalLog("Ran out of memory for rays\n");
             rayinfo->results[job].ray2D = nullptr;
             ret = false;
         }else{
