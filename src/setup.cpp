@@ -108,8 +108,6 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     memcpy(params.bdinfo->atiType, "LS", 2);
     memcpy(params.bdinfo->btyType, "LS", 2);
     //params.refl: none
-    //params.ssp: Unphysical z's to indicate no data.
-    for (int i = 0; i < MaxSSP; ++i) params.ssp->z[i] = -1;
     params.atten->t = FL(20.0);
     params.atten->Salinity = FL(35.0);
     params.atten->pH = FL(8.0);

@@ -108,7 +108,6 @@ void InitQuad(PrintFileEmu& PRTFile, SSPStructure* ssp)
 /**
 * Update the SSP parameters. Safe to call multiple times with flags.
 * Be sure to flag ssp->dirty if you change the SSP externally.
-* TODO: You have to provide FileRoot if you use a 2D SSP.
 */
 void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp, 
     PrintFileEmu& PRTFile, const AttenInfo* atten)
@@ -230,7 +229,6 @@ void InitializeSSP(vec2 x, const real& fT, LDIFile& ENVFile, PrintFileEmu& PRTFi
     real Depth = x[1];
     ReadSSP(Depth, ssp, ENVFile, PRTFile, RecycledHS, FileRoot);
     ssp->dirty = true;
-    UpdateSSP(Depth, freqinfo->freq0, fT, ssp, PRTFile, atten);
 }
 
 }
