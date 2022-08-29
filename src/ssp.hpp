@@ -300,8 +300,7 @@ HOST_DEVICE inline void EvaluateSSPCOnly(const vec2 &x, const vec2 &t, cpx &ccpx
 void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
     PrintFileEmu& PRTFile, const AttenInfo* atten);
 
-void InitializeSSP(vec2 x, const real& fT, LDIFile& ENVFile, PrintFileEmu& PRTFile, 
-    std::string FileRoot, SSPStructure* ssp, const AttenInfo* atten, 
-    const FreqInfo* freqinfo, HSInfo& RecycledHS);
+void InitializeSSP(vec2 x, LDIFile& ENVFile, PrintFileEmu& PRTFile, 
+    std::string FileRoot, SSPStructure* ssp, HSInfo& RecycledHS);
  
 }

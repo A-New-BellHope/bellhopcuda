@@ -91,7 +91,7 @@ void ReadQuad(PrintFileEmu& PRTFile, SSPStructure* ssp, std::string FileRoot)
     }
 }
 
-void InitQuad(PrintFileEmu& PRTFile, SSPStructure* ssp)
+void InitQuad(SSPStructure* ssp)
 {
     // calculate cz
     for (int32_t iSegt = 0; iSegt < ssp->Nr; ++iSegt) {
@@ -154,7 +154,7 @@ void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
             case 'S': // Cubic spline profile option
                 InitcCubic(ssp); break;
             case 'Q':
-                InitQuad(PRTFile, ssp); break;
+                InitQuad(ssp); break;
                 /* case 'H':
                     // this is called by BELLHOP3D only once, during READIN
                     // possibly the logic should be changed to call EvaluateSSP2D or 3D
@@ -217,9 +217,8 @@ void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile,
     std::abort();
 }
 
-void InitializeSSP(vec2 x, const real& fT, LDIFile& ENVFile, PrintFileEmu& PRTFile,
-    std::string FileRoot, SSPStructure* ssp, const AttenInfo* atten,
-    const FreqInfo* freqinfo, HSInfo& RecycledHS)
+void InitializeSSP(vec2 x, LDIFile& ENVFile, PrintFileEmu& PRTFile,
+    std::string FileRoot, SSPStructure* ssp, HSInfo& RecycledHS)
 {
     if (ssp->Type == 'A') {
         //nothing to do for analytic

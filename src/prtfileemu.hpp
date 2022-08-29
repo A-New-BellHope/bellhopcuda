@@ -49,10 +49,11 @@ public:
     template<typename T> PrintFileEmu &operator<<(const T &x)
     {
         if(callback != nullptr){
-            // This drops formatting streaming, but shows up in unreal - Joe 7/7/2022.
-            std::stringstream linebuf;
             linebuf << x;
-            callback(linebuf.str().c_str());
+            if (linebuf.str().length() > 0) {
+                callback(linebuf.str().c_str());
+                linebuf.str("");
+            }
         }else if(ofs.good()){
             ofs << x;
         }
@@ -61,6 +62,7 @@ public:
     
 private:
     std::ofstream ofs;
+    std::stringstream linebuf;
     void (*callback)(const char *message);
 };
 
