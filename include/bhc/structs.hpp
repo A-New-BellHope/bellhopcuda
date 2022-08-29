@@ -30,7 +30,6 @@ namespace bhc {
 
 constexpr int32_t MaxN = 100000;
 constexpr int32_t MaxSSP = MaxN + 1;
-constexpr int32_t FileRootMax = 1024;
 
 struct rxyz_vector {
     real *r, *x, *y, *z;
@@ -47,7 +46,6 @@ struct SSPStructure {
     char AttenUnit[2];
     real alphaR[MaxSSP], alphaI[MaxSSP];
     bool dirty; //reset and update derived params
-    char FileRoot[FileRootMax]; //TODO: used for reading 2D SSP until there's param support - JS 8/28/2022
 };
 
 struct HSInfo {

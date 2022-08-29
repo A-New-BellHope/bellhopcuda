@@ -54,51 +54,54 @@ void InitcCubic(SSPStructure* ssp)
         ssp->NPts, iBCBeg, iBCEnd, ssp->NPts);
 }
 
-void InitQuad(PrintFileEmu& PRTFile, SSPStructure* ssp)
+void ReadQuad(PrintFileEmu& PRTFile, SSPStructure* ssp, std::string FileRoot)
 {
     // Read the 2D SSP matrix
     PRTFile << "__________________________________________________________________________\n\n";
     PRTFile << "Using range-dependent sound speed\n";
-    
-    LDIFile SSPFile(std::string(ssp->FileRoot) + ".ssp");
+
+    LDIFile SSPFile(FileRoot + ".ssp");
     LIST(SSPFile); SSPFile.Read(ssp->Nr);
     PRTFile << "Number of SSP ranges = " << ssp->Nr << "\n";
-    
-    if(ssp->Nr < 2){
+
+    if (ssp->Nr < 2) {
         PRTFile << "READIN: Quad: You must have a least two profiles in your 2D SSP field\n";
         std::abort();
     }
-    
-    checkallocate(ssp->cMat ,  ssp->NPts    * ssp->Nr);
-    checkallocate(ssp->czMat, (ssp->NPts-1) * ssp->Nr);
+
+    checkallocate(ssp->cMat, ssp->NPts * ssp->Nr);
+    checkallocate(ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
     checkallocate(ssp->Seg.r, ssp->Nr);
-    
+
     LIST(SSPFile); SSPFile.Read(ssp->Seg.r, ssp->Nr);
     PRTFile << "\nProfile ranges (km):\n" << std::setprecision(2);
-    for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->Seg.r[i] << " ";
+    for (int32_t i = 0; i < ssp->Nr; ++i) PRTFile << ssp->Seg.r[i] << " ";
     PRTFile << "\n";
-    
-    for(int32_t i=0; i<ssp->Nr; ++i) ssp->Seg.r[i] *= FL(1000.0); // convert km to m
-    
+
+    for (int32_t i = 0; i < ssp->Nr; ++i) ssp->Seg.r[i] *= FL(1000.0); // convert km to m
+
     PRTFile << "\nSound speed matrix:\n";
     PRTFile << " Depth (m )     Soundspeed (m/s)\n";
-    for(int32_t iz2=0; iz2<ssp->NPts; ++iz2){
-        LIST(SSPFile); SSPFile.Read(&ssp->cMat[iz2*ssp->Nr], ssp->Nr);
+    for (int32_t iz2 = 0; iz2 < ssp->NPts; ++iz2) {
+        LIST(SSPFile); SSPFile.Read(&ssp->cMat[iz2 * ssp->Nr], ssp->Nr);
         // PRTFile << "iSegz depth = " << std::setprecision(2) << ssp->z[iz2] << " m\n";
         PRTFile << std::setprecision(2) << ssp->z[iz2] << " ";
-        for(int32_t i=0; i<ssp->Nr; ++i) PRTFile << ssp->cMat[iz2*ssp->Nr+i] << " ";
+        for (int32_t i = 0; i < ssp->Nr; ++i) PRTFile << ssp->cMat[iz2 * ssp->Nr + i] << " ";
         PRTFile << "\n";
     }
-    
+}
+
+void InitQuad(PrintFileEmu& PRTFile, SSPStructure* ssp)
+{
     // calculate cz
-    for(int32_t iSegt=0; iSegt<ssp->Nr; ++iSegt){
-        for(int32_t iz2=1; iz2<ssp->NPts; ++iz2){
-            real delta_z = ssp->z[iz2] - ssp->z[iz2-1];
-            ssp->czMat[(iz2-1)*ssp->Nr + iSegt] = 
-                (ssp->cMat[iz2*ssp->Nr+iSegt] - ssp->cMat[(iz2-1)*ssp->Nr+iSegt]) / delta_z;
+    for (int32_t iSegt = 0; iSegt < ssp->Nr; ++iSegt) {
+        for (int32_t iz2 = 1; iz2 < ssp->NPts; ++iz2) {
+            real delta_z = ssp->z[iz2] - ssp->z[iz2 - 1];
+            ssp->czMat[(iz2 - 1) * ssp->Nr + iSegt] =
+                (ssp->cMat[iz2 * ssp->Nr + iSegt] - ssp->cMat[(iz2 - 1) * ssp->Nr + iSegt]) / delta_z;
         }
     }
-    
+
     ssp->Nz = ssp->NPts;
 }
 
@@ -176,7 +179,7 @@ void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
  * reads the SSP data from the environmental file and convert to Nepers/m
  */
 void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile, 
-    PrintFileEmu& PRTFile, HSInfo& RecycledHS)
+    PrintFileEmu& PRTFile, HSInfo& RecycledHS, std::string FileRoot)
 {
     PRTFile << "\nSound speed profile:\n";
     PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
@@ -198,6 +201,11 @@ void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile,
         
         // Did we read the last point?
         if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
+            if (ssp->Type == 'Q') {
+                //read in extra SSP data for 2D
+                ReadQuad(PRTFile, ssp, FileRoot);
+            }
+
             return;
         }
 
@@ -220,7 +228,7 @@ void InitializeSSP(vec2 x, const real& fT, LDIFile& ENVFile, PrintFileEmu& PRTFi
     }
 
     real Depth = x[1];
-    ReadSSP(Depth, ssp, ENVFile, PRTFile, RecycledHS);
+    ReadSSP(Depth, ssp, ENVFile, PRTFile, RecycledHS, FileRoot);
     ssp->dirty = true;
     UpdateSSP(Depth, freqinfo->freq0, fT, ssp, PRTFile, atten);
 }
