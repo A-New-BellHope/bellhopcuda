@@ -47,7 +47,8 @@ template<bool R3D> HOST_DEVICE inline void Distances(const VEC23<R3D> &rayx,
  */
 template<bool O3D> inline SSPOutputs<O3D> RayStartNominalSSP(
     int32_t isx, int32_t isy, int32_t isz, real alpha,
-    SSPSegState &iSeg, const Position *Pos, VEC23<O3D> &xs, VEC23<O3D> &tinit)
+    SSPSegState &iSeg, const Position *Pos, const SSPStructure *ssp,
+    VEC23<O3D> &xs, VEC23<O3D> &tinit)
 {
     if constexpr(O3D){
         xs = vec3(Pos->Sx[isx], Pos->Sy[isy], Pos->Sz[isz]);
@@ -96,22 +97,19 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     
     rinit.alpha = Angles->alpha.angles[rinit.ialpha]; // initial angle
     rinit.SrcDeclAngle = RadDeg * rinit.alpha; // take-off declination angle in degrees
-    real beta;
     if constexpr(O3D){
-        beta = Angles->beta.angles[rinit.ibeta];
-        rinit.SrcAzimAngle = RadDeg * beta; // take-off azimuthal   angle in degrees
+        rinit.beta = Angles->beta.angles[rinit.ibeta];
+        rinit.SrcAzimAngle = RadDeg * rinit.beta; // take-off azimuthal   angle in degrees
     }else{
-        beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
+        rinit.beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
     }
     if constexpr(O3D && !R3D){
         org.xs = xs;
-        org.tradial = vec2(STD::cos(beta), STD::sin(beta));
+        org.tradial = vec2(STD::cos(rinit.beta), STD::sin(rinit.beta));
     }
     
     float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
     iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
-    
-    bool TODO_x_rcvrMat_init;
     
     if constexpr(!O3D){
         // Are there enough beams?
@@ -141,7 +139,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     
     VEC23<R3D> tinit2;
     if constexpr(R3D){
-        tinit2 = vec3(STD::cos(rinit.alpha) * STD::cos(beta), STD::cos(rinit.alpha) * STD::sin(beta), STD::sin(rinit.alpha));
+        tinit2 = vec3(STD::cos(rinit.alpha) * STD::cos(rinit.beta),
+                      STD::cos(rinit.alpha) * STD::sin(rinit.beta),
+                      STD::sin(rinit.alpha));
     }else if constexpr(O3D){
         tinit2 = vec2(STD::cos(rinit.alpha), STD::sin(rinit.alpha));
     }else{

@@ -109,8 +109,6 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     for(int32_t isz=0; isz<params.Pos->NSz; ++isz){
         for(int32_t isx=0; isx<params.Pos->NSx; ++isx){
             for(int32_t isy=0; isy<params.Pos->NSy; ++isy){
-                TODO; // For Nx2D: for each azimuthal angle (for all declination angles added),
-                // do ScalePressure (2D) then overwrite radial slice of 3D field with this
                 SSPSegState iSeg; iSeg.r = 0; iSeg.z = 0;
                 VEC23<O3D> xs, tinit;
                 SSPOutputs<O3D> o = RayStartNominalSSP(isx, isy, isz, FL(0.0),

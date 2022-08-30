@@ -686,9 +686,6 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
     
     ComputeBdryTangentNormal(bdinfotb, isTop);
     
-    // LP: TODO/BUG: 3D version has initialization for xTopSeg / yTopSeg here,
-    // which probably also means state is carried over from one ray to the next
-    
     if constexpr(!O3D){
         // convert range-dependent geoacoustic parameters from user to program units
         // LP: Moved from setup.

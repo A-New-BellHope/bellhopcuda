@@ -27,12 +27,17 @@ namespace bhc {
 /**
  * for a TL calculation, allocate space for the pressure matrix
  */
-inline void InitTLMode(cpxf *&uAllSources, const Position *Pos)
+inline void InitTLMode(cpxf *&uAllSources, Position *Pos)
 {
     size_t n = (size_t)Pos->NSz * (size_t)Pos->NSx * (size_t)Pos->NSy *
         (size_t)Pos->Ntheta * (size_t)Pos->NRz_per_range * (size_t)Pos->NRr;
     checkallocate(uAllSources, n);
     memset(uAllSources, 0, n * sizeof(cpxf));
+    
+    for(int32_t i=0; i<Pos->Ntheta; ++i){
+        real theta = Pos->theta[i];
+        Pos->t_rcvr[i] = vec2(STD::cos(theta), STD::sin(theta));
+    }
 }
 
 template<bool O3D, bool R3D> void FinalizeTLMode(
@@ -56,13 +61,13 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     SSPSegState iSeg;
-    vec2 xs, gradc;
+    VEC23<O3D> xs, gradc;
     BdryState<O3D> bds;
     BdryType Bdry;
     Origin<O3D, R3D> org;
     
     rayPt<R3D> point0, point1, point2;
-    InfluenceRayInfo inflray;
+    InfluenceRayInfo<R3D> inflray;
     
     if(!RayInit<O3D, R3D>(rinit, xs, point0, gradc, DistBegTop, DistBegBot,
         org, iSeg, bds, Bdry, ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo))

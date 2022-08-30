@@ -87,6 +87,7 @@ template<bool O3D, bool R3D> bool setup(
     params.Pos->ws = nullptr;
     params.Pos->wr = nullptr;
     params.Pos->theta = nullptr;
+    params.Pos->t_rcvr = nullptr;
     params.Angles->alpha.angles = nullptr;
     params.Angles->beta.angles = nullptr;
     params.freqinfo->freqVec = nullptr;
@@ -243,18 +244,22 @@ template<bool O3D, bool R3D> bool setup(
             params.Bdry->Bot.hs.Opt[0], params.Bdry->Top.hs.Opt[1], PRTFile, params.refl); // (top and bottom)
         params.beaminfo->SBPFlag = params.Beam->RunType[2];
         ReadPat(FileRoot, PRTFile, params.beaminfo); // Source Beam Pattern
-        // dummy bearing angles
-        params.Pos->Ntheta = 1;
-        params.Pos->theta = allocate<float>(params.Pos->Ntheta);
-        params.Pos->theta[0] = FL(0.0);
+        if constexpr(!O3D){
+            // dummy bearing angles
+            params.Pos->Ntheta = 1;
+            params.Pos->theta = allocate<float>(params.Pos->Ntheta);
+            params.Pos->theta[0] = FL(0.0);
+            params.Pos->t_rcvr = allocate<vec2>(params.Pos->Ntheta);
+        }
     }
     
     // LP: Moved from WriteHeader
     // receiver bearing angles
     if(params.Pos->theta == nullptr){
+        params.Pos->Ntheta = 1;
         params.Pos->theta = allocate<float>(1);
         params.Pos->theta[0] = FL(0.0); // dummy bearing angle
-        params.Pos->Ntheta = 1;
+        params.Pos->t_rcvr = allocate<vec2>(1);
     }
     // source x-coordinates
     if(params.Pos->Sx == nullptr){
@@ -331,6 +336,7 @@ template<bool O3D, bool R3D> void finalize(
     checkdeallocate(params.Pos->ws);
     checkdeallocate(params.Pos->wr);
     checkdeallocate(params.Pos->theta);
+    checkdeallocate(params.Pos->t_rcvr);
     checkdeallocate(params.Angles->alpha.angles);
     checkdeallocate(params.Angles->beta.angles);
     checkdeallocate(params.freqinfo->freqVec);

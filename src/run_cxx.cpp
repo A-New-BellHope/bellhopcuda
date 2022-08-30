@@ -62,12 +62,12 @@ template void RayModeWorker<true, false>(
 template void RayModeWorker<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
-/*
-// TL mode
+// TL, arrivals, eigenrays
 
 cpxf *uAllSources;
 
-void FieldModesWorker(const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs)
+template<bool O3D, bool R3D> void FieldModesWorker(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     try{
     
@@ -76,7 +76,7 @@ void FieldModesWorker(const bhcParams<false, false> &params, bhcOutputs<false, f
         RayInitInfo rinit;
         if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
         
-        MainFieldModes(rinit, outputs.uAllSources,
+        MainFieldModes<O3D, R3D>(rinit, outputs.uAllSources,
             params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
             params.Angles, params.freqinfo, params.Beam, params.beaminfo,
             outputs.eigen, outputs.arrinfo);
@@ -87,7 +87,13 @@ void FieldModesWorker(const bhcParams<false, false> &params, bhcOutputs<false, f
         exceptionStr += std::string(e.what()) + "\n";
     }
 }
-*/
+
+template void FieldModesWorker<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+template void FieldModesWorker<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+template void FieldModesWorker<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> bool run_cxx(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)

@@ -239,6 +239,7 @@ struct Position {
     float *Sx, *Sy, *Sz; // Source x, y, z coordinates
     float *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
     float *theta; // Receiver bearings
+    vec2 *t_rcvr; // Receiver directions (cos(theta), sin(theta))
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -394,7 +395,7 @@ template<bool O3D, bool R3D> struct RayInfo {
 
 struct RayInitInfo {
     int32_t isx, isy, isz, ialpha, ibeta;
-    real alpha;
+    real alpha, beta;
     real SrcDeclAngle, SrcAzimAngle;
 };
 

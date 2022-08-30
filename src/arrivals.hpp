@@ -18,6 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "jobs.hpp"
 
 namespace bhc {
 
@@ -65,7 +66,7 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
     
         Nt = *baseNArr; // # of arrivals
         
-        if(!IsSecondStepOfPair(omega, Phase, delay, baseArr, Nt)){
+        if(!IsSecondStepOfPair<R3D>(omega, Phase, delay, baseArr, Nt)){
             int32_t iArr;
             if(Nt >= arrinfo->MaxNArr){ // space not available to add an arrival?
                 // replace weakest arrival
@@ -85,8 +86,8 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
             baseArr[iArr].a             = (float)Amp; // amplitude
             baseArr[iArr].Phase         = (float)Phase; // phase
             baseArr[iArr].delay         = Cpx2Cpxf(delay); // delay time
-            baseArr[iArr].SrcDeclAngle  = (float)SrcDeclAngle; // launch angle from source
-            baseArr[iArr].SrcAzimAngle  = (float)SrcAzimAngle; // launch angle from source
+            baseArr[iArr].SrcDeclAngle  = (float)rinit.SrcDeclAngle; // launch angle from source
+            baseArr[iArr].SrcAzimAngle  = (float)rinit.SrcAzimAngle; // launch angle from source
             baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle ray reaches receiver
             baseArr[iArr].RcvrAzimAngle = (float)RcvrAzimAngle; // angle ray reaches receiver
             baseArr[iArr].NTopBnc       = NumTopBnc; // Number of top    bounces
@@ -101,8 +102,8 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
             
             baseArr[Nt-1].delay         = w1 * baseArr[Nt-1].delay         + w2 * Cpx2Cpxf(delay); // weighted sum
             baseArr[Nt-1].a             = AmpTot;
-            baseArr[Nt-1].SrcDeclAngle  = w1 * baseArr[Nt-1].SrcDeclAngle  + w2 * (float)SrcDeclAngle;
-            baseArr[Nt-1].SrcAzimAngle  = w1 * baseArr[Nt-1].SrcAzimAngle  + w2 * (float)SrcAzimAngle;
+            baseArr[Nt-1].SrcDeclAngle  = w1 * baseArr[Nt-1].SrcDeclAngle  + w2 * (float)rinit.SrcDeclAngle;
+            baseArr[Nt-1].SrcAzimAngle  = w1 * baseArr[Nt-1].SrcAzimAngle  + w2 * (float)rinit.SrcAzimAngle;
             baseArr[Nt-1].RcvrDeclAngle = w1 * baseArr[Nt-1].RcvrDeclAngle + w2 * (float)RcvrDeclAngle;
             baseArr[Nt-1].RcvrAzimAngle = w1 * baseArr[Nt-1].RcvrAzimAngle + w2 * (float)RcvrAzimAngle;
         }
@@ -117,8 +118,8 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
         baseArr[Nt].a             = (float)Amp; // amplitude
         baseArr[Nt].Phase         = (float)Phase; // phase
         baseArr[Nt].delay         = Cpx2Cpxf(delay); // delay time
-        baseArr[Nt].SrcDeclAngle  = (float)SrcDeclAngle; // launch angle from source
-        baseArr[Nt].SrcAzimAngle  = (float)SrcAzimAngle; // launch angle from source
+        baseArr[Nt].SrcDeclAngle  = (float)rinit.SrcDeclAngle; // launch angle from source
+        baseArr[Nt].SrcAzimAngle  = (float)rinit.SrcAzimAngle; // launch angle from source
         baseArr[Nt].RcvrDeclAngle = (float)RcvrDeclAngle; // angle ray reaches receiver
         baseArr[Nt].RcvrAzimAngle = (float)RcvrAzimAngle; // angle ray reaches receiver
         baseArr[Nt].NTopBnc       = NumTopBnc; // Number of top    bounces

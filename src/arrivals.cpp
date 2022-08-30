@@ -84,7 +84,7 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
                 for(int32_t itheta=0; itheta<Pos->Ntheta; ++itheta){
                     for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
                         for(int32_t ir=0; ir<Pos->NRr; ++ir){
-                            size_t base = GetFieldAddr(isx, isy, isz, itheta, id, ir, Pos);
+                            size_t base = GetFieldAddr(isx, isy, isz, itheta, iz, ir, Pos);
                             if(arrinfo->NArr[base] > maxn) maxn = arrinfo->NArr[base];
                         }
                     }
@@ -98,7 +98,7 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
                 for(int32_t itheta=0; itheta<Pos->Ntheta; ++itheta){
                     for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
                         for(int32_t ir=0; ir<Pos->NRr; ++ir){
-                            size_t base = GetFieldAddr(isx, isy, isz, itheta, id, ir, Pos);
+                            size_t base = GetFieldAddr(isx, isy, isz, itheta, iz, ir, Pos);
                             real factor;
                             if(ThreeD){
                                 factor = FL(1.0);

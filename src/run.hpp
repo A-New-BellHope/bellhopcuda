@@ -19,11 +19,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "common.hpp"
 #include "raymode.hpp"
-/*
 #include "tlmode.hpp"
 #include "eigenrays.hpp"
 #include "arrivals.hpp"
-*/
 
 namespace bhc {
 
@@ -31,7 +29,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     // Common
-    int32_t ns = params.Pos.NSx * params.Pos.NSy * params.Pos.NSz;
+    int32_t ns = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;
     BASSERT(ns >= 1);
     
     // irregular or rectilinear grid
@@ -43,7 +41,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     }else if(IsTLRun(params.Beam)){
         InitTLMode(outputs.uAllSources, params.Pos);
     }else if(params.Beam->RunType[0] == 'E'){
-        InitEigenMode<R3D>(outputs.eigen);
+        InitEigenMode(outputs.eigen);
     }else if(IsArrivalsRun(params.Beam)){
         InitArrivalsMode(outputs.arrinfo, singlethread, R3D, params.Pos,
             *(PrintFileEmu*)params.internal);

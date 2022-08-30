@@ -147,9 +147,9 @@ HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
         (q1 > FL(0.0) && q2 <= FL(0.0)) ) kmah = -kmah;
 }
 
-HOST_DEVICE inline void AddToField(
+template<bool R3D> HOST_DEVICE inline void AddToField(
     cpxf *uAllSources, const cpxf &dfield, int32_t itheta, int32_t ir, int32_t iz,
-    const InfluenceRayInfo &inflray, const Position *Pos)
+    const InfluenceRayInfo<R3D> &inflray, const Position *Pos)
 {
     size_t base = GetFieldAddr(inflray.init.isx, inflray.init.isy, inflray.init.isz,
         itheta, iz, ir, Pos);
@@ -160,7 +160,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribution(
     cpxf *uAllSources, real cnst, real w, real omega, cpx delay, real phaseInt,
     real RcvrDeclAngle, real RcvrAzimAngle,
     int32_t itheta, int32_t ir, int32_t iz, int32_t is,
-    const InfluenceRayInfo &inflray, const rayPt<R3D> &point1,
+    const InfluenceRayInfo<R3D> &inflray, const rayPt<R3D> &point1,
     const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -191,7 +191,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribution(
             }
             dfield = cpxf((float)v, 0.0f);
         }
-        AddToField(uAllSources, dfield, itheta, ir, iz, inflray, Pos);
+        AddToField<R3D>(uAllSources, dfield, itheta, ir, iz, inflray, Pos);
     }
 }
 
@@ -339,7 +339,8 @@ template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
  * code, with the equalities in opposite positions. qleq0 false is only used in
  * SGB.
  */
-HOST_DEVICE inline bool IsAtCaustic(const InfluenceRayInfo &inflray, real q, bool qleq0){
+template<bool R3D> HOST_DEVICE inline bool IsAtCaustic(
+    const InfluenceRayInfo<R3D> &inflray, real q, bool qleq0){
     if(qleq0){
         return (q <= RL(0.0) && inflray.qOld >  RL(0.0)) || (q >= RL(0.0) && inflray.qOld <  RL(0.0));
     }else{
@@ -350,7 +351,8 @@ HOST_DEVICE inline bool IsAtCaustic(const InfluenceRayInfo &inflray, real q, boo
 /**
  * phase shifts at caustics
  */
-HOST_DEVICE inline void IncPhaseIfCaustic(InfluenceRayInfo &inflray, real q, bool qleq0)
+template<bool R3D> HOST_DEVICE inline void IncPhaseIfCaustic(
+    InfluenceRayInfo<R3D> &inflray, real q, bool qleq0)
 {
     if(IsAtCaustic(inflray, q, qleq0)) inflray.phase += REAL_PI / FL(2.0);
 }
@@ -359,8 +361,8 @@ HOST_DEVICE inline void IncPhaseIfCaustic(InfluenceRayInfo &inflray, real q, boo
  * phase shifts at caustics
  * LP: point.phase is discarded if the condition is met, is this correct?
  */
-HOST_DEVICE inline real FinalPhase(const rayPt<false> &point, 
-    const InfluenceRayInfo &inflray, real q)
+template<bool R3D> HOST_DEVICE inline real FinalPhase(const rayPt<R3D> &point, 
+    const InfluenceRayInfo<R3D> &inflray, real q)
 {
     real phaseInt = point.Phase + inflray.phase;
     if(IsAtCaustic(inflray, q, true)) phaseInt = inflray.phase + REAL_PI / FL(2.0);
@@ -405,12 +407,13 @@ HOST_DEVICE inline bool IsDuplicatePoint(const rayPt<false> &point0, const rayPt
 }
 
 HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
-    const rayPt<false> &point, const InfluenceRayInfo &inflray, const BeamStructure *Beam)
+    const rayPt<false> &point, const InfluenceRayInfo<false> &inflray,
+    const BeamStructure *Beam)
 {
     if(Beam->Type[1] == 'C'){
         eps = J * STD::abs(point.q.x / point.q.y);
     }else{
-        eps = inflray.epsilon;
+        eps = inflray.epsilon1;
     }
     pB = point.p.x + eps * point.p.y;
     qB = point.q.x + eps * point.q.y;
@@ -900,7 +903,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
                 delay = point0.tau + w * dtau;
                 cnst  = scaledAmp / STD::sqrt(STD::abs(q));
                 w     = (l - n) / l; // hat function: 1 on center, 0 on edge
-                phaseInt = FinalPhase(point0, inflray, q);
+                phaseInt = FinalPhase<R3D>(point0, inflray, q);
                 
                 ApplyContribution<O3D, R3D>(uAllSources,
                     cnst, w, inflray.omega, delay, phaseInt,
@@ -960,19 +963,23 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
     
     // LP: Ray normals
     VEC23<R3D> rayn1, rayn2; // LP: e1, e2 in 3D; rayn, (none) in 2D
-    real RcvrDeclAngle;
+    real RcvrDeclAngle, RcvrAzimAngle, angleXY;
     vec2 n_ray_theta = vec2(-rayt.y, rayt.x); // 3D: normal to the ray in the horizontal receiver plane
+    angleXY = RadDeg * STD::atan2(rayt.y, rayt.x);
     if constexpr(R3D){
         RayNormal_unit(rayt, point1.phi, rayn1, rayn2);
+        RcvrDeclAngle = RadDeg * STD::atan2(rayt.z, glm::length(n_ray_theta));
+        RcvrAzimAngle = angleXY;
     }else{
         rayn1 = n_ray_theta; // unit normal to ray
         IGNORE_UNUSED(rayn2);
-        RcvrDeclAngle = RadDeg * STD::atan2(rayt.y, rayt.x);
+        RcvrDeclAngle = angleXY;
+        RcvrAzimAngle = DEBUG_LARGEVAL;
     }
     
     // LP: Quantities to be interpolated between steps
-    V2M2 dq   = point1.q   - point0.q; // LP: dqds in 2D
-    cpx  dtau = point1.tau - point0.tau; // LP: dtauds in 2D
+    V2M2<R3D> dq   = point1.q   - point0.q;   // LP: dqds in 2D
+    cpx       dtau = point1.tau - point0.tau; // LP: dtauds in 2D
     
     // phase shifts at caustics
     real phaseq = QScalar(point0.q);
@@ -1080,7 +1087,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     }else{
                         IGNORE_UNUSED(n2);
                     }
-                    V2M2 qInterp = point0.q + s * dq; // interpolated amplitude
+                    V2M2<R3D> qInterp = point0.q + s * dq; // interpolated amplitude
                     if constexpr(R3D){
                         qInterp[0][0] *= inflray.rcp_q0;
                         qInterp[1][0] *= inflray.rcp_q0;
@@ -1133,7 +1140,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                             w = (sigma - n1prime) / sigma; // hat function: 1 on center, 0 on edge
                         }
                     }
-                    real phaseInt = FinalPhase((!R3D && isGaussian ? point1 : point0), inflray, qFinal);
+                    real phaseInt = FinalPhase<R3D>((!R3D && isGaussian ? point1 : point0),
+                        inflray, qFinal);
                     
                     ApplyContribution<O3D, R3D>(uAllSources,
                         cnst, w, inflray.omega, delay, phaseInt,
@@ -1243,7 +1251,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
-    InfluenceRayInfo<O3D, R3D> &inflray, int32_t is, cpxf *uAllSources, const BdryType *Bdry,
+    InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *uAllSources, const BdryType *Bdry,
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
@@ -1296,7 +1304,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
         if constexpr(O3D){
             switch(Beam->Type[0]){
             case 'b':
-                return Step_InfluenceGeoGaussianRayCen(TODO);
+                printf("GaussianRayCen not implemented yet\n");
+                bail();
+                return false; /*Step_InfluenceGeoGaussianRayCen(blah);*/
             case 'B':
             case 'G':
             case '^':

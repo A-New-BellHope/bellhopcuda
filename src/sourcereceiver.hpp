@@ -187,6 +187,7 @@ inline void ReadRcvrBearings(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
     ReadVector(Pos->Ntheta, Pos->theta, "receiver bearings, theta", "degrees", ENVFile, PRTFile);
+    checkallocate<vec2>(Pos->t_rcvr, Pos->Ntheta);
     
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);
     
