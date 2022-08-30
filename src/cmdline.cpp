@@ -36,7 +36,6 @@ template<bool O3D, bool R3D> int mainmain()
     if(!bhc::run<O3D, R3D>(params, outputs, singlethread)) return 1;
     sw.tock();
     
-    char r = ;
     if(params.Beam->RunType[0] == 'R'){
         // Ray mode
         bhc::FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
@@ -51,7 +50,7 @@ template<bool O3D, bool R3D> int mainmain()
         bhc::FinalizeArrivalsMode(outputs.arrinfo, params.Pos, params.freqinfo,
             params.Beam, FileRoot, R3D);
     }else{
-        std::cout << "Invalid RunType " << r << "\n";
+        std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         std::abort();
     }
     

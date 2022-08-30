@@ -33,8 +33,8 @@ static std::string exceptionStr;
 template<bool O3D, bool R3D> void EigenModePostWorker(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    rayPt<false> *localmem = nullptr;
-    if(IsRayCopyMode(outputs.rayinfo)) localmem = new rayPt<false>[MaxN];
+    rayPt<R3D> *localmem = nullptr;
+    if(IsRayCopyMode(outputs.rayinfo)) localmem = new rayPt<R3D>[MaxN];
     
     try{
     
@@ -46,7 +46,7 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
                 outputs.eigen->neigen, outputs.eigen->memsize);
             break;
         }
-        EigenHit<R3D> *hit = &outputs.eigen->hits[job];
+        EigenHit *hit = &outputs.eigen->hits[job];
         int32_t Nsteps = hit->is;
         RayInitInfo rinit;
         rinit.isx = hit->isx;
@@ -58,8 +58,9 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
             printf("EigenModePostWorker RunRay failed\n");
         }
         if(Nsteps != hit->is + 2 && Nsteps != hit->is + 3){
-            printf("Eigenray isrc %d ialpha %d hit rcvr on step %d but on retrace had %d steps\n",
-                hit->isrc, hit->ialpha, hit->is, Nsteps);
+            printf("Eigenray isxyz (%d,%d,%d) ialpha/beta (%d,%d) "
+                "hit rcvr on step %d but on retrace had %d steps\n",
+                hit->isx, hit->isy, hit->isz, hit->ialpha, hit->ibeta, hit->is, Nsteps);
         }
     }
     
@@ -99,13 +100,13 @@ template<bool O3D, bool R3D> void FinalizeEigenMode(
 }
 
 template void FinalizeEigenMode<false, false>(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
     std::string FileRoot, bool singlethread);
 template void FinalizeEigenMode<true, false>(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
     std::string FileRoot, bool singlethread);
 template void FinalizeEigenMode<true, true>(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
     std::string FileRoot, bool singlethread);
 
 }

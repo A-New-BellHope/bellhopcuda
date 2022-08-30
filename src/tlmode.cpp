@@ -109,16 +109,18 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     for(int32_t isz=0; isz<params.Pos->NSz; ++isz){
         for(int32_t isx=0; isx<params.Pos->NSx; ++isx){
             for(int32_t isy=0; isy<params.Pos->NSy; ++isy){
-                SSPSegState iSeg; iSeg.r = 0; iSeg.z = 0;
+                SSPSegState iSeg; iSeg.r = iSeg.x = iSeg.y = iSeg.z = 0;
                 VEC23<O3D> xs, tinit;
-                SSPOutputs<O3D> o = RayStartNominalSSP(isx, isy, isz, FL(0.0),
-                    iSeg, Pos, xs, tinit);
+                SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(isx, isy, isz, FL(0.0),
+                    iSeg, params.Pos, params.ssp, xs, tinit);
                 cpx epsilon1, epsilon2;
                 if constexpr(R3D){
-                    epsilon1 = PickEpsilon<R3D>(Beam->Type[0], Beam->Type[1], FL(2.0) * REAL_PI * freqinfo->freq0,
-                        o.ccpx.real(), o.gradc, FL(0.0), Angles->alpha.d, Beam->rLoop, Beam->epsMultiplier);
-                    epsilon2 = PickEpsilon<R3D>(Beam->Type[0], Beam->Type[1], FL(2.0) * REAL_PI * freqinfo->freq0,
-                        o.ccpx.real(), o.gradc, FL(0.0), Angles->beta.d, Beam->rLoop, Beam->epsMultiplier);
+                    epsilon1 = PickEpsilon<R3D>(params.Beam->Type[0], params.Beam->Type[1],
+                        FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(), o.gradc, FL(0.0),
+                        params.Angles->alpha.d, params.Beam->rLoop, params.Beam->epsMultiplier);
+                    epsilon2 = PickEpsilon<R3D>(params.Beam->Type[0], params.Beam->Type[1],
+                        FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(), o.gradc, FL(0.0),
+                        params.Angles->beta.d, params.Beam->rLoop, params.Beam->epsMultiplier);
                 }else{
                     epsilon1 = epsilon2 = RL(0.0);
                 }

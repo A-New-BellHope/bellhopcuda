@@ -227,7 +227,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     newPoint.c   = o.ccpx.real();
     newPoint.tau = oldPoint.tau;
     
-    if constexpr(O3D && R3D){
+    if constexpr(R3D){
         
         vec3 rayt, rayn1, rayn2, rayt_tilde, rayn1_tilde, rayn2_tilde;
         CalcTangent_Normals(oldPoint, o.ccpx.real(), nBdry, rayt,       rayn1,       rayn2,       RL(-1.0)); // incident
@@ -268,7 +268,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         newPoint.p    = oldPoint.p;
         newPoint.q    = oldPoint.q;
         newPoint.phi  = oldPoint.phi;
-        newPoint.DetQ = DEBUG_LARGEVAL; // LP: never set
         CurvatureCorrection3D<true>(newPoint, DMat, Tg, Th,
             cn1jump, cn2jump, csjump, rayn1, rayn2, rayt);
         

@@ -53,6 +53,7 @@ template<bool O3D> inline SSPOutputs<O3D> RayStartNominalSSP(
     if constexpr(O3D){
         xs = vec3(Pos->Sx[isx], Pos->Sy[isy], Pos->Sz[isz]);
         tinit = vec3(FL(0.0), FL(0.0), FL(1.0));
+        IGNORE_UNUSED(alpha);
     }else{
         xs = vec2(FL(0.0), Pos->Sz[isz]); // x-y [LP: r-z] coordinate of the source
         tinit = vec2(STD::cos(alpha), STD::sin(alpha));
@@ -90,11 +91,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     
     // LP: This part from BellhopCore
     
-    VEC23<O3D> tinit;
-    SSPOutputs<O3D> o = RayStartNominalSSP(rinit.isx, rinit.isy, rinit.isz, rinit.alpha,
-        iSeg, Pos, xs, tinit);
-    gradc = o.gradc;
-    
     rinit.alpha = Angles->alpha.angles[rinit.ialpha]; // initial angle
     rinit.SrcDeclAngle = RadDeg * rinit.alpha; // take-off declination angle in degrees
     if constexpr(O3D){
@@ -107,6 +103,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         org.xs = xs;
         org.tradial = vec2(STD::cos(rinit.beta), STD::sin(rinit.beta));
     }
+    
+    VEC23<O3D> tinit;
+    SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(
+        rinit.isx, rinit.isy, rinit.isz, rinit.alpha,
+        iSeg, Pos, ssp, xs, tinit);
+    gradc = o.gradc;
     
     float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
     iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
@@ -162,7 +164,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     if constexpr(R3D){
         point0.p     = mat2x2(FL(1.0)); // LP: identity
         point0.q     = mat2x2(FL(0.0)); // LP: zero matrix
-        point0.DetQ  = DEBUG_LARGEVAL; //epsilon1 * epsilon2 // LP: commented out
+        // point0.DetQ  = epsilon1 * epsilon2 // LP: commented out
         point0.phi   = FL(0.0);
     }else{
         point0.p     = vec2(FL(1.0), FL(0.0));

@@ -63,7 +63,6 @@ template<bool R3D> HOST_DEVICE inline void ScalePressure(
     real Dalpha, real Dbeta, real c, cpx epsilon1, cpx epsilon2, float *r, 
     cpxf *u, int32_t Ntheta, int32_t NRz, int32_t Nr, const char (&RunType)[7], real freq)
 {
-    const float local_pi = 3.14159265f;
     real cnst;
     cpx cnst3d;
     
@@ -89,8 +88,11 @@ template<bool R3D> HOST_DEVICE inline void ScalePressure(
             cnst3d = cpx(FL(1.0), FL(0.0)); // LP: set but not used
         }
     }else{
+        IGNORE_UNUSED(Dbeta);
+        IGNORE_UNUSED(epsilon1);
+        IGNORE_UNUSED(epsilon2);
         if(RunType[1] == 'C' || RunType[1] == 'R'){
-            cnst = -Dalpha * STD::sqrt(freq) / c, RL(0.0);
+            cnst = -Dalpha * STD::sqrt(freq) / c;
         }else{
             cnst = FL(-1.0);
         }
@@ -113,6 +115,7 @@ template<bool R3D> HOST_DEVICE inline void ScalePressure(
         for(int32_t ir=0; ir<Nr; ++ir){
             real factor;
             if(RunType[3] == 'X'){ // line source
+                const float local_pi = 3.14159265f;
                 factor = FL(-4.0) * STD::sqrt(local_pi) * cnst;
             }else{ // point source
                 if(r[ir] == 0.0f){
@@ -215,6 +218,7 @@ template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
     real halfwidth = R3D ? RL(0.0) : DEBUG_LARGEVAL;
     cpx epsilonOpt = cpx(DEBUG_LARGEVAL, DEBUG_LARGEVAL);
     bool defaultHalfwidth = true, defaultEps = true, zeroEps = false;
+    real cz;
     //const char *tag;
     switch(BeamType0){
     case 'C':
@@ -237,7 +241,7 @@ template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
                 break;
             }
             halfwidth = REAL_MAX;
-            real cz = gradc.y;
+            cz = gradc.y;
             epsilonOpt = (cz == FL(0.0)) ? RL(1e10) :
                 ((-STD::sin(angle) / STD::cos(SQ(angle))) * c * c / cz);
             defaultHalfwidth = defaultEps = false;
@@ -477,6 +481,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     const Position *Pos, const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure *Beam)
 {
+    if constexpr(R3D) IGNORE_UNUSED(ssp);
+    
     inflray.init = rinit;
     inflray.freq0 = freqinfo->freq0;
     inflray.omega = FL(2.0) * REAL_PI * inflray.freq0;
@@ -546,7 +552,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
         // I [mbp] fixed this in InfluenceGeoHatRayCen
         inflray.zn = RL(1.0);
         inflray.rn = RL(0.0);
-        inflray.x = vec2(RL(0.0), RL(0.0));
+        inflray.x = VEC23<R3D>(RL(0.0));
         inflray.lastValid = false;
     }else{
         // LP: For Cartesian types
@@ -1020,6 +1026,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
             zmin = -REAL_MAX;
             zmax =  REAL_MAX;
         }
+        IGNORE_UNUSED(L_diag);
     }
     
     // compute beam influence for this segment of the ray
@@ -1039,7 +1046,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     if(itheta >= Pos->Ntheta) break;
                     
                     vec2 t_rcvr = Pos->t_rcvr[itheta];
-                    SETXY(x_rcvr, XYCOMP(inflray.xs) + Pos->Rr[inflray.ir] * t_rcvr);
+                    SETXY(x_rcvr, XYCOMP(inflray.xs) + (real)Pos->Rr[inflray.ir] * t_rcvr);
                     // normal distance from rcvr to ray segment
                     real m_prime = STD::abs(glm::dot(XYCOMP(x_rcvr) - XYCOMP(x_ray), n_ray_theta));
                     // LP: Commented out in Gaussian
@@ -1255,6 +1262,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
+    if constexpr(R3D){
+        IGNORE_UNUSED(Bdry);
+        IGNORE_UNUSED(ssp);
+    }
+    
     switch(Beam->Type[0]){
     case 'R': 
         if constexpr(R3D){
@@ -1284,7 +1296,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
         }
     case 'g':
         /*
-        return Step_InfluenceGeoHatRayCen<R3D>(
+        return Step_InfluenceGeoHatRayCen<O3D, R3D>(
             point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
         */
         printf("3D RayCen not implemented yet\n");
@@ -1296,7 +1308,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             bail();
             return false;
         }else{
-            return Step_InfluenceSGB(
+            return Step_InfluenceSGB<O3D>(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
         }
     case 'B':
@@ -1317,7 +1329,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
                 return false;
             }
         }
-        return Step_InfluenceGeoHatOrGaussianCart<R3D>(Beam->Type[0] == 'B',
+        return Step_InfluenceGeoHatOrGaussianCart<O3D, R3D>(Beam->Type[0] == 'B',
             point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
     }
 }
