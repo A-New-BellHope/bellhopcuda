@@ -45,7 +45,7 @@ template<bool R3D> HOST_DEVICE inline void Distances(const VEC23<R3D> &rayx,
 /**
  * LP: Not a typo that this is templated on O3D only
  */
-template<bool O3D> inline SSPOutputs<O3D> RayStartNominalSSP(
+template<bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
     int32_t isx, int32_t isy, int32_t isz, real alpha,
     SSPSegState &iSeg, const Position *Pos, const SSPStructure *ssp,
     VEC23<O3D> &xs, VEC23<O3D> &tinit)

@@ -20,20 +20,28 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-__global__ void 
-__launch_bounds__(512, 1)
-FieldModesKernel(bhcParams params, bhcOutputs outputs)
+#define NUM_THREADS 256
+
+template<bool O3D, bool R3D> __global__ void __launch_bounds__(NUM_THREADS, 1)
+FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
         RayInitInfo rinit;
         if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
         
-        MainFieldModes(rinit, outputs.uAllSources,
+        MainFieldModes<O3D, R3D>(rinit, outputs.uAllSources,
             params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
             params.Angles, params.freqinfo, params.Beam, params.beaminfo, 
             outputs.eigen, outputs.arrinfo);
     }
 }
+
+template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<false, false>(
+    bhcParams<false, false> params, bhcOutputs<false, false> outputs);
+template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true, false>(
+    bhcParams<true, false> params, bhcOutputs<true, false> outputs);
+template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true, true>(
+    bhcParams<true, true> params, bhcOutputs<true, true> outputs);
 
 int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
 void setupGPU()
@@ -72,14 +80,15 @@ void setupGPU()
     checkCudaErrors(cudaSetDevice(m_gpu));
 }
 
-bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
+template<bool O3D, bool R3D> bool run_cuda(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     if(!api_okay) return false;
     
     try{
     
     InitSelectedMode<O3D, R3D>(params, outputs, false);
-    FieldModesKernel<<<d_multiprocs,512>>>(params, outputs);
+    FieldModesKernel<O3D, R3D><<<d_multiprocs,NUM_THREADS>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel");
     
     }catch(const std::exception &e){
@@ -91,16 +100,32 @@ bool run_cuda(const bhcParams &params, bhcOutputs &outputs)
     return api_okay;
 }
 
-BHC_API bool run(const bhcParams &params, bhcOutputs &outputs, bool singlethread)
+template bool run_cuda<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+template bool run_cuda<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+template bool run_cuda<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+
+template<bool O3D, bool R3D> bool run(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     if(singlethread){
         std::cout << "Single threaded mode is nonsense on CUDA, ignoring\n";
     }
     if(params.Beam->RunType[0] == 'R'){
-        return run_cxx(params, outputs, false);
+        return run_cxx<O3D, R3D>(params, outputs, false);
     }else{
-        return run_cuda(params, outputs);
+        return run_cuda<O3D, R3D>(params, outputs);
     }
 }
+
+BHC_API template bool run<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+BHC_API template bool run<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+BHC_API template bool run<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+
 
 }
