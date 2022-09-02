@@ -104,14 +104,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         org.tradial = vec2(STD::cos(rinit.beta), STD::sin(rinit.beta));
     }
     
+    iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
     VEC23<O3D> tinit;
     SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(
         rinit.isx, rinit.isy, rinit.isz, rinit.alpha,
         iSeg, Pos, ssp, xs, tinit);
     gradc = o.gradc;
-    
-    float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
-    iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
     
     if constexpr(!O3D){
         // Are there enough beams?
@@ -134,8 +132,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     float Amp0 = (FL(1.0) - s) * beaminfo->SrcBmPat[2*ibp+1] + s * beaminfo->SrcBmPat[2*(ibp+1)+1]; // initial amplitude
     
     // Lloyd mirror pattern for semi-coherent option
-    if(Beam->RunType[0] == 'S')
+    if(Beam->RunType[0] == 'S'){
+        float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
         Amp0 *= STD::sqrt(FL(2.0)) * STD::abs(STD::sin(omega / o.ccpx.real() * DEP(xs) * STD::sin(rinit.alpha)));
+    }
         
     // LP: This part from TraceRay
     
@@ -372,7 +372,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         backward = false; // LP: Commented out for 2D, absent for 3D as would not make sense.
     }
     if(leftbox || lostenergy || escapedboundaries || backward || toomanysmallsteps){
-        /*
+        #ifdef STEP_DEBUGGING
         if(leftbox){
             if constexpr(O3D){
                 printf("Ray left beam box (%g,%g,%g)\n", Beam->Box.x, Beam->Box.y, Beam->Box.z);
@@ -388,8 +388,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
             printf("Ray is going backwards\n");
         }else if(toomanysmallsteps){
             printf("Too many small steps\n");
+        }else{
+            printf("Internal error in RayTerminate\n");
+            bail();
         }
-        */
+        #endif
         Nsteps = is + 1;
         return true;
     }else if(is >= MaxN - 3){

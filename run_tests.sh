@@ -47,9 +47,11 @@ fi
 
 desiredresult=0
 failedmsg="failed"
+finalmsg="passed"
 if [[ $3 == "shouldfail" ]]; then
     desiredresult=1
     failedmsg="failed to fail"
+    finalmsg="failed"
 fi
 
 check_fail () {
@@ -127,7 +129,9 @@ run_test () {
     else
         echo "bellhopcuda not found ... ignoring"
     fi
-    if [[ $runtype == "ray" ]]; then
+    if [[ $desiredresult == "1" ]]; then
+        echo "Skipping results comparison because in shouldfail mode"
+    elif [[ $runtype == "ray" ]]; then
         python3 compare_ray.py $1
         m_check_fail $? $1
     elif [[ $runtype == "tl" ]]; then
@@ -151,6 +155,7 @@ while read -u 10 line || [[ -n $line ]]; do
     run_test $line
 done 10<$2.txt
 
-echo "============================"
-echo "Tests completed successfully"
-echo "============================"
+echo ""
+echo "============================="
+echo "All tests $finalmsg successfully"
+echo "============================="

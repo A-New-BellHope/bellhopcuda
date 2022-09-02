@@ -88,7 +88,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
             org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
         if(!Step_Influence<O3D, R3D>(point0, point1, inflray, is, uAllSources, 
             ConstBdry, org, ssp, iSeg, Pos, Beam, eigen, arrinfo)){
-            //printf("Step_Influence terminated ray\n");
+            #ifdef STEP_DEBUGGING
+            printf("Step_Influence terminated ray\n");
+            #endif
             break;
         }
         ++is;

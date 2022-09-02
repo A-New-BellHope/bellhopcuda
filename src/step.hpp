@@ -586,12 +586,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     }
     #endif
     
-    /*
-    if(ray0.x.x > 16800.0){
-        printf("Enough\n");
-        bail();
-    }
-    */
+    // if(ray0.x.y > 1500.0){
+    //     printf("Enough\n");
+    //     bail();
+    // }
     
     // The numerical integrator used here is a version of the polygon (a.k.a. midpoint, leapfrog, or Box method), and similar
     // to the Heun (second order Runge-Kutta method).

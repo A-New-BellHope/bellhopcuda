@@ -145,8 +145,9 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
                                 (size_t)params.Pos->NRz_per_range + (size_t)Irz1;
                         SHDFile.rec(IRec);
                         for(int32_t r=0; r < params.Pos->NRr; ++r){
-                            DOFWRITEV(SHDFile, outputs.uAllSources[GetFieldAddr(
-                                isx, isy, isz, itheta, Irz1, r, params.Pos)]);
+                            cpxf v = outputs.uAllSources[GetFieldAddr(
+                                isx, isy, isz, itheta, Irz1, r, params.Pos)];
+                            DOFWRITEV(SHDFile, v);
                         }
                     }
                 }

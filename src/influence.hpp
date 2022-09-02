@@ -1221,6 +1221,8 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
         
         IncPhaseIfCaustic(inflray, q, false);
         
+        // printf("is ir %d %d\n", is, inflray.ir);
+        
         for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
             real deltaz = Pos->Rz[iz] - x.y; // ray to rcvr distance
             // LP: Reinstated this condition for eigenrays and arrivals, as
