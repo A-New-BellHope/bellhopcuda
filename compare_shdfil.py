@@ -104,11 +104,15 @@ def compare_files(cxxf, forf):
         if isnan(cfr) != isnan(ffr) or isnan(cfi) != isnan(ffi):
             print('\n\n=============== NAN DETECTED ===============\n{}{}'.format(p_addr, p_flt))
             sys.exit(1)
-        else:
-            ulpr, ulpi = abs(cir - fir), abs(cii - fii)
-            absr, absi = abs(cfr - ffr), abs(cfi - ffi)
-            relr = absr / abs(ffr) if ffr != 0 else absr
-            reli = absi / abs(ffi) if ffi != 0 else absi
+        ulpr, ulpi = abs(cir - fir), abs(cii - fii)
+        absr, absi = abs(cfr - ffr), abs(cfi - ffi)
+        relr = absr / abs(ffr) if ffr != 0 else absr
+        reli = absi / abs(ffi) if ffi != 0 else absi
+        #
+        p_int = '{:08X} {:08X} / {:08X} {:08X} | '.format(cir, cii, fir, fii)
+        p_ulp = 'ULP ({:4},{:4}) | '.format(ulpr, ulpi)
+        p_abs = 'ABS ({},{}) | '.format(fmt_flt, fmt_flt).format(absr, absi)
+        p_rel = 'REL ({:9.6}%,{:9.6}%) | '.format(relr*100.0, reli*100.0)
         # If the absolute error is miniscule, it doesn't matter what the relative
         # or ULP error are
         if absr < 5e-9:
@@ -117,12 +121,6 @@ def compare_files(cxxf, forf):
         if absi < 5e-9:
             ulpi = 0
             reli = 0.0
-        #
-        p_int = '{:08X} {:08X} / {:08X} {:08X} | '.format(cir, cii, fir, fii)
-        p_ulp = 'ULP ({:4},{:4}) | '.format(ulpr, ulpi)
-        p_abs = 'ABS ({},{}) | '.format(fmt_flt, fmt_flt).format(absr, absi)
-        p_rel = 'REL ({:9.6}%,{:9.6}%) | '.format(relr*100.0, reli*100.0)
-        #
         if ulpr > thresh_ulp_alarm or ulpi > thresh_ulp_alarm or \
             absr > thresh_abs_alarm or absi > thresh_abs_alarm or \
             relr > thresh_rel_alarm or reli > thresh_rel_alarm:

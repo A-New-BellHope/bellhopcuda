@@ -499,6 +499,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     inflray.iBeamWindow2 = SQ(Beam->iBeamWindow);
     
     // LP: Did not have the abs for SGB, but it has been added.
+    
     inflray.Ratio1 = STD::sqrt(STD::abs(STD::cos(rinit.alpha))); // point source
     if constexpr(R3D){
         inflray.Ratio1 *= STD::sqrt(inflray.Dalpha * inflray.Dbeta) / point0.c;
@@ -509,7 +510,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     }
     if(Beam->Type[0] == 'B' || Beam->Type[0] == 'b'){
         // Gaussian beams
-        inflray.Ratio1 /= FL(2.0) * REAL_PI; // sqrt(2*pi) represents a sum of Gaussians in free space
+        real gaussconst = FL(2.0) * REAL_PI;
+        // sqrt(2*pi) represents a sum of Gaussians in free space
+        if constexpr(!R3D) gaussconst = STD::sqrt(gaussconst);
+        inflray.Ratio1 /= gaussconst;
     }
     
     if(Beam->Type[0] == 'R' || Beam->Type[0] == 'C'){
@@ -565,7 +569,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     if(Beam->Type[0] == 'S'){
         // LP: For SGB
         inflray.ir = 0;
-    }else if(Beam->Type[0] == 'B' || Beam->Type[0] == 'G'){
+    }else if(Beam->Type[0] == 'B' || Beam->Type[0] == 'G' || Beam->Type[0] == '^'){
         // LP: For Cartesian types
         // what if never satisfied?
         // what if there is a single receiver (ir = -1 possible)
@@ -1127,7 +1131,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                         beamCoordDist = n1prime = n1; IGNORE_UNUSED(n2prime);
                     }
                     if(beamCoordDist > inflray.BeamWindow * sigma || 
-                        (R3D && beamCoordDist == inflray.BeamWindow * sigma)) continue;
+                        (!R3D && beamCoordDist == inflray.BeamWindow * sigma)) continue;
                     
                     cpx delay = point0.tau + s * dtau; // interpolated delay
                     real cnst = inflray.Ratio1 * point1.Amp * STD::sqrt(RL(1.0) / STD::abs(qFinal));
