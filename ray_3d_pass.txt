@@ -4,7 +4,7 @@ HyperBot_ray
 KoreanSea_3D_ray
 KR3d_ray
 munk3d_ray_nodiag
-Munk3Dz_ray
+MunkRot3Dz_ray
 PerfectWedge3d_ray
 Seamount_ray
 Taiwan3D_ray

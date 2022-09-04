@@ -62,21 +62,31 @@ def compare_files(cxxf, forf):
             print('{:08X}: CXX {:08X}  FOR {:08X}'.format(w*4,
                 struct.unpack('I', cxxd)[0], struct.unpack('I', ford)[0]))
     
+    Nfreq = read_rec_int(fordata, 2, 0)
+    Ntheta = read_rec_int(fordata, 2, 1)
+    NSx = read_rec_int(fordata, 2, 2)
+    NSy = read_rec_int(fordata, 2, 3)
     NSz = read_rec_int(fordata, 2, 4)
     NRz = read_rec_int(fordata, 2, 5)
     NRr = read_rec_int(fordata, 2, 6)
     irre = read_rec_int(fordata, 1, 0)
+    assert Nfreq == read_rec_int(cxxdata, 2, 0)
+    assert Ntheta == read_rec_int(cxxdata, 2, 1)
+    assert NSx == read_rec_int(cxxdata, 2, 2)
+    assert NSy == read_rec_int(cxxdata, 2, 3)
     assert NSz == read_rec_int(cxxdata, 2, 4)
     assert NRz == read_rec_int(cxxdata, 2, 5)
     assert NRr == read_rec_int(cxxdata, 2, 6)
     assert irre == read_rec_int(cxxdata, 1, 0)
     assert NRr * 2 <= reclen
     irre = (irre == 0x65727269) #'irre' (gular)
-    rcvrgridsz = reclen * (1 if irre else NRz)
-    filesz = NSz * rcvrgridsz * 4 + 4 * 10 * reclen
+    rcvrgridsz = Ntheta * (1 if irre else NRz) * reclen # reclen is normally NRr (*2 for complex)
+    filesz = NSx * NSy * NSz * rcvrgridsz * 4 + 4 * 10 * reclen
     if len(cxxdata) != filesz:
-        print('NSz {} NRz {} NRr {} reclen {} rcvrgridsz {} irregular {}\nPred filesz {} actual {}'.format(
-            NSz, NRz, NRr, reclen, rcvrgridsz, irre, filesz, len(cxxdata)))
+        print('NSx {} NSy {} NSz {} Ntheta {} NRz {} NRr {}'.format(
+            NSx, NSy, NSz, Ntheta, NRz, NRr))
+        print('reclen {} rcvrgridsz {} irregular {}\nPred filesz {} actual {}'.format(
+            reclen, rcvrgridsz, irre, filesz, len(cxxdata)))
         raise RuntimeError('Invalid file size')
     
     errors = 0
@@ -87,12 +97,27 @@ def compare_files(cxxf, forf):
         if cxxd == ford:
             continue
         #
-        daddr = (addr - 4*10*reclen) // 8
-        s = daddr // (NRz * (reclen // 2))
-        Rz = (daddr // (reclen // 2)) % NRz
-        Rr = daddr % (reclen // 2)
+        d = (addr - 4*10*reclen) // 8
+        Rr = d % (reclen // 2)
+        d //= reclen // 2
+        if irre:
+            Rz = 0
+        else:
+            Rz = d % NRz
+            d //= NRz
+        Sz = d % NSz
+        d //= NSz
+        theta = d % Ntheta
+        d //= Ntheta
+        Sy = d % NSy
+        d //= NSy
+        Sx = d % NSx
+        d //= NSx
+        if d != 0:
+            raise RuntimeError('Indexing failed')
         p_Rr = ('INVALID ' if Rr >= NRr else '') + '{:3}'.format(Rr)
-        p_addr = 'src {:3} iz {:3} ir {} {:08X}: '.format(s, Rz, p_Rr, addr)
+        p_addr = 'Src XYZ {:3},{:3},{:3} Rcvr ThZR {:3},{:3},{:3} {:08X}: '.format(
+            Sx, Sy, Sz, theta, Rz, p_Rr, addr)
         #
         cir, cii = struct.unpack('II', cxxd)
         fir, fii = struct.unpack('II', ford)
