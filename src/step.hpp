@@ -571,7 +571,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     if constexpr(R3D){
         printf("\nray0 x t (%20.17f,%20.17f,%20.17f) (%20.17e,%20.17e,%20.17e)\n",
             ray0.x.x, ray0.x.y, ray0.x.z, ray0.t.x, ray0.t.y, ray0.t.z);
-        printf("ray0 p /%10.7f %10.7f\\ q /%10.7f %10.7f\n"
+        printf("ray0 p /%10.7f %10.7f\\ q /%10.7f %10.7f\\\n"
                "       \\%10.7f %10.7f/   \\%10.7f %10.7f/\n",
             ray0.p[0][0], ray0.p[1][0], ray0.q[0][0], ray0.q[1][0],
             ray0.p[0][1], ray0.p[1][1], ray0.q[0][1], ray0.q[1][1]);

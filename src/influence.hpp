@@ -363,13 +363,16 @@ template<bool R3D> HOST_DEVICE inline void IncPhaseIfCaustic(
 
 /**
  * phase shifts at caustics
- * LP: point.phase is discarded if the condition is met, is this correct?
  */
 template<bool R3D> HOST_DEVICE inline real FinalPhase(const rayPt<R3D> &point, 
     const InfluenceRayInfo<R3D> &inflray, real q)
 {
     real phaseInt = point.Phase + inflray.phase;
-    if(IsAtCaustic(inflray, q, true)) phaseInt = inflray.phase + REAL_PI / FL(2.0);
+    if(IsAtCaustic(inflray, q, true)){
+        // LP: All 2D influence functions discard point.Phase when this
+        // condition is met. Probably a BUG as none of the 3D functions do this.
+        phaseInt = (R3D ? phaseInt : inflray.phase) + REAL_PI / FL(2.0);
+    }
     return phaseInt;
 }
 
