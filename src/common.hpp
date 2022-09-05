@@ -698,4 +698,10 @@ private:
     std::chrono::high_resolution_clock::time_point tstart;
 };
 
+HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
+{
+    printf("%s: /%10.7f %10.7f\\\n       \\%10.7f %10.7f/\n",
+        label, m[0][0], m[1][0], m[0][1], m[1][1]);
+}
+
 }

@@ -233,6 +233,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         CalcTangent_Normals(oldPoint, o.ccpx.real(), nBdry, rayt,       rayn1,       rayn2,       RL(-1.0)); // incident
         CalcTangent_Normals(newPoint, o.ccpx.real(), nBdry, rayt_tilde, rayn1_tilde, rayn2_tilde, RL(-1.0)); // reflected
         
+        // printf("point0 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
+        //     rayt.x, rayt.y, rayt.z, rayn1.x, rayn1.y, rayn1.z, rayn2.x, rayn2.y, rayn2.z);
+        // printf("point1 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
+        //     rayt_tilde.x, rayt_tilde.y, rayt_tilde.z, rayn1_tilde.x, rayn1_tilde.y,
+        //     rayn1_tilde.z, rayn2_tilde.x, rayn2_tilde.y, rayn2_tilde.z);
+        
         // rotation matrix to get surface curvature in and perpendicular to the reflection plane
         // we use only the first two elements of the vectors because we want the projection in the x-y plane
         vec2 t_rot = vec2(rayt.x, rayt.y);   t_rot *= RL(1.0) / glm::length(t_rot);
@@ -257,6 +263,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         real cn1jump =  glm::dot(o.gradc, -rayn1_tilde - rayn1);
         real cn2jump =  glm::dot(o.gradc, -rayn2_tilde - rayn2);
         real csjump  = -glm::dot(o.gradc,  rayt_tilde  - rayt);
+        // printf("cn1jump cn2jump, csjump %g, %g, %g\n", cn1jump, cn2jump, csjump);
         
         // // not sure if cn2 needs a sign flip also
         // if(isTop){
@@ -264,12 +271,15 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         //     cn2jump = -cn2jump; // flip sign for top reflection
         // }
         
+        vec3 e1, e2;
+        RayNormal(oldPoint.t, oldPoint.phi, oldPoint.c, e1, e2);
+        
         // LP: The routine below modifies newPoint in place, so have to copy first.
         newPoint.p    = oldPoint.p;
         newPoint.q    = oldPoint.q;
         newPoint.phi  = oldPoint.phi;
         CurvatureCorrection3D<true>(newPoint, DMat, Tg, Th,
-            cn1jump, cn2jump, csjump, rayn1, rayn2, rayt);
+            cn1jump, cn2jump, csjump, rayn1, rayn2, e1, e2);
         
     }else{
     

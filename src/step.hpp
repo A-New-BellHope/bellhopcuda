@@ -417,7 +417,7 @@ template<bool R3D> HOST_DEVICE inline void UpdateRayPQ(
 template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     rayPt<true> &ray, const mat2x2 &DMat, real Tg, real Th,
     real cn1jump, real cn2jump, real csjump, 
-    const vec3 &rayn1, const vec3 &rayn2, const vec3 &rayt)
+    const vec3 &rayn1, const vec3 &rayn2, const vec3 &e1, const vec3 &e2)
 {
     real rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
     
@@ -425,7 +425,7 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     // added the copysign in r2 to make ati and bty have a symmetric effect on the beam
     // not clear why that's needed
     
-    mat2x2 rmat; // originally R1, R2
+    mat2x2 rmat; // originally R1, R2, R3
     real csq = SQ(ray.c);
     rmat[0][0] = FL(2.0) / csq   * DMat[0][0] / Th + rm * (FL(2.0) * cn1jump - rm * csjump) / csq;
     rmat[0][1] = FL(2.0) / ray.c * DMat[1][0] * STD::copysign(RL(1.0), -Th)  + rm * cn2jump / csq;
@@ -444,17 +444,6 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     
     // *** curvature correction ***
     
-    vec3 e1, e2;
-    // Compute ray normals e1 and e2
-    if constexpr(REFLECTVERSION){
-        // LP: This should not matter, but rayt is computed as ray.t * ray.c,
-        // whereas the non-normalized version actually normalizes ray.c.
-        // This could lead to floating-point differences.
-        RayNormal(ray.t, ray.phi, ray.c, e1, e2);
-    }else{
-        RayNormal_unit(rayt, ray.phi, e1, e2);
-    }
-    
     /*
     LP: Arrays in Fortran are stored as A[row][col] where the leftmost index
     (row) is the small increment to adjacent memory. Arrays in C are stored
@@ -468,7 +457,7 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     mat2x2 RotMat;
     RotMat[0][0] = glm::dot(rayn1, e1);
     RotMat[1][0] = glm::dot(rayn1, e2);
-    RotMat[0][1] = -RotMat[1][0]; // glm::dot(rayn2, e1)
+    RotMat[0][1] = -RotMat[1][0]; // mbp: same as glm::dot(rayn2, e1)
     RotMat[1][1] = glm::dot(rayn2, e2);
     
     // rotate p-q values in e1, e2 system, onto rayn1, rayn2 system
@@ -527,12 +516,16 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
         vec3 rayt, rayn1, rayn2;
         CalcTangent_Normals(ray, ray.c, nBdry, rayt, rayn1, rayn2, RL(1.0));
         
+        vec3 e1, e2;
+        RayNormal_unit(rayt, ray.phi, e1, e2);
+        
         // normal and tangential derivatives of the sound speed
         real cn1jump = glm::dot(gradcjump, rayn1);
         real cn2jump = glm::dot(gradcjump, rayn2);
         real csjump  = glm::dot(gradcjump, rayt);
+        
         CurvatureCorrection3D<false>(ray, mat2x2(RL(0.0)), Tg, Th, 
-            cn1jump, cn2jump, csjump, rayn1, rayn2, rayt);
+            cn1jump, cn2jump, csjump, rayn1, rayn2, e1, e2);
     }else{
         // LP: Nx2D only:
         // mbp: this needs modifying like the full 3D version to handle jumps in the x-y direction
@@ -578,6 +571,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     if constexpr(R3D){
         printf("\nray0 x t (%20.17f,%20.17f,%20.17f) (%20.17e,%20.17e,%20.17e)\n",
             ray0.x.x, ray0.x.y, ray0.x.z, ray0.t.x, ray0.t.y, ray0.t.z);
+        printf("ray0 p /%10.7f %10.7f\\ q /%10.7f %10.7f\n"
+               "       \\%10.7f %10.7f/   \\%10.7f %10.7f/\n",
+            ray0.p[0][0], ray0.p[1][0], ray0.q[0][0], ray0.q[1][0],
+            ray0.p[0][1], ray0.p[1][1], ray0.q[0][1], ray0.q[1][1]);
         printf("iSegx iSegy iSegz %d %d %d\n", iSeg.x + 1, iSeg.y + 1, iSeg.z + 1);
     }else{
         printf("\nray0 x t (%20.17f,%20.17f) (%20.17e,%20.17e)\n",
@@ -585,11 +582,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
         printf("iSegr iSegz %d %d\n", iSeg.r + 1, iSeg.z + 1);
     }
     #endif
-    
-    // if(ray0.x.y > 1500.0){
-    //     printf("Enough\n");
-    //     bail();
-    // }
     
     // The numerical integrator used here is a version of the polygon (a.k.a. midpoint, leapfrog, or Box method), and similar
     // to the Heun (second order Runge-Kutta method).

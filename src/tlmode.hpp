@@ -35,7 +35,7 @@ inline void InitTLMode(cpxf *&uAllSources, Position *Pos)
     memset(uAllSources, 0, n * sizeof(cpxf));
     
     for(int32_t i=0; i<Pos->Ntheta; ++i){
-        real theta = Pos->theta[i];
+        real theta = DegRad * Pos->theta[i];
         Pos->t_rcvr[i] = vec2(STD::cos(theta), STD::sin(theta));
     }
 }

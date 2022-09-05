@@ -576,7 +576,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
         // LP: ir is always valid, even if it means not meeting the condition.
         real r;
         if constexpr(R3D){
-            // LP: Originally something like glm::distance(point0.x[0:1], inflray.xs[0:1])
+            // LP: Originally glm::distance(XYCOMP(point0.x), XYCOMP(inflray.xs))
             // but the ray always starts at the source
             r = RL(0.0);
         }else{
@@ -948,8 +948,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
     if constexpr(R3D){
         // LP: 3D updates rA even in the early return conditions below, so
         // it doesn't use inflray.x at all.
-        rA = glm::length(vec2(point0.x.x, point0.x.y) - vec2(inflray.xs.x, inflray.xs.y));
-        rB = glm::length(vec2(point1.x.x, point1.x.y) - vec2(inflray.xs.x, inflray.xs.y));
+        rA = glm::length(XYCOMP(point0.x) - XYCOMP(inflray.xs));
+        rB = glm::length(XYCOMP(point1.x) - XYCOMP(inflray.xs));
         if(STD::abs(rB - rA) <= RL(1e3) * spacing(rA)) return true;
         // LP: This is silly logic, see comments in influence3D.f90
         if(is == 0){
@@ -1054,7 +1054,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     // normal distance from rcvr to ray segment
                     real m_prime = STD::abs(glm::dot(XYCOMP(x_rcvr) - XYCOMP(x_ray), n_ray_theta));
                     // LP: Commented out in Gaussian
-                    if(!isGaussian && m_prime > inflray.BeamWindow * L_diag) continue;
+                    if(!isGaussian && m_prime > inflray.BeamWindow * L_diag){
+                        // printf("Skip theta b/c m_prime %g > L_diag %g\n", m_prime, L_diag);
+                        continue;
+                    }
                     
                     // The set of possible receivers is a ring
                     // However, extrapolating the beam backwards produces contributions with s negative and large
@@ -1063,17 +1066,25 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     // LP: This s value is not reused below
                     // vector to rcvr dotted into vector to ray point
                     real s = glm::dot(XYCOMP(x_rcvr) - XYCOMP(inflray.xs), XYCOMP(x_ray) - XYCOMP(inflray.xs));
-                    if(s < RL(0.0)) continue;
+                    if(s < RL(0.0)){
+                        // printf("Skip theta b/c s\n");
+                        continue;
+                    }
                     
                     // calculate z-limits for the beam (could be pre-cacluated for each itheta)
                     vec2 e_theta = vec2(-t_rcvr.y, t_rcvr.x); // normal to the vertical receiver plane
                     real n_ray_z = rayt.x * e_theta.y - rayt.y * e_theta.x; // normal to the ray in the vertical receiver plane
                     
-                    if(STD::abs(n_ray_z) < RL(1e-9)) continue; // avoid divide by zero
+                    if(STD::abs(n_ray_z) < RL(1e-9)){
+                        // printf("Skip theta b/c L_z divide by zero %g\n", n_ray_z);
+                        continue; // avoid divide by zero
+                    }
                     real L_z = inflray.BeamWindow * L_diag / STD::abs(n_ray_z);
                     
                     zmin = bhc::min(point0.x.z, point1.x.z) - L_z; // min depth of ray segment
                     zmax = bhc::max(point0.x.z, point1.x.z) + L_z; // max depth of ray segment
+                    
+                    // printf("step ir itheta m_prime L_diag %d %d %d %g %g\n", is, inflray.ir, itheta, m_prime, L_diag);
                 }else{
                     IGNORE_UNUSED(itheta);
                     x_rcvr.x = Pos->Rr[inflray.ir];
