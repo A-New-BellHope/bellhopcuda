@@ -4,15 +4,13 @@
 // Hat Cartesian specified as G
 HyperBot3DHatCart
 HyperBot3DPolar
+PerfectWedge3dHat
+PerfectWedge3dGaussian
 Weymouth3D
 Taiwan3D
 //
 // Warning, long
 KermitRooseveltwedge3d
-//
-// File lengths differ
-PerfectWedge3dHat
-PerfectWedge3dGaussian
 //
 //BELLHOP3D runs for 56 minutes and then fails
 //Tracing azimuthal beam  328    130.88
