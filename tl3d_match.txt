@@ -1,0 +1,41 @@
+//
+// Coherent
+//
+// Hat Cartesian
+DoubleSeamount3DHat
+KR3dCart
+munk3d
+KoreanSea_3D
+Munkfoo
+Munkslice3dHatCart
+MunkRotfoo
+MunkRotfoozz
+MunkRot3D
+pwedge3d_rot
+KermitRooseveltLSCart
+freeBhat
+freeBhatpolar
+lower_halfB
+upper_halfB
+TruncatedWedge3dHat_side
+//
+//Warning, 100 min
+TruncatedWedge3dCart
+//
+//Env file is wrong, it is cart despite being called raycen
+Munkslice3dHatRaycen
+//
+// Gaussian Cartesian
+freeBgaussian
+freeBgaussianpolar
+KR3dGaussian
+Munkslice3dGaussian
+TruncatedWedge3dGaussian_side
+//
+// Semi-coherent
+// Hat Cartesian
+Munkslice3dHatCartSemi
+// 
+// Incoherent
+// Hat Cartesian
+Munkslice3dHatCartInc

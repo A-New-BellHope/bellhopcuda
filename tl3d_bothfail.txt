@@ -1,0 +1,13 @@
+freeBxz
+KermitRooseveltslice3d
+ParaBot3DHatCart
+ParaBot3DHatCart_theta90
+TruncatedWedgeslice3d
+Non3DMunkRot
+HyperbotParaBot3DGaussian
+Munkiso3d
+ParaBot3DGaussian
+ParaBot3DHatCartPolar
+//
+// Cerveny Cartesian (not supported by BELLHOP3D)
+KoreanSea_demo
