@@ -95,14 +95,7 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     DirectOFile SHDFile;
     
     // following to set PlotType has already been done in READIN if that was used for input
-    switch(params.Beam->RunType[4]){
-    case 'R':
-        PlotType = "rectilin  "; break;
-    case 'I':
-        PlotType = "irregular "; break;
-    default:
-        PlotType = "rectilin  ";
-    }
+    PlotType = IsIrregularGrid(params.Beam) ? "irregular " : "rectilin  ";
     WriteHeader(SHDFile, FileRoot + ".shd", params.Title, atten, PlotType,
         params.Pos, params.freqinfo);
     
@@ -115,12 +108,12 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
                     iSeg, params.Pos, params.ssp, xs, tinit);
                 cpx epsilon1, epsilon2;
                 if constexpr(R3D){
-                    epsilon1 = PickEpsilon<R3D>(params.Beam->Type[0], params.Beam->Type[1],
+                    epsilon1 = PickEpsilon<R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(), o.gradc, FL(0.0),
-                        params.Angles->alpha.d, params.Beam->rLoop, params.Beam->epsMultiplier);
-                    epsilon2 = PickEpsilon<R3D>(params.Beam->Type[0], params.Beam->Type[1],
+                        params.Angles->alpha.d, params.Beam);
+                    epsilon2 = PickEpsilon<R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(), o.gradc, FL(0.0),
-                        params.Angles->beta.d, params.Beam->rLoop, params.Beam->epsMultiplier);
+                        params.Angles->beta.d, params.Beam);
                 }else{
                     epsilon1 = epsilon2 = RL(0.0);
                 }
@@ -129,7 +122,7 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
                     epsilon1, epsilon2, params.Pos->Rr, 
                     &outputs.uAllSources[GetFieldAddr(isx, isy, isz, 0, 0, 0, params.Pos)], 
                     params.Pos->Ntheta, params.Pos->NRz_per_range, params.Pos->NRr,
-                    params.Beam->RunType, params.freqinfo->freq0);
+                    params.freqinfo->freq0, params.Beam);
                 for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1){ // LP: depth
                     for(int32_t itheta = 0; itheta < params.Pos->Ntheta; ++itheta){
                         // LP: This is in a different order from the field.

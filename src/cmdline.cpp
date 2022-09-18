@@ -36,13 +36,13 @@ template<bool O3D, bool R3D> int mainmain()
     if(!bhc::run<O3D, R3D>(params, outputs, singlethread)) return 1;
     sw.tock();
     
-    if(params.Beam->RunType[0] == 'R'){
+    if(IsRayRun(params.Beam)){
         // Ray mode
         bhc::FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
     }else if(IsTLRun(params.Beam)){
         // TL mode
         bhc::FinalizeTLMode(FileRoot, params, outputs);
-    }else if(params.Beam->RunType[0] == 'E'){
+    }else if(IsEigenraysRun(params.Beam)){
         // Eigenrays mode
         bhc::FinalizeEigenMode<O3D, R3D>(params, outputs, FileRoot, singlethread);
     }else if(IsArrivalsRun(params.Beam)){

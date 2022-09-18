@@ -65,12 +65,7 @@ template<bool O3D, bool R3D> inline void OpenRAYFile(
     LDOFile &RAYFile, std::string FileRoot,
     const bhcParams<O3D, R3D> &params)
 {
-    switch(params.Beam->RunType[0]){
-    case 'R':
-    case 'E':
-        // Ray trace or Eigenrays
-        break;
-    default:
+    if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)){
         std::cout << "OpenRAYFile not in ray trace or eigenrays mode\n";
         std::abort();
     }

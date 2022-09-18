@@ -363,10 +363,10 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     ReadRunType(Beam->RunType, PlotType, ENVFile, PRTFile, Pos, r3d);
     
     Depth = ZMax - ZMin; // water depth
-    ReadRayAngles<false>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, Beam->RunType, 
-        ENVFile, PRTFile, Angles->alpha, Pos);
-    if(o3d) ReadRayAngles<true>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, Beam->RunType, 
-        ENVFile, PRTFile, Angles->beta, Pos);
+    ReadRayAngles<false>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, 
+        ENVFile, PRTFile, Angles->alpha, Pos, Beam);
+    if(o3d) ReadRayAngles<true>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, 
+        ENVFile, PRTFile, Angles->beta, Pos, Beam);
     
     PRTFile << "\n__________________________________________________________________________\n\n";
         

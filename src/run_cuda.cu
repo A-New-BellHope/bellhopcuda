@@ -113,7 +113,7 @@ template<bool O3D, bool R3D> bool run(
     if(singlethread){
         std::cout << "Single threaded mode is nonsense on CUDA, ignoring\n";
     }
-    if(params.Beam->RunType[0] == 'R'){
+    if(IsRayRun(params.Beam)){
         return run_cxx<O3D, R3D>(params, outputs, false);
     }else{
         return run_cuda<O3D, R3D>(params, outputs);

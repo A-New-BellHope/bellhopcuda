@@ -21,16 +21,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-HOST_DEVICE inline bool IsTLRun(const BeamStructure *Beam){
-    char r = Beam->RunType[0];
-    return r == 'C' || r == 'S' || r == 'I';
-}
-
-HOST_DEVICE inline bool IsArrivalsRun(const BeamStructure *Beam){
-    char r = Beam->RunType[0];
-    return r == 'A' || r == 'a';
-}
-
 template<bool O3D> HOST_DEVICE inline int32_t GetNumJobs(
     const Position *Pos, const AnglesStructure *Angles)
 {

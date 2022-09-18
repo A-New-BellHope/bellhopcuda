@@ -33,14 +33,14 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     BASSERT(ns >= 1);
     
     // irregular or rectilinear grid
-    params.Pos->NRz_per_range = (params.Beam->RunType[4] == 'I') ? 1 : params.Pos->NRz;
+    params.Pos->NRz_per_range = IsIrregularGrid(params.Beam) ? 1 : params.Pos->NRz;
     
     // Mode specific
-    if(params.Beam->RunType[0] == 'R'){
+    if(IsRayRun(params.Beam)){
         InitRayMode<O3D, R3D>(outputs.rayinfo, params);
     }else if(IsTLRun(params.Beam)){
         InitTLMode(outputs.uAllSources, params.Pos);
-    }else if(params.Beam->RunType[0] == 'E'){
+    }else if(IsEigenraysRun(params.Beam)){
         InitEigenMode(outputs.eigen);
     }else if(IsArrivalsRun(params.Beam)){
         InitArrivalsMode(outputs.arrinfo, singlethread, R3D, params.Pos,

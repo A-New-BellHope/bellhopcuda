@@ -20,6 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "step.hpp"
 #include "reflect.hpp"
+#include "beams.hpp"
 
 namespace bhc {
 
@@ -116,7 +117,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         real DalphaOpt = STD::sqrt(o.ccpx.real() / (FL(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
         int32_t NalphaOpt = 2 + (int)((Angles->alpha.angles[Angles->alpha.n-1] - Angles->alpha.angles[0]) / DalphaOpt);
         
-        if(Beam->RunType[0] == 'C' && Angles->alpha.n < NalphaOpt && rinit.ialpha == 0){
+        if(IsCoherentRun(Beam) && Angles->alpha.n < NalphaOpt && rinit.ialpha == 0){
             printf("Warning in " BHC_PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
         }
     }
@@ -132,7 +133,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     float Amp0 = (FL(1.0) - s) * beaminfo->SrcBmPat[2*ibp+1] + s * beaminfo->SrcBmPat[2*(ibp+1)+1]; // initial amplitude
     
     // Lloyd mirror pattern for semi-coherent option
-    if(Beam->RunType[0] == 'S'){
+    if(IsSemiCoherentRun(Beam)){
         float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
         Amp0 *= STD::sqrt(FL(2.0)) * STD::abs(STD::sin(omega / o.ccpx.real() * DEP(xs) * STD::sin(rinit.alpha)));
     }
@@ -177,6 +178,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         // LP: I don't think modern CPUs / GPUs have early return from the
         // floating-point unit if one of the operands is zero, as the floating-
         // point unit is pipelined and produces results every clock anyway.
+        // LP: Also, this only applies to geometric hat beams in Cartesian
+        // coordinates specified as 'G' rather than '^', not any of the other
+        // geometric types.
         if(Beam->RunType[1] == 'G') point0.q = vec2(FL(0.0), FL(0.0));
     }
     

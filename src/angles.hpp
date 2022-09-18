@@ -18,17 +18,16 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "beams.hpp"
 
 namespace bhc {
 
 /**
- * LP: RunType was originally length 6 in the FORTRAN, but Beam->RunType was
- * being passed to it, which is definitely length 7.
+ * LP: RunType now passed as part of Beam.
  */
 template<bool BEARING> inline void ReadRayAngles(real freq, real Depth,
-    const char (&TopOpt)[6], const char (&RunType)[7],
-    LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    AngleInfo &a, Position *Pos)
+    const char (&TopOpt)[6], LDIFile &ENVFile, PrintFileEmu &PRTFile,
+    AngleInfo &a, Position *Pos, const BeamStructure *Beam)
 {
     constexpr real c0 = FL(1500.0);
     const char *const FuncName = BEARING ? "ReadRayBearingAngles" : "ReadRayElevationAngles";
@@ -41,7 +40,7 @@ template<bool BEARING> inline void ReadRayAngles(real freq, real Depth,
     }
     
     if(a.n == 0){ // automatically estimate n to use
-        if(RunType[0] == 'R'){
+        if(IsRayRun(Beam)){
             a.n = 50; // For a ray trace plot, we don't want too many rays ...
         }else{
             // you're letting ME choose? OK: ideas based on an isospeed ocean
@@ -70,7 +69,7 @@ template<bool BEARING> inline void ReadRayAngles(real freq, real Depth,
     
     if constexpr(BEARING){
         // Nx2D CASE: beams must lie on rcvr radials--- replace beta with theta
-        if(RunType[5] == '2' && RunType[0] != 'R'){
+        if(Beam->RunType[5] == '2' && !IsRayRun(Beam)){
             PRTFile << "\nReplacing beam take-off angles, beta, with receiver bearing lines, theta\n";
             checkdeallocate(a.angles);
             
