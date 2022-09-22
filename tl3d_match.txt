@@ -35,7 +35,11 @@ TruncatedWedge3dGaussian_side
 // Semi-coherent
 // Hat Cartesian
 Munkslice3dHatCartSemi
+// Gaussian Cartesian
+Munkslice3dGaussianSemi
 // 
 // Incoherent
 // Hat Cartesian
 Munkslice3dHatCartInc
+// Gaussian Cartesian
+Munkslice3dGaussianInc

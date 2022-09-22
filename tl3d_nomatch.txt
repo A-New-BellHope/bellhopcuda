@@ -30,11 +30,3 @@ DoubleSeamount3D
 //84 and 71 minutes respectively, only a few dozen points wrong
 pwedge_elastic_3dCart
 pwedge3dCart
-//
-// Short, looks like obvious bug
-// Semi-coherent
-// Gaussian Cartesian
-Munkslice3dGaussianSemi
-// Incoherent
-// Gaussian Cartesian
-Munkslice3dGaussianInc
