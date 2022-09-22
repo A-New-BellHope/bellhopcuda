@@ -33,7 +33,7 @@ public:
             std::string s(FileRoot);
             ofs.open(s + ".prt");
             if(!ofs.good()){
-                std::cout << "Could not open print file: " << FileRoot << ".prt\n";
+                GlobalLog("Could not open print file: %s.prt\n", FileRoot);
                 bail();
             }
             ofs << std::unitbuf;
@@ -50,11 +50,9 @@ public:
     {
         if(callback != nullptr){
             linebuf << x;
-            size_t newlinepos = linebuf.str().find("\n");
-            if(newlinepos != std::string::npos){
-                std::string msg = linebuf.str().substr(0, newlinepos);
-                callback(msg.c_str());
-                linebuf.ignore(newlinepos+1);
+            if (linebuf.str().length() > 0) {
+                callback(linebuf.str().c_str());
+                linebuf.str("");
             }
         }else if(ofs.good()){
             ofs << x;

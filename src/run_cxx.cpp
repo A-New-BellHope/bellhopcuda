@@ -96,7 +96,7 @@ template void FieldModesWorker<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> bool run_cxx(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     if(!api_okay) return false;
     exceptionStr = "";
@@ -124,26 +124,26 @@ template<bool O3D, bool R3D> bool run_cxx(
 }
 
 template bool run_cxx<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
 template bool run_cxx<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 template bool run_cxx<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
 
 #ifndef BHC_BUILD_CUDA
 
 template<bool O3D, bool R3D> bool run(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     return run_cxx(params, outputs, singlethread);
 }
 
 BHC_API template bool run<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
 BHC_API template bool run<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 BHC_API template bool run<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
 
 #endif
 

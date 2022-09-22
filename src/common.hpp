@@ -50,7 +50,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #ifdef BHC_BUILD_CUDA
 #include "cuda_runtime.h"
-#include "UtilsCUDA.cuh"
 #define HOST_DEVICE __host__ __device__
 //Requires libcu++ 1.4 or higher, which is included in the normal CUDA Toolkit
 //install since somewhere between CUDA 11.3 and 11.5. (I.e. 11.5 and later has
@@ -108,7 +107,7 @@ inline const char *SOURCE_FILENAME(const char *file){
 #define bail __trap
 #define BASSERT(statement) \
 if(__builtin_expect(!(statement), 0)) { \
-	printf("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
+	GlobalLog("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
 	__trap(); \
 } REQUIRESEMICOLON
 #else
@@ -408,10 +407,16 @@ static inline std::string trim_copy(std::string s) {
 }
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
+#include "logging.hpp"
 #include "ldio.hpp"
 #include "bino.hpp"
 #include "prtfileemu.hpp"
 #include "atomics.hpp"
+
+#ifdef BHC_BUILD_CUDA
+#include "UtilsCUDA.cuh"
+#endif
+
 #undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {
@@ -692,7 +697,7 @@ public:
         high_resolution_clock::time_point tend = high_resolution_clock::now();
         double dt = (duration_cast<duration<double>>(tend - tstart)).count();
         dt *= 1000.0;
-        std::cout << dt << " ms\n";
+        GlobalLog("%f ms\n", dt);
     }
 private:
     std::chrono::high_resolution_clock::time_point tstart;
@@ -700,7 +705,7 @@ private:
 
 HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
 {
-    printf("%s: /%10.7f %10.7f\\\n       \\%10.7f %10.7f/\n",
+    GlobalLog("%s: /%10.7f %10.7f\\\n       \\%10.7f %10.7f/\n",
         label, m[0][0], m[1][0], m[0][1], m[1][1]);
 }
 

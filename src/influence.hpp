@@ -242,7 +242,7 @@ template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
             defaultEps = true;
         }else if(IsBeamWidthWKB(Beam)){
             if(R3D){
-                printf("Warning, WKB beams unimplemented in BELLHOP3D\n");
+                GlobalLog("Warning, WKB beams unimplemented in BELLHOP3D\n");
             }else{
                 halfwidth = REAL_MAX;
                 cz = gradc.y;
@@ -250,20 +250,20 @@ template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
                     ((-STD::sin(angle) / STD::cos(SQ(angle))) * c * c / cz);
             }
         }else if(IsBeamWidthCerveny(Beam)){
-            printf("Warning, Cerveny beam *width* (not type) %s\n",
+            GlobalLog("Warning, Cerveny beam *width* (not type) %s\n",
                 R3D ? "buggy in BELLHOP3D" : "not implemented in BELLHOP (2D)");
         }else{
-            printf("Invalid beam width option %c buggily ignored in PickEpsilon\n", Beam->Type[1]);
+            GlobalLog("Invalid beam width option %c buggily ignored in PickEpsilon\n", Beam->Type[1]);
         }
     }else if(IsGeometricInfl(Beam)){
         if constexpr(R3D){
             zeroEps = true;
         }else{
             if(Beam->Type[0] == '^'){
-                printf("Warning, Beam->Type[0] = ^ not properly handled in BELLHOP (2D)\n");
+                GlobalLog("Warning, Beam->Type[0] = ^ not properly handled in BELLHOP (2D)\n");
                 defaultHalfwidth = defaultEps = false;
             }else if(IsGaussianGeomInfl(Beam) && IsRayCenInfl(Beam)){
-                printf(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
+                GlobalLog(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
                     "implemented in BELLHOP (2D)\n");
                 bail();
             }
@@ -272,7 +272,7 @@ template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
         // LP: Supported here in 3D even though not supported in Influence 3D.
         NULLSTATEMENT;
     }else{
-        printf("Invalid Beam->Type[0] %c ignored in PickEpsilon\n", Beam->Type[0]);
+        GlobalLog("Invalid Beam->Type[0] %c ignored in PickEpsilon\n", Beam->Type[0]);
         defaultHalfwidth = defaultEps = false;
     }
     
@@ -356,7 +356,7 @@ HOST_DEVICE inline real FlipBeamForImage(real xy, int32_t image, const BdryType 
     }else if(image == 3){ // Bottom-reflected beam
         return FL(2.0) * Bdry->Bot.hs.Depth - xy;
     }else{
-        printf("Image index %d must be 1, 2, or 3\n", image);
+        GlobalLog("Image index %d must be 1, 2, or 3\n", image);
         bail();
     }
 }
@@ -549,7 +549,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     if(IsCervenyInfl(Beam) && IsCartesianInfl(Beam)){
         // LP: For Cerveny cart
         if constexpr(R3D){
-            printf("Run Type 'C' not supported at this time\n");
+            GlobalLog("Run Type 'C' not supported at this time\n");
             bail();
         }else{
             // LP: Partially supported in Nx2D (O3D but not R3D)
@@ -636,7 +636,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                     nSq   = SQ(n);
                     if(gamma.imag() > 0){
                         #ifndef BHC_USE_FLOATS
-                        printf("Unbounded beam\n");
+                        GlobalLog("Unbounded beam\n");
                         #endif
                         continue;
                     }
@@ -747,7 +747,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
         
         if(gamma.imag() > FL(0.0)){
             #ifndef BHC_USE_FLOATS
-            printf("Unbounded beam\n");
+            GlobalLog("Unbounded beam\n");
             #endif
             continue;
         }
@@ -775,7 +775,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
                     deltaz = -zR + FL(2.0) * Bdry->Bot.hs.Depth - x.y;
                     Polarity = RL(1.0); // assumes rigid bottom
                 }else{
-                    printf("Invalid Beam->Nimage %d\n", Beam->Nimage);
+                    GlobalLog("Invalid Beam->Nimage %d\n", Beam->Nimage);
                     bail();
                 }
                 if(inflray.omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2){
@@ -1018,7 +1018,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     real m_prime = STD::abs(glm::dot(XYCOMP(x_rcvr) - XYCOMP(x_ray), n_ray_theta));
                     // LP: Commented out in Gaussian
                     if(!isGaussian && m_prime > inflray.BeamWindow * L_diag){
-                        // printf("Skip theta b/c m_prime %g > L_diag %g\n", m_prime, L_diag);
+                        // GlobalLog("Skip theta b/c m_prime %g > L_diag %g\n", m_prime, L_diag);
                         continue;
                     }
                     
@@ -1030,7 +1030,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     // vector to rcvr dotted into vector to ray point
                     real s = glm::dot(XYCOMP(x_rcvr) - XYCOMP(inflray.xs), XYCOMP(x_ray) - XYCOMP(inflray.xs));
                     if(s < RL(0.0)){
-                        // printf("Skip theta b/c s\n");
+                        // GlobalLog("Skip theta b/c s\n");
                         continue;
                     }
                     
@@ -1039,7 +1039,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     real n_ray_z = rayt.x * e_theta.y - rayt.y * e_theta.x; // normal to the ray in the vertical receiver plane
                     
                     if(STD::abs(n_ray_z) < RL(1e-9)){
-                        // printf("Skip theta b/c L_z divide by zero %g\n", n_ray_z);
+                        // GlobalLog("Skip theta b/c L_z divide by zero %g\n", n_ray_z);
                         continue; // avoid divide by zero
                     }
                     real L_z = inflray.BeamWindow * L_diag / STD::abs(n_ray_z);
@@ -1047,7 +1047,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     zmin = bhc::min(point0.x.z, point1.x.z) - L_z; // min depth of ray segment
                     zmax = bhc::max(point0.x.z, point1.x.z) + L_z; // max depth of ray segment
                     
-                    // printf("step ir itheta m_prime L_diag %d %d %d %g %g\n", is, inflray.ir, itheta, m_prime, L_diag);
+                    // GlobalLog("step ir itheta m_prime L_diag %d %d %d %g %g\n", is, inflray.ir, itheta, m_prime, L_diag);
                 }else{
                     IGNORE_UNUSED(itheta);
                     x_rcvr.x = Pos->Rr[inflray.ir];
@@ -1199,7 +1199,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
         
         IncPhaseIfCaustic(inflray, q, false);
         
-        // printf("is ir %d %d\n", is, inflray.ir);
+        // GlobalLog("is ir %d %d\n", is, inflray.ir);
         
         for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
             real deltaz = Pos->Rz[iz] - x.y; // ray to rcvr distance
@@ -1250,14 +1250,14 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
     if(IsCervenyInfl(Beam)){
         if constexpr(R3D){
             // LP: The Influence3D function is commented out; was obviously implemented at some point.
-            printf(IsCartesianInfl(Beam) ? "Run Type 'C' not supported at this time\n" : "Invalid Run Type\n");
+            GlobalLog(IsCartesianInfl(Beam) ? "Run Type 'C' not supported at this time\n" : "Invalid Run Type\n");
             bail();
             return false;
         }else{
             if(IsCartesianInfl(Beam) && O3D){
                 // LP: In BELLHOP3D, this codepath is fully implemented except
                 // that this error is thrown first.
-                printf("Run Type 'C' not supported at this time\n");
+                GlobalLog("Run Type 'C' not supported at this time\n");
                 bail();
             }
             if(IsRayCenInfl(Beam)){
@@ -1270,7 +1270,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
         }
     }else if(IsSGBInfl(Beam)){
         if constexpr(R3D){
-            printf("Invalid Run Type\n");
+            GlobalLog("Invalid Run Type\n");
             bail();
             return false;
         }else{
@@ -1283,7 +1283,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
         }else{
             if(!R3D && IsGaussianGeomInfl(Beam)){
-                printf("2D Gaussian RayCen not supported\n");
+                GlobalLog("2D Gaussian RayCen not supported\n");
                 bail();
                 return false;
             }
@@ -1291,12 +1291,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
             return Step_InfluenceGeoHatOrGaussianRayCen<O3D, R3D>(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
             */
-            printf("TODO RayCen not implemented yet\n");
+            GlobalLog("TODO RayCen not implemented yet\n");
             bail();
             return false;
         }
     }else{
-        printf("Invalid Run Type\n");
+        GlobalLog("Invalid Run Type\n");
         bail();
         return false;
     }

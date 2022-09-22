@@ -22,7 +22,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 // CUDA Runtime error messages
 #ifdef __DRIVER_TYPES_H__
-static const char *_cudaGetErrorEnum(cudaError_t error) {
+inline const char *_cudaGetErrorEnum(cudaError_t error) {
   return cudaGetErrorName(error);
 }
 #endif
@@ -600,7 +600,10 @@ inline void __syncAndCheckKernelErrors(const char *kernelName, const char *file,
     }else{
         errtype = 1;
     }
-    if(err == cudaSuccess) return;
+    if(err == cudaSuccess){
+        bhc::CudaPostKernelLog();
+        return;
+    }
     cudaDeviceReset();
     throw std::runtime_error(std::string(kernelName) +
         std::string(errtype == 1 ? " launch failed at "

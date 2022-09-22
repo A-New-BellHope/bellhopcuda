@@ -89,7 +89,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
         if(!Step_Influence<O3D, R3D>(point0, point1, inflray, is, uAllSources, 
             ConstBdry, org, ssp, iSeg, Pos, Beam, eigen, arrinfo)){
             #ifdef STEP_DEBUGGING
-            printf("Step_Influence terminated ray\n");
+            GlobalLog("Step_Influence terminated ray\n");
             #endif
             break;
         }
@@ -102,14 +102,14 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
         }else if(dStep == 1){
             point0 = point1;
         }else{
-            printf("Invalid dStep: %d\n", dStep);
+            GlobalLog("Invalid dStep: %d\n", dStep);
             bail();
         }
         if(RayTerminate<O3D, R3D>(point0, Nsteps, is, xs, iSmallStepCtr,
             DistBegTop, DistBegBot, DistEndTop, DistEndBot, org, bdinfo, Beam)) break;
     }
     
-    //printf("Nsteps %d\n", Nsteps);
+    //GlobalLog("Nsteps %d\n", Nsteps);
 }
 
 }

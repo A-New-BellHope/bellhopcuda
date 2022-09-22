@@ -27,7 +27,7 @@ HOST_DEVICE inline void RecordEigenHit(
 {
     uint32_t mi = AtomicFetchAdd(&eigen->neigen, 1u);
     if(mi >= eigen->memsize) return;
-    // printf("Eigenray hit %d ir %d iz %d isrc %d ialpha %d is %d\n",
+    // GlobalLog("Eigenray hit %d ir %d iz %d isrc %d ialpha %d is %d\n",
     //     mi, ir, iz, isrc, ialpha, is);
     eigen->hits[mi].is = is;
     eigen->hits[mi].iz = iz;

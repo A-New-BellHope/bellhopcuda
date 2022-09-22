@@ -88,6 +88,8 @@ set(COMMON_SOURCE
     influence.hpp
     jobs.hpp
     ldio.hpp
+    logging.cpp
+    logging.hpp
     prtfileemu.hpp
     raymode.hpp
     readenv.cpp

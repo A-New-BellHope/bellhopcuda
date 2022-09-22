@@ -66,7 +66,7 @@ template<bool O3D, bool R3D> inline void OpenRAYFile(
     const bhcParams<O3D, R3D> &params)
 {
     if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)){
-        std::cout << "OpenRAYFile not in ray trace or eigenrays mode\n";
+        GlobalLog("OpenRAYFile not in ray trace or eigenrays mode\n");
         std::abort();
     }
     RAYFile.open(FileRoot + ".ray");
@@ -171,7 +171,7 @@ template<bool O3D, bool R3D> inline bool RunRay(
     if(IsRayCopyMode(rayinfo)){
         uint32_t p = AtomicFetchAdd(&rayinfo->NPoints, (uint32_t)Nsteps);
         if(p + Nsteps > rayinfo->MaxPoints){
-            std::cout << "Ran out of memory for rays\n";
+            GlobalLog("Ran out of memory for rays\n");
             rayinfo->results[job].ray = nullptr;
             ret = false;
         }else{

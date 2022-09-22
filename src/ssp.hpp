@@ -31,11 +31,6 @@ constexpr real betaPowerLaw = FL(1.0);
 #define SSP_TEMPL_FN_ARGS \
     const VEC23<O3D> &x, const VEC23<O3D> &t, \
     SSPOutputs<O3D> &o, const SSPStructure *ssp, SSPSegState &iSeg
-    
-#define SSP_INIT_ARGS real Depth, const real &fT, \
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot, \
-    SSPStructure *ssp, const AttenInfo *atten, const FreqInfo *freqinfo, HSInfo &RecycledHS
-#define SSP_CALL_INIT_ARGS Depth, fT, ENVFile, PRTFile, FileRoot, ssp, atten, freqinfo, RecycledHS
 
 
 HOST_DEVICE inline void UpdateSSPSegment(real x, real t, const real *array,
@@ -103,11 +98,11 @@ HOST_DEVICE inline void cPCHIP(SSP_2D_FN_ARGS)
     
     real xt = x.y - ssp->z[iSeg.z];
     if(STD::abs(xt) > RL(1.0e10)){
-        printf("Invalid xt %g\n", xt);
+        GlobalLog("Invalid xt %g\n", xt);
     }
     for(int32_t i=0; i<4; ++i)
         if(STD::abs(ssp->cCoef[i][iSeg.z]) > RL(1.0e10))
-            printf("Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSeg.z,
+            GlobalLog("Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSeg.z,
                 ssp->cCoef[i][iSeg.z].real(), ssp->cCoef[i][iSeg.z].imag());
     
     o.ccpx = ssp->cCoef[0][iSeg.z]
@@ -154,7 +149,7 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
     real c1, c2, cz1, cz2, cr, cz, s1, s2, delta_r, delta_z;
     
     if(x.x < ssp->Seg.r[0] || x.x > ssp->Seg.r[ssp->Nr-1]){
-        printf("Quad: ray is outside the box where the soundspeed is defined\n");
+        GlobalLog("Quad: ray is outside the box where the soundspeed is defined\n");
         bail();
     }
     
@@ -162,7 +157,7 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
     UpdateSSPSegment(x.x, t.x, ssp->Seg.r, ssp->Nr, iSeg.r);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
     if(iSeg.z >= ssp->Nz - 1 || iSeg.r >= ssp->Nr - 1){
-        printf("iSeg error in Quad: z %d/%d r %d/%d\n",
+        GlobalLog("iSeg error in Quad: z %d/%d r %d/%d\n",
             iSeg.z, ssp->Nz, iSeg.r, ssp->Nr);
         bail();
     }
@@ -210,7 +205,7 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
 {
     if( x.x < ssp->Seg.x[0] || x.x > ssp->Seg.x[ssp->Nx-1] ||
         x.y < ssp->Seg.y[0] || x.y > ssp->Seg.y[ssp->Ny-1]){
-        printf("Hexahedral: ray is outside the box where the ocean soundspeed is defined\nx = (x, y, z) = %g, %g, %g\n",
+        GlobalLog("Hexahedral: ray is outside the box where the ocean soundspeed is defined\nx = (x, y, z) = %g, %g, %g\n",
             x.x, x.y, x.z);
         bail();
     }
@@ -391,7 +386,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         if constexpr(O3D){
             // LP: TODO: I don't think there's any reason P (PCHIP) should not be supported,
             // it's very similar to cubic.
-            printf("EvaluateSSP: '%c' profile not supported in 3D or Nx2D mode\n", ssp->Type);
+            GlobalLog("EvaluateSSP: '%c' profile not supported in 3D or Nx2D mode\n", ssp->Type);
             bail();
         }else{
             if(ssp->Type == 'P'){ // monotone PCHIP ACS profile option
@@ -404,13 +399,13 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         if constexpr(O3D){
             Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
         }else{
-            printf("EvaluateSSP: 'H' (Hexahedral) profile not supported in 2D mode\n");
+            GlobalLog("EvaluateSSP: 'H' (Hexahedral) profile not supported in 2D mode\n");
             bail();
         }
     }else if(ssp->Type == 'A'){ // Analytic profile option
         Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
     }else{
-        printf("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
+        GlobalLog("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
         bail();
     }
     if constexpr(O3D && !R3D){
@@ -430,6 +425,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     }
 }
 
-void InitializeSSP(SSP_INIT_ARGS);
+void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
+    PrintFileEmu& PRTFile, const AttenInfo* atten);
+
+void InitializeSSP(real Depth, LDIFile& ENVFile, PrintFileEmu& PRTFile, 
+    std::string FileRoot, SSPStructure* ssp, HSInfo& RecycledHS);
  
 }

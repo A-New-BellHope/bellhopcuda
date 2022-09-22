@@ -51,7 +51,7 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     
     SHDFile.open(FileName, LRecl);
     if(!SHDFile.good()){
-        std::cout << "Could not open SHDFile: " << FileName << "\n";
+        GlobalLog("Could not open SHDFile: %s\n", FileName.c_str());
         std::abort();
     }
     LRecl /= 4;

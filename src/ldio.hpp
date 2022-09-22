@@ -145,17 +145,15 @@ public:
     
 private:
     void PrintLoc(){
-        std::cout << codefile << ":" << codeline << " reading " 
-            << _filename << ":" << line  << ": ";
+        GlobalLog("%s:%d reading %s:%d: ", codefile.c_str(), codeline, _filename.c_str(), line);
     }
     void Error(std::string msg){
         PrintLoc();
-        std::cout << msg << "\n";
-        std::cout << "Last token is: \"" << lastitem << "\"\n";
+        GlobalLog("%s\nLast token is: \"%s\"\n", msg.c_str(), lastitem.c_str());
         if(_abort_on_error) std::abort();
     }
     void IgnoreRestOfLine(){
-        if(_debug) std::cout << "-- ignoring rest of line\n";
+        if(_debug) GlobalLog("-- ignoring rest of line\n");
         while(!f.eof() && f.peek() != '\n') f.get();
         if(!f.eof()) f.get(); //get the \n
         ++line;
@@ -164,11 +162,11 @@ private:
     std::string GetNextItem(){
         if(lastitemcount > 0){
             --lastitemcount;
-            if(_debug) std::cout << "-- lastitemcount, returning " << lastitem << "\n";
+            if(_debug) GlobalLog("-- lastitemcount, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(isafterslash){
-            if(_debug) std::cout << "-- isafterslash, returning null\n";
+            if(_debug) GlobalLog("-- isafterslash, returning null\n");
             return nullitem;
         }
         //Whitespace before start of item
@@ -187,13 +185,13 @@ private:
         if(f.peek() == ','){
             f.get();
             isafternewline = false;
-            if(_debug) std::cout << "-- empty comma, returning null\n";
+            if(_debug) GlobalLog("-- empty comma, returning null\n");
             return nullitem;
         }
         //Main item
         if(_warnline >= 0 && _warnline != line){
             PrintLoc();
-            std::cout << "Warning: input continues onto next line, likely mistake\n";
+            GlobalLog("Warning: input continues onto next line, likely mistake\n");
             _warnline = line;
         }
         lastitem = "";
@@ -264,7 +262,7 @@ private:
         }
         if(quotemode > 0) Error("Quotes or parentheses not closed");
         if(f.eof()){
-            if(_debug) std::cout << "-- eof, returning " << lastitem << "\n";
+            if(_debug) GlobalLog("-- eof, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(quotemode < 0){
@@ -273,11 +271,11 @@ private:
                 + (char)c + std::string("' after end of quoted string"));
         }
         if(isafternewline){
-            if(_debug) std::cout << "-- isafternewline, returning " << lastitem << "\n";
+            if(_debug) GlobalLog("-- isafternewline, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(isafterslash){
-            if(_debug) std::cout << "-- new isafterslash, returning " << lastitem << "\n";
+            if(_debug) GlobalLog("-- new isafterslash, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         //Whitespace and comma after item
@@ -307,7 +305,7 @@ private:
         }
         //Finally
         if(lastitemcount > 0) --lastitemcount;
-        if(_debug) std::cout << "-- normal returning " << lastitem << "\n";
+        if(_debug) GlobalLog("-- normal returning %s\n", lastitem.c_str());
         return lastitem;
     }
     

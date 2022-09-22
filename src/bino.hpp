@@ -68,9 +68,8 @@ public:
     
     void checkAndIncrement(const char *file, int fline, size_t bytes){
         if(bytesWrittenThisRecord + bytes > recl){
-            std::cout << file << ":" << fline << ": DirectOFile overflow, " 
-                << bytesWrittenThisRecord << " bytes already written, rec size "
-                << recl << ", tried to write " << bytes << " more\n";
+            GlobalLog("%s:%d: DirectOFile overflow, %lli bytes already written, rec size %lli, tried to write %lli more\n",
+                file, fline, bytesWrittenThisRecord, recl, bytes);
             std::abort();
         }
         bytesWrittenThisRecord += bytes;
@@ -130,7 +129,7 @@ public:
     
     template<typename T> void write(T v){
         if(recstart < 0){
-            std::cout << "Missing record in UnformattedOFile!\n";
+            GlobalLog("Missing record in UnformattedOFile!\n");
             bail();
         }
         ostr.write((const char*)&v, sizeof(T));
@@ -139,7 +138,7 @@ public:
     
     template<typename T> void write(T *arr, size_t n){
         if(recstart < 0){
-            std::cout << "Missing record in UnformattedOFile!\n";
+            GlobalLog("Missing record in UnformattedOFile!\n");
             bail();
         }
         for(size_t i=0; i<n; ++i) ostr.write((const char*)&arr[i], sizeof(T));

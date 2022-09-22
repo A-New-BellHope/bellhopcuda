@@ -89,13 +89,13 @@ template<bool BEARING> inline void ReadRayAngles(real freq, real Depth,
     EchoVector(a.angles, a.n, PRTFile);
     
     if(a.n > 1 && a.angles[a.n-1] == a.angles[0]){
-        std::cout << FuncName << ": First and last beam take-off angle are identical\n";
+        GlobalLog("%s: First and last beam take-off angle are identical\n", FuncName);
         std::abort();
     }
     
     if(TopOpt[5] == 'I'){
         if(a.iSingle < 1 || a.iSingle > a.n){
-            std::cout << FuncName << ": Selected beam, iSingle not in [1, a.n]\n";
+            GlobalLog("%s: Selected beam, iSingle not in [1, a.n]\n", FuncName);
             std::abort();
         }
     }

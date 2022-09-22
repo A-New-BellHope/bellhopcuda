@@ -74,6 +74,12 @@ BHC_API extern template bool setup<true, true>(
  * Runs the selected run type and places the results in the appropriate struct
  * within outputs.
  * 
+ * An env file should usually be read directly first, by calling setup then 
+ * run-finalize. But, before calling finalize, you may edit parameters and rerun 
+ * with an expected pattern
+ *     setup-run-change params-run-change params...-finalize.
+ * TODO: Only a few parameters can be updated, notably sources and 1D SSP - JS, 8/25/2022.
+ * 
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
  * 
@@ -84,17 +90,17 @@ BHC_API extern template bool setup<true, true>(
  * simultaneously. Don't do this even if singlethread is set.
  */
 template<bool O3D, bool R3D> bool run(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
 
 /// 2D version, see template.
 BHC_API extern template bool run<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
 /// Nx2D or 2D-3D version, see template.
 BHC_API extern template bool run<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 /// 3D version, see template.
 BHC_API extern template bool run<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
 
 /**
  * Frees memory. You may call run() many times, you do not have to call setup

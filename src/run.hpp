@@ -22,12 +22,18 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "tlmode.hpp"
 #include "eigenrays.hpp"
 #include "arrivals.hpp"
+#include "ssp.hpp"
 
 namespace bhc {
 
 template<bool O3D, bool R3D> inline void InitSelectedMode(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
+    //this is always called from run_* so update intermediate params
+    PrintFileEmu& PRTFile = *(PrintFileEmu*)params.internal;
+    bhc::UpdateSSP(params.Bdry->Bot.hs.Depth, params.freqinfo->freq0, 
+        params.fT, params.ssp, PRTFile, params.atten);
+
     // Common
     int32_t ns = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;
     BASSERT(ns >= 1);
@@ -46,19 +52,19 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
         InitArrivalsMode(outputs.arrinfo, singlethread, R3D, params.Pos,
             *(PrintFileEmu*)params.internal);
     }else{
-        std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
+        GlobalLog("Invalid RunType %c\n", params.Beam->RunType[0]);
         std::abort();
     }
 }
 
 template<bool O3D, bool R3D> bool run_cxx(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
 extern template bool run_cxx<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
 extern template bool run_cxx<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 extern template bool run_cxx<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
 
 
 }

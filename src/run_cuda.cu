@@ -54,21 +54,21 @@ void setupGPU()
     for(int g=0; g<num_gpus; ++g){
         checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
         if(g == m_gpu){
-            std::cout << "CUDA device: " << cudaProperties.name << " / compute "
-                << cudaProperties.major << "." << cudaProperties.minor << "\n";
+            GlobalLog("CUDA device: %s / compute %d.%d\n",
+                cudaProperties.name, cudaProperties.major, cudaProperties.minor);
         }
         /*
-        std::cout << ((g == m_gpu) ? "--> " : "    ");
-        std::cout << "GPU " << g << ": " << cudaProperties.name << ", compute SM " 
-            << cudaProperties.major << "." << cudaProperties.minor << "\n";
-        std::cout << "      --Global/shared/constant memory: " 
-            << cudaProperties.totalGlobalMem << ", " 
-            << cudaProperties.sharedMemPerBlock << ", "
-            << cudaProperties.totalConstMem << "\n";
-        std::cout << "      --Warp/threads/SMPs: " 
-            << cudaProperties.warpSize << ", "
-            << cudaProperties.maxThreadsPerBlock << ", "
-            << cudaProperties.multiProcessorCount << "\n";
+        GlobalLog("%s", (g == m_gpu) ? "--> " : "    ");
+        GlobalLog("GPU %d: %s, compute SM %d.%d\n",
+            g, cudaProperties.name, cudaProperties.major, cudaProperties.minor);
+        GlobalLog("      --Global/shared/constant memory: %lli, %d, %d\n",
+            cudaProperties.totalGlobalMem,
+            cudaProperties.sharedMemPerBlock,
+            cudaProperties.totalConstMem);
+        GlobalLog("      --Warp/threads/SMPs: %d, %d, %d\n" ,
+            cudaProperties.warpSize,
+            cudaProperties.maxThreadsPerBlock,
+            cudaProperties.multiProcessorCount);
         */
     }
     
@@ -81,7 +81,7 @@ void setupGPU()
 }
 
 template<bool O3D, bool R3D> bool run_cuda(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     if(!api_okay) return false;
     
@@ -101,17 +101,17 @@ template<bool O3D, bool R3D> bool run_cuda(
 }
 
 template bool run_cuda<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 template bool run_cuda<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 template bool run_cuda<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> bool run(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     if(singlethread){
-        std::cout << "Single threaded mode is nonsense on CUDA, ignoring\n";
+        GlobalLog("Single threaded mode is nonsense on CUDA, ignoring\n");
     }
     if(IsRayRun(params.Beam)){
         return run_cxx<O3D, R3D>(params, outputs, false);
@@ -121,11 +121,11 @@ template<bool O3D, bool R3D> bool run(
 }
 
 BHC_API template bool run<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
 BHC_API template bool run<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 BHC_API template bool run<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
 
 
 }

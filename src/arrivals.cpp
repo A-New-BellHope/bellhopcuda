@@ -71,7 +71,7 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         }
         break;
     default:
-        printf("FinalizeArrivalsMode called while not in arrivals mode\n");
+        GlobalLog("FinalizeArrivalsMode called while not in arrivals mode\n");
         bail();
         return;
     }

@@ -20,6 +20,8 @@ option(CUDA_DISASSEMBLY "Save temp outputs for disassembly" OFF)
 set(CUDA_ARCH_OVERRIDE "" CACHE STRING "Compile for this GPU architecture (e.g. 86)")
 
 set(CMAKE_CUDA_STANDARD 17) # C++17
+set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 	set(NVCC_DEBUG_FLAGS "-g -G")

@@ -31,7 +31,7 @@ static std::mutex exceptionMutex;
 static std::string exceptionStr;
 
 template<bool O3D, bool R3D> void EigenModePostWorker(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     rayPt<R3D> *localmem = nullptr;
     if(IsRayCopyMode(outputs.rayinfo)) localmem = new rayPt<R3D>[MaxN];
@@ -42,7 +42,7 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
         uint32_t job = jobID++;
         if(job >= outputs.eigen->neigen) break;
         if(job >= outputs.eigen->memsize){
-            printf("Had %d eigenrays but only %d fit in memory\n",
+            GlobalLog("Had %d eigenrays but only %d fit in memory\n",
                 outputs.eigen->neigen, outputs.eigen->memsize);
             break;
         }
@@ -55,10 +55,10 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
         rinit.ialpha = hit->ialpha;
         rinit.ibeta = hit->ibeta;
         if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)){
-            printf("EigenModePostWorker RunRay failed\n");
+            GlobalLog("EigenModePostWorker RunRay failed\n");
         }
         if(Nsteps != hit->is + 2 && Nsteps != hit->is + 3){
-            printf("Eigenray isxyz (%d,%d,%d) ialpha/beta (%d,%d) "
+            GlobalLog("Eigenray isxyz (%d,%d,%d) ialpha/beta (%d,%d) "
                 "hit rcvr on step %d but on retrace had %d steps\n",
                 hit->isx, hit->isy, hit->isz, hit->ialpha, hit->ibeta, hit->is, Nsteps);
         }
@@ -73,19 +73,19 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
 }
 
 template void EigenModePostWorker<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 template void EigenModePostWorker<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 template void EigenModePostWorker<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> void FinalizeEigenMode(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
     std::string FileRoot, bool singlethread)
 {
     InitRayMode<O3D, R3D>(outputs.rayinfo, params);
     
-    std::cout << (int)outputs.eigen->neigen << " eigenrays\n";
+    GlobalLog("%d eigenrays\n", (int)outputs.eigen->neigen);
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
     jobID = 0;
@@ -100,13 +100,13 @@ template<bool O3D, bool R3D> void FinalizeEigenMode(
 }
 
 template void FinalizeEigenMode<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
     std::string FileRoot, bool singlethread);
 template void FinalizeEigenMode<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
     std::string FileRoot, bool singlethread);
 template void FinalizeEigenMode<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
     std::string FileRoot, bool singlethread);
 
 }

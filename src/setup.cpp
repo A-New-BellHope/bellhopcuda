@@ -39,6 +39,7 @@ template<bool O3D, bool R3D> bool setup(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     api_okay = true;
+    InitLog(outputCallback);
     params.internal = new PrintFileEmu(FileRoot, outputCallback);
     PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
     
@@ -114,7 +115,7 @@ template<bool O3D, bool R3D> bool setup(
     memcpy(params.bdinfo->top.type, "LS", 2);
     memcpy(params.bdinfo->bot.type, "LS", 2);
     //params.refl: none
-    //params.ssp: none
+    params.ssp->dirty = false;
     params.atten->t = FL(20.0);
     params.atten->Salinity = FL(35.0);
     params.atten->pH = FL(8.0);

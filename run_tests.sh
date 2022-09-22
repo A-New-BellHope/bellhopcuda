@@ -87,6 +87,11 @@ m_check_fail () {
     fi
 }
 
+dotexe=""
+if [ -f ./bin/bellhopcxx.exe ]; then
+    dotexe=".exe"
+fi
+
 run_test () {
     echo ""
     echo $1
@@ -115,19 +120,13 @@ run_test () {
     check_fail $forres $runname
     runname="bellhopcxx single-threaded"
     echo $runname
-    ./bin/bellhopcxx -1 $threedopt test/cxx1/$1
-    check_fail $? $runname $1
-    runname="bellhopcxx multi-threaded"
-    echo $runname
-    ./bin/bellhopcxx $threedopt test/cxxmulti/$1
-    check_fail $? $runname $1
-    runname="bellhopcuda"
-    echo $runname
-    if [ -f ./bin/bellhopcuda ]; then
-        ./bin/bellhopcuda $threedopt test/cuda/$1
+    ./bin/bellhopcxx$dotexe -1 $threedopt test/cxx1/$1
+    ./bin/bellhopcxx$dotexe $threedopt test/cxxmulti/$1
+    if [ -f ./bin/bellhopcuda$dotexe ]; then
+        ./bin/bellhopcuda$dotexe $threedopt test/cuda/$1
         check_fail $? $runname $1
     else
-        echo "bellhopcuda not found ... ignoring"
+        echo "bellhopcuda$dotexe not found ... ignoring"
     fi
     if [[ $desiredresult == "1" ]]; then
         echo "Skipping results comparison because in shouldfail mode"
