@@ -335,8 +335,8 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
             // compute curvatures in each segment
             
             // - sign below because the node normal = vec3(-mx, -my, RL(1.0))
-            for(int32_t ix=0; ix<NPts.x; ++ix){
-                for(int32_t iy=0; iy<NPts.y; ++iy){
+            for(int32_t ix=0; ix<NPts.x-1; ++ix){
+                for(int32_t iy=0; iy<NPts.y-1; ++iy){
                     real Len;
                     
                     // z_xx (difference in x of z_x)
@@ -381,6 +381,24 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
                     bd->bd[ix*NPts.y+iy].z_xy /= Len;
                     bd->bd[ix*NPts.y+iy].z_yy /= Len;
                 }
+            }
+            
+            // LP: Last row and column data is uninitialized; make sure it is never used.
+            for(int32_t ix=0; ix<NPts.x; ++ix){
+                bd->bd[ix*NPts.y+(NPts.y-1)].z_xx = DEBUG_LARGEVAL;
+                bd->bd[ix*NPts.y+(NPts.y-1)].z_xy = 2*DEBUG_LARGEVAL;
+                bd->bd[ix*NPts.y+(NPts.y-1)].z_yy = 3*DEBUG_LARGEVAL;
+                bd->bd[ix*NPts.y+(NPts.y-1)].kappa_xx = 4*DEBUG_LARGEVAL;
+                bd->bd[ix*NPts.y+(NPts.y-1)].kappa_xy = 5*DEBUG_LARGEVAL;
+                bd->bd[ix*NPts.y+(NPts.y-1)].kappa_yy = 6*DEBUG_LARGEVAL;
+            }
+            for(int32_t iy=0; iy<NPts.y; ++iy){
+                bd->bd[(NPts.x-1)*NPts.y+iy].z_xx = DEBUG_LARGEVAL;
+                bd->bd[(NPts.x-1)*NPts.y+iy].z_xy = 2*DEBUG_LARGEVAL;
+                bd->bd[(NPts.x-1)*NPts.y+iy].z_yy = 3*DEBUG_LARGEVAL;
+                bd->bd[(NPts.x-1)*NPts.y+iy].kappa_xx = 4*DEBUG_LARGEVAL;
+                bd->bd[(NPts.x-1)*NPts.y+iy].kappa_xy = 5*DEBUG_LARGEVAL;
+                bd->bd[(NPts.x-1)*NPts.y+iy].kappa_yy = 6*DEBUG_LARGEVAL;
             }
             
         }else{

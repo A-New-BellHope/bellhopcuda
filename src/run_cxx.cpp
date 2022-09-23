@@ -109,7 +109,7 @@ template<bool O3D, bool R3D> bool run_cxx(
     jobID = 0;
     for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(
         IsRayRun(params.Beam) ? RayModeWorker<O3D, R3D> : FieldModesWorker<O3D, R3D>,
-        std::cref(params), std::ref(outputs)));
+        std::ref(params), std::ref(outputs)));
     for(uint32_t i=0; i<cores; ++i) threads[i].join();
     
     if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);

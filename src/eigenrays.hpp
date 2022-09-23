@@ -49,16 +49,16 @@ inline void InitEigenMode(EigenInfo *eigen)
 }
 
 template<bool O3D, bool R3D> void FinalizeEigenMode(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
     std::string FileRoot, bool singlethread);
 extern template void FinalizeEigenMode<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
     std::string FileRoot, bool singlethread);
 extern template void FinalizeEigenMode<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
     std::string FileRoot, bool singlethread);
 extern template void FinalizeEigenMode<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
     std::string FileRoot, bool singlethread);
 
 }
