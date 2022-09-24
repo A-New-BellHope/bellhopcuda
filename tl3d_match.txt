@@ -2,15 +2,6 @@
 // Coherent
 //
 // Hat Cartesian
-DoubleSeamount3DHat
-KR3dCart
-munk3d
-KoreanSea_3D
-Munkfoo
-Munkslice3dHatCart
-MunkRotfoo
-MunkRotfoozz
-MunkRot3D
 pwedge3d_rot
 KermitRooseveltLSCart
 freeBhat
@@ -18,6 +9,17 @@ freeBhatpolar
 lower_halfB
 upper_halfB
 TruncatedWedge3dHat_side
+DoubleSeamount3DHat
+KR3dCart
+munk3d
+KoreanSea_3D
+Munkfoo
+MunkRotfoozz
+Munkslice3dHatCart
+//1 second
+HyperBot3DHatCart
+//36 seconds
+HyperBot3DPolar
 //
 //Warning, 100 min
 TruncatedWedge3dCart

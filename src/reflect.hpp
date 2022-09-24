@@ -241,8 +241,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         
         // rotation matrix to get surface curvature in and perpendicular to the reflection plane
         // we use only the first two elements of the vectors because we want the projection in the x-y plane
-        vec2 t_rot = vec2(rayt.x, rayt.y);   t_rot *= RL(1.0) / glm::length(t_rot);
-        vec2 n_rot = vec2(rayn2.x, rayn2.y); n_rot *= RL(1.0) / glm::length(n_rot);
+        vec2 t_rot = XYCOMP(rayt);  t_rot *= RL(1.0) / glm::length(t_rot);
+        vec2 n_rot = XYCOMP(rayn2); n_rot *= RL(1.0) / glm::length(n_rot);
         
         mat2x2 RotMat;
         RotMat[0] = t_rot; // LP: not a typo, the Fortran sets the columns
@@ -252,7 +252,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         kappaMat[0][0] = rcurv_ray.z_xx / FL(2.0);
         kappaMat[1][0] = rcurv_ray.z_xy / FL(2.0);
         kappaMat[0][1] = rcurv_ray.z_xy / FL(2.0);
-        kappaMat[1][1] = rcurv_ray.z_xy / FL(2.0);
+        kappaMat[1][1] = rcurv_ray.z_yy / FL(2.0);
         
         // apply the rotation to get the matrix D of curvatures (see Popov 1977 for definition of DMat)
         // DMat = RotMat^T * kappaMat * RotMat, with RotMat anti-symmetric
@@ -263,7 +263,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         real cn1jump =  glm::dot(o.gradc, -rayn1_tilde - rayn1);
         real cn2jump =  glm::dot(o.gradc, -rayn2_tilde - rayn2);
         real csjump  = -glm::dot(o.gradc,  rayt_tilde  - rayt);
-        // GlobalLog("cn1jump cn2jump, csjump %g, %g, %g\n", cn1jump, cn2jump, csjump);
+        // GlobalLog("cn1jump cn2jump csjump %g, %g, %g\n", cn1jump, cn2jump, csjump);
         
         // // not sure if cn2 needs a sign flip also
         // if(isTop){

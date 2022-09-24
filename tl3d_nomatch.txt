@@ -2,11 +2,17 @@
 // Coherent
 //
 // Hat Cartesian specified as G
-HyperBot3DHatCart
-HyperBot3DPolar
+//14 seconds; insufficient storage on every ray
+MunkRotfoo
+//12 seconds; insufficient storage on every ray
+MunkRot3D
+//14 minutes
 PerfectWedge3dHat
+//
 PerfectWedge3dGaussian
+//
 Weymouth3D
+//
 Taiwan3D
 //
 // Warning, long

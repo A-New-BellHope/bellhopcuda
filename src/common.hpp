@@ -705,7 +705,7 @@ private:
 
 HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
 {
-    GlobalLog("%s: /%10.7f %10.7f\\\n       \\%10.7f %10.7f/\n",
+    GlobalLog("%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n",
         label, m[0][0], m[1][0], m[0][1], m[1][1]);
 }
 
