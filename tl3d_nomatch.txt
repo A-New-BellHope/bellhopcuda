@@ -2,10 +2,6 @@
 // Coherent
 //
 // Hat Cartesian specified as G
-//14 seconds; insufficient storage on every ray
-MunkRotfoo
-//12 seconds; insufficient storage on every ray
-MunkRot3D
 //14 minutes
 PerfectWedge3dHat
 //

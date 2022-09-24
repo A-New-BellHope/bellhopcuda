@@ -14,6 +14,8 @@ KR3dCart
 munk3d
 KoreanSea_3D
 Munkfoo
+MunkRot3D
+MunkRotfoo
 MunkRotfoozz
 Munkslice3dHatCart
 //1 second

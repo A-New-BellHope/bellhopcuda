@@ -31,8 +31,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
 {
     //this is always called from run_* so update intermediate params
     PrintFileEmu& PRTFile = *(PrintFileEmu*)params.internal;
-    bhc::UpdateSSP(params.Bdry->Bot.hs.Depth, params.freqinfo->freq0, 
-        params.fT, params.ssp, PRTFile, params.atten);
+    bhc::UpdateSSP(params.freqinfo->freq0, params.fT, params.ssp, PRTFile, params.atten);
 
     // Common
     int32_t ns = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;

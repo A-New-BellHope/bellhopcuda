@@ -101,8 +101,6 @@ void InitQuad(SSPStructure* ssp)
                 (ssp->cMat[iz2*ssp->Nr+iSegt] - ssp->cMat[(iz2-1)*ssp->Nr+iSegt]) / delta_z;
         }
     }
-    
-    ssp->Nz = ssp->NPts;
 }
 
 void ReadHexahedral(PrintFileEmu& PRTFile, SSPStructure* ssp, std::string FileRoot)
@@ -173,73 +171,68 @@ void InitHexahedral(SSPStructure* ssp)
     
     // over-ride the SSP%z values read in from the environmental file with these new values
     ssp->NPts = ssp->Nz;
-    for(int32_t iz=0; iz<ssp->Nz; ++iz) ssp->z[iz] = ssp->Seg.z[iz];
+    for(int32_t iz=0; iz<ssp->Nz; ++iz){
+        ssp->z[iz] = ssp->Seg.z[iz];
+        // LP: These are not well-defined, make sure they're not used
+        ssp->c[iz] = DEBUG_LARGEVAL;
+        ssp->cz[iz] = DEBUG_LARGEVAL;
+    }
 }
 
 /**
 * Update the SSP parameters. Safe to call multiple times with flags.
 * Be sure to flag ssp->dirty if you change the SSP externally.
 */
-void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp, 
+void UpdateSSP(real freq, const real& fT, SSPStructure* ssp, 
     PrintFileEmu& PRTFile, const AttenInfo* atten)
 {
     if (!ssp->dirty) return;
     ssp->dirty = false;
-    for(int32_t iz=0; iz<ssp->NPts; ++iz) {
+    
+    if(ssp->Type == 'H'){
+        // LP: ssp->c and ssp->cz are not well-defined in hexahedral mode, and
+        // if the number of depths is changed (ssp->Nz vs. ssp->NPts), computing
+        // them may read uninitialized data.
+        InitHexahedral(ssp);
+    }else{
+    
+        for(int32_t iz=0; iz<ssp->NPts; ++iz) {
 
-        ssp->c[iz] = crci(ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], freq, freq,
-            ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile);
+            ssp->c[iz] = crci(ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], freq, freq,
+                ssp->AttenUnit, betaPowerLaw, fT, atten, PRTFile);
 
-        // verify that the depths are monotone increasing
-        if (iz > 0) {
-            if (ssp->z[iz] <= ssp->z[iz-1]) {
-                GlobalLog("ReadSSP: The depths in the SSP must be monotone increasing (%d)\n", ssp->z[iz]);
-                std::abort();
+            // verify that the depths are monotone increasing
+            if (iz > 0) {
+                if (ssp->z[iz] <= ssp->z[iz-1]) {
+                    GlobalLog("ReadSSP: The depths in the SSP must be monotone increasing (%d)\n", ssp->z[iz]);
+                    std::abort();
+                }
             }
+
+            // compute gradient, cz
+            if(iz > 0) ssp->cz[iz-1] = (ssp->c[iz] - ssp->c[iz-1]) /
+                                       (ssp->z[iz] - ssp->z[iz-1]);
         }
-
-        // compute gradient, cz
-        if(iz > 0) ssp->cz[iz-1] = (ssp->c[iz] - ssp->c[iz-1]) /
-                                    (ssp->z[iz] - ssp->z[iz-1]);
-
-        // Did we read the last point?
-        if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
-            // LP: Gradient at iz is uninitialized.
-            ssp->cz[iz] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP: debugging
-
-            ssp->Nz = ssp->NPts;
-            if (ssp->NPts == 1) {
-                GlobalLog("ReadSSP: The SSP must have at least 2 points\n");
-                std::abort();
-            }
-
-
-            switch (ssp->Type) {
-            case 'N': // N2-linear profile option
-                Initn2Linear(ssp); break;
-            case 'C': // C-linear profile option
-                //nothing to do
-                break;
-            case 'P': // monotone PCHIP ACS profile option
-                InitcPCHIP(ssp); break;
-            case 'S': // Cubic spline profile option
-                InitcCubic(ssp); break;
-            case 'Q':
-                InitQuad(ssp); break;
-            case 'H':
-                InitHexahedral(ssp); break;
-            default:
-                GlobalLog("InitializeSSP: Invalid profile option %c\n", ssp->Type);
-                std::abort();
-            }
-
-            return;
+        // LP: Gradient at last point is uninitialized.
+        ssp->cz[ssp->NPts-1] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP: debugging
+        
+        switch (ssp->Type) {
+        case 'N': // N2-linear profile option
+            Initn2Linear(ssp); break;
+        case 'C': // C-linear profile option
+            //nothing to do
+            break;
+        case 'P': // monotone PCHIP ACS profile option
+            InitcPCHIP(ssp); break;
+        case 'S': // Cubic spline profile option
+            InitcCubic(ssp); break;
+        case 'Q':
+            InitQuad(ssp); break;
+        default:
+            GlobalLog("InitializeSSP: Invalid profile option %c\n", ssp->Type);
+            std::abort();
         }
     }
-
-    // Fall through means too many points in the profile
-    GlobalLog("ReadSSP: Number of SSP points exceeds limit\n");
-    std::abort();
 }
 
 /**
@@ -268,6 +261,12 @@ void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile,
 
         // Did we read the last point?
         if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON){ // LP: FLT_EPSILON is not a typo
+            ssp->Nz = ssp->NPts;
+            if (ssp->NPts == 1) {
+                GlobalLog("ReadSSP: The SSP must have at least 2 points\n");
+                std::abort();
+            }
+            
             if (ssp->Type == 'Q') {
                 //read in extra SSP data for 2D
                 ReadQuad(PRTFile, ssp, FileRoot);

@@ -425,7 +425,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     }
 }
 
-void UpdateSSP(real Depth, real freq, const real& fT, SSPStructure* ssp,
+void UpdateSSP(real freq, const real& fT, SSPStructure* ssp,
     PrintFileEmu& PRTFile, const AttenInfo* atten);
 
 void InitializeSSP(real Depth, LDIFile& ENVFile, PrintFileEmu& PRTFile, 
