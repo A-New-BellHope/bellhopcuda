@@ -138,11 +138,11 @@ template<bool O3D, bool R3D> bool run(
     return run_cxx(params, outputs, singlethread);
 }
 
-BHC_API template bool run<false, false>(
+template bool BHC_API run<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
-BHC_API template bool run<true, false>(
+template bool BHC_API run<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
-BHC_API template bool run<true, true>(
+template bool BHC_API run<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
 
 #endif

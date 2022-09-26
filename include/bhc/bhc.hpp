@@ -58,15 +58,15 @@ template<bool O3D, bool R3D> bool setup(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
-BHC_API extern template bool setup<false, false>(
+extern template BHC_API bool setup<false, false>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 /// Nx2D or 2D-3D version, see template.
-BHC_API extern template bool setup<true, false>(
+extern template BHC_API bool setup<true, false>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
-BHC_API extern template bool setup<true, true>(
+extern template BHC_API bool setup<true, true>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
     
@@ -93,13 +93,13 @@ template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
 
 /// 2D version, see template.
-BHC_API extern template bool run<false, false>(
+extern template BHC_API bool run<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
 /// Nx2D or 2D-3D version, see template.
-BHC_API extern template bool run<true, false>(
+extern template BHC_API bool run<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 /// 3D version, see template.
-BHC_API extern template bool run<true, true>(
+extern template BHC_API bool run<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
 
 /**
@@ -110,13 +110,13 @@ template<bool O3D, bool R3D> void finalize(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
-BHC_API extern template void finalize<false, false>(
+extern template BHC_API void finalize<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 /// Nx2D or 2D-3D version, see template.
-BHC_API extern template void finalize<true, false>(
+extern template BHC_API void finalize<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
-BHC_API extern template void finalize<true, true>(
+extern template BHC_API void finalize<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 }

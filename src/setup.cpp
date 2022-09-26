@@ -293,13 +293,13 @@ template<bool O3D, bool R3D> bool setup(
     return api_okay;
 }
 
-BHC_API template bool setup<false, false>(
+template bool BHC_API setup<false, false>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
-BHC_API template bool setup<true, false>(
+template bool BHC_API setup<true, false>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
-BHC_API template bool setup<true, true>(
+template bool BHC_API setup<true, true>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
@@ -364,11 +364,11 @@ template<bool O3D, bool R3D> void finalize(
     checkdeallocate(outputs.arrinfo);
 }
 
-BHC_API template void finalize<false, false>(
+template void BHC_API finalize<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
-BHC_API template void finalize<true, false>(
+template void BHC_API finalize<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
-BHC_API template void finalize<true, true>(
+template void BHC_API finalize<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 }
