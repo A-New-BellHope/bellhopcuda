@@ -168,6 +168,13 @@ if(!(statement)){ \
 
 #define CHECK_REAL_T() static_assert(std::is_floating_point<REAL>::value, "Invalid type for REAL!")
 
+template<typename REAL> REAL fmsub(REAL x, REAL y, REAL z){
+    // LP: Fused multiply-subtract is a separate instruction in x86. Hopefully
+    // this will be emitted, but even if it isn't, the negative z should never
+    // change any precision results.
+    return STD::fma(x, y, -z);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //Complex types
 ////////////////////////////////////////////////////////////////////////////////
@@ -659,6 +666,7 @@ HOST_DEVICE inline void RayNormalImpl(const vec3 &t, real phi, bool ignorephi0,
     
     if(phi != RL(0.0) || ignorephi0){
         real cosphi = STD::cos(phi), sinphi = STD::sin(phi);
+        
         // e1
         e1.x = (c * t.x * t.z * cosphi + t.y * sinphi) / rl;
         e1.y = (c * t.y * t.z * cosphi - t.x * sinphi) / rl;
@@ -668,6 +676,36 @@ HOST_DEVICE inline void RayNormalImpl(const vec3 &t, real phi, bool ignorephi0,
         e2.x = (c * t.x * t.z * sinphi - t.y * cosphi) / rl;
         e2.y = (c * t.y * t.z * sinphi + t.x * cosphi) / rl;
         e2.z = -c * rl * sinphi;
+        /*
+        // LP: This algorithm is sensitive to precision. e1 is used to compute
+        // an update to phi, and phi is used here to compute e1. Even if the
+        // other variables (t, c, rayn1) do not diverge between Fortran and C++,
+        // phi and e1 may diverge due to floating-point precision.
+        // This implementation matches the set of AVX-512 operations performed
+        // by the gfortran build of BELLHOP.
+        real t1t3 = t.x * t.z;
+        real t2t3 = t.y * t.z;
+        real ct1t3 = c * t1t3;
+        real ct2t3 = c * t2t3;
+        real crl   = c * rl;
+        real rcprl = RL(1.0) / rl;
+        real e11build = sinphi * t.y;
+        real e12build = sinphi * t.x;
+        e11build = STD::fma(cosphi, ct1t3, e11build);
+        real t2cosphi = cosphi * t.y;
+        e12build =    fmsub(cosphi, ct2t3, e12build);
+        real e13build = cosphi * crl;
+        real e22build = cosphi * t.x;
+        real e21build = fmsub(ct1t3, sinphi, t2cosphi);
+        e1.z = -e13build;
+        e22build = STD::fma(sinphi, ct2t3, e22build);
+        real e23build = sinphi * crl;
+        e1.x = e11build * rcprl;
+        e1.y = e12build * rcprl;
+        e2.z = -e23build;
+        e2.x = e21build * rcprl;
+        e2.y = e22build * rcprl;
+        */
     }else{
         e1 = vec3(c * t.x * t.z / rl, c * t.y * t.z / rl, -c * rl);
         e2 = vec3(-t.y / rl, t.x / rl, RL(0.0));

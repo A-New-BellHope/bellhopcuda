@@ -1132,12 +1132,16 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                         
                         beamCoordDist = n1prime = n1; IGNORE_UNUSED(n2prime);
                     }
+                    /*
+                    if((inflray.ir == 11 && itheta == 23) || 
+                        (inflray.ir == 15 && itheta == 194) || 
+                        (inflray.ir == 9 && itheta == 464)){
+                        GlobalLog("theta %d z %d r %d (a+b) %g BeamWindow %g\n",
+                            itheta, iz, inflray.ir, beamCoordDist, inflray.BeamWindow * sigma);
+                    }
+                    */
                     if(beamCoordDist > inflray.BeamWindow * sigma || 
                         (!R3D && beamCoordDist == inflray.BeamWindow * sigma)){
-                        // if(inflray.ir == 7 && itheta == 59){
-                        //     GlobalLog("Skipping z %d b/c outside beam (a+b) %g BeamWindow %g\n",
-                        //         iz, beamCoordDist, inflray.BeamWindow * sigma);
-                        // }
                         continue;
                     }
                     

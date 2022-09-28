@@ -485,8 +485,14 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     
     if constexpr(REFLECTVERSION){
         // Logic below fixes a bug when the |dot product| is infinitesimally greater than 1 (then ACos is complex)
-        ray.phi += FL(2.0) * STD::acos(bhc::max(bhc::min(glm::dot(rayn1, e1), RL(1.0)), RL(-1.0))); // What happens to torsion?
-        GlobalLog("dot %17.12g phi %17.12g\n", glm::dot(rayn1, e1), ray.phi);
+        real d;
+        d = glm::dot(rayn1, e1);
+        // d = rayn1.y * e1.y;
+        // d = STD::fma(rayn1.x, e1.x, d);
+        // d = STD::fma(rayn1.z, e1.z, d);
+        ray.phi += FL(2.0) * STD::acos(bhc::max(bhc::min(d, RL(1.0)), RL(-1.0))); // What happens to torsion?
+        // GlobalLog("dot %17.12g phi %17.12g\n",
+        //     glm::dot(rayn1, e1), ray.phi);
     }
 }
 
