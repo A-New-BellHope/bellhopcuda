@@ -23,7 +23,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-//#define STEP_DEBUGGING 1
+// #define STEP_DEBUGGING 1
 
 #ifdef BHC_USE_FLOATS
 #define INFINITESIMAL_STEP_SIZE (RL(1e-3))
@@ -431,6 +431,7 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     rmat[0][1] = FL(2.0) / ray.c * DMat[1][0] * STD::copysign(RL(1.0), -Th)  + rm * cn2jump / csq;
     rmat[1][0] = rmat[0][1];
     rmat[1][1] = FL(2.0)         * DMat[1][1] * Th;
+    // PrintMatrix(rmat, "rmat");
     
     if constexpr(REFLECTVERSION){
         rmat[1][0] = -rmat[1][0]; // LP: only first row, second column is negative
@@ -442,42 +443,50 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     // z-component of unit tangent is sin( theta ); we want cos( theta )
     //rmat[0][0] *= (FL(1.0) - SQ(ray.c * ray.t.z))
     
-    // *** curvature correction ***
-    
-    /*
-    LP: Arrays in Fortran are stored as A[row][col] where the leftmost index
-    (row) is the small increment to adjacent memory. Arrays in C are stored
-    as A[row][col] where the rightmost index (col) is the small increment to
-    adjacent memory. Arrays in OpenGL and therefore GLM are stored as
-    A[col][row] where the rightmost index (row) is the small increment to
-    adjacent memory. For bellhopcxx/bellhopcuda, we don't care how the data
-    is stored for proper matrices like this, but the indexing has to be
-    swapped compared to the Fortran.
-    */
-    mat2x2 RotMat;
-    RotMat[0][0] = glm::dot(rayn1, e1);
-    RotMat[1][0] = glm::dot(rayn1, e2);
-    RotMat[0][1] = -RotMat[1][0]; // mbp: same as glm::dot(rayn2, e1)
-    RotMat[1][1] = glm::dot(rayn2, e2);
-    
-    // rotate p-q values in e1, e2 system, onto rayn1, rayn2 system
-    // LP: _tilde and _hat are the first and second ROWS of p / q.
-    
-    mat2x2 p_in = RotMat * ray.p;
-    mat2x2 q_in = RotMat * ray.q;
-    
-    // here's the actual curvature change
-    
-    mat2x2 p_out = p_in + rmat * q_in;
-    
-    // rotate p back to e1, e2 system, q does not change
-    // Note RotMat^(-1) = RotMat^T
-    
-    ray.p = glm::transpose(RotMat) * p_out;
+    if(REFLECTVERSION && rmat[0][0] == RL(0.0) && rmat[0][1] == RL(0.0) && rmat[1][1] == RL(0.0)){
+        // LP: There is no curvature change, but rotating p forward and back
+        // can change it slightly due to floating-point imprecision, leading to
+        // long-term divergence.
+    }else{
+        
+        // *** curvature correction ***
+        
+        /*
+        LP: Arrays in Fortran are stored as A[row][col] where the leftmost index
+        (row) is the small increment to adjacent memory. Arrays in C are stored
+        as A[row][col] where the rightmost index (col) is the small increment to
+        adjacent memory. Arrays in OpenGL and therefore GLM are stored as
+        A[col][row] where the rightmost index (row) is the small increment to
+        adjacent memory. For bellhopcxx/bellhopcuda, we don't care how the data
+        is stored for proper matrices like this, but the indexing has to be
+        swapped compared to the Fortran.
+        */
+        mat2x2 RotMat;
+        RotMat[0][0] = glm::dot(rayn1, e1);
+        RotMat[1][0] = glm::dot(rayn1, e2);
+        RotMat[0][1] = -RotMat[1][0]; // mbp: same as glm::dot(rayn2, e1)
+        RotMat[1][1] = glm::dot(rayn2, e2);
+        
+        // rotate p-q values in e1, e2 system, onto rayn1, rayn2 system
+        // LP: _tilde and _hat are the first and second ROWS of p / q.
+        
+        mat2x2 p_in = RotMat * ray.p;
+        mat2x2 q_in = RotMat * ray.q;
+        
+        // here's the actual curvature change
+        
+        mat2x2 p_out = p_in + rmat * q_in;
+        
+        // rotate p back to e1, e2 system, q does not change
+        // Note RotMat^(-1) = RotMat^T
+        
+        ray.p = glm::transpose(RotMat) * p_out;
+    }
     
     if constexpr(REFLECTVERSION){
         // Logic below fixes a bug when the |dot product| is infinitesimally greater than 1 (then ACos is complex)
-        ray.phi += FL(2.0) * STD::acos(bhc::max(bhc::min(glm::dot(rayn1, e1), RL(1.0)), RL(-1.0)));
+        ray.phi += FL(2.0) * STD::acos(bhc::max(bhc::min(glm::dot(rayn1, e1), RL(1.0)), RL(-1.0))); // What happens to torsion?
+        GlobalLog("dot %17.12g phi %17.12g\n", glm::dot(rayn1, e1), ray.phi);
     }
 }
 
@@ -523,6 +532,8 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
         real cn1jump = glm::dot(gradcjump, rayn1);
         real cn2jump = glm::dot(gradcjump, rayn2);
         real csjump  = glm::dot(gradcjump, rayt);
+        
+        // GlobalLog("cn1 cn2 cs jumps %g %g %g\n", cn1jump, cn2jump, csjump);
         
         CurvatureCorrection3D<false>(ray, mat2x2(RL(0.0)), Tg, Th, 
             cn1jump, cn2jump, csjump, rayn1, rayn2, e1, e2);
@@ -571,10 +582,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     if constexpr(R3D){
         GlobalLog("\nray0 x t (%20.17f,%20.17f,%20.17f) (%20.17e,%20.17e,%20.17e)\n",
             ray0.x.x, ray0.x.y, ray0.x.z, ray0.t.x, ray0.t.y, ray0.t.z);
-        GlobalLog("ray0 p /%10.7f %10.7f\\ q /%10.7f %10.7f\\\n"
-                  "       \\%10.7f %10.7f/   \\%10.7f %10.7f/\n",
-            ray0.p[0][0], ray0.p[1][0], ray0.q[0][0], ray0.q[1][0],
-            ray0.p[0][1], ray0.p[1][1], ray0.q[0][1], ray0.q[1][1]);
+        PrintMatrix(ray0.p, "ray0.p");
+        PrintMatrix(ray0.q, "ray0.q");
         GlobalLog("iSegx iSegy iSegz %d %d %d\n", iSeg.x + 1, iSeg.y + 1, iSeg.z + 1);
     }else{
         GlobalLog("\nray0 x t (%20.17f,%20.17f) (%20.17e,%20.17e)\n",
@@ -677,6 +686,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
         VEC23<R3D> gradcjump = o2.gradc - o0.gradc;
         CurvatureCorrection<R3D>(ray2, gradcjump, iSeg, iSeg0);
     }
+    // if constexpr(R3D){
+    //     PrintMatrix(ray2.p, "ray2.p");
+    //     PrintMatrix(ray2.q, "ray2.q");
+    // }
     
 }
 

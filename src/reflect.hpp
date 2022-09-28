@@ -258,6 +258,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         // DMat = RotMat^T * kappaMat * RotMat, with RotMat anti-symmetric
         mat2x2 DMatTemp = (FL(2.0) * kappaMat) * RotMat;
         mat2x2 DMat     = glm::transpose(RotMat) * DMatTemp;
+        // PrintMatrix(DMat, "DMat");
         
         // normal and tangential derivatives of the sound speed
         real cn1jump =  glm::dot(o.gradc, -rayn1_tilde - rayn1);
@@ -280,7 +281,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         newPoint.phi  = oldPoint.phi;
         CurvatureCorrection3D<true>(newPoint, DMat, Tg, Th,
             cn1jump, cn2jump, csjump, rayn1, rayn2, e1, e2);
-        
     }else{
     
         // incident unit ray tangent and normal

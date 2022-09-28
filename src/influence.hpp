@@ -941,6 +941,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
     angleXY = RadDeg * STD::atan2(rayt.y, rayt.x);
     if constexpr(R3D){
         RayNormal_unit(rayt, point1.phi, rayn1, rayn2);
+        // GlobalLog("rayt phi (%11.8f,%11.8f,%11.8f) %11.8f\n",
+        //     rayt.x, rayt.y, rayt.z, point1.phi);
+        // GlobalLog("rayn1 rayn2 (%11.8f,%11.8f,%11.8f) (%11.8f,%11.8f,%11.8f)\n",
+        //     rayn1.x, rayn1.y, rayn1.z, rayn2.x, rayn2.y, rayn2.z);
         RcvrDeclAngle = RadDeg * STD::atan2(rayt.z, glm::length(n_ray_theta));
         RcvrAzimAngle = angleXY;
     }else{
@@ -1047,7 +1051,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     zmin = bhc::min(point0.x.z, point1.x.z) - L_z; // min depth of ray segment
                     zmax = bhc::max(point0.x.z, point1.x.z) + L_z; // max depth of ray segment
                     
-                    // GlobalLog("step ir itheta m_prime L_diag %d %d %d %g %g\n", is, inflray.ir, itheta, m_prime, L_diag);
+                    // if(inflray.ir == 7 && itheta == 59){
+                    //     GlobalLog("step ir itheta %d %d %d\n", is, inflray.ir, itheta);
+                    // }
                 }else{
                     IGNORE_UNUSED(itheta);
                     x_rcvr.x = Pos->Rr[inflray.ir];
@@ -1062,6 +1068,13 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     if(DEP(x_rcvr) < zmin || DEP(x_rcvr) > zmax) continue;
                     
                     VEC23<R3D> x_rcvr_ray = x_rcvr - x_ray;
+                    // if constexpr(R3D){
+                    //     if(inflray.ir == 7 && itheta == 59){
+                    //         GlobalLog("x_rcvr_ray rayn1 rayn2 (%11.8f,%11.8f,%11.8f) (%11.8f,%11.8f,%11.8f) (%11.8f,%11.8f,%11.8f)\n",
+                    //             x_rcvr_ray.x, x_rcvr_ray.y, x_rcvr_ray.z,
+                    //             rayn1.x, rayn1.y, rayn1.z, rayn2.x, rayn2.y, rayn2.z);
+                    //     }
+                    // }
                     
                     // linear interpolation of q's
                     real s, n1, n2;
@@ -1087,12 +1100,27 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     if constexpr(R3D){
                         real l1 = glm::length(glm::row(qInterp, 0));
                         real l2 = glm::length(glm::row(qInterp, 1));
-                        if(l1 == FL(0.0) || l2 == FL(0.0)) continue;
+                        if(l1 == FL(0.0) || l2 == FL(0.0)){
+                            // if(inflray.ir == 7 && itheta == 59){
+                            //     GlobalLog("Skipping z %d b/c l1/l2\n", iz);
+                            // }
+                            continue;
+                        }
                         
-                        if(qFinal == FL(0.0)) continue;
+                        if(qFinal == FL(0.0)){
+                            // if(inflray.ir == 7 && itheta == 59){
+                            //     GlobalLog("Skipping z %d b/c qFinal\n", iz);
+                            // }
+                            continue;
+                        }
                         
                         n1prime = STD::abs((-qInterp[0][1] * n2 + qInterp[1][1] * n1) / qFinal);
                         n2prime = STD::abs(( qInterp[0][0] * n2 - qInterp[1][0] * n1) / qFinal);
+                        // if(inflray.ir == 7 && itheta == 59){
+                        //     PrintMatrix(qInterp, "qInterp");
+                        //     GlobalLog("qFinal n1 n2 %13.8g %13.8g %13.8g\n", qFinal, n1, n2);
+                        //     GlobalLog("n1prime %13.8f n2prime %13.8f\n", n1prime, n2prime);
+                        // }
                         
                         beamCoordDist = isGaussian ? (n1prime + n2prime) : bhc::max(n1prime, n2prime);
                         sigma = FL(1.0);
@@ -1105,7 +1133,13 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                         beamCoordDist = n1prime = n1; IGNORE_UNUSED(n2prime);
                     }
                     if(beamCoordDist > inflray.BeamWindow * sigma || 
-                        (!R3D && beamCoordDist == inflray.BeamWindow * sigma)) continue;
+                        (!R3D && beamCoordDist == inflray.BeamWindow * sigma)){
+                        // if(inflray.ir == 7 && itheta == 59){
+                        //     GlobalLog("Skipping z %d b/c outside beam (a+b) %g BeamWindow %g\n",
+                        //         iz, beamCoordDist, inflray.BeamWindow * sigma);
+                        // }
+                        continue;
+                    }
                     
                     cpx delay = point0.tau + s * dtau; // interpolated delay
                     real cnst = inflray.Ratio1 * point1.Amp * STD::sqrt(RL(1.0) / STD::abs(qFinal));
@@ -1127,6 +1161,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     }
                     real phaseInt = FinalPhase<R3D>((!R3D && isGaussian ? point1 : point0),
                         inflray, qFinal);
+                        
+                    // if(inflray.ir == 7 && itheta == 59){
+                    //     GlobalLog("iz cnst w delay phaseInt %d %g %g (%g,%g) %g\n",
+                    //         iz, cnst, w, delay.real(), delay.imag(), phaseInt);
+                    // }
                     
                     ApplyContribution<O3D, R3D>(uAllSources,
                         cnst, w, inflray.omega, delay, phaseInt,
