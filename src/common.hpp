@@ -221,6 +221,19 @@ inline HOST_DEVICE bool isfinite(const vec3 &v){
     return STD::isfinite(v.x) && STD::isfinite(v.y) && STD::isfinite(v.z);
 }
 
+template<typename VEC> HOST_DEVICE inline real &DEP(VEC &v);
+template<> HOST_DEVICE inline real &DEP(vec2 &v) { return v.y; }
+template<> HOST_DEVICE inline real &DEP(vec3 &v) { return v.z; }
+template<typename VEC> HOST_DEVICE inline const real &DEP(const VEC &v);
+template<> HOST_DEVICE inline const real &DEP(const vec2 &v) { return v.y; }
+template<> HOST_DEVICE inline const real &DEP(const vec3 &v) { return v.z; }
+inline HOST_DEVICE vec2 XYCOMP(const vec3 &v){
+    return vec2(v.x, v.y);
+}
+inline HOST_DEVICE void SETXY(vec3 &v, const vec2 &xy){
+    v.x = xy.x; v.y = xy.y;
+}
+
 //max/min are not handled the same way as other math functions by the C++
 //standard library and therefore also by libcu++. These versions make sure
 //to use the underlying function with the correct precision.
