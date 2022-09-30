@@ -409,8 +409,8 @@ template<bool R3D> struct InfluenceRayInfo {
     real phase;
     real qOld; // LP: Det_QOld in 3D
     VEC23<R3D> x;
+    VEC23<R3D> rayn1, rayn2; // LP: rayn1 was rn, zn in 2D
     bool lastValid;
-    real zn, rn;
     int32_t kmah;
     int32_t ir;
     cpx gamma;

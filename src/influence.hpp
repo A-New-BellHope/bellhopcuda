@@ -22,42 +22,14 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "arrivals.hpp"
 #include "beams.hpp"
 
+//#define INFL_DEBUGGING_IR 0
+//#define INFL_DEBUGGING_ITHETA 0
+
 namespace bhc {
 
-/**
- * mbp: sqrt(2*pi) represents a sum of Gaussians in free space
- * LP: Can't be constexpr as sqrt is not without GCC extensions
- */
-template<bool R3D> HOST_DEVICE inline real GaussScaleFactor()
-{
-    if constexpr(R3D){
-        return           FL(2.0) * REAL_PI;
-    }else{
-        return STD::sqrt(FL(2.0) * REAL_PI);
-    }
-}
-
-/**
- * Calculates a smoothing function based on the h0 hermite cubic
- * x is the point where the function is to be evaluated
- * returns:
- * [ 0, x1 ] = 1
- * [x1, x2 ] = cubic taper from 1 to 0
- * [x2, inf] = 0
- */
-HOST_DEVICE inline real Hermite(real x, real x1, real x2)
-{
-    real Ax = STD::abs(x);
-    if(Ax <= x1){
-        return RL(1.0);
-    }else if(Ax >= x2){
-        return RL(0.0);
-    }else{
-        real u = (Ax - x1) / (x2 - x1);
-        return (RL(1.0) + RL(2.0) * u) * SQ(RL(1.0) - u);
-    }
-    // ret /= (FL(0.5) * (x1 + x2));
-}
+////////////////////////////////////////////////////////////////////////////////
+//Post-processing
+////////////////////////////////////////////////////////////////////////////////
 
 /**
  * Scale the pressure field
@@ -146,24 +118,9 @@ template<bool R3D> HOST_DEVICE inline void ScalePressure(
     }
 }
 
-/**
- * Checks for a branch cut crossing and updates kmah accordingly
- */
-HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
-    int32_t &kmah, const BeamStructure *Beam)
-{
-    real q1, q2;
-    if(IsBeamWidthWKB(Beam)){
-        q1 = q1C.real();
-        q2 = q2C.real();
-    }else{
-        if(q2C.real() >= FL(0.0)) return;
-        q1 = q1C.imag();
-        q2 = q2C.imag();
-    }
-    if( (q1 < FL(0.0) && q2 >= FL(0.0)) || 
-        (q1 > FL(0.0) && q2 <= FL(0.0)) ) kmah = -kmah;
-}
+////////////////////////////////////////////////////////////////////////////////
+//Storing results
+////////////////////////////////////////////////////////////////////////////////
 
 template<bool R3D> HOST_DEVICE inline void AddToField(
     cpxf *uAllSources, const cpxf &dfield, int32_t itheta, int32_t ir, int32_t iz,
@@ -213,6 +170,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribution(
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//Cerveny-only helper functions
+////////////////////////////////////////////////////////////////////////////////
+
 /**
  * Picks the optimum value for epsilon (LP: "beam constant" / "beam initial conditions")
  * 
@@ -223,7 +184,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribution(
  * rLoop: loop range (LP: in Beam struct)
  * EpsMultiplier: multiplier to manually adjust result (LP: in Beam struct)
  * 
- * LP: For 3D, called twice, once for alpha and once for beta
+ * LP: For 3D, called twice, once for alpha and once for beta.
+ * LP: Claims to support non-Cerveny cases, but never called or results never
+ * used in non-Cerveny cases.
  */
 template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
     real omega, real c, vec2 gradc, real angle, real Dangle, const BeamStructure *Beam)
@@ -301,7 +264,111 @@ template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
     return Beam->epsMultiplier * epsilonOpt;
 }
 
-// LP: Helper functions.
+/**
+ * Form gamma
+ */
+template<bool O3D> HOST_DEVICE inline cpx Compute_gamma(
+    const rayPt<false> &point, const cpx &pB, const cpx &qB,
+    const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg)
+{
+    vec2 rayt = point.c * point.t; // unit tangent
+    vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
+    
+    SSPOutputs<false> o;
+    EvaluateSSP<O3D, false>(point.x, point.t, o, org, ssp, iSeg);
+    
+    real csq = SQ(o.ccpx.real());
+    real cS = glm::dot(o.gradc, rayt);
+    real cN = glm::dot(o.gradc, rayn);
+    
+    real Tr = rayt.x;
+    real Tz = rayt.y;
+    
+    if(qB != RL(0.0)){
+        return FL(0.5) * (pB / qB * SQ(Tr) + 
+            FL(2.0) * cN / csq * Tz * Tr - cS / csq * SQ(Tz));
+    }else{
+        return FL(0.0);
+    }
+}
+
+HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
+    const rayPt<false> &point, const InfluenceRayInfo<false> &inflray,
+    const BeamStructure *Beam)
+{
+    if(IsBeamWidthCerveny(Beam)){
+        eps = J * STD::abs(point.q.x / point.q.y);
+    }else{
+        eps = inflray.epsilon1;
+    }
+    pB = point.p.x + eps * point.p.y;
+    qB = point.q.x + eps * point.q.y;
+}
+
+/**
+ * Calculates a smoothing function based on the h0 hermite cubic
+ * x is the point where the function is to be evaluated
+ * returns:
+ * [ 0, x1 ] = 1
+ * [x1, x2 ] = cubic taper from 1 to 0
+ * [x2, inf] = 0
+ */
+HOST_DEVICE inline real Hermite(real x, real x1, real x2)
+{
+    real Ax = STD::abs(x);
+    if(Ax <= x1){
+        return RL(1.0);
+    }else if(Ax >= x2){
+        return RL(0.0);
+    }else{
+        real u = (Ax - x1) / (x2 - x1);
+        return (RL(1.0) + RL(2.0) * u) * SQ(RL(1.0) - u);
+    }
+    // ret /= (FL(0.5) * (x1 + x2));
+}
+
+/**
+ * Checks for a branch cut crossing and updates kmah accordingly
+ */
+HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
+    int32_t &kmah, const BeamStructure *Beam)
+{
+    real q1, q2;
+    if(IsBeamWidthWKB(Beam)){
+        q1 = q1C.real();
+        q2 = q2C.real();
+    }else{
+        if(q2C.real() >= FL(0.0)) return;
+        q1 = q1C.imag();
+        q2 = q2C.imag();
+    }
+    if( (q1 < FL(0.0) && q2 >= FL(0.0)) || 
+        (q1 > FL(0.0) && q2 <= FL(0.0)) ) kmah = -kmah;
+}
+
+HOST_DEVICE inline vec2 FlipBeamForImage(const vec2 &x, int32_t image, const BdryType *Bdry)
+{
+    if(image == 1){ // True beam
+        return x;
+    }else if(image == 2){ // Surface-reflected beam
+        return vec2(x.x, FL(2.0) * Bdry->Top.hs.Depth - x.y);
+    }else if(image == 3){ // Bottom-reflected beam
+        return vec2(x.x, FL(2.0) * Bdry->Bot.hs.Depth - x.y);
+    }else{
+        GlobalLog("Image index %d must be 1, 2, or 3\n", image);
+        bail();
+        return x;
+    }
+}
+
+HOST_DEVICE inline vec2 FlipNormalForImage(const vec2 &rayn, int32_t image)
+{
+    return vec2(rayn.x, rayn.y * ((image == 2) ? RL(-1.0) : RL(1.0)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//Caustics tracking system
+////////////////////////////////////////////////////////////////////////////////
 
 /**
  * LP: There are two versions of the phase shift condition used in the BELLHOP
@@ -341,107 +408,126 @@ template<bool R3D> HOST_DEVICE inline real FinalPhase(const rayPt<R3D> &point,
     return phaseInt;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//General helper functions
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+* detect and skip duplicate points (happens at boundary reflection)
+*/
+template<bool R3D> HOST_DEVICE inline bool IsDuplicatePoint(
+    const rayPt<R3D> &point0, const rayPt<R3D> &point1)
+{
+    if constexpr(R3D){
+        return glm::length(point1.x - point0.x) <= FL(1.0e-4);
+    }else{
+        return STD::abs(point1.x.x - point0.x.x) < RL(1.0e3) * spacing(point1.x.x);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//Geometrical-only helper functions
+////////////////////////////////////////////////////////////////////////////////
+
 HOST_DEVICE inline int32_t RToIR(real r, const Position *Pos)
 {
     // mbp: should be ", -1);"? [LP: for computation of ir1 / irA]
     return bhc::max(bhc::min((int)((r - Pos->Rr[0]) / Pos->Delta_r), Pos->NRr-1), 0);
 }
 
-HOST_DEVICE inline real FlipBeamForImage(real xy, int32_t image, const BdryType *Bdry)
+template<bool R3D> HOST_DEVICE inline void AdjustSigma(
+    real &sigma, const rayPt<R3D> &point0, const rayPt<R3D> &point1,
+    const InfluenceRayInfo<R3D> &inflray, const BeamStructure *Beam)
 {
-    if(image == 1){ // True beam
-        return xy;
-    }else if(image == 2){ // Surface-reflected beam
-        return FL(2.0) * Bdry->Top.hs.Depth - xy;
-    }else if(image == 3){ // Bottom-reflected beam
-        return FL(2.0) * Bdry->Bot.hs.Depth - xy;
-    }else{
-        GlobalLog("Image index %d must be 1, 2, or 3\n", image);
-        bail();
-    }
-}
-
-HOST_DEVICE inline void Compute_N_R_IR(real &n, real &r, int32_t &ir,
-    real xx, real xy, real zn, real rn, real zR, const Position *Pos)
-{
-    n = (zR - xy) / zn;
-    r = xx + n * rn;
-    // following assumes uniform spacing in Pos->r
-    ir = RToIR(r, Pos); // index of receiver
+    if(!IsGaussianGeomInfl(Beam)) return;
+    real lambda = point0.c / inflray.freq0; // local wavelength
+    // min pi * lambda, unless near
+    sigma = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
 }
 
 /**
- * detect and skip duplicate points (happens at boundary reflection)
+ * mbp: sqrt(2*pi) represents a sum of Gaussians in free space
+ * LP: Can't be constexpr as sqrt is not without GCC extensions
  */
-HOST_DEVICE inline bool IsDuplicatePoint(const rayPt<false> &point0, const rayPt<false> &point1)
-{
-    return STD::abs(point1.x.x - point0.x.x) < RL(1.0e3) * spacing(point1.x.x);
-}
-
-HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
-    const rayPt<false> &point, const InfluenceRayInfo<false> &inflray,
-    const BeamStructure *Beam)
-{
-    if(IsBeamWidthCerveny(Beam)){
-        eps = J * STD::abs(point.q.x / point.q.y);
-    }else{
-        eps = inflray.epsilon1;
-    }
-    pB = point.p.x + eps * point.p.y;
-    qB = point.q.x + eps * point.q.y;
-}
-
-/**
- * Form gamma
- */
-template<bool O3D> HOST_DEVICE inline cpx Compute_gamma(
-    const rayPt<false> &point, const cpx &pB, const cpx &qB,
-    const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg)
-{
-    vec2 rayt = point.c * point.t; // unit tangent
-    vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
-    
-    SSPOutputs<false> o;
-    EvaluateSSP<O3D, false>(point.x, point.t, o, org, ssp, iSeg);
-    
-    real csq = SQ(o.ccpx.real());
-    real cS = glm::dot(o.gradc, rayt);
-    real cN = glm::dot(o.gradc, rayn);
-    
-    real Tr = rayt.x;
-    real Tz = rayt.y;
-    
-    if(qB != RL(0.0)){
-        return FL(0.5) * (pB / qB * SQ(Tr) + 
-            FL(2.0) * cN / csq * Tz * Tr - cS / csq * SQ(Tz));
-    }else{
-        return FL(0.0);
-    }
-}
-
-/**
- * pre-apply some scaling
- */
-template<bool R3D> HOST_DEVICE inline rayPt<R3D> ScaleBeamIf3D(
-    const rayPt<R3D> &point, const InfluenceRayInfo<R3D> &inflray)
+template<bool R3D> HOST_DEVICE inline real GaussScaleFactor()
 {
     if constexpr(R3D){
-        rayPt<true> ret = point;
-        // scaling for geometric beams
-        ret.q[0][0] *= inflray.rcp_q0;
-        ret.q[1][0] *= inflray.rcp_q0;
-        ret.q[0][1] *= inflray.rcp_qhat0;
-        ret.q[1][0] *= inflray.rcp_qhat0;
+        return           FL(2.0) * REAL_PI;
     }else{
-        return point;
+        return STD::sqrt(FL(2.0) * REAL_PI);
     }
 }
 
+// area of parallelogram formed by ray tube
 template<typename MV> HOST_DEVICE inline real QScalar(const MV &q);
 template<> HOST_DEVICE inline real QScalar(const vec2 &q) { return q.x; }
 template<> HOST_DEVICE inline real QScalar(const mat2x2 &q) { return glm::determinant(q); }
 
-// 
+template<bool R3D> HOST_DEVICE inline void ReceiverAngles(
+    real &RcvrDeclAngle, real &RcvrAzimAngle, const VEC23<R3D> &rayt)
+{
+    real angleXY = RadDeg * STD::atan2(rayt.y, rayt.x);
+    if constexpr(R3D){
+        RcvrDeclAngle = RadDeg * STD::atan2(rayt.z, glm::length(XYCOMP(rayt)));
+        RcvrAzimAngle = angleXY;
+    }else{
+        RcvrDeclAngle = angleXY;
+        RcvrAzimAngle = DEBUG_LARGEVAL;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//Geom ray-centered helper functions
+////////////////////////////////////////////////////////////////////////////////
+
+template<bool R3D> HOST_DEVICE inline void RayNormalRayCen(
+    const rayPt<R3D> &point, VEC23<R3D> &rayn1, VEC23<R3D> &rayn2)
+{
+    if constexpr(R3D){
+        RayNormal(point.t, point.phi, point.c, rayn1, rayn2);
+    }else{
+        // ray normal based on tangent with c(s) scaling
+        rayn1 = vec2(point.t.y, -point.t.x) * point.c;
+        rayn2 = vec2(DEBUG_LARGEVAL, DEBUG_LARGEVAL);
+    }
+}
+
+HOST_DEVICE inline void Compute_RayCenCross(vec3 &xt, vec3 &xtxe1, vec3 &xtxe2,
+    const vec3 &x, const vec3 &rayn1, const vec3 &rayn2, real zR,
+    const InfluenceRayInfo &inflray)
+{
+    // mbp: vector from receiver to each step of ray
+    // LP: Not sure what this vector is, but it's not that.
+    xtA = point1.x - vec3(inflray.xs.x, inflray.xs.y, zR);
+    xtxe1A = glm::cross(xt, rayn1);
+    xtxe2A = glm::cross(xt, rayn2);
+}
+
+HOST_DEVICE inline void Compute_N_R_IR(real &n, real &r, int32_t &ir,
+    const VEC23<R3D> &x, const VEC23<R3D> &normal, real zR, const Position *Pos)
+{
+    n = (zR - DEP(x)) / DEP(normal);
+    r = x.x + n * normal.x;
+    // following assumes uniform spacing in Pos->r
+    ir = RToIR(r, Pos); // index of receiver
+}
+
+HOST_DEVICE inline bool Compute_M_N_R_IR(
+    real &delta, real &m, real &n, real &r, int32_t &ir,
+    const vec3 &e1xe2, const vec3 &xtxe1, const vec3 &xtxe2, const vec3 &xt,
+    const vec2 &t_rcvr, const Position *Pos)
+{
+    delta = -glm::dot(t_rcvr, XYCOMP(e1xe2));
+    if(STD::abs(delta) < FL(1e-3)) return true; // ray normal || radial of rcvr line
+    m =      glm::dot(t_rcvr, XYCOMP(xtxe1)) / delta;
+    n =     -glm::dot(t_rcvr, XYCOMP(xtxe2)) / delta;
+    r =     -glm::dot(xt, e1xe2) / delta;
+    return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//Init_Influence
+////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     InfluenceRayInfo<R3D> &inflray,
@@ -504,20 +590,19 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     
     // LP: For RayCen types
     if(IsRayCenInfl(Beam)){
-        if(IsHatGeomInfl(Beam)){
-            inflray.zn = -point0.t.x * point0.c;
-            inflray.rn =  point0.t.y * point0.c;
-            inflray.x = point0.x;
-            inflray.lastValid = STD::abs(inflray.zn) >= RL(1e-6);
-        }else if(IsCervenyInfl(Beam)){
+        if(IsCervenyInfl(Beam)){
             // mbp: This logic means that the first step along the ray is skipped
             // which is a problem if deltas is very large, e.g. isospeed problems
             // I [mbp] fixed this in InfluenceGeoHatRayCen
-            inflray.zn = RL(1.0);
-            inflray.rn = RL(0.0);
+            inflray.rayn1 = VEC23<R3D>(RL(0.0)); DEP(inflray.rayn1) = RL(1.0);
+            inflray.rayn2 = VEC23<R3D>(DEBUG_LARGEVAL);
             inflray.x = VEC23<R3D>(RL(0.0));
             inflray.lastValid = false;
-        }
+        }else{
+            RayNormalRayCen(point0, inflray.rayn1, inflray.rayn2);
+            inflray.x = point0.x;
+            inflray.lastValid = STD::abs(DEP(inflray.normal)) >= RL(1e-6);
+        } 
     }else{
         // LP: For Cartesian types
         inflray.x = point0.x;
@@ -561,11 +646,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
         // LP: not used
         inflray.gamma = RL(0.0);
     }
-    
-    
 }
 
-// LP: Main functions.
+////////////////////////////////////////////////////////////////////////////////
+//Cerveny step functions
+////////////////////////////////////////////////////////////////////////////////
 
 /**
  * Paraxial (Cerveny-style) beams in ray-centered coordinates
@@ -579,7 +664,6 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     IGNORE_UNUSED(is);
     
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
-    real zn, rn, zR;
     // need to add logic related to NRz_per_range
     
     // During reflection imag(q) is constant and adjacent normals cannot bracket
@@ -590,21 +674,19 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     gamma0 = pB0 / qB0;
     gamma1 = pB1 / qB1;
     
-    // ray normal based on tangent with c(s) scaling
-    zn = -point1.t.x * point1.c;
-    rn =  point1.t.y * point1.c;
+    vec2 rayn1, dummy;
+    RayNormalRayCen<false>(point1, rayn1, dummy);
     // If normal parallel to TL-line, skip to next step on ray
     // LP: Changed from (the FORTRAN equivalent of) REAL_MINPOS as this is the
     // smallest positive floating point number, which would be equivalent to
-    // just zn == 0.0.
-    if(STD::abs(zn) < REAL_EPSILON) return true;
+    // just value == 0.0.
+    if(STD::abs(DEP(rayn1)) < REAL_EPSILON) return true;
     
     // detect and skip duplicate points (happens at boundary reflection)
-    if(IsDuplicatePoint(point0, point1)){
+    if(IsDuplicatePoint<false>(point0, point1)){
         inflray.lastValid = true;
         inflray.x = point1.x;
-        inflray.zn = zn;
-        inflray.rn = rn;
+        inflray.rayn1 = rayn1;
         return true;
     }
     
@@ -614,16 +696,15 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     BranchCut(qB0, qB1, inflray.kmah, Beam);
     
     for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
-        zR = Pos->Rz[iz];
+        real zR = Pos->Rz[iz];
         
         for(int32_t image=1; image <= Beam->Nimage; ++image){
-            real Polarity = (image == 2) ? RL(-1.0) : RL(1.0);
             real nA, rA, nB, rB;
             int32_t ir1, ir2; // LP: mbp switches from A/B naming to 1/2 here.
-            Compute_N_R_IR(nB, rB, ir2, point1.x.x, FlipBeamForImage(point1.x.y, image, Bdry),
-                zn, rn * Polarity, zR, Pos);
-            Compute_N_R_IR(nA, rA, ir1, inflray.x.x, FlipBeamForImage(inflray.x.y, image, Bdry),
-                inflray.zn, inflray.rn * Polarity, zR, Pos);
+            Compute_N_R_IR(nB, rB, ir2, FlipBeamForImage(point1.x, image, Bdry),
+                FlipNormalForImage(rayn1, image), zR, Pos);
+            Compute_N_R_IR(nA, rA, ir1, FlipBeamForImage(inflray.x, image, Bdry),
+                FlipNormalForImage(inflray.rayn1, image), zR, Pos);
             
             if(inflray.lastValid && ir1 < ir2){
                 for(int32_t ir=ir1+1; ir<=ir2; ++ir){
@@ -682,8 +763,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     
     inflray.lastValid = true;
     inflray.x = point1.x;
-    inflray.zn = zn;
-    inflray.rn = rn;
+    inflray.rayn1 = rayn1;
     return true;
 }
 
@@ -724,7 +804,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     }
     real rA = point0.x.x;
     real rB = point1.x.x;
-    if(IsDuplicatePoint(point0, point1)) return true; // don't process duplicate points
+    if(IsDuplicatePoint<false>(point0, point1)) return true; // don't process duplicate points
     
     // Compute upper index on rcvr line
     // Assumes r is a vector of equally spaced points
@@ -803,40 +883,156 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     return true;
 }
 
-#if 0
-TODO 3D not implemented yet
+////////////////////////////////////////////////////////////////////////////////
+//Geom step functions
+////////////////////////////////////////////////////////////////////////////////
+
 /**
- * Geometrically-spreading beams with a hat-shaped beam in ray-centered coordinates
+ * LP: Core influence function for all geometrical types: 2D/3D, Cartesian /
+ * ray-centered, hat / Gaussian
  */
-template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
+template<bool R3D, bool RAYCEN> HOST_DEVICE inline void InfluenceGeoCore(
+    real s, real n1, real n2, const V2M2<R3D> &dq, const cpx &dtau,
+    int32_t itheta, int32_t ir, int32_t iz, int32_t is,
+    const rayPt<R3D> &point0, const rayPt<R3D> &point1, real RcvrDeclAngle, real RcvrAzimAngle,
+    const InfluenceRayInfo<R3D> &inflray, cpxf *uAllSources, const Position *Pos,
+    const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
+{
+    const bool isGaussian = IsGaussianGeomInfl(Beam);
+    
+    V2M2<R3D> qInterp = point0.q + s * dq; // interpolated amplitude
+    if constexpr(R3D){
+        qInterp[0][0] *= inflray.rcp_q0;
+        qInterp[1][0] *= inflray.rcp_q0;
+        qInterp[0][1] *= inflray.rcp_qhat0;
+        qInterp[1][1] *= inflray.rcp_qhat0;
+    }
+    real qFinal = QScalar(qInterp);
+
+    real n1prime, n2prime; // LP: equal to n1 in 2D, rotated & normalized in 3D (were a, b)
+    real sigma, sigma_orig; // beam radius
+    real beamCoordDist;
+    if constexpr(R3D){
+        if constexpr(!RAYCEN){
+            real l1 = glm::length(glm::row(qInterp, 0));
+            real l2 = glm::length(glm::row(qInterp, 1));
+            if(l1 == FL(0.0) || l2 == FL(0.0)){
+                // if(inflray.ir == 7 && itheta == 59){
+                //     GlobalLog("Skipping z %d b/c l1/l2\n", iz);
+                // }
+                continue;
+            }
+        }
+        
+        if(qFinal == FL(0.0)){
+            // if(inflray.ir == 7 && itheta == 59){
+            //     GlobalLog("Skipping z %d b/c qFinal\n", iz);
+            // }
+            continue;
+        }
+        
+        n1prime = STD::abs((-qInterp[0][1] * n2 + qInterp[1][1] * n1) / qFinal);
+        n2prime = STD::abs(( qInterp[0][0] * n2 - qInterp[1][0] * n1) / qFinal);
+        // if(inflray.ir == 7 && itheta == 59){
+        //     PrintMatrix(qInterp, "qInterp");
+        //     GlobalLog("qFinal n1 n2 %13.8g %13.8g %13.8g\n", qFinal, n1, n2);
+        //     GlobalLog("n1prime %13.8f n2prime %13.8f\n", n1prime, n2prime);
+        // }
+        
+        beamCoordDist = isGaussian ? (n1prime + n2prime) : bhc::max(n1prime, n2prime);
+        sigma = FL(1.0);
+    }else{
+        sigma = sigma_orig = STD::abs(qFinal * inflray.rcp_q0); // LP: called RadiusMax or l in non-Gaussian
+        AdjustSigma(sigma, point0, point1, inflray, Beam);
+        
+        beamCoordDist = n1prime = n1; IGNORE_UNUSED(n2prime);
+    }
+    /*
+    if((inflray.ir == 11 && itheta == 23) || 
+        (inflray.ir == 15 && itheta == 194) || 
+        (inflray.ir == 9 && itheta == 464)){
+        GlobalLog("theta %d z %d r %d (a+b) %g BeamWindow %g\n",
+            itheta, iz, inflray.ir, beamCoordDist, inflray.BeamWindow * sigma);
+    }
+    */
+    if(beamCoordDist > inflray.BeamWindow * sigma || 
+        (!R3D && beamCoordDist == inflray.BeamWindow * sigma)){
+        continue;
+    }
+
+    cpx delay = point0.tau + s * dtau; // interpolated delay
+    real cfactor = point.c; if constexpr(!R3D) cfactor = STD::sqrt(cfactor);
+    real cnst = inflray.Ratio1 * cfactor * point1.Amp / STD::sqrt(STD::abs(qFinal));
+    real w;
+    if constexpr(R3D){
+        if(isGaussian){
+            w = STD::exp(FL(-0.5) * (SQ(n1prime) + SQ(n2prime)));
+        }else{
+            w = (FL(1.0) - n1prime) * (FL(1.0) - n2prime);
+        }
+    }else{
+        if(isGaussian){
+            w = STD::exp(FL(-0.5) * SQ(n1prime / sigma)) * (sigma_orig / sigma); // Gaussian decay
+        }else{
+            w = (sigma - n1prime) / sigma; // hat function: 1 on center, 0 on edge
+        }
+    }
+    real phaseInt = FinalPhase<R3D>((!R3D && isGaussian ? point1 : point0),
+        inflray, qFinal);
+        
+    // if(inflray.ir == 7 && itheta == 59){
+    //     GlobalLog("iz cnst w delay phaseInt %d %g %g (%g,%g) %g\n",
+    //         iz, cnst, w, delay.real(), delay.imag(), phaseInt);
+    // }
+
+    ApplyContribution<O3D, R3D>(uAllSources,
+        cnst, w, inflray.omega, delay, phaseInt,
+        RcvrDeclAngle, RcvrAzimAngle, itheta, inflray.ir, iz, is,
+        inflray, point1, Pos, Beam, eigen, arrinfo);
+    }
+}
+
+/**
+ * Geometrically-spreading beams with a hat- or Gaussian-shaped beam
+ * in ray-centered coordinates
+ */
+template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoRayCen(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
     InfluenceRayInfo<R3D> &inflray,
     int32_t is, cpxf *uAllSources, const Position *Pos, const BeamStructure *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
-    real RcvrDeclAngle;
-    real dq, q, w, n, l, cnst, phaseInt;
-    real zn, rn, nA, nB, rA, rB;
-    int32_t irA, irB;
-    cpx dtau, delay;
+    real phaseq = QScalar(point0.q);
+    IncPhaseIfCaustic(inflray, phaseq, true);
+    inflray.qOld = phaseq;
     
-    dq = point1.q.x - point0.q.x;
-    dtau = point1.tau - point0.tau;
+    V2M2 dq  = point1.q   - point0.q;
+    cpx dtau = point1.tau - point0.tau;
     
-    // ray normal based on tangent with c(s) scaling
-    zn = -point1.t.x * point1.c;
-    rn =  point1.t.y * point1.c;
-    if(STD::abs(zn) < RL(1e-10)) return true;
+    vec3 e1xe2A, e1xe2B;
+    if constexpr(R3D){
+        e1xe2A = point0.c * point0.t;
+        e1xe2B = point1.c * point1.t;
+    }else{
+        IGNORE_UNUSED(e1xe2A); IGNORE_UNUSED(e1xe2B);
+    }
     
-    if(IsDuplicatePoint(point0, point1)){
+    VEC23<R3D> rayn1, rayn2; // LP: rayn1 was rn, zn in 2D
+    RayNormalRayCen(point1, rayn1, rayn2);
+    if constexpr(!R3D){
+        if(STD::abs(DEP(rayn1)) < RL(1e-10)) return true;
+    }
+    
+    if(IsDuplicatePoint<R3D>(point0, point1)){
         inflray.lastValid = true;
         inflray.x = point1.x;
-        inflray.zn = zn;
-        inflray.rn = rn;
+        inflray.rayn1 = rayn1;
+        inflray.rayn2 = rayn2;
         return true;
     }
     
-    RcvrDeclAngle = RadDeg * STD::atan2(point1.t.y, point1.t.x);
+    real RcvrDeclAngle, RcvrAzimAngle;
+    ReceiverAngles(RcvrDeclAngle, RcvrAzimAngle, R3D ? (point1.x - point0.x) : point1.t);
     
     // During reflection imag(q) is constant and adjacent normals cannot bracket
     // a segment of the TL line, so no special treatment is necessary
@@ -846,58 +1042,71 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatRayCen(
     for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
         real zR = Pos->Rz[iz];
         
-        if(!inflray.lastValid){
-            nA = RL(1e10);
-            rA = RL(1e10);
-            irA = 0;
+        vec3 xtA, xtB, xtxe1A, xtxe1B, xtxe2A, xtxe2B;
+        if constexpr(R3D){
+            Compute_RayCenCross(xtA, xtxe1A, xtxe2A, point0.x, inflray.rayn1, inflray.rayn2, zR, inflray);
+            Compute_RayCenCross(xtB, xtxe1B, xtxe2B, point1.x, rayn1, rayn2, zR, inflray);
         }else{
-            Compute_N_R_IR(nA, rA, irA, inflray.x.x, inflray.x.y, 
-                inflray.zn, inflray.rn, zR, Pos);
+            IGNORE_UNUSED(xt); IGNORE_UNUSED(xtxe1); IGNORE_UNUSED(xtxe2);
         }
-        Compute_N_R_IR(nB, rB, irB, point1.x.x, point1.x.y, zn, rn, zR, Pos);
         
-        if(irA == irB) continue;
-        
-        q = point0.q.x;
-        IncPhaseIfCaustic(inflray, q, true);
-        inflray.qOld = q;
-        
-        // *** Compute contributions to bracketed receivers ***
-        
-        for(int32_t ir = bhc::min(irA, irB) + 1; ir <= bhc::max(irA, irB); ++ir){
-            w = (Pos->Rr[ir] - rA) / (rB - rA);
-            n = STD::abs(nA + w * (nB - nA));
-            q = point0.q.x + w * dq; // interpolated amplitude
-            l = STD::abs(q) * inflray.rcp_q0; // beam radius
+        int32_t itheta = -1;
+        do{
+            ++itheta;
             
-            if(n < l){ // in beamwindow?
-                delay = point0.tau + w * dtau;
-                cnst  = scaledAmp / STD::sqrt(STD::abs(q));
-                w     = (l - n) / l; // hat function: 1 on center, 0 on edge
-                phaseInt = FinalPhase<R3D>(point0, inflray, q);
-                
-                ApplyContribution<O3D, R3D>(uAllSources,
-                    cnst, w, inflray.omega, delay, phaseInt,
-                    RcvrDeclAngle, RcvrAzimAngle, itheta, ir, iz, is,
-                    inflray, point1, Pos, Beam, eigen, arrinfo);
+            real mA, mB, nA, nB, rA, rB;
+            int32_t irA, irB;
+            if constexpr(R3D){
+                // *** Compute coordinates of intercept: nB, mB, rB ***
+                real deltaA, deltaB;
+                if(Compute_M_N_R_IR(deltaA, mA, nA, rA, irA, e1xe2A, xtxe1A, xtxe2A, xtA,
+                    Pos->t_rcvr[itheta], Pos)) continue;
+                if(Compute_M_N_R_IR(deltaB, mB, nB, rB, irB, e1xe2B, xtxe1B, xtxe2B, xtB,
+                    Pos->t_rcvr[itheta], Pos)) continue;
+            }else{
+                if(!inflray.lastValid){
+                    nA = RL(1e10);
+                    rA = RL(1e10);
+                    irA = 0;
+                }else{
+                    Compute_N_R_IR(nA, rA, irA, inflray.x, inflray.n, zR, Pos);
+                }
+                Compute_N_R_IR(nB, rB, irB, point1.x, normal, zR, Pos);
             }
-        }
+            
+            if(irA == irB) continue;
+            
+            // *** Compute contributions to bracketed receivers ***
+            
+            for(int32_t ir = bhc::min(irA, irB) + 1; ir <= bhc::max(irA, irB); ++ir){
+                real s = (Pos->Rr[ir] - rA) / (rB - rA); // LP: called w in 2D
+                real n1 = STD::abs(nA  + s * (nB - nA)); // normal distance to ray
+                real n2; // LP: n1, n2 were called n, m in 3D
+                if constexpr(R3D){
+                    n2 = STD::abs(mA  + s * (mB - mA)); // normal distance to ray
+                }else{
+                    IGNORE_UNUSED(n2);
+                }
+                InfluenceGeoCore<R3D, true>(s, n1, n2, dq, dtau, itheta, ir, iz, is,
+                    point0, point1, RcvrDeclAngle, RcvrAzimAngle, inflray,
+                    uAllSources, Pos, Beam, eigen, arrinfo);
+            }
+        }while(R3D);
     }
     
     inflray.lastValid = true;
     inflray.x = point1.x;
-    inflray.zn = zn;
-    inflray.rn = rn;
+    inflray.rayn1 = rayn1;
+    inflray.rayn2 = rayn2;
     return true;
 }
-#endif
 
 /**
  * Geometric, hat-shaped or Gaussian beams in Cartesian coordintes
  *
  * uAllSources: complex pressure field
  */
-template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGaussianCart(
+template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoCart(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
     InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *uAllSources, const Position *Pos,
     const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
@@ -936,23 +1145,14 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
     
     // LP: Ray normals
     VEC23<R3D> rayn1, rayn2; // LP: e1, e2 in 3D; rayn, (none) in 2D
-    real RcvrDeclAngle, RcvrAzimAngle, angleXY;
-    vec2 n_ray_theta = vec2(-rayt.y, rayt.x); // 3D: normal to the ray in the horizontal receiver plane
-    angleXY = RadDeg * STD::atan2(rayt.y, rayt.x);
     if constexpr(R3D){
         RayNormal_unit(rayt, point1.phi, rayn1, rayn2);
-        // GlobalLog("rayt phi (%11.8f,%11.8f,%11.8f) %11.8f\n",
-        //     rayt.x, rayt.y, rayt.z, point1.phi);
-        // GlobalLog("rayn1 rayn2 (%11.8f,%11.8f,%11.8f) (%11.8f,%11.8f,%11.8f)\n",
-        //     rayn1.x, rayn1.y, rayn1.z, rayn2.x, rayn2.y, rayn2.z);
-        RcvrDeclAngle = RadDeg * STD::atan2(rayt.z, glm::length(n_ray_theta));
-        RcvrAzimAngle = angleXY;
     }else{
-        rayn1 = n_ray_theta; // unit normal to ray
+        rayn1 = vec2(-rayt.y, rayt.x); // unit normal to ray
         IGNORE_UNUSED(rayn2);
-        RcvrDeclAngle = angleXY;
-        RcvrAzimAngle = DEBUG_LARGEVAL;
     }
+    real RcvrDeclAngle, RcvrAzimAngle;
+    ReceiverAngles(RcvrDeclAngle, RcvrAzimAngle, rayt);
     
     // LP: Quantities to be interpolated between steps
     V2M2<R3D> dq   = point1.q   - point0.q;   // LP: dqds in 2D
@@ -963,7 +1163,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
     IncPhaseIfCaustic(inflray, phaseq, true);
     inflray.qOld = phaseq;
     
-    real lambda = isGaussian ? (point0.c / inflray.freq0) : RL(0.0); // local wavelength
     real L_diag; // LP: 3D
     real zmin, zmax; // LP: 2D here, 3D later
     // beam window: kills beams outside exp(RL(-0.5) * SQ(ibwin))
@@ -981,10 +1180,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
         real sigma, RadiusMax;
         sigma = bhc::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) * inflray.rcp_q0
             / STD::abs(rayt.x); // beam radius projected onto vertical line
-        if(isGaussian){
-            // calculate beam width
-            sigma     = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda));
-        }
+        AdjustSigma(sigma, point0, point1, inflray, Beam);
         RadiusMax = inflray.BeamWindow * sigma; // LP: 1 * sigma for non-Gaussian
         // depth limits of beam
         // LP: For rays shot at exactly 60 degrees, they will hit this edge case.
@@ -1068,13 +1264,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     if(DEP(x_rcvr) < zmin || DEP(x_rcvr) > zmax) continue;
                     
                     VEC23<R3D> x_rcvr_ray = x_rcvr - x_ray;
-                    // if constexpr(R3D){
-                    //     if(inflray.ir == 7 && itheta == 59){
-                    //         GlobalLog("x_rcvr_ray rayn1 rayn2 (%11.8f,%11.8f,%11.8f) (%11.8f,%11.8f,%11.8f) (%11.8f,%11.8f,%11.8f)\n",
-                    //             x_rcvr_ray.x, x_rcvr_ray.y, x_rcvr_ray.z,
-                    //             rayn1.x, rayn1.y, rayn1.z, rayn2.x, rayn2.y, rayn2.z);
-                    //     }
-                    // }
                     
                     // linear interpolation of q's
                     real s, n1, n2;
@@ -1085,97 +1274,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
                     }else{
                         IGNORE_UNUSED(n2);
                     }
-                    V2M2<R3D> qInterp = point0.q + s * dq; // interpolated amplitude
-                    if constexpr(R3D){
-                        qInterp[0][0] *= inflray.rcp_q0;
-                        qInterp[1][0] *= inflray.rcp_q0;
-                        qInterp[0][1] *= inflray.rcp_qhat0;
-                        qInterp[1][1] *= inflray.rcp_qhat0;
-                    }
-                    real qFinal = QScalar(qInterp); // area of parallelogram formed by ray tube
-                    
-                    real n1prime, n2prime; // LP: equal to n1 in 2D, rotated & normalized in 3D (were a, b)
-                    real sigma, sigma_orig; // beam radius
-                    real beamCoordDist;
-                    if constexpr(R3D){
-                        real l1 = glm::length(glm::row(qInterp, 0));
-                        real l2 = glm::length(glm::row(qInterp, 1));
-                        if(l1 == FL(0.0) || l2 == FL(0.0)){
-                            // if(inflray.ir == 7 && itheta == 59){
-                            //     GlobalLog("Skipping z %d b/c l1/l2\n", iz);
-                            // }
-                            continue;
-                        }
-                        
-                        if(qFinal == FL(0.0)){
-                            // if(inflray.ir == 7 && itheta == 59){
-                            //     GlobalLog("Skipping z %d b/c qFinal\n", iz);
-                            // }
-                            continue;
-                        }
-                        
-                        n1prime = STD::abs((-qInterp[0][1] * n2 + qInterp[1][1] * n1) / qFinal);
-                        n2prime = STD::abs(( qInterp[0][0] * n2 - qInterp[1][0] * n1) / qFinal);
-                        // if(inflray.ir == 7 && itheta == 59){
-                        //     PrintMatrix(qInterp, "qInterp");
-                        //     GlobalLog("qFinal n1 n2 %13.8g %13.8g %13.8g\n", qFinal, n1, n2);
-                        //     GlobalLog("n1prime %13.8f n2prime %13.8f\n", n1prime, n2prime);
-                        // }
-                        
-                        beamCoordDist = isGaussian ? (n1prime + n2prime) : bhc::max(n1prime, n2prime);
-                        sigma = FL(1.0);
-                    }else{
-                        sigma = sigma_orig = STD::abs(qFinal * inflray.rcp_q0); // LP: called RadiusMax in non-Gaussian
-                        if(isGaussian){
-                            sigma = bhc::max(sigma, bhc::min(FL(0.2) * inflray.freq0 * point1.tau.real(), REAL_PI * lambda)); // min pi * lambda, unless near
-                        }
-                        
-                        beamCoordDist = n1prime = n1; IGNORE_UNUSED(n2prime);
-                    }
-                    /*
-                    if((inflray.ir == 11 && itheta == 23) || 
-                        (inflray.ir == 15 && itheta == 194) || 
-                        (inflray.ir == 9 && itheta == 464)){
-                        GlobalLog("theta %d z %d r %d (a+b) %g BeamWindow %g\n",
-                            itheta, iz, inflray.ir, beamCoordDist, inflray.BeamWindow * sigma);
-                    }
-                    */
-                    if(beamCoordDist > inflray.BeamWindow * sigma || 
-                        (!R3D && beamCoordDist == inflray.BeamWindow * sigma)){
-                        continue;
-                    }
-                    
-                    cpx delay = point0.tau + s * dtau; // interpolated delay
-                    real cnst = inflray.Ratio1 * point1.Amp * STD::sqrt(RL(1.0) / STD::abs(qFinal));
-                    real w;
-                    if constexpr(R3D){
-                        cnst *= point1.c; // LP: From ScaleBeam
-                        if(isGaussian){
-                            w = STD::exp(FL(-0.5) * (SQ(n1prime) + SQ(n2prime)));
-                        }else{
-                            w = (FL(1.0) - n1prime) * (FL(1.0) - n2prime);
-                        }
-                    }else{
-                        cnst *= STD::sqrt(point1.c);
-                        if(isGaussian){
-                            w = STD::exp(FL(-0.5) * SQ(n1prime / sigma)) * (sigma_orig / sigma); // Gaussian decay
-                        }else{
-                            w = (sigma - n1prime) / sigma; // hat function: 1 on center, 0 on edge
-                        }
-                    }
-                    real phaseInt = FinalPhase<R3D>((!R3D && isGaussian ? point1 : point0),
-                        inflray, qFinal);
-                        
-                    // if(inflray.ir == 7 && itheta == 59){
-                    //     GlobalLog("iz cnst w delay phaseInt %d %g %g (%g,%g) %g\n",
-                    //         iz, cnst, w, delay.real(), delay.imag(), phaseInt);
-                    // }
-                    
-                    ApplyContribution<O3D, R3D>(uAllSources,
-                        cnst, w, inflray.omega, delay, phaseInt,
-                        RcvrDeclAngle, RcvrAzimAngle, itheta, inflray.ir, iz, is,
-                        inflray, point1, Pos, Beam, eigen, arrinfo);
-                }
+                    InfluenceGeoCore(s, n1, n2, dq, dtau, itheta, ir, iz, is,
+                        point0, point1, RcvrDeclAngle, RcvrAzimAngle, inflray,
+                        uAllSources, Pos, Beam, eigen, arrinfo);
             } while(R3D);
         }
         
@@ -1196,6 +1297,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoHatOrGauss
     inflray.x = point1.x;
     return true;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//Other step function
+////////////////////////////////////////////////////////////////////////////////
 
 /**
  * Bucker's Simple Gaussian Beams in Cartesian coordinates
@@ -1276,6 +1381,10 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
     return true;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//Main step function
+////////////////////////////////////////////////////////////////////////////////
+
 /**
  * LP: Returns whether to continue the ray.
  */
@@ -1322,21 +1431,15 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
         }
     }else if(IsGeometricInfl(Beam)){
         if(IsCartesianInfl(Beam)){
-            return Step_InfluenceGeoHatOrGaussianCart<O3D, R3D>(
+            return Step_InfluenceGeoCart<O3D, R3D>(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
         }else{
             if(!R3D && IsGaussianGeomInfl(Beam)){
-                GlobalLog("2D Gaussian RayCen not supported\n");
-                bail();
-                return false;
+                GlobalLog("Warning, 2D Gaussian RayCen is supported in " BHC_PROGRAMNAME
+                    ", but not in BELLHOP\n");
             }
-            /*
-            return Step_InfluenceGeoHatOrGaussianRayCen<O3D, R3D>(
+            return Step_InfluenceGeoRayCen<O3D, R3D>(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
-            */
-            GlobalLog("TODO RayCen not implemented yet\n");
-            bail();
-            return false;
         }
     }else{
         GlobalLog("Invalid Run Type\n");
