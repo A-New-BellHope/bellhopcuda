@@ -23,16 +23,21 @@ if [[ -z $1 || -z $2 ]]; then
     exit 1
 fi
 
-if [[ $1 != ray* && $1 != tl* && $1 != eigen* && $1 != arr* ]]; then
-    echo "Invalid run type (first arg), must be: ray, tl, eigen, arr, ray3d, tl3d, eigen3d, arr3d"
-    exit 1
-fi
 runtype=`echo $1 | sed 's/3d//g'`
 threedopt="-2"
 bhexec=bellhop.exe
 if [[ $1 == *3d ]]; then
     threedopt="-3"
     bhexec=bellhop3d.exe
+fi
+if [[ $runtype == "ray" || $runtype == "eigen" ]]; then
+    comparepy=compare_ray.py
+elif [[ $runtype == "tl" ]]; then
+    comparepy=compare_shdfil.py
+elif [[ $runtype == "arr" ]]; then
+    comparepy=compare_arrivals.py
+else
+    echo "$runtype is not a valid run type (valid types are ray/tl/eigen/arr, optionally + 3d)"
 fi
 
 if [[ $2 == *.txt ]]; then
@@ -80,17 +85,82 @@ m_check_fail () {
         i=1
     fi
     if [[ $i != $mdesiredresult ]]; then
-        echo "$2: $runtype results $mfailedmsg"
+        echo "$3: $2 results $mfailedmsg"
         if [[ $ignore != "1" ]]; then
-            exit
+            return 1
         fi
     fi
+    return 0
 }
 
 dotexe=""
 if [ -f ./bin/bellhopcxx.exe ]; then
     dotexe=".exe"
 fi
+
+compare_results () {
+    runname="$1"
+    dir=$2
+    envfil=$3
+    echo "runname $runname dir $dir envfil $envfil"
+    if [[ $desiredresult == "1" ]]; then
+        echo "Skipping results comparison because in shouldfail mode"
+        return 0
+    fi
+    python3 $comparepy $envfil $dir
+    m_check_fail $? "$runname" $envfil
+}
+
+run_fortran () {
+    envfil=$1
+    runname="BELLHOP"
+    echo $runname
+    forres=0
+    forout=$(time ../bellhop/Bellhop/$bhexec test/FORTRAN/$envfil 2>&1)
+    if [[ $? != "0" ]]; then forres=1; fi
+    if [[ "$forout" == *"STOP Fatal Error"* ]]; then forres=1; fi
+    check_fail $forres "$runname" $envfil
+}
+
+run_cxx1 () {
+    envfil=$1
+    runname="bellhopcxx single-threaded"
+    echo $runname
+    ./bin/bellhopcxx$dotexe -1 $threedopt test/cxx1/$envfil
+    check_fail $? "$runname" $envfil
+}
+
+run_check_and_compare () {
+    runname="$1"
+    prog=$2
+    dir=$3
+    envfil=$4
+    echo $runname
+    $prog $threedopt test/$dir/$envfil
+    check_fail $? "$runname" $envfil || return 1
+    compare_results "$runname" $dir $envfil || return 2
+    return 0
+}
+
+try_a_few_times () {
+    runname="$1"
+    prog=$2
+    dir=$3
+    envfil=$4
+    count=1
+    maxcount=5
+    while true; do
+        run_check_and_compare "$runname" $prog $dir $envfil
+        res=$?
+        if [[ $res < 2 ]]; then return $res; fi
+        count=$((count + 1))
+        if [ "$count" -gt "$maxcount" ]; then
+            echo "Failed to match after $maxcount re-rolls"
+            return 1
+        fi
+        echo "Re-rolling RNG $count of $maxcount..."
+    done
+}
 
 run_test () {
     echo ""
@@ -111,45 +181,18 @@ run_test () {
     cp test/in/$1.* test/cxxmulti/
     cp test/in/$1.* test/cuda/
     cp test/in/$1.* test/FORTRAN/
-    forres=0
-    runname="BELLHOP"
-    echo $runname
-    forout=$(time ../bellhop/Bellhop/$bhexec test/FORTRAN/$1 2>&1)
-    if [[ $? != "0" ]]; then forres=1; fi
-    if [[ "$forout" == *"STOP Fatal Error"* ]]; then forres=1; fi
-    check_fail $forres $runname
-    runname="bellhopcxx single-threaded"
-    echo $runname
-    ./bin/bellhopcxx$dotexe -1 $threedopt test/cxx1/$1
-    check_fail $? $runname $1
-    runname="bellhopcxx multi-threaded"
-    echo $runname
-    ./bin/bellhopcxx$dotexe $threedopt test/cxxmulti/$1
-    check_fail $? $runname $1
-    runname="bellhopcuda"
-    echo $runname
+    run_fortran $1 &
+    fortranpid=$!
+    run_cxx1 $1 &
+    cxx1pid=$!
+    wait $fortranpid || exit 1
+    wait $cxx1pid || exit 1
+    compare_results "bellhopcxx single-threaded" cxx1 $1 || exit 1
+    try_a_few_times "bellhopcxx multi-threaded" ./bin/bellhopcxx$dotexe cxxmulti $1 || exit 1
     if [ -f ./bin/bellhopcuda$dotexe ]; then
-        ./bin/bellhopcuda$dotexe $threedopt test/cuda/$1
-        check_fail $? $runname $1
+        try_a_few_times "bellhopcuda" ./bin/bellhopcuda$dotexe cuda $1 || exit 1
     else
         echo "bellhopcuda$dotexe not found ... ignoring"
-    fi
-    if [[ $desiredresult == "1" ]]; then
-        echo "Skipping results comparison because in shouldfail mode"
-    elif [[ $runtype == "ray" ]]; then
-        python3 compare_ray.py $1
-        m_check_fail $? $1
-    elif [[ $runtype == "tl" ]]; then
-        python3 compare_shdfil.py $1
-        m_check_fail $? $1
-    elif [[ $runtype == "eigen" ]]; then
-        python3 compare_ray.py $1
-        m_check_fail $? $1
-    elif [[ $runtype == "arr" ]]; then
-        python3 compare_arrivals.py $1
-        m_check_fail $? $1
-    else
-        echo "$runtype is not a valid run type (valid types are ray/tl/eigen/arr)"
     fi
 }
 

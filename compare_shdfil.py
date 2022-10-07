@@ -25,11 +25,6 @@ if sys.version_info.major < 3:
 import struct
 from math import isnan, isfinite
 
-if len(sys.argv) != 2:
-    print('Usage: python3 compare_shdfil.py MunkB_Coh')
-    print('No path, no .shd')
-    sys.exit(-1)
-
 thresh_ulp_print = 4000
 thresh_ulp_alarm = 100000
 thresh_abs_print = 1e-7
@@ -192,29 +187,23 @@ def compare_files(cxxf, forf):
     if errors > 0:
         sys.exit(1)
 
+if len(sys.argv) not in {2, 3}:
+    print('Usage: python3 compare_shdfil.py MunkB_Coh [cxx1/cxxmulti/cuda]')
+    print('No paths, no .shd')
+    sys.exit(1)
 
-cxx1file = 'test/cxx1/{}.shd'.format(sys.argv[1])
-cxxmultifile = 'test/cxxmulti/{}.shd'.format(sys.argv[1])
-cudafile = 'test/cuda/{}.shd'.format(sys.argv[1])
-forfile = 'test/FORTRAN/{}.shd'.format(sys.argv[1])
+shdfil = sys.argv[1]
+if len(sys.argv) == 3:
+    comparisons = [sys.argv[2]]
+else:
+    comparisons = ['cxx1', 'cxxmulti', 'cuda']
 
-try:
-    with open(cxx1file, 'rb') as cxxf, open(forfile, 'rb') as forf:
-        print('bellhopcxx single-threaded:')
-        compare_files(cxxf, forf)
-except(FileNotFoundError):
-    print('bellhopcxx files not found ... ignoring')
-
-try:
-    with open(cxxmultifile, 'rb') as cxxf, open(forfile, 'rb') as forf:
-        print('bellhopcxx multi-threaded:')
-        compare_files(cxxf, forf)
-except(FileNotFoundError):
-    print('bellhopcxx multithread files not found ... ignoring')
-
-try:
-    with open(cudafile, 'rb') as cxxf, open(forfile, 'rb') as forf:
-        print('bellhopcuda:')
-        compare_files(cxxf, forf)
-except(FileNotFoundError):
-    print('bellhopcuda files not found ... ignoring')
+for c in comparisons:
+    with open('test/FORTRAN/{}.shd'.format(shdfil), 'rb') as forf:
+        cxxfile = 'test/{}/{}.shd'.format(c, shdfil)
+        try:
+            with open(cxxfile, 'rb') as cxxf:
+                print('TL / shade file comparison FORTRAN vs. {}:'.format(c))
+                compare_files(cxxf, forf)
+        except FileNotFoundError:
+            print('{} not found, skipping {}'.format(cxxfile, c))
