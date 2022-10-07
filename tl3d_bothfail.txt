@@ -8,6 +8,7 @@ HyperbotParaBot3DGaussian
 Munkiso3d
 ParaBot3DGaussian
 ParaBot3DHatCartPolar
+ParaBot3DHatRaycen
 //
 // Cerveny Cartesian (not supported by BELLHOP3D)
 KoreanSea_demo

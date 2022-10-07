@@ -89,6 +89,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         GlobalLog("Invalid ray init indexes!\n");
         bail();
     }
+    // GlobalLog("Tracing azimuthal %d declination %d beam\n", rinit.ibeta, rinit.ialpha);
     
     // LP: This part from BellhopCore
     

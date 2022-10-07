@@ -1,28 +1,17 @@
+// Coherent
+//
+// Hat ray-centered
+PerfectWedge3dHatRayCen
+//
+// Gaussian ray-centered
+PerfectWedge3dGaussianRayCen
+TruncatedWedge3dHatRayCen
+pwedge3dRayCen
+//
+//
+//
+//
 // Gaussian Cartesian
 //7.5 HOURS for BELLHOP3D
 //TruncatedWedge3dGaussian
 //
-//
-// Ray-centered (not implemented yet)
-//
-// Coherent
-//
-// Hat ray-centered
-freeBhat_raycen
-ParaBot3DHatRaycen
-pwedge3dRayCen
-PerfectWedge3dHatRayCen
-Seamount3DHatRaycen
-TruncatedWedge3dHatRayCen
-//
-// Gaussian ray-centered
-PerfectWedge3dGaussianRayCen
-freeBgaussian_raycen
-//
-// Semi-coherent
-// Hat ray-centered
-Munkslice3dHatRaycenSemi
-//
-// Incoherent
-// Hat ray-centered
-Munkslice3dHatRaycenInc

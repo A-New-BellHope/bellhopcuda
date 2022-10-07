@@ -67,8 +67,6 @@ find $testsdir -name "*.env" | while read f; do
     fi
 done
 
-exit
-
 echo "3D eigenray:"
 find $testsdir -name "*.env" | while read f; do
     res=$(sed -n '10,$s|^'\''E[^/]*3'\''|&|p' $f)
@@ -124,8 +122,6 @@ find $testsdir -name "*.env" | while read f; do
         echo "$f: $res"
     fi
 done
-
-exit
 
 echo "Eigenray:"
 find $testsdir -name "*.env" | while read f; do

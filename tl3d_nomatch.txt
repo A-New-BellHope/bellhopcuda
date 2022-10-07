@@ -23,6 +23,8 @@ KermitRooseveltwedge3d
 Seamount3DHatcart
 //BELLHOP3D runs for 314 MINUTES (!) and then fails
 Seamount3DGaussian
+//BELLHOP3D runs for 171 minutes and then fails
+Seamount3DHatRaycen
 //20 minutes, looks like only one field point wrong
 TruncatedWedge3d
 //
