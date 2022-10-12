@@ -25,3 +25,5 @@ TruncatedWedge3dCart
 KR3dGaussian
 //15 minutes
 TruncatedWedge3dGaussian_side
+//40 minutes
+TruncatedWedge3dHatRayCen

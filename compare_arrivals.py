@@ -164,6 +164,6 @@ for c in comparisons:
         try:
             with open(cxxfile, open_flag) as cxxf:
                 print('Arrivals comparison FORTRAN vs. {}:'.format(c))
-                compare_files(cxxf, forf)
+                compare_func(cxxf, forf)
         except FileNotFoundError:
             print('{} not found, skipping {}'.format(cxxfile, c))

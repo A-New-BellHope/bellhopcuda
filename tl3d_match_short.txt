@@ -33,8 +33,6 @@ KR3dCart
 // About 8 seconds each
 freeBgaussian
 freeBgaussianpolar
-// 2.5 minutes
-Munkslice3dGaussian
 //
 // Hat ray-centered
 // 15 seconds
@@ -60,9 +58,6 @@ Munkslice3dHatRaycenSemi
 // Hat Cartesian
 // 2 seconds
 Munkslice3dHatCartInc
-// Gaussian Cartesian
-// 9 seconds
-Munkslice3dGaussianInc
 // Hat ray-centered
 // 30 seconds
 Munkslice3dHatRaycenInc
