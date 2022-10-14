@@ -122,6 +122,9 @@ template<bool O3D, bool R3D> bool setup(
     params.atten->z_bar = FL(0.0);
     params.Pos->NSx = 1;
     params.Pos->NSy = 1;
+    params.Pos->NSz = 1;
+    params.Pos->NRz = 1;
+    params.Pos->NRr = 1;
     params.Pos->Ntheta = 1;
     params.Angles->alpha.n = 0;
     params.Angles->beta.n = 1;
@@ -130,7 +133,7 @@ template<bool O3D, bool R3D> bool setup(
     //indexed when it is used.
     params.Angles->alpha.iSingle = 0;
     params.Angles->beta.iSingle = 0;
-    //params.freqinfo: none
+    params.freqinfo->Nfreq = 1;
     params.Beam->epsMultiplier = FL(1.0);
     memcpy(params.Beam->Type, "G S ", 4);
     //params.beaminfo: none

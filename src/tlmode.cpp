@@ -28,12 +28,12 @@ namespace bhc {
  * FileName: Name of the file (could be a shade file or a Green's function file)
  * Title: Arbitrary title
  * freq0: Nominal frequency [LP: now in freqinfo]
- * Atten: stabilizing attenuation (for wavenumber integration only)
+ * atten: stabilizing attenuation (for wavenumber integration only)
  * PlotType: If "TL", writes only first and last Sx and Sy [LP: never set to
  * "TL" in BELLHOP]
  */
 void WriteHeader(DirectOFile &SHDFile, const std::string &FileName, 
-    const char (&Title)[80], float Atten, const std::string &PlotType, 
+    const char (&Title)[80], float atten, const std::string &PlotType, 
     const Position *Pos, const FreqInfo *freqinfo)
 {
     bool isTL = (PlotType[0] == 'T' && PlotType[1] == 'L');
@@ -66,7 +66,7 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
         DOFWRITEV(SHDFile, Pos->NRz);
         DOFWRITEV(SHDFile, Pos->NRr);
         DOFWRITEV(SHDFile, (float)freqinfo->freq0);
-        DOFWRITEV(SHDFile, Atten);
+        DOFWRITEV(SHDFile, atten);
     SHDFile.rec(3); DOFWRITE(SHDFile, freqinfo->freqVec, freqinfo->Nfreq * sizeof(freqinfo->freqVec[0]));
     SHDFile.rec(4); DOFWRITE(SHDFile, Pos->theta, Pos->Ntheta * sizeof(Pos->theta[0]));
     

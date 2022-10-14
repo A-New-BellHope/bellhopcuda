@@ -619,16 +619,16 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *ang
 }
 
 template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv,
-    PrintFileEmu &PRTFile, int32_t NEcho = 10)
+    PrintFileEmu &PRTFile, int32_t NEcho = 10, const char *ExtraSpaces = "")
 {
     CHECK_REAL_T();
-    PRTFile << std::setprecision(6);
+    PRTFile << std::setprecision(6) << ExtraSpaces;
     for(int32_t i=0, r=0; i<bhc::min(Nv, NEcho); ++i){
         PRTFile << std::setw(14) << v[i] << " ";
         ++r;
         if(r == 5){
             r = 0;
-            PRTFile << "\n";
+            PRTFile << "\n" << ExtraSpaces;
         }
     }
     if(Nv > NEcho) PRTFile << "... " << std::setw(14) << v[Nv-1];
@@ -640,12 +640,32 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv,
     */
 }
 
+/**
+ * If x[2] == -999.9 then subtabulation is performed
+ * i.e., a vector is generated with Nx points in [x[0], x[1]]
+ * If x[1] == -999.9 then x[0] is repeated into x[1]
+ */
 template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 {
     CHECK_REAL_T();
+    // LP: Must be literals in the type of REAL. (double)(0.01f) != 0.01 and
+    // (float)(0.01) is not guaranteed to equal 0.01f.
+    // (For proof, we write the true real number as 0.01* and double as 0.01d.
+    // Suppose 0.01f = 0.01* + 4.9e-9* because it is the closest floating point
+    // value to 0.01*, because the next number below is 0.01* - 5.1e-9.
+    // Now suppose 0.01d = 0.01* - 0.2e-9 (because the next number up is
+    // 0.01* + 0.3e-9 or whatever). Now, (float)(0.01d) will evaluate to 
+    // 0.01* - 5.1e-9, because 0.01* - 0.2e-9 is closer to 0.01* - 5.1e-9 than
+    // it is to 0.01* + 4.9e-9*.)
+    REAL minus999, pointohone;
+    if constexpr(sizeof(REAL) == 4){
+        minus999 = -999.9f; pointohone = 0.01f;
+    }else{
+        minus999 = -999.9;  pointohone = 0.01;
+    }
     if(Nx >= 3){
-        if(STD::abs(x[2] - (REAL)(-999.9f)) < (REAL)(0.01f)){ 
-            if(STD::abs(x[1] - (REAL)(-999.9f)) < (REAL)(0.01f)) x[1] = x[0];
+        if(STD::abs(x[2] - minus999) < pointohone){ 
+            if(STD::abs(x[1] - minus999) < pointohone) x[1] = x[0];
             REAL deltax = (x[1] - x[0]) / (REAL)(Nx - 1);
             REAL x0 = x[0];
             for(int32_t i=0; i<Nx; ++i){
