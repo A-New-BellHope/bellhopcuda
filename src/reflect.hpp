@@ -343,6 +343,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
             
             Refl = (hs.rho * gamma1 - o.rho * gamma2) / (hs.rho * gamma1 + o.rho * gamma2);
             
+            // GlobalLog("%f %f %f %f %f\n", STD::abs(Refl), o.ccpx.real(), hs.cP, o.rho, hs.rho);
             if constexpr(R3D){
                 // Hack to make a wall (where the bottom slope is more than 80 degrees) be a perfect reflector
                 if(STD::abs(RadDeg * STD::atan2(nBdry.z, glm::length(glm::vec2(nBdry.x, nBdry.y)))) < 0){ // was 60 degrees

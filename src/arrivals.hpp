@@ -31,14 +31,15 @@ namespace bhc {
 template<bool R3D> HOST_DEVICE inline bool IsSecondStepOfPair(real omega, real Phase, cpx delay,
     Arrival *baseArr, int32_t Nt)
 {
-    const float PhaseTol = R3D ? FL(0.5) : FL(0.05); // arrivals with essentially the same phase are grouped into one
+    // arrivals with essentially the same phase are grouped into one
+    const float PhaseTol = /*R3D ? FL(0.5) :*/ FL(0.05); // LP: 0.5 for 2D removed by mbp in 2022 revisions.
     return Nt >= 1 && 
         omega * STD::abs(delay - Cpxf2Cpx(baseArr[Nt-1].delay)) < PhaseTol &&
         STD::abs(baseArr[Nt-1].Phase - Phase) < PhaseTol;
 }
 
 /**
- * ADDs the amplitude and delay for an ARRival into a matrix of same.
+ * Adds the amplitude and delay for an ARRival into a matrix of same.
  * Extra logic included to keep only the strongest arrivals.
  */
 template<bool R3D> HOST_DEVICE inline void AddArr(
@@ -147,6 +148,7 @@ inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
 }
 
 void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD);
+    const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot,
+    bool OceanThreeD, bool RayThreeD);
 
 }

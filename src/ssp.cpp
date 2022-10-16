@@ -65,7 +65,7 @@ void ReadQuad(PrintFileEmu& PRTFile, SSPStructure* ssp, std::string FileRoot)
     PRTFile << "Number of SSP ranges = " << ssp->Nr << "\n";
     
     if(ssp->Nr < 2){
-        PRTFile << "READIN: Quad: You must have a least two profiles in your 2D SSP field\n";
+        PRTFile << "ssp: Quad: You must have a least two profiles in your 2D SSP field\n";
         std::abort();
     }
     
@@ -129,12 +129,12 @@ void ReadHexahedral(PrintFileEmu& PRTFile, SSPStructure* ssp, std::string FileRo
     LIST(SSPFile); SSPFile.Read(ssp->Seg.z, ssp->Nz);
     
     if(ssp->Nx < 2 || ssp->Ny < 2 || ssp->Nz < 2){
-        GlobalLog("You must have at least two points in x, y, z directions in your 3D SSP field\n");
+        GlobalLog("ssp: Hexahedral: You must have at least two points in x, y, z directions in your 3D SSP field\n");
         std::abort();
     }
     
     if(ssp->Nz >= MaxSSP){
-        GlobalLog("InitHexahedral: Number of SSP points in Z exceeds limit\n");
+        GlobalLog("ssp: Hexahedral: Number of SSP points in Z exceeds limit\n");
         std::abort();
     }
     
@@ -242,7 +242,8 @@ void ReadSSP(real Depth, SSPStructure* ssp, LDIFile& ENVFile,
     PrintFileEmu& PRTFile, HSInfo& RecycledHS, std::string FileRoot)
 {
     PRTFile << "\nSound speed profile:\n";
-    PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
+    PRTFile << "      z         alphaR      betaR     rho        alphaI     betaI\n";
+    PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
 
     ssp->NPts = 1;
 

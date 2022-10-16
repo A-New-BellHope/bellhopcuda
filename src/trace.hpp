@@ -60,6 +60,7 @@ template<bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
         tinit = vec2(STD::cos(alpha), STD::sin(alpha));
     }
     SSPOutputs<O3D> o;
+    // LP: Not a typo that this is templated on O3D only
     EvaluateSSP<O3D, O3D>(xs, tinit, o, Origin<O3D,O3D>(), ssp, iSeg);
     return o;
 }
@@ -335,14 +336,19 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const Origin<O3D, R3D> &org, const BdryInfo<O3D> *bdinfo, const BeamStructure *Beam
     )
 {
-    bool leftbox, escapedboundaries, backward, toomanysmallsteps;
+    bool leftbox, escapedboundaries, toomanysmallsteps;
     bool escaped0bdry, escapedNbdry;
     if constexpr(O3D){
         vec3 x_o = RayToOceanX(point.x, org);
         vec3 t_o = RayToOceanT(point.t, org);
-        leftbox = STD::abs(x_o.x - xs.x) > Beam->Box.x ||
-                  STD::abs(x_o.y - xs.y) > Beam->Box.y ||
-                  STD::abs(x_o.z - xs.z) > Beam->Box.z;
+        if constexpr(R3D){
+            leftbox = IsOutsideBeamBoxDim<true, 0>(x_o, Beam, xs) ||
+                      IsOutsideBeamBoxDim<true, 1>(x_o, Beam, xs) ||
+                      IsOutsideBeamBoxDim<true, 2>(x_o, Beam, xs);
+        }else{
+            // LP: This condition was inexplicably commented out in 2022 revision of Nx2D.
+            leftbox = false;
+        }
         real minx = bhc::max(bdinfo->bot.bd[0].x.x, bdinfo->top.bd[0].x.x);
         real miny = bhc::max(bdinfo->bot.bd[0].x.y, bdinfo->top.bd[0].x.y);
         real maxx = bhc::min(bdinfo->bot.bd[(bdinfo->bot.NPts.x-1)*bdinfo->bot.NPts.y].x.x, 
@@ -363,18 +369,18 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         toomanysmallsteps = iSmallStepCtr > 50;
     }else{
         IGNORE_UNUSED(bdinfo);
-        leftbox = STD::abs(point.x.x) > Beam->Box.r ||
-                  STD::abs(point.x.y) > Beam->Box.z;
+        leftbox = IsOutsideBeamBoxDim<false, 0>(point.x, Beam, xs) ||
+                  IsOutsideBeamBoxDim<false, 1>(point.x, Beam, xs);
         escaped0bdry = escapedNbdry = false;
         escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0)) ||
                             (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
         toomanysmallsteps = false; // LP: The small step counter is never checked in 2D.
     }
     bool lostenergy = point.Amp < FL(0.005);
+    bool backward = false;
     if constexpr(O3D && !R3D){
-        backward = point.t.x < FL(0.0); // kills off a backward traveling ray
-    }else{
-        backward = false; // LP: Commented out for 2D, absent for 3D as would not make sense.
+        //backward = point.t.x < FL(0.0); // kills off a backward traveling ray
+        // LP: Condition above is now (2022) commented out in Nx2D as well.
     }
     if(leftbox || lostenergy || escapedboundaries || backward || toomanysmallsteps){
         #ifdef STEP_DEBUGGING

@@ -21,7 +21,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD)
+    const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot,
+    bool OceanThreeD, bool RayThreeD)
 {
     // LP: originally most of OpenOutputFiles
     bool isAscii;
@@ -32,11 +33,11 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         isAscii = true;
         
         AARRFile.open(FileRoot + ".arr");
-        AARRFile << (ThreeD ? "3D" : "2D") << '\n';
+        AARRFile << (OceanThreeD ? "3D" : "2D") << '\n';
         AARRFile << freqinfo->freq0 << '\n';
         
         // write source locations
-        if(ThreeD){
+        if(OceanThreeD){
             AARRFile << Pos->NSx; AARRFile.write(Pos->Sx, Pos->NSx); AARRFile << '\n';
             AARRFile << Pos->NSy; AARRFile.write(Pos->Sy, Pos->NSy); AARRFile << '\n';
         }
@@ -45,7 +46,7 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         // write receiver locations
         AARRFile << Pos->NRz; AARRFile.write(Pos->Rz, Pos->NRz); AARRFile << '\n';
         AARRFile << Pos->NRr; AARRFile.write(Pos->Rr, Pos->NRr); AARRFile << '\n';
-        if(ThreeD){
+        if(OceanThreeD){
             AARRFile << Pos->Ntheta; AARRFile.write(Pos->theta, Pos->Ntheta); AARRFile << '\n';
         }
         break;
@@ -53,11 +54,11 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         isAscii = false;
         
         BARRFile.open(FileRoot + ".arr");
-        BARRFile.rec(); BARRFile.write((ThreeD ? "'3D'" : "'2D'"), 4);
+        BARRFile.rec(); BARRFile.write((OceanThreeD ? "'3D'" : "'2D'"), 4);
         BARRFile.rec(); BARRFile.write((float)freqinfo->freq0);
         
         // write source locations
-        if(ThreeD){
+        if(OceanThreeD){
             BARRFile.rec(); BARRFile.write(Pos->NSx); BARRFile.write(Pos->Sx, Pos->NSx);
             BARRFile.rec(); BARRFile.write(Pos->NSy); BARRFile.write(Pos->Sy, Pos->NSy);
         }
@@ -66,7 +67,7 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         // write receiver locations
         BARRFile.rec(); BARRFile.write(Pos->NRz); BARRFile.write(Pos->Rz, Pos->NRz);
         BARRFile.rec(); BARRFile.write(Pos->NRr); BARRFile.write(Pos->Rr, Pos->NRr);
-        if(ThreeD){
+        if(OceanThreeD){
             BARRFile.rec(); BARRFile.write(Pos->Ntheta); BARRFile.write(Pos->theta, Pos->Ntheta);
         }
         break;
@@ -99,15 +100,17 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
                     for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
                         for(int32_t ir=0; ir<Pos->NRr; ++ir){
                             size_t base = GetFieldAddr(isx, isy, isz, itheta, iz, ir, Pos);
-                            real factor;
-                            if(ThreeD){
+                            float factor;
+                            if(RayThreeD){
                                 factor = FL(1.0);
-                            }else if(Beam->RunType[3] == 'X'){ // line source
-                                factor = FL(4.0) * STD::sqrt(REAL_PI);
-                            }else if(Pos->Rr[ir] == FL(0.0)){
-                                factor = FL(1e5); // avoid /0 at origin
                             }else{
-                                factor = FL(1.0) / STD::sqrt(Pos->Rr[ir]); // cyl. spreading
+                                if(!OceanThreeD && IsLineSource(Beam)){
+                                    factor = FL(4.0) * STD::sqrt(REAL_PI);
+                                }else if(Pos->Rr[ir] == FL(0.0)){
+                                    factor = FL(1e5); // avoid /0 at origin
+                                }else{
+                                    factor = FL(1.0) / STD::sqrt(Pos->Rr[ir]); // cyl. spreading
+                                }
                             }
                             
                             int32_t narr = arrinfo->NArr[base];
@@ -119,27 +122,36 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
                             
                             for(int32_t iArr=0; iArr<narr; ++iArr){
                                 Arrival *arr = &arrinfo->Arr[base * arrinfo->MaxNArr + iArr];
+                                // LP: Inconsistent and sometimes harmful casting to float
+                                // on these variables; some fixed by mbp in 2022 version,
+                                // but others not.
                                 if(isAscii){
-                                    AARRFile << (float)factor * arr->a
-                                             << (float)RadDeg * arr->Phase
-                                             << arr->delay.real()
+                                    // You can compress the output file a lot by putting in an explicit format statement here ...
+                                    // However, you'll need to make sure you keep adequate precision
+                                    AARRFile << factor * arr->a;
+                                    if(OceanThreeD){
+                                        AARRFile << RadDeg * arr->Phase;
+                                    }else{
+                                        AARRFile << (float)RadDeg * arr->Phase;
+                                    }
+                                    AARRFile << arr->delay.real()
                                              << arr->delay.imag()
                                              << arr->SrcDeclAngle;
-                                    if(ThreeD) AARRFile << arr->SrcAzimAngle;
+                                    if(OceanThreeD) AARRFile << arr->SrcAzimAngle;
                                     AARRFile << arr->RcvrDeclAngle;
-                                    if(ThreeD) AARRFile << arr->RcvrAzimAngle;
+                                    if(OceanThreeD) AARRFile << arr->RcvrAzimAngle;
                                     AARRFile << arr->NTopBnc
                                              << arr->NBotBnc
                                              << '\n';
                                 }else{
                                     BARRFile.rec();
-                                    BARRFile.write((float)(factor * arr->a)); // LP: not a typo; cast in different order
-                                    BARRFile.write((float)(RadDeg * arr->Phase)); // compared to ascii version
+                                    BARRFile.write(factor * arr->a);
+                                    BARRFile.write((float)(RadDeg * arr->Phase));
                                     BARRFile.write(arr->delay);
                                     BARRFile.write(arr->SrcDeclAngle);
-                                    if(ThreeD) BARRFile.write(arr->SrcAzimAngle);
+                                    if(OceanThreeD) BARRFile.write(arr->SrcAzimAngle);
                                     BARRFile.write(arr->RcvrDeclAngle);
-                                    if(ThreeD) BARRFile.write(arr->RcvrAzimAngle);
+                                    if(OceanThreeD) BARRFile.write(arr->RcvrAzimAngle);
                                     BARRFile.write((float)arr->NTopBnc);
                                     BARRFile.write((float)arr->NBotBnc);
                                 }

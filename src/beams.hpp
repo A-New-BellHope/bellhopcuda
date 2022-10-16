@@ -52,7 +52,7 @@ HOST_DEVICE inline bool IsSemiCoherentRun(const BeamStructure *Beam){
 }
 
 // Beam->Type[0] is
-//   'G" or "^' Geometric hat beams in Cartesian coordinates
+//   'G', '^', or ' ' Geometric hat beams in Cartesian coordinates
 //   'g' Geometric hat beams in ray-centered coordinates
 //   'B' Geometric Gaussian beams in Cartesian coordinates
 //   'b' Geometric Gaussian beams in ray-centered coordinates
@@ -67,7 +67,7 @@ HOST_DEVICE inline bool IsCervenyInfl(const BeamStructure *Beam){
 
 HOST_DEVICE inline bool IsGeometricInfl(const BeamStructure *Beam){
     char t = Beam->Type[0];
-    return t == '^' || t == 'G' || t == 'g' || t == 'B' || t == 'b';
+    return t == ' ' || t == '^' || t == 'G' || t == 'g' || t == 'B' || t == 'b';
 }
 
 HOST_DEVICE inline bool IsSGBInfl(const BeamStructure *Beam){
@@ -77,7 +77,7 @@ HOST_DEVICE inline bool IsSGBInfl(const BeamStructure *Beam){
 
 HOST_DEVICE inline bool IsCartesianInfl(const BeamStructure *Beam){
     char t = Beam->Type[0];
-    return t == 'C' || t == '^' || t == 'G' || t == 'B';
+    return t == 'C' || t == ' ' || t == '^' || t == 'G' || t == 'B';
 }
 
 HOST_DEVICE inline bool IsRayCenInfl(const BeamStructure *Beam){
@@ -87,7 +87,7 @@ HOST_DEVICE inline bool IsRayCenInfl(const BeamStructure *Beam){
 
 HOST_DEVICE inline bool IsHatGeomInfl(const BeamStructure *Beam){
     char t = Beam->Type[0];
-    return t == '^' || t == 'G' || t == 'g';
+    return t == ' ' || t == '^' || t == 'G' || t == 'g';
 }
 
 HOST_DEVICE inline bool IsGaussianGeomInfl(const BeamStructure *Beam){
@@ -101,7 +101,8 @@ template<bool R3D> HOST_DEVICE inline const char *GetBeamTypeTag(const BeamStruc
     case 'R':
         return R3D ? "Cerveny style beam" : "Paraxial beams";
     case '^':
-        if constexpr(!R3D) return "Warning, Beam->Type[0] = ^ not properly handled in BELLHOP (2D)";
+    case ' ':
+        if constexpr(!R3D) return "Warning, Beam->Type[0] = ^ or ' ' not properly handled in BELLHOP (2D)";
         [[fallthrough]];
     case 'G':
         if constexpr(R3D) return "Geometric beam, hat-shaped, Cart. coord.";
@@ -222,13 +223,30 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile,
         STD::pow(FL(10.0), beaminfo->SrcBmPat[i*2+1] / FL(20.0));
 }
 
+template<bool O3D> inline VEC23<O3D> BeamBoxCenter(const VEC23<O3D> &xs)
+{
+    VEC23<O3D> ret = xs;
+    // box is centered at z=0
+    DEP(ret) = RL(0.0);
+    return ret;
+}
+
+template<bool O3D, int DIM> inline bool IsOutsideBeamBoxDim(
+    const VEC23<O3D> &x, const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs)
+{
+    static_assert(DIM >= 0 && DIM <= ZDIM<O3D>(), "Invalid use of IsOutsideBoxDim!");
+    // LP: In 2D, source range is always 0.
+    return STD::abs(x[DIM] - BeamBoxCenter<O3D>(xs)[DIM]) > Beam->Box[DIM];
+}
+
 /**
  * Limits for tracing beams
  */
-inline void ReadBeamInfo(LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    BeamStructure *Beam, const BdryType *Bdry, bool o3d)
+template<bool O3D> inline void ReadBeamInfo(
+    LDIFile &ENVFile, PrintFileEmu &PRTFile,
+    BeamStructure *Beam, const BdryType *Bdry)
 {
-    if(o3d){
+    if constexpr(O3D){
         LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.x);
         ENVFile.Read(Beam->Box.y); ENVFile.Read(Beam->Box.z);
         Beam->Box.x *= FL(1000.0); // convert km to m
@@ -236,20 +254,20 @@ inline void ReadBeamInfo(LDIFile &ENVFile, PrintFileEmu &PRTFile,
         
         if(Beam->deltas == FL(0.0)) Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth) / FL(10.0); // Automatic step size selection
     }else{
-        LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.z); ENVFile.Read(Beam->Box.r);
+        LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.y); ENVFile.Read(Beam->Box.x);
     }
     
     PRTFile << std::setprecision(4);
     PRTFile << "\n Step length,       deltas = " << std::setw(11) << Beam->deltas << " m\n\n";
     if(o3d){
         PRTFile << "Maximum ray x-range, Box.x  = " << std::setw(11) << Beam->Box.x << " m\n";
-        PRTFile << "Maximum ray y-range, Box.x  = " << std::setw(11) << Beam->Box.y << " m\n";
-        PRTFile << "Maximum ray z-range, Box.x  = " << std::setw(11) << Beam->Box.z << " m\n";
+        PRTFile << "Maximum ray y-range, Box.y  = " << std::setw(11) << Beam->Box.y << " m\n";
+        PRTFile << "Maximum ray z-range, Box.z  = " << std::setw(11) << Beam->Box.z << " m\n";
     }else{
-        PRTFile << "Maximum ray depth, Box.z  = " << std::setw(11) << Beam->Box.z << " m\n";
-        PRTFile << "Maximum ray range, Box.r  = " << std::setw(11) << Beam->Box.r << "km\n";
+        PRTFile << "Maximum ray depth, Box.y  = " << std::setw(11) << Beam->Box.y << " m\n";
+        PRTFile << "Maximum ray range, Box.x  = " << std::setw(11) << Beam->Box.x << "km\n";
         
-        Beam->Box.r *= FL(1000.0); // convert km to m
+        Beam->Box.x *= FL(1000.0); // convert km to m
     }
     
     // *** Beam characteristics ***

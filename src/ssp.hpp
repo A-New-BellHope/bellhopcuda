@@ -149,7 +149,7 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
     real c1, c2, cz1, cz2, cr, cz, s1, s2, delta_r, delta_z;
     
     if(x.x < ssp->Seg.r[0] || x.x > ssp->Seg.r[ssp->Nr-1]){
-        GlobalLog("Quad: ray is outside the box where the soundspeed is defined\n");
+        GlobalLog("sspMod: Quad: ray is outside the box where the soundspeed is defined\n");
         bail();
     }
     
@@ -205,7 +205,7 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
 {
     if( x.x < ssp->Seg.x[0] || x.x > ssp->Seg.x[ssp->Nx-1] ||
         x.y < ssp->Seg.y[0] || x.y > ssp->Seg.y[ssp->Ny-1]){
-        GlobalLog("Hexahedral: ray is outside the box where the ocean soundspeed is defined\nx = (x, y, z) = %g, %g, %g\n",
+        GlobalLog("sspMod: Hexahedral: ray is outside the box where the ocean soundspeed is defined\nx = (x, y, z) = %g, %g, %g\n",
             x.x, x.y, x.z);
         bail();
     }

@@ -260,22 +260,18 @@ struct FreqInfo {
 //Beams
 ////////////////////////////////////////////////////////////////////////////////
 
-struct rxyz {
-    real r, x, y, z;
-};
-
 /**
  * LP: Like boundaries, there are two beam structures. This one is (mostly)
  * in the FORTRAN, and is called Beam.
  */
-struct BeamStructure {
+template<bool O3D> struct BeamStructure {
     //LP: NSteps moved out of this struct as it's a property of a single beam.
     int32_t NBeams, Nimage, iBeamWindow;
     real deltas, epsMultiplier, rLoop;
     char Component;
     char Type[4];
     char RunType[7];
-    rxyz Box;
+    VEC23<O3D> Box;
 };
 
 /**
@@ -431,7 +427,7 @@ template<bool O3D, bool R3D> struct bhcParams {
     Position *Pos;
     AnglesStructure *Angles;
     FreqInfo *freqinfo;
-    BeamStructure *Beam;
+    BeamStructure<O3D> *Beam;
     BeamInfo *beaminfo;
     ///Pointer to internal data structure for program (non-marine-related) state.
     void *internal;

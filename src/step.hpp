@@ -39,30 +39,30 @@ namespace bhc {
  * This prevents problems when the boundaries are outside the domain of the SSP
  */
 template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
-    real &h, VEC23<O3D> &x, const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
+    real &hInt, VEC23<O3D> &x, const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
     const SSPSegState &iSeg0, const SSPStructure *ssp, bool stepTo)
 {
-    if(!stepTo) h = REAL_MAX;
+    if(!stepTo) hInt = REAL_MAX;
     if(STD::abs(DEP(urayt)) > REAL_EPSILON){
-        if(      ssp->z[iSeg0.z]     > DEP(x) && (!O3D || iSeg0.z > 0)){
-            h = (ssp->z[iSeg0.z]     - DEP(x0)) / DEP(urayt);
+        if(        ssp->z[iSeg0.z]     > DEP(x) && (!O3D || iSeg0.z > 0)){
+            hInt= (ssp->z[iSeg0.z]     - DEP(x0)) / DEP(urayt);
             #ifdef STEP_DEBUGGING
-            GlobalLog("Shallower bound SSP Z %g > z %g; h = %g\n", ssp->z[iSeg0.z], DEP(x), h);
+            GlobalLog("Shallower bound SSP Z %g > z %g; hInt = %g\n", ssp->z[iSeg0.z], DEP(x), hInt);
             #endif
             if(stepTo){
-                x = x0 + h * urayt; // X or X,Y
+                x = x0 + hInt * urayt; // X or X,Y
                 DEP(x) = ssp->z[iSeg0.z];
                 #ifdef STEP_DEBUGGING
                 GlobalLog("to %20.17f %20.17f\n", x.x, x.y);
                 #endif
             }
-        }else if(ssp->z[iSeg0.z + 1] < DEP(x) && (!O3D || iSeg0.z + 1 < ssp->Nz-1)){
-            h = (ssp->z[iSeg0.z + 1] - DEP(x0)) / DEP(urayt);
+        }else if(   ssp->z[iSeg0.z + 1] < DEP(x) && (!O3D || iSeg0.z + 1 < ssp->Nz-1)){
+            hInt = (ssp->z[iSeg0.z + 1] - DEP(x0)) / DEP(urayt);
             #ifdef STEP_DEBUGGING
-            GlobalLog("Deeper bound SSP Z %g < z %g; h = %g\n", ssp->z[iSeg0.z+1], DEP(x), h);
+            GlobalLog("Deeper bound SSP Z %g < z %g; hInt = %g\n", ssp->z[iSeg0.z+1], DEP(x), hInt);
             #endif
             if(stepTo){
-                x = x0 + h * urayt; // X or X,Y
+                x = x0 + hInt * urayt; // X or X,Y
                 DEP(x) = ssp->z[iSeg0.z + 1];
                 #ifdef STEP_DEBUGGING
                 GlobalLog("to %20.17f %20.17f\n", x.x, x.y);
@@ -72,6 +72,32 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
     }
 }
 
+/**
+ * ray mask using a box centered at (0, 0) [2D] / source [3D]
+ */
+template<bool O3D, int DIM> HOST_DEVICE inline void BeamBoxCrossing(
+    real &hBox, VEC23<O3D> &x, const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, bool stepTo)
+{
+    if(!stepTo) hBox = REAL_MAX;
+    if(IsOutsideBeamBoxDim<O3D, DIM>(x, Beam, xs)){
+        real d0 = x0[DIM] - BeamBoxCenter<O3D>(xs)[DIM];
+        hBox = (Beam->Box[DIM] - STD::abs(d0)) / STD::abs(urayt[DIM]);
+        #ifdef STEP_DEBUGGING
+        GlobalLog("Beam box crossing %c %g, hBox = %g\n",
+            (O3D ? (DIM == 0 ? 'X' : DIM == 1 ? 'Y' : 'Z') : (DIM == 0 ? 'R' : 'Z')),
+            Beam->Box[DIM], hBox);
+        #endif
+        if(stepTo){
+            x = x0 + hBox * urayt;
+            x[DIM] = BeamBoxCenter<O3D>(xs)[DIM] + STD::copysign(Beam->Box[DIM], d0);
+        }
+    }
+}
+
+/**
+ * LP: h = hTop or hBot
+ */
 template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
     real &h, const BdryStateTopBot<O3D> &bd, VEC23<O3D> &x,
     const VEC23<O3D> &x0, const VEC23<O3D> &urayt, bool stepTo, bool &refl)
@@ -107,11 +133,11 @@ template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
 }
 
 /**
- * top or bottom segment crossing in range / x / y
+ * top, bottom, or ocean segment crossing in range / x / y
  * LP: w = range, x, or y
  */
 template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
-    real &h, const BdryLimits &TopSeg, const BdryLimits &BotSeg,
+    real &hSeg, const BdryLimits &TopSeg, const BdryLimits &BotSeg,
     const real *seg_w, int32_t iSeg, VEC23<O3D> &x,
     const VEC23<O3D> &x0, const VEC23<O3D> &urayt, char qh, 
     const SSPStructure *ssp, bool stepTo, bool &topRefl, bool &botRefl, bool isY)
@@ -131,29 +157,29 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
     #ifdef STEP_DEBUGGING
     const char *wlbl = O3D ? (isY ? "Y" : "X") : "R";
     #endif
-    if(!stepTo) h = REAL_MAX;
+    if(!stepTo) hSeg = REAL_MAX;
     if(STD::abs(urayt_w) > REAL_EPSILON){
         if(x_w < segLim.min){
-            h = -(x0_w - segLim.min) / urayt_w;
+            hSeg = -(x0_w - segLim.min) / urayt_w;
             if(stepTo){
-                x = x0 + h * urayt;
+                x = x0 + hSeg * urayt;
                 x_w = segLim.min;
                 topRefl = botRefl = false;
             }
             #ifdef STEP_DEBUGGING
-            GlobalLog("Min bound SSP %s %g > %s %g; h = %g\n",
-                wlbl, segLim.min, wlbl, x_w, h);
+            GlobalLog("Min bound SSP %s %g > %s %g; hSeg = %g\n",
+                wlbl, segLim.min, wlbl, x_w, hSeg);
             #endif
         }else if(x_w > segLim.max){
-            h = -(x0_w - segLim.max) / urayt_w;
+            hSeg = -(x0_w - segLim.max) / urayt_w;
             if(stepTo){
-                x = x0 + h * urayt;
+                x = x0 + hSeg * urayt;
                 x_w = segLim.max;
                 topRefl = botRefl = false;
             }
             #ifdef STEP_DEBUGGING
-            GlobalLog("Max bound SSP %s %g < %s %g; h = %g\n",
-                wlbl, segLim.max, wlbl, x_w, h);
+            GlobalLog("Max bound SSP %s %g < %s %g; hSeg = %g\n",
+                wlbl, segLim.max, wlbl, x_w, hSeg);
             #endif
         }
     }
@@ -197,11 +223,13 @@ HOST_DEVICE inline void TriDiagCrossing(
         #endif
         if(stepTo){
             x = x0 + h * urayt;
+            flipDiag = true;
+            topRefl = botRefl = false;
         }
-        flipDiag = true;
-        topRefl = botRefl = false;
     }else{
-        flipDiag = false;
+        if(stepTo){
+            flipDiag = false;
+        }
     }
 }
 
@@ -216,67 +244,52 @@ HOST_DEVICE inline void TriDiagCrossing(
 template<bool O3D> HOST_DEVICE inline void ReduceStep(
     const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
     const SSPSegState &iSeg0, const BdryState<O3D> &bds,
-    const BeamStructure *Beam, const SSPStructure *ssp, 
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const SSPStructure *ssp, 
     real &h, int32_t &iSmallStepCtr)
 {
     VEC23<O3D> x;
-    real h1, h2, h3, h4, h5, h6, h7;
+    real hInt, hBoxxr, hBoxyz, hBoxz_, hTop, hBot, hxSeg, hySeg, hTopDiag, hBotDiag;
     bool dummy;
     
     #ifdef STEP_DEBUGGING
     GlobalLog("ReduceStep%s\n", O3D ? "3D" : "2D");
     #endif
     
-    // Detect interface or boundary crossing and reduce step, if necessary, to land on that crossing.
+    // Detect SSP interface or boundary crossing and reduce step, if necessary, to land on that crossing.
     // Keep in mind possibility that user put source right on an interface
     // and that multiple events can occur (crossing interface, top, and bottom in a single step).
 
     x = x0 + h * urayt; // make a trial step
 
-    DepthInterfaceCrossing<O3D>(h1, x, x0, urayt, iSeg0, ssp, false);
-    TopBotCrossing<O3D>(h2, bds.top, x, x0, urayt, false, dummy);
-    TopBotCrossing<O3D>(h3, bds.bot, x, x0, urayt, false, dummy);
+    DepthInterfaceCrossing<O3D>(hInt, x, x0, urayt, iSeg0, ssp, false);
+    BeamBoxCrossing<O3D, 0>(hBoxxr, Beam, xs, x, urayt, false);
+    BeamBoxCrossing<O3D, 1>(hBoxyz, Beam, xs, x, urayt, false);
+    if constexpr(O3D){
+        BeamBoxCrossing<O3D, 2>(hBoxz_, Beam, xs, x, urayt, false);
+    }
+    TopBotCrossing<O3D>(hTop, bds.top, x, x0, urayt, false, dummy);
+    TopBotCrossing<O3D>(hBot, bds.bot, x, x0, urayt, false, dummy);
     
     if constexpr(O3D){
-        TopBotSegCrossing<O3D>(h4, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
+        TopBotSegCrossing<O3D>(hxSeg, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
             x, x0, urayt, 'H', ssp, false, dummy, dummy, false);
-        TopBotSegCrossing<O3D>(h5, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
+        TopBotSegCrossing<O3D>(hySeg, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
             x, x0, urayt, 'H', ssp, false, dummy, dummy, true);
-        TriDiagCrossing(h6, bds.top, x, x0, urayt, false, dummy, dummy, dummy);
-        TriDiagCrossing(h7, bds.bot, x, x0, urayt, false, dummy, dummy, dummy);
+        TriDiagCrossing(hTopDiag, bds.top, x, x0, urayt, false, dummy, dummy, dummy);
+        TriDiagCrossing(hBotDiag, bds.bot, x, x0, urayt, false, dummy, dummy, dummy);
     }else{
-        TopBotSegCrossing<O3D>(h4, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
+        TopBotSegCrossing<O3D>(hxSeg, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
             x, x0, urayt, 'Q', ssp, false, dummy, dummy, false);
-        h5 = h6 = h7 = REAL_MAX;
+        hySeg = hTopDiag = hBotDiag = REAL_MAX;
     }
     
-    //GlobalLog("ReduceStep h h1 h2 h3 h4 h5 h6 h7 %g %g %g %g %g %g %g %g\n",
-    //    h, h1, h2, h3, h4, h5, h6, h7);
     // take limit set by shortest distance to a crossing
-    h = bhc::min(h, bhc::min(h1, bhc::min(h2, bhc::min(h3, bhc::min(h4, 
-        bhc::min(h5, bhc::min(h6, h7)))))));
-    /*
-    if(h == h1){
-        GlobalLog("Step %g due to Z SSP crossing\n", h);
-    }else if(h == h2){
-        GlobalLog("Step %g due to top crossing\n", h);
-    }else if(h == h3){
-        GlobalLog("Step %g due to bottom crossing\n", h);
-    }else if(h == h4){
-        GlobalLog("Step %g due to R/X SSP crossing\n", h);
-    }else if(h == h5){
-        GlobalLog("Step %g due to Y SSP crossing\n", h);
-    }else if(h == h6){
-        GlobalLog("Step %g due to top tri/diag crossing\n", h);
-    }else if(h == h7){
-        GlobalLog("Step %g due to bot tri/diag crossing\n", h);
-    }else{
-        GlobalLog("Step %g (unchanged)\n", h);
-    }
-    */
+    h = bhc::min(bhc::min(bhc::min(h, hInt), bhc::min(
+        bhc::min(bhc::min(hBoxxr, hBoxyz), hBoxz_), bhc::min(hTop, hBot))),
+        bhc::min(bhc::min(hxSeg, hySeg), bhc::min(hTopDiag, hBotDiag)));
     
     if(h < RL(-1e-4)){
-        GlobalLog("ReduceStep WARNING: negative h %f\n", h);
+        GlobalLog("ReduceStep error: negative h %f\n", h);
         bail();
     }
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
@@ -294,7 +307,7 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
     const VEC23<O3D> &x0, VEC23<O3D> &x2, const VEC23<O3D> &urayt,
     real &h, bool &topRefl, bool &botRefl, bool &flipTopDiag, bool &flipBotDiag,
     const SSPSegState &iSeg0, const BdryState<O3D> &bds,
-    const BeamStructure *Beam, const SSPStructure *ssp)
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const SSPStructure *ssp)
 {
     #ifdef STEP_DEBUGGING
     GlobalLog("StepToBdry:\n");
@@ -304,6 +317,11 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
     x2 = x0 + h * urayt;
     
     DepthInterfaceCrossing<O3D>(h, x2, x0, urayt, iSeg0, ssp, true);
+    BeamBoxCrossing<O3D, 0>(h, Beam, xs, x, urayt, true);
+    BeamBoxCrossing<O3D, 1>(h, Beam, xs, x, urayt, true);
+    if constexpr(O3D){
+        BeamBoxCrossing<O3D, 2>(h, Beam, xs, x, urayt, true);
+    }
     TopBotCrossing<O3D>(h, bds.top, x2, x0, urayt, true, topRefl);
     TopBotCrossing<O3D>(h, bds.bot, x2, x0, urayt, true, botRefl);
     if(botRefl) topRefl = false;

@@ -300,7 +300,10 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     
     // *** Top BC ***
     
-    if(Bdry->Top.hs.bc == 'A') PRTFile << "   z (m)     alphaR (m/s)   betaR  rho (g/cm^3)  alphaI     betaI\n";
+    if(Bdry->Top.hs.bc == 'A'){
+        PRTFile << "      z         alphaR      betaR     rho        alphaI     betaI\n";
+        PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
+    }
     
     TopBot(freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Top.hs, ENVFile, PRTFile, atten, RecycledHS);
     

@@ -196,11 +196,17 @@ template<bool O3D, bool R3D> bool setup(
                 params.Pos->iRz = allocate<int32_t>(params.Pos->NRz);
         params.Pos->Rr = allocate<float>(params.Pos->NRr);
         
+        params.Pos->Sz[0] = FL(50.0);
+        // params.Pos->Rz = {0, 50, 100};
+        // params.Pos->Rr = {1000, 2000, 3000, 4000, 5000}; // meters !!!
+        for(int32_t jj=0; jj<params.Pos->NRz; ++jj) params.Pos->Rz[jj] = jj;
+        for(int32_t jj=0; jj<params.Pos->NRr; ++jj) params.Pos->Rr[jj] = FL(10.0) * jj;
+        
         memcpy(params.Beam->RunType, "C      ", 7);
         memcpy(params.Beam->Type, "G   ", 4);
         params.Beam->deltas  = FL(0.0);
-        params.Beam->Box.z   = FL(101.0);
-        params.Beam->Box.r   = FL(5100.0); // meters
+        params.Beam->Box.y   = FL(101.0);
+        params.Beam->Box.x   = FL(5100.0); // meters
         
         params.Angles->alpha.n = 1789;
         //params.Angles->alpha.angles = {-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80}; // -89 89

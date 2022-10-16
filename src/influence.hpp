@@ -95,7 +95,8 @@ template<> HOST_DEVICE inline real QScalar(const vec2 &q) { return q.x; }
 template<> HOST_DEVICE inline real QScalar(const mat2x2 &q) { return glm::determinant(q); }
 
 template<bool R3D> HOST_DEVICE inline void ReceiverAngles(
-    real &RcvrDeclAngle, real &RcvrAzimAngle, const VEC23<R3D> &rayt)
+    real &RcvrDeclAngle, real &RcvrAzimAngle, const VEC23<R3D> &rayt,
+    const InfluenceRayInfo &inflray)
 {
     real angleXY = RadDeg * STD::atan2(rayt.y, rayt.x);
     if constexpr(R3D){
@@ -103,7 +104,7 @@ template<bool R3D> HOST_DEVICE inline void ReceiverAngles(
         RcvrAzimAngle = angleXY;
     }else{
         RcvrDeclAngle = angleXY;
-        RcvrAzimAngle = DEBUG_LARGEVAL;
+        RcvrAzimAngle = inflray.init.SrcAzimAngle; // LP: Needed for Nx2D; for 2D, debug value
     }
 }
 
@@ -977,7 +978,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoRayCen(
     }
     
     real RcvrDeclAngle, RcvrAzimAngle;
-    ReceiverAngles<R3D>(RcvrDeclAngle, RcvrAzimAngle, R3D ? (point1.x - point0.x) : point1.t);
+    ReceiverAngles<R3D>(RcvrDeclAngle, RcvrAzimAngle,
+        R3D ? (point1.x - point0.x) : point1.t, inflray);
     
     // During reflection imag(q) is constant and adjacent normals cannot bracket
     // a segment of the TL line, so no special treatment is necessary
@@ -1141,7 +1143,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoCart(
         IGNORE_UNUSED(rayn2);
     }
     real RcvrDeclAngle, RcvrAzimAngle;
-    ReceiverAngles<R3D>(RcvrDeclAngle, RcvrAzimAngle, rayt);
+    ReceiverAngles<R3D>(RcvrDeclAngle, RcvrAzimAngle, rayt, inflray);
     
     // LP: Quantities to be interpolated between steps
     V2M2<R3D> dq   = point1.q   - point0.q;   // LP: dqds in 2D
@@ -1304,7 +1306,8 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
     real w;
     vec2 x, rayt;
     cpx tau;
-    real RcvrDeclAngle = RadDeg * STD::atan2(point1.t.y, point1.t.x);
+    real RcvrDeclAngle, RcvrAzimAngle;
+    ReceiverAngles<false>(RcvrDeclAngle, RcvrAzimAngle, point1.t, inflray);
     
     const real beta = FL(0.98); // Beam Factor
     real a = FL(-4.0) * STD::log(beta) / SQ(inflray.Dalpha);

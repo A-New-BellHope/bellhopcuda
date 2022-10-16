@@ -228,6 +228,7 @@ inline HOST_DEVICE bool isfinite(const vec3 &v){
     return STD::isfinite(v.x) && STD::isfinite(v.y) && STD::isfinite(v.z);
 }
 
+template<bool X3D> HOST_DEVICE inline constexpr int ZDIM() { if constexpr(X3D) return 2; else return 1; }
 template<typename VEC> HOST_DEVICE inline real &DEP(VEC &v);
 template<> HOST_DEVICE inline real &DEP(vec2 &v) { return v.y; }
 template<> HOST_DEVICE inline real &DEP(vec3 &v) { return v.z; }
