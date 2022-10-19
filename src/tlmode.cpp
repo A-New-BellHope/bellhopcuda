@@ -108,16 +108,16 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
                     iSeg, params.Pos, params.ssp, xs, tinit);
                 cpx epsilon1, epsilon2;
                 if constexpr(R3D){
-                    epsilon1 = PickEpsilon<R3D>(
+                    epsilon1 = PickEpsilon<O3D, R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(), o.gradc, FL(0.0),
                         params.Angles->alpha.d, params.Beam);
-                    epsilon2 = PickEpsilon<R3D>(
+                    epsilon2 = PickEpsilon<O3D, R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(), o.gradc, FL(0.0),
                         params.Angles->beta.d, params.Beam);
                 }else{
                     epsilon1 = epsilon2 = RL(0.0);
                 }
-                ScalePressure<R3D>(
+                ScalePressure<O3D, R3D>(
                     params.Angles->alpha.d, params.Angles->beta.d, o.ccpx.real(),
                     epsilon1, epsilon2, params.Pos->Rr, 
                     &outputs.uAllSources[GetFieldAddr(isx, isy, isz, 0, 0, 0, params.Pos)], 

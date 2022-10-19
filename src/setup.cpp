@@ -58,7 +58,7 @@ template<bool O3D, bool R3D> bool setup(
     params.Pos = allocate<Position>();
     params.Angles = allocate<AnglesStructure>();
     params.freqinfo = allocate<FreqInfo>();
-    params.Beam = allocate<BeamStructure>();
+    params.Beam = allocate<BeamStructure<O3D>>();
     params.beaminfo = allocate<BeamInfo>();
     outputs.rayinfo = allocate<RayInfo<O3D, R3D>>();
     outputs.eigen = allocate<EigenInfo>();
@@ -221,7 +221,7 @@ template<bool O3D, bool R3D> bool setup(
         params.bdinfo->top.bd[0].x = vec2(-bdry_big<false>::value(), RL(0.0));
         params.bdinfo->top.bd[1].x = vec2( bdry_big<false>::value(), RL(0.0));
         
-        ComputeBdryTangentNormal(&params.bdinfo->top, true);
+        ComputeBdryTangentNormal<O3D>(&params.bdinfo->top, true);
         
         // *** bathymetry ***
         
@@ -229,7 +229,7 @@ template<bool O3D, bool R3D> bool setup(
         params.bdinfo->bot.bd[0].x = vec2(-bdry_big<false>::value(), RL(5000.0));
         params.bdinfo->bot.bd[1].x = vec2( bdry_big<false>::value(), RL(5000.0));
         
-        ComputeBdryTangentNormal(&params.bdinfo->bot, false);
+        ComputeBdryTangentNormal<O3D>(&params.bdinfo->bot, false);
         
         params.refl->bot.r = allocate<ReflectionCoef>(1);
         params.refl->top.r = allocate<ReflectionCoef>(1);
@@ -243,9 +243,9 @@ template<bool O3D, bool R3D> bool setup(
         for(int32_t i=0; i<2; ++i) params.beaminfo->SrcBmPat[i*2+1] = 
             STD::pow(FL(10.0), params.beaminfo->SrcBmPat[i*2+1] / FL(20.0)); // convert dB to linear scale !!!
     }else{
-        ReadEnvironment(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
+        ReadEnvironment<O3D, R3D>(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
-            params.Beam, RecycledHS, O3D, R3D);
+            params.Beam, RecycledHS);
         ReadBoundary<O3D>(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
             PRTFile, &params.bdinfo->top, true,  params.freqinfo->freq0, params.fT, params.atten); // AlTImetry
         ReadBoundary<O3D>(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,

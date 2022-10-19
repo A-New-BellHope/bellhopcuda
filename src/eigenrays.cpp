@@ -34,7 +34,7 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     rayPt<R3D> *localmem = nullptr;
-    if(IsRayCopyMode(outputs.rayinfo)) localmem = new rayPt<R3D>[MaxN];
+    if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) localmem = new rayPt<R3D>[MaxN];
     
     try{
     
@@ -69,7 +69,7 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
         exceptionStr += std::string(e.what()) + "\n";
     }
     
-    if(IsRayCopyMode(outputs.rayinfo)) delete[] localmem;
+    if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) delete[] localmem;
 }
 
 template void EigenModePostWorker<false, false>(

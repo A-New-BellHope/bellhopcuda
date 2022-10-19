@@ -47,8 +47,8 @@ template<bool O3D, bool R3D> int mainmain()
         bhc::FinalizeEigenMode<O3D, R3D>(params, outputs, FileRoot, singlethread);
     }else if(IsArrivalsRun(params.Beam)){
         // Arrivals mode
-        bhc::FinalizeArrivalsMode(outputs.arrinfo, params.Pos, params.freqinfo,
-            params.Beam, FileRoot, R3D);
+        bhc::FinalizeArrivalsMode<O3D, R3D>(outputs.arrinfo, params.Pos, params.freqinfo,
+            params.Beam, FileRoot);
     }else{
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         std::abort();

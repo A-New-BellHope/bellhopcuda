@@ -190,7 +190,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCur
 template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     const rayPt<R3D> &oldPoint, rayPt<R3D> &newPoint, const HSInfo &hs, bool isTop,
     VEC23<R3D> tBdry, const VEC23<O3D> &nBdry, const ReflCurvature<O3D> &rcurv, real freq,
-    const ReflectionInfoTopBot &rtb, const BeamStructure *Beam, 
+    const ReflectionInfoTopBot &rtb, const BeamStructure<O3D> *Beam, 
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
 {
     VEC23<R3D> nBdry_ray = RayToOceanT<O3D, R3D>(nBdry, org);
@@ -209,7 +209,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     real Tg = glm::dot(oldPoint.t, tBdry); // component of ray tangent, along boundary
     
     ReflCurvature<R3D> rcurv_ray = OceanToRayCurvature<O3D, R3D>(rcurv, org, isTop);
-        
+    
     // LP: Incrementing bounce count moved here
     newPoint.NumTopBnc = oldPoint.NumTopBnc + (int)isTop;
     newPoint.NumBotBnc = oldPoint.NumBotBnc + (1 - (int)isTop);
@@ -228,6 +228,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     newPoint.tau = oldPoint.tau;
     
     if constexpr(R3D){
+        IGNORE_UNUSED(Beam);
         
         vec3 rayt, rayn1, rayn2, rayt_tilde, rayn1_tilde, rayn2_tilde;
         CalcTangent_Normals(oldPoint, o.ccpx.real(), nBdry, rayt,       rayn1,       rayn2,       RL(-1.0)); // incident

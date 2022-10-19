@@ -18,16 +18,16 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
-#include "beams.hpp"
+#include "runtype.hpp"
 
 namespace bhc {
 
 /**
  * LP: RunType now passed as part of Beam.
  */
-template<bool BEARING> inline void ReadRayAngles(real freq, real Depth,
+template<bool O3D, bool BEARING> inline void ReadRayAngles(real freq, real Depth,
     const char (&TopOpt)[6], LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    AngleInfo &a, Position *Pos, const BeamStructure *Beam)
+    AngleInfo &a, Position *Pos, const BeamStructure<O3D> *Beam)
 {
     constexpr real c0 = FL(1500.0);
     const char *const FuncName = BEARING ? "ReadRayBearingAngles" : "ReadRayElevationAngles";

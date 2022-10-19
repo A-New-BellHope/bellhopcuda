@@ -56,7 +56,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
     RayInitInfo &rinit, cpxf *uAllSources,
     const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo,
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;

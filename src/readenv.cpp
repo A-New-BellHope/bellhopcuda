@@ -168,9 +168,8 @@ void ReadTopOpt(char (&TopOpt)[6], char &bc,
 /**
  * Read the RunType variable and echo with explanatory information to the print file
  */
-void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
-    LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    Position *Pos, bool r3d)
+template<bool R3D> void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
 {
     LIST(ENVFile); ENVFile.Read(RunType, 7);
     PRTFile << "\n";
@@ -236,14 +235,14 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     switch(RunType[5]){
     case '2':
        PRTFile << "N x 2D calculation (neglects horizontal refraction)\n";
-       if(r3d){
+       if constexpr(R3D){
            GlobalLog("This is a 2D or Nx2D environment file, but you are running " BHC_PROGRAMNAME " in 3D mode\n");
            std::abort();
        }
        break;
     case '3':
        PRTFile << "3D calculation\n";
-       if(!r3d){
+       if constexpr(!R3D){
            GlobalLog("This is a 3D environment file, but you are running " BHC_PROGRAMNAME " in 2D or Nx2D mode\n");
            std::abort();
        }
@@ -253,10 +252,11 @@ void ReadRunType(char (&RunType)[7], char (&PlotType)[10],
     }
 }
 
-void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
+template<bool O3D, bool R3D> void ReadEnvironment(
+    const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
-    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
-    HSInfo &RecycledHS, bool o3d, bool r3d)
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<O3D> *Beam,
+    HSInfo &RecycledHS)
 {
     //const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;
@@ -266,7 +266,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     real Sigma, Depth;
     char PlotType[10];
     
-    PRTFile << BHC_PROGRAMNAME << (r3d ? "3D" : o3d ? "Nx2D" : "") << "\n\n";
+    PRTFile << BHC_PROGRAMNAME << (R3D ? "3D" : O3D ? "Nx2D" : "") << "\n\n";
     
     // Open the environmental file
     LDIFile ENVFile(FileRoot + ".env");
@@ -350,7 +350,7 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     
     // *** source and receiver locations ***
     
-    ReadSxSy(o3d, ENVFile, PRTFile, Pos);
+    ReadSxSy<O3D>(ENVFile, PRTFile, Pos);
     
     ZMin = Bdry->Top.hs.Depth;
     ZMax = Bdry->Bot.hs.Depth;
@@ -360,20 +360,38 @@ void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
     //     ENVFile, PRTFile);
     ReadSzRz(ZMin, ZMax, ENVFile, PRTFile, Pos);
     ReadRcvrRanges(ENVFile, PRTFile, Pos);
-    if(o3d) ReadRcvrBearings(ENVFile, PRTFile, Pos);
+    if constexpr(O3D) ReadRcvrBearings(ENVFile, PRTFile, Pos);
     ReadfreqVec(Bdry->Top.hs.Opt[5], ENVFile, PRTFile, freqinfo);
-    ReadRunType(Beam->RunType, PlotType, ENVFile, PRTFile, Pos, r3d);
+    ReadRunType<R3D>(Beam->RunType, PlotType, ENVFile, PRTFile, Pos);
     
     Depth = ZMax - ZMin; // water depth
-    ReadRayAngles<false>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, 
+    ReadRayAngles<O3D, false>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, 
         ENVFile, PRTFile, Angles->alpha, Pos, Beam);
-    if(o3d) ReadRayAngles<true>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, 
-        ENVFile, PRTFile, Angles->beta, Pos, Beam);
+    if constexpr(O3D){
+        ReadRayAngles<O3D, true>(freqinfo->freq0, Depth, Bdry->Top.hs.Opt, 
+            ENVFile, PRTFile, Angles->beta, Pos, Beam);
+    }
     
     PRTFile << "\n__________________________________________________________________________\n\n";
         
     //LP: Moved to separate function for clarity and modularity.
-    ReadBeamInfo(ENVFile, PRTFile, Beam, Bdry, o3d);
-} 
+    ReadBeamInfo<O3D>(ENVFile, PRTFile, Beam, Bdry);
+}
+template void ReadEnvironment<false, false>(
+    const std::string &FileRoot, PrintFileEmu &PRTFile,
+    char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<false> *Beam,
+    HSInfo &RecycledHS);
+template void ReadEnvironment<true, false>(
+    const std::string &FileRoot, PrintFileEmu &PRTFile,
+    char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<true> *Beam,
+    HSInfo &RecycledHS);
+template void ReadEnvironment<true, true>(
+    const std::string &FileRoot, PrintFileEmu &PRTFile,
+    char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<true> *Beam,
+    HSInfo &RecycledHS);
+
 
 }

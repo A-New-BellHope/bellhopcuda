@@ -77,7 +77,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
     
     SubTab(x, Nx);
     Sort(x, Nx);
-    EchoVector(x, Nx, PRTFile, "   ");
+    EchoVector(x, Nx, PRTFile, 10, "   ");
     
     PRTFile << "\n";
     
@@ -93,10 +93,10 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
  * 
  * ThreeD: flag indicating whether this is a 3D run
  */
-inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, PrintFileEmu &PRTFile,
+template<bool O3D> inline void ReadSxSy(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
-    if(ThreeD){
+    if constexpr(O3D){
         ReadVector(Pos->NSx, Pos->Sx, "Source   x-coordinates, Sx", "km", ENVFile, PRTFile);
         ReadVector(Pos->NSy, Pos->Sy, "Source   y-coordinates, Sy", "km", ENVFile, PRTFile);
     }else{

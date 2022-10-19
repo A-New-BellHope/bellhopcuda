@@ -147,8 +147,17 @@ inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
     memset(arrinfo->NArr, 0, nTotal * sizeof(int32_t));
 }
 
-void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot,
-    bool OceanThreeD, bool RayThreeD);
+template<bool O3D, bool R3D> void FinalizeArrivalsMode(
+    const ArrInfo *arrinfo, const Position *Pos,
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, std::string FileRoot);
+extern template void FinalizeArrivalsMode<false, false>(
+    const ArrInfo *arrinfo, const Position *Pos,
+    const FreqInfo *freqinfo, const BeamStructure<false> *Beam, std::string FileRoot);
+extern template void FinalizeArrivalsMode<true, false>(
+    const ArrInfo *arrinfo, const Position *Pos,
+    const FreqInfo *freqinfo, const BeamStructure<true> *Beam, std::string FileRoot);
+extern template void FinalizeArrivalsMode<true, true>(
+    const ArrInfo *arrinfo, const Position *Pos,
+    const FreqInfo *freqinfo, const BeamStructure<true> *Beam, std::string FileRoot);
 
 }

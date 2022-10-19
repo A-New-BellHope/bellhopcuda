@@ -697,7 +697,7 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
         }
     }
     
-    ComputeBdryTangentNormal(bdinfotb, isTop);
+    ComputeBdryTangentNormal<O3D>(bdinfotb, isTop);
     
     if constexpr(!O3D){
         // convert range-dependent geoacoustic parameters from user to program units

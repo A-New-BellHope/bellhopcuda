@@ -18,169 +18,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "runtype.hpp"
 
 namespace bhc {
-
-HOST_DEVICE inline bool IsRayRun(const BeamStructure *Beam){
-    char r = Beam->RunType[0];
-    return r == 'R';
-}
-
-HOST_DEVICE inline bool IsTLRun(const BeamStructure *Beam){
-    char r = Beam->RunType[0];
-    return r == 'C' || r == 'S' || r == 'I';
-}
-
-HOST_DEVICE inline bool IsEigenraysRun(const BeamStructure *Beam){
-    char r = Beam->RunType[0];
-    return r == 'E';
-}
-
-HOST_DEVICE inline bool IsArrivalsRun(const BeamStructure *Beam){
-    char r = Beam->RunType[0];
-    return r == 'A' || r == 'a';
-}
-
-HOST_DEVICE inline bool IsCoherentRun(const BeamStructure *Beam){
-    char r = Beam->RunType[0];
-    return r == 'C';
-}
-
-HOST_DEVICE inline bool IsSemiCoherentRun(const BeamStructure *Beam){
-    char r = Beam->RunType[0];
-    return r == 'S';
-}
-
-// Beam->Type[0] is
-//   'G', '^', or ' ' Geometric hat beams in Cartesian coordinates
-//   'g' Geometric hat beams in ray-centered coordinates
-//   'B' Geometric Gaussian beams in Cartesian coordinates
-//   'b' Geometric Gaussian beams in ray-centered coordinates
-//   'S' Simple Gaussian beams
-//   'C' Cerveny Gaussian beams in Cartesian coordinates
-//   'R' Cerveny Gaussian beams in Ray-centered coordinates
-
-HOST_DEVICE inline bool IsCervenyInfl(const BeamStructure *Beam){
-    char t = Beam->Type[0];
-    return t == 'R' || t == 'C';
-}
-
-HOST_DEVICE inline bool IsGeometricInfl(const BeamStructure *Beam){
-    char t = Beam->Type[0];
-    return t == ' ' || t == '^' || t == 'G' || t == 'g' || t == 'B' || t == 'b';
-}
-
-HOST_DEVICE inline bool IsSGBInfl(const BeamStructure *Beam){
-    char t = Beam->Type[0];
-    return t == 'S';
-}
-
-HOST_DEVICE inline bool IsCartesianInfl(const BeamStructure *Beam){
-    char t = Beam->Type[0];
-    return t == 'C' || t == ' ' || t == '^' || t == 'G' || t == 'B';
-}
-
-HOST_DEVICE inline bool IsRayCenInfl(const BeamStructure *Beam){
-    char t = Beam->Type[0];
-    return t == 'R' || t == 'g' || t == 'b';
-}
-
-HOST_DEVICE inline bool IsHatGeomInfl(const BeamStructure *Beam){
-    char t = Beam->Type[0];
-    return t == ' ' || t == '^' || t == 'G' || t == 'g';
-}
-
-HOST_DEVICE inline bool IsGaussianGeomInfl(const BeamStructure *Beam){
-    char t = Beam->Type[0];
-    return t == 'B' || t == 'b';
-}
-
-template<bool R3D> HOST_DEVICE inline const char *GetBeamTypeTag(const BeamStructure *Beam){
-    switch(Beam->Type[0]){
-    case 'C':
-    case 'R':
-        return R3D ? "Cerveny style beam" : "Paraxial beams";
-    case '^':
-    case ' ':
-        if constexpr(!R3D) return "Warning, Beam->Type[0] = ^ or ' ' not properly handled in BELLHOP (2D)";
-        [[fallthrough]];
-    case 'G':
-        if constexpr(R3D) return "Geometric beam, hat-shaped, Cart. coord.";
-        [[fallthrough]];
-    case 'g':
-        if constexpr(R3D) return "Geometric beam, hat-shaped, Ray coord.";
-        return "Geometric hat beams";
-    case 'B':
-        return R3D ? "Geometric beam, Gaussian-shaped, Cart. coord." : 
-            "Geometric Gaussian beams";
-    case 'b':
-        return R3D ? "Geometric beam, Gaussian-shaped, Ray coord." : 
-            "Geo Gaussian beams in ray-cent. coords. not implemented in BELLHOP (2D)";
-    case 'S':
-        return "Simple Gaussian beams";
-    default:
-        GlobalLog("Invalid Beam->Type[0] %c\n", Beam->Type[0]);
-        bail();
-        return "Error";
-    }
-}
-
-// Beam->Type[1] controls the setting of the beam width
-//   'F' space Filling
-//   'M' minimum width
-//   'W' WKB beams
-//   LP: 'C': "Cerveny style beam"
-
-HOST_DEVICE inline bool IsBeamWidthSpaceFilling(const BeamStructure *Beam){
-    return Beam->Type[1] == 'F';
-}
-
-HOST_DEVICE inline bool IsBeamWidthMinimum(const BeamStructure *Beam){
-    return Beam->Type[1] == 'M';
-}
-
-HOST_DEVICE inline bool IsBeamWidthWKB(const BeamStructure *Beam){
-    return Beam->Type[1] == 'W';
-}
-
-HOST_DEVICE inline bool IsBeamWidthCerveny(const BeamStructure *Beam){
-    return Beam->Type[1] == 'C';
-}
-
-HOST_DEVICE inline const char *GetBeamWidthTag(const BeamStructure *Beam){
-    switch(Beam->Type[1]){
-    case 'F': return "Space filling beams";
-    case 'M': return "Minimum width beams";
-    case 'W': return "WKB beams";
-    case 'C': return "Cerveny style beam";
-    default:
-        GlobalLog("Invalid Beam->Type[1] %c\n", Beam->Type[1]);
-        bail();
-        return "Error";
-    }
-}
-
-// Beam->Type[2] controls curvature changes on boundary reflections
-//   'D' Double
-//   'S' Single
-//   'Z' Zero
-// Beam->Type[3] selects whether beam shifts are implemented on boundary reflection
-//   'S' yes
-//   'N' no
-
-/**
- * LP: Defaults to 'R' (point source) for any other option in ReadRunType.
- */
-HOST_DEVICE inline bool IsLineSource(const BeamStructure *Beam){
-    return Beam->RunType[3] == 'X';
-}
-
-/**
- * LP: Defaults to 'R' (rectilinear) for any other option in ReadRunType.
- */
-HOST_DEVICE inline bool IsIrregularGrid(const BeamStructure *Beam){
-    return Beam->RunType[4] == 'I';
-}
 
 inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile,
     BeamInfo *beaminfo)
@@ -223,7 +63,7 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile,
         STD::pow(FL(10.0), beaminfo->SrcBmPat[i*2+1] / FL(20.0));
 }
 
-template<bool O3D> inline VEC23<O3D> BeamBoxCenter(const VEC23<O3D> &xs)
+template<bool O3D> inline HOST_DEVICE VEC23<O3D> BeamBoxCenter(const VEC23<O3D> &xs)
 {
     VEC23<O3D> ret = xs;
     // box is centered at z=0
@@ -231,7 +71,7 @@ template<bool O3D> inline VEC23<O3D> BeamBoxCenter(const VEC23<O3D> &xs)
     return ret;
 }
 
-template<bool O3D, int DIM> inline bool IsOutsideBeamBoxDim(
+template<bool O3D, int DIM> inline HOST_DEVICE bool IsOutsideBeamBoxDim(
     const VEC23<O3D> &x, const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs)
 {
     static_assert(DIM >= 0 && DIM <= ZDIM<O3D>(), "Invalid use of IsOutsideBoxDim!");
@@ -244,7 +84,7 @@ template<bool O3D, int DIM> inline bool IsOutsideBeamBoxDim(
  */
 template<bool O3D> inline void ReadBeamInfo(
     LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    BeamStructure *Beam, const BdryType *Bdry)
+    BeamStructure<O3D> *Beam, const BdryType *Bdry)
 {
     if constexpr(O3D){
         LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.x);
@@ -259,7 +99,7 @@ template<bool O3D> inline void ReadBeamInfo(
     
     PRTFile << std::setprecision(4);
     PRTFile << "\n Step length,       deltas = " << std::setw(11) << Beam->deltas << " m\n\n";
-    if(o3d){
+    if constexpr(O3D){
         PRTFile << "Maximum ray x-range, Box.x  = " << std::setw(11) << Beam->Box.x << " m\n";
         PRTFile << "Maximum ray y-range, Box.y  = " << std::setw(11) << Beam->Box.y << " m\n";
         PRTFile << "Maximum ray z-range, Box.z  = " << std::setw(11) << Beam->Box.z << " m\n";

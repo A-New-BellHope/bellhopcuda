@@ -18,9 +18,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "runtype.hpp"
 #include "step.hpp"
 #include "reflect.hpp"
-#include "beams.hpp"
 
 namespace bhc {
 
@@ -78,7 +78,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     Origin<O3D, R3D> &org, SSPSegState &iSeg, BdryState<O3D> &bds, BdryType &Bdry,
     const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo)
 {
     if(    rinit.isz < 0    || rinit.isz >= Pos->NSz 
         || rinit.ialpha < 0 || rinit.ialpha >= Angles->alpha.n
@@ -227,7 +227,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
     int32_t &iSmallStepCtr, const Origin<O3D, R3D> &org, SSPSegState &iSeg,
     BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo,
     const ReflectionInfo *refl, const SSPStructure *ssp, const FreqInfo *freqinfo,
-    const BeamStructure *Beam, const VEC23<R3D> &xs)
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs)
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl, flipTopDiag, flipBotDiag;
@@ -334,7 +334,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const rayPt<R3D> &point, int32_t &Nsteps, int32_t is,
     const VEC23<O3D> &xs, const int32_t &iSmallStepCtr,
     real &DistBegTop, real &DistBegBot, const real &DistEndTop, const real &DistEndBot,
-    const Origin<O3D, R3D> &org, const BdryInfo<O3D> *bdinfo, const BeamStructure *Beam
+    const Origin<O3D, R3D> &org, const BdryInfo<O3D> *bdinfo, const BeamStructure<O3D> *Beam
     )
 {
     bool leftbox, escapedboundaries, toomanysmallsteps;
@@ -349,6 +349,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         }else{
             // LP: This condition was inexplicably commented out in 2022 revision of Nx2D.
             leftbox = false;
+            IGNORE_UNUSED(Beam);
         }
         real minx = bhc::max(bdinfo->bot.bd[0].x.x, bdinfo->top.bd[0].x.x);
         real miny = bhc::max(bdinfo->bot.bd[0].x.y, bdinfo->top.bd[0].x.y);

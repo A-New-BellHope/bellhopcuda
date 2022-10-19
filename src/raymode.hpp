@@ -30,7 +30,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(RayInitInfo &ri
     rayPt<R3D> *ray, int32_t &Nsteps, Origin<O3D, R3D> &org,
     const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     SSPSegState iSeg;
@@ -155,7 +155,7 @@ template<bool O3D, bool R3D> inline bool RunRay(
     int32_t job, RayInitInfo &rinit, int32_t &Nsteps)
 {
     rayPt<R3D> *ray;
-    if(IsRayCopyMode(rayinfo)){
+    if(IsRayCopyMode<O3D, R3D>(rayinfo)){
         ray = localmem;
     }else{
         ray = &rayinfo->raymem[job * MaxN];
@@ -168,7 +168,7 @@ template<bool O3D, bool R3D> inline bool RunRay(
         params.Angles, params.freqinfo, params.Beam, params.beaminfo);
     
     bool ret = true;
-    if(IsRayCopyMode(rayinfo)){
+    if(IsRayCopyMode<O3D, R3D>(rayinfo)){
         uint32_t p = AtomicFetchAdd(&rayinfo->NPoints, (uint32_t)Nsteps);
         if(p + Nsteps > rayinfo->MaxPoints){
             GlobalLog("Ran out of memory for rays\n");

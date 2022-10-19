@@ -18,8 +18,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "runtype.hpp"
 #include "ssp.hpp"
 #include "boundary.hpp"
+#include "beams.hpp"
 
 namespace bhc {
 
@@ -588,7 +590,7 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     rayPt<R3D> ray0, rayPt<R3D> &ray2, const BdryState<O3D> &bds,
-    const BeamStructure *Beam, const VEC23<R3D> &xs, const Origin<O3D, R3D> &org,
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const Origin<O3D, R3D> &org,
     const SSPStructure *ssp, SSPSegState &iSeg, int32_t &iSmallStepCtr,
     bool &topRefl, bool &botRefl, bool &flipTopDiag, bool &flipBotDiag)
 {

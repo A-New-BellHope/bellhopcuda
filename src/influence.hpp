@@ -18,9 +18,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "runtype.hpp"
 #include "eigenrays.hpp"
 #include "arrivals.hpp"
-#include "beams.hpp"
 
 // #define INFL_DEBUGGING_ITHETA 0
 // #define INFL_DEBUGGING_IR 299
@@ -66,9 +66,9 @@ HOST_DEVICE inline int32_t RToIR(real r, const Position *Pos)
     return bhc::max(bhc::min((int)temp, Pos->NRr-1), 0);
 }
 
-template<bool R3D> HOST_DEVICE inline void AdjustSigma(
+template<bool O3D, bool R3D> HOST_DEVICE inline void AdjustSigma(
     real &sigma, const rayPt<R3D> &point0, const rayPt<R3D> &point1,
-    const InfluenceRayInfo<R3D> &inflray, const BeamStructure *Beam)
+    const InfluenceRayInfo<R3D> &inflray, const BeamStructure<O3D> *Beam)
 {
     if(!IsGaussianGeomInfl(Beam)) return;
     real lambda = point0.c / inflray.freq0; // local wavelength
@@ -96,7 +96,7 @@ template<> HOST_DEVICE inline real QScalar(const mat2x2 &q) { return glm::determ
 
 template<bool R3D> HOST_DEVICE inline void ReceiverAngles(
     real &RcvrDeclAngle, real &RcvrAzimAngle, const VEC23<R3D> &rayt,
-    const InfluenceRayInfo &inflray)
+    const InfluenceRayInfo<R3D> &inflray)
 {
     real angleXY = RadDeg * STD::atan2(rayt.y, rayt.x);
     if constexpr(R3D){
@@ -179,8 +179,8 @@ HOST_DEVICE inline bool Compute_M_N_R_IR(
  * LP: Claims to support non-Cerveny cases, but never called or results never
  * used in non-Cerveny cases.
  */
-template<bool R3D> HOST_DEVICE inline cpx PickEpsilon(
-    real omega, real c, vec2 gradc, real angle, real Dangle, const BeamStructure *Beam)
+template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
+    real omega, real c, vec2 gradc, real angle, real Dangle, const BeamStructure<O3D> *Beam)
 {
     // LP: BUG: Multiple codepaths do not set epsilonOpt, leads to UB
     real halfwidth = R3D ? RL(0.0) : DEBUG_LARGEVAL;
@@ -283,9 +283,9 @@ template<bool O3D> HOST_DEVICE inline cpx Compute_gamma(
     }
 }
 
-HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
+template<bool O3D> HOST_DEVICE inline void Compute_eps_pB_qB(cpx &eps, cpx &pB, cpx &qB,
     const rayPt<false> &point, const InfluenceRayInfo<false> &inflray,
-    const BeamStructure *Beam)
+    const BeamStructure<O3D> *Beam)
 {
     if(IsBeamWidthCerveny(Beam)){
         eps = J * STD::abs(point.q.x / point.q.y);
@@ -321,8 +321,8 @@ HOST_DEVICE inline real Hermite(real x, real x1, real x2)
 /**
  * Checks for a branch cut crossing and updates kmah accordingly
  */
-HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
-    int32_t &kmah, const BeamStructure *Beam)
+template<bool O3D> HOST_DEVICE inline void BranchCut(const cpx &q1C, const cpx &q2C,
+    int32_t &kmah, const BeamStructure<O3D> *Beam)
 {
     real q1, q2;
     if(IsBeamWidthWKB(Beam)){
@@ -381,7 +381,7 @@ template<bool R3D> HOST_DEVICE inline bool IsAtCaustic(
 template<bool R3D> HOST_DEVICE inline void IncPhaseIfCaustic(
     InfluenceRayInfo<R3D> &inflray, real q, bool qleq0)
 {
-    if(IsAtCaustic(inflray, q, qleq0)) inflray.phase += REAL_PI / FL(2.0);
+    if(IsAtCaustic<R3D>(inflray, q, qleq0)) inflray.phase += REAL_PI / FL(2.0);
 }
 
 /**
@@ -391,7 +391,7 @@ template<bool R3D> HOST_DEVICE inline real FinalPhase(const rayPt<R3D> &point,
     const InfluenceRayInfo<R3D> &inflray, real q)
 {
     real phaseInt = point.Phase + inflray.phase;
-    if(IsAtCaustic(inflray, q, true)){
+    if(IsAtCaustic<R3D>(inflray, q, true)){
         // LP: All 2D influence functions discard point.Phase when this
         // condition is met. Probably a BUG as none of the 3D functions do this.
         phaseInt = (R3D ? phaseInt : inflray.phase) + REAL_PI / FL(2.0);
@@ -417,7 +417,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribution(
     real RcvrDeclAngle, real RcvrAzimAngle,
     int32_t itheta, int32_t ir, int32_t iz, int32_t is,
     const InfluenceRayInfo<R3D> &inflray, const rayPt<R3D> &point1,
-    const Position *Pos, const BeamStructure *Beam,
+    const Position *Pos, const BeamStructure<O3D> *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     if constexpr(O3D && !R3D){
@@ -459,7 +459,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     InfluenceRayInfo<R3D> &inflray,
     const rayPt<R3D> &point0, RayInitInfo &rinit, vec2 gradc,
     const Position *Pos, const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
-    const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure *Beam)
+    const AnglesStructure *Angles, const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam)
 {
     if constexpr(R3D) IGNORE_UNUSED(ssp);
     
@@ -490,10 +490,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     }
     
     if(IsCervenyInfl(Beam)){
-        inflray.epsilon1 = PickEpsilon<R3D>(inflray.omega,
+        inflray.epsilon1 = PickEpsilon<O3D, R3D>(inflray.omega,
             point0.c, gradc, rinit.alpha, Angles->alpha.d, Beam);
         if constexpr(R3D){
-            inflray.epsilon2 = PickEpsilon<R3D>(inflray.omega,
+            inflray.epsilon2 = PickEpsilon<O3D, R3D>(inflray.omega,
                 point0.c, gradc, rinit.beta, Angles->beta.d, Beam);
         }
     }
@@ -525,7 +525,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
             inflray.x = VEC23<R3D>(RL(0.0));
             inflray.lastValid = false;
         }else{
-            RayNormalRayCen(point0, inflray.rayn1, inflray.rayn2);
+            RayNormalRayCen<R3D>(point0, inflray.rayn1, inflray.rayn2);
             inflray.x = point0.x;
             inflray.lastValid = STD::abs(DEP(inflray.rayn1)) >= RL(1e-6); // LP: Ignored in 3D
         } 
@@ -565,7 +565,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
         }else{
             // LP: Partially supported in Nx2D (O3D but not R3D)
             cpx eps0, pB0, qB0;
-            Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
+            Compute_eps_pB_qB<O3D>(eps0, pB0, qB0, point0, inflray, Beam);
             inflray.gamma = Compute_gamma<O3D>(point0, pB0, qB0, org, ssp, iSeg);
         }
     }else{
@@ -585,7 +585,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     const rayPt<false> &point0, const rayPt<false> &point1,
     InfluenceRayInfo<false> &inflray, 
     int32_t is, cpxf *uAllSources,
-    const BdryType *Bdry, const Position *Pos, const BeamStructure *Beam)
+    const BdryType *Bdry, const Position *Pos, const BeamStructure<O3D> *Beam)
 {
     IGNORE_UNUSED(is);
     
@@ -595,8 +595,8 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     // During reflection imag(q) is constant and adjacent normals cannot bracket
     // a segment of the TL line, so no special treatment is necessary
     
-    Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
-    Compute_eps_pB_qB(eps1, pB1, qB1, point1, inflray, Beam);
+    Compute_eps_pB_qB<O3D>(eps0, pB0, qB0, point0, inflray, Beam);
+    Compute_eps_pB_qB<O3D>(eps1, pB1, qB1, point1, inflray, Beam);
     gamma0 = pB0 / qB0;
     gamma1 = pB1 / qB1;
     
@@ -619,7 +619,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     // compute KMAH index
     // Following is incorrect for 'Cerveny'-style beamwidth (narrow as possible)
     int32_t old_kmah = inflray.kmah;
-    BranchCut(qB0, qB1, inflray.kmah, Beam);
+    BranchCut<O3D>(qB0, qB1, inflray.kmah, Beam);
     
     for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
         real zR = Pos->Rz[iz];
@@ -668,7 +668,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                         }
                         
                         int32_t kmah = old_kmah;
-                        BranchCut(qB0, q, kmah, Beam); // Get correct branch of STD::sqrt
+                        BranchCut<O3D>(qB0, q, kmah, Beam); // Get correct branch of STD::sqrt
                         
                         if(kmah < 0)   contri = -contri;
                         if(image == 2) contri = -contri;
@@ -679,7 +679,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
                         }
                         contri *= Hermite(n, inflray.RadMax, FL(2.0) * inflray.RadMax);
                         
-                        AddToField(uAllSources, Cpx2Cpxf(contri), O3D ? inflray.init.ibeta : 0,
+                        AddToField<false>(uAllSources, Cpx2Cpxf(contri), O3D ? inflray.init.ibeta : 0,
                             ir, iz, inflray, Pos);
                     }
                 }
@@ -701,7 +701,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     InfluenceRayInfo<false> &inflray, 
     int32_t is, cpxf *uAllSources, const BdryType *Bdry, 
     const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
-    const Position *Pos, const BeamStructure *Beam)
+    const Position *Pos, const BeamStructure<O3D> *Beam)
 {
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
     real zR;
@@ -710,17 +710,17 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     // During reflection imag(q) is constant and adjacent normals cannot bracket
     // a segment of the TL line, so no special treatment is necessary
     
-    Compute_eps_pB_qB(eps0, pB0, qB0, point0, inflray, Beam);
-    Compute_eps_pB_qB(eps1, pB1, qB1, point1, inflray, Beam);
+    Compute_eps_pB_qB<O3D>(eps0, pB0, qB0, point0, inflray, Beam);
+    Compute_eps_pB_qB<O3D>(eps1, pB1, qB1, point1, inflray, Beam);
     
     // Form gamma and KMAH index
     // Treatment of KMAH index is incorrect for 'Cerveny' style beam width BeamType
     gamma0 = inflray.gamma;
-    gamma1 = Compute_gamma(point1, pB1, qB1, org, ssp, iSeg);
+    gamma1 = Compute_gamma<O3D>(point1, pB1, qB1, org, ssp, iSeg);
     inflray.gamma = gamma1;
         
     int32_t old_kmah = inflray.kmah;
-    BranchCut(qB0, qB1, inflray.kmah, Beam);
+    BranchCut<O3D>(qB0, qB1, inflray.kmah, Beam);
     
     if(is == 0) return true; // LP: Skips the first valid pair.
     // LP: Assumes rays may never travel left.
@@ -761,7 +761,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
         
         // Get correct branch of STD::sqrt
         int32_t kmah = old_kmah;
-        BranchCut(qB0, q, kmah, Beam);
+        BranchCut<O3D>(qB0, q, kmah, Beam);
         if(kmah < 0) cnst = -cnst;
         
         for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
@@ -800,7 +800,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
                 }
             } // LP: Non-TL not handled correctly.
             
-            AddToField(uAllSources, Cpx2Cpxf(contri), O3D ? inflray.init.ibeta : 0,
+            AddToField<false>(uAllSources, Cpx2Cpxf(contri), O3D ? inflray.init.ibeta : 0,
                 ir, iz, inflray, Pos);
         }
     }
@@ -821,7 +821,7 @@ template<bool O3D, bool R3D, bool RAYCEN> HOST_DEVICE inline void InfluenceGeoCo
     int32_t itheta, int32_t ir, int32_t iz, int32_t is,
     const rayPt<R3D> &point0, const rayPt<R3D> &point1, real RcvrDeclAngle, real RcvrAzimAngle,
     const InfluenceRayInfo<R3D> &inflray, cpxf *uAllSources, const Position *Pos,
-    const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
+    const BeamStructure<O3D> *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     const bool isGaussian = IsGaussianGeomInfl(Beam);
     
@@ -878,7 +878,7 @@ template<bool O3D, bool R3D, bool RAYCEN> HOST_DEVICE inline void InfluenceGeoCo
         sigma = FL(1.0);
     }else{
         sigma = sigma_orig = STD::abs(qFinal * inflray.rcp_q0); // LP: called RadiusMax or l in non-Gaussian
-        AdjustSigma(sigma, point0, point1, inflray, Beam);
+        AdjustSigma<O3D, R3D>(sigma, point0, point1, inflray, Beam);
         
         beamCoordDist = n1prime = n1;
         IGNORE_UNUSED(n2); IGNORE_UNUSED(n2prime);
@@ -939,13 +939,13 @@ template<bool O3D, bool R3D, bool RAYCEN> HOST_DEVICE inline void InfluenceGeoCo
 template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoRayCen(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
     InfluenceRayInfo<R3D> &inflray,
-    int32_t is, cpxf *uAllSources, const Position *Pos, const BeamStructure *Beam,
+    int32_t is, cpxf *uAllSources, const Position *Pos, const BeamStructure<O3D> *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     const bool isGaussian = IsGaussianGeomInfl(Beam);
     
     real phaseq = QScalar(point0.q);
-    IncPhaseIfCaustic(inflray, phaseq, true);
+    IncPhaseIfCaustic<R3D>(inflray, phaseq, true);
     inflray.qOld = phaseq;
     
     V2M2<R3D> dq  = point1.q   - point0.q;
@@ -960,7 +960,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoRayCen(
     }
     
     VEC23<R3D> rayn1, rayn2; // LP: rayn1 was rn, zn in 2D
-    RayNormalRayCen(point1, rayn1, rayn2);
+    RayNormalRayCen<R3D>(point1, rayn1, rayn2);
     if constexpr(!R3D){
         if(STD::abs(DEP(rayn1)) < RL(1e-10)) return true;
     }
@@ -1100,7 +1100,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoRayCen(
 template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoCart(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
     InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *uAllSources, const Position *Pos,
-    const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
+    const BeamStructure<O3D> *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     const bool isGaussian = IsGaussianGeomInfl(Beam);
     
@@ -1151,7 +1151,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoCart(
     
     // phase shifts at caustics
     real phaseq = QScalar(point0.q);
-    IncPhaseIfCaustic(inflray, phaseq, true);
+    IncPhaseIfCaustic<R3D>(inflray, phaseq, true);
     inflray.qOld = phaseq;
     
     real L_diag; // LP: 3D
@@ -1171,7 +1171,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoCart(
         real sigma, RadiusMax;
         sigma = bhc::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) * inflray.rcp_q0
             / STD::abs(rayt.x); // beam radius projected onto vertical line
-        AdjustSigma(sigma, point0, point1, inflray, Beam);
+        AdjustSigma<O3D, R3D>(sigma, point0, point1, inflray, Beam);
         RadiusMax = inflray.BeamWindow * sigma; // LP: 1 * sigma for non-Gaussian
         // depth limits of beam
         // LP: For rays shot at exactly 60 degrees, they will hit this edge case.
@@ -1300,7 +1300,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoCart(
 template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
     const rayPt<false> &point0, const rayPt<false> &point1,
     InfluenceRayInfo<false> &inflray, int32_t is, cpxf *uAllSources,
-    const Position *Pos, const BeamStructure *Beam,
+    const Position *Pos, const BeamStructure<O3D> *Beam,
     EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     real w;
@@ -1317,7 +1317,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
     real rB = point1.x.x;
     
     real q = point0.q.x;
-    IncPhaseIfCaustic(inflray, q, false);
+    IncPhaseIfCaustic<false>(inflray, q, false);
     inflray.qOld = q;
     
     // Loop over bracketed receiver ranges
@@ -1338,7 +1338,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
         // all steps leading up to them were of size deltas.
         real sint = ((real)(is + 1) + w) * Beam->deltas;
         
-        IncPhaseIfCaustic(inflray, q, false);
+        IncPhaseIfCaustic<false>(inflray, q, false);
         
         // GlobalLog("is ir %d %d\n", is, inflray.ir);
         
@@ -1385,7 +1385,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1,
     InfluenceRayInfo<R3D> &inflray, int32_t is, cpxf *uAllSources, const BdryType *Bdry,
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
-    const Position *Pos, const BeamStructure *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
+    const Position *Pos, const BeamStructure<O3D> *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     if constexpr(R3D){
         IGNORE_UNUSED(Bdry);
@@ -1459,10 +1459,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
  * the Influence* functions) because it must occur after the summing of
  * contributions from different rays/beams.
  */
-template<bool R3D> HOST_DEVICE inline void ScalePressure(
+template<bool O3D, bool R3D> HOST_DEVICE inline void ScalePressure(
     real Dalpha, real Dbeta, real c, cpx epsilon1, cpx epsilon2, float *r, 
     cpxf *u, int32_t Ntheta, int32_t NRz, int32_t Nr, real freq,
-    const BeamStructure *Beam)
+    const BeamStructure<O3D> *Beam)
 {
     real cnst;
     cpx cnst3d;
