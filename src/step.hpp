@@ -73,7 +73,7 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
 }
 
 /**
- * ray mask using a box centered at (0, 0) [2D] / source [3D]
+ * ray mask using a box centered at (0, 0) [2D] / (source x, source y, 0) [3D]
  */
 template<bool O3D, int DIM> HOST_DEVICE inline void BeamBoxCrossing(
     real &hBox, VEC23<O3D> &x, const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
@@ -262,10 +262,10 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
     x = x0 + h * urayt; // make a trial step
 
     DepthInterfaceCrossing<O3D>(hInt, x, x0, urayt, iSeg0, ssp, false);
-    BeamBoxCrossing<O3D, 0>(hBoxxr, Beam, xs, x, urayt, false);
-    BeamBoxCrossing<O3D, 1>(hBoxyz, Beam, xs, x, urayt, false);
+    BeamBoxCrossing<O3D, 0>(hBoxxr, x, x0, urayt, Beam, xs, false);
+    BeamBoxCrossing<O3D, 1>(hBoxyz, x, x0, urayt, Beam, xs, false);
     if constexpr(O3D){
-        BeamBoxCrossing<O3D, 2>(hBoxz_, Beam, xs, x, urayt, false);
+        BeamBoxCrossing<O3D, 2>(hBoxz_, x, x0, urayt, Beam, xs, false);
     }
     TopBotCrossing<O3D>(hTop, bds.top, x, x0, urayt, false, dummy);
     TopBotCrossing<O3D>(hBot, bds.bot, x, x0, urayt, false, dummy);
@@ -317,10 +317,10 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
     x2 = x0 + h * urayt;
     
     DepthInterfaceCrossing<O3D>(h, x2, x0, urayt, iSeg0, ssp, true);
-    BeamBoxCrossing<O3D, 0>(h, Beam, xs, x, urayt, true);
-    BeamBoxCrossing<O3D, 1>(h, Beam, xs, x, urayt, true);
+    BeamBoxCrossing<O3D, 0>(h, x2, x0, urayt, Beam, xs, true);
+    BeamBoxCrossing<O3D, 1>(h, x2, x0, urayt, Beam, xs, true);
     if constexpr(O3D){
-        BeamBoxCrossing<O3D, 2>(h, Beam, xs, x, urayt, true);
+        BeamBoxCrossing<O3D, 2>(h, x2, x0, urayt, Beam, xs, true);
     }
     TopBotCrossing<O3D>(h, bds.top, x2, x0, urayt, true, topRefl);
     TopBotCrossing<O3D>(h, bds.bot, x2, x0, urayt, true, botRefl);
@@ -588,7 +588,7 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     rayPt<R3D> ray0, rayPt<R3D> &ray2, const BdryState<O3D> &bds,
-    const BeamStructure *Beam, const Origin<O3D, R3D> &org,
+    const BeamStructure *Beam, const VEC23<R3D> &xs, const Origin<O3D, R3D> &org,
     const SSPStructure *ssp, SSPSegState &iSeg, int32_t &iSmallStepCtr,
     bool &topRefl, bool &botRefl, bool &flipTopDiag, bool &flipBotDiag)
 {
@@ -638,7 +638,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     // reduce h to land on boundary
     VEC23<O3D> x_o = RayToOceanX(ray0.x, org);
     VEC23<O3D> t_o = RayToOceanT(urayt0, org);
-    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, h, iSmallStepCtr);
     // GlobalLog("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     real halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
@@ -667,7 +667,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     
     // reduce h to land on boundary
     t_o = RayToOceanT(urayt1, org);
-    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, ssp, h, iSmallStepCtr);
+    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RL(2.0) * halfh);
@@ -680,7 +680,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
     VEC23<O3D> x2_o;
     t_o = RayToOceanT(urayt2, org);
     StepToBdry<O3D>(x_o, x2_o, t_o, h, topRefl, botRefl, flipTopDiag, flipBotDiag,
-        iSeg0, bds, Beam, ssp);
+        iSeg0, bds, Beam, xs, ssp);
     ray2.x = OceanToRayX(x2_o, org, urayt2);
     
     // Update other variables with this new h

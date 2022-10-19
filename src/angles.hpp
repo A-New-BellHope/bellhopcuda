@@ -82,9 +82,9 @@ template<bool BEARING> inline void ReadRayAngles(real freq, real Depth,
     if constexpr(!BEARING){
         PRTFile << "__________________________________________________________________________\n";
     }
-    PRTFile << "\nNumber of beams in " << (BEARING ? "bearing  " : "elevation") << "   = " << a.n << "\n";
+    PRTFile << "\n   Number of beams in " << (BEARING ? "bearing  " : "elevation") << "   = " << a.n << "\n";
     if(a.iSingle > 0) PRTFile << "Trace only beam number " << a.iSingle << "\n";
-    PRTFile << "Beam take-off angles (degrees)\n";
+    PRTFile << "   Beam take-off angles (degrees)\n";
     
     EchoVector(a.angles, a.n, PRTFile);
     

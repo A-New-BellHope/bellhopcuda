@@ -51,7 +51,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(RayInitInfo &ri
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
         is += RayUpdate<O3D, R3D>(ray[is], ray[is+1], ray[is+2],
             DistEndTop, DistEndBot, iSmallStepCtr,
-            org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
+            org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
         if(RayTerminate<O3D, R3D>(ray[is], Nsteps, is, xs, iSmallStepCtr,
             DistBegTop, DistBegBot, DistEndTop, DistEndBot, org, bdinfo, Beam)) break;
         if(Nsteps >= 0 && is > Nsteps){

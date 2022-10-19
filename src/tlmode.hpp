@@ -85,7 +85,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
     for(int32_t istep = 0; istep<MaxN-1; ++istep){
         int32_t dStep = RayUpdate<O3D, R3D>(point0, point1, point2,
             DistEndTop, DistEndBot, iSmallStepCtr,
-            org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam);
+            org, iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
         if(!Step_Influence<O3D, R3D>(point0, point1, inflray, is, uAllSources, 
             ConstBdry, org, ssp, iSeg, Pos, Beam, eigen, arrinfo)){
             #ifdef STEP_DEBUGGING

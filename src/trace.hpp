@@ -225,12 +225,13 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
     const rayPt<R3D> &point0, rayPt<R3D> &point1, rayPt<R3D> &point2,
     real &DistEndTop, real &DistEndBot,
     int32_t &iSmallStepCtr, const Origin<O3D, R3D> &org, SSPSegState &iSeg,
-    BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl,
-    const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
+    BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo,
+    const ReflectionInfo *refl, const SSPStructure *ssp, const FreqInfo *freqinfo,
+    const BeamStructure *Beam, const VEC23<R3D> &xs)
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl, flipTopDiag, flipBotDiag;
-    Step<O3D, R3D>(point0, point1, bds, Beam, org, ssp, iSeg, iSmallStepCtr,
+    Step<O3D, R3D>(point0, point1, bds, Beam, xs, org, ssp, iSeg, iSmallStepCtr,
         topRefl, botRefl, flipTopDiag, flipBotDiag);
     /*
     if(point0.x == point1.x){

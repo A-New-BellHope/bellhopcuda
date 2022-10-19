@@ -480,11 +480,7 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
     switch(BdryDefMode){
     case '~':
     case '*':{
-        if constexpr(O3D){
-            PRTFile << "*********************************\n";
-        }else{
-            PRTFile << "__________________________________________________________________________\n\n";
-        }
+        PRTFile << "__________________________________________________________________________\n\n";
         PRTFile << "Using " << s_topbottom << "-" << s_altimetrybathymetry << " file\n";
         
         LDIFile BDRYFile(FileRoot + "." + s_atibty);
@@ -530,7 +526,7 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             
             // x values
             LIST(BDRYFile); BDRYFile.Read(bdinfotb->NPts.x);
-            PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x-direction "
+            PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x "
                 << bdinfotb->NPts.x << "\n";
             
             Globalx = allocate<real>(std::max(bdinfotb->NPts.x, 3));
@@ -539,14 +535,14 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             SubTab(Globalx, bdinfotb->NPts.x);
             EchoVector(Globalx, bdinfotb->NPts.x, PRTFile, Bdry_Number_to_Echo);
             if(!monotonic(Globalx, bdinfotb->NPts.x)){
-                GlobalLog("BELLHOP:Read%s: %s X values are not monotonically increasing\n",
+                GlobalLog("BELLHOP:Read%s: %s x-coordinates are not monotonically increasing\n",
                     s_ATIBTY, s_AltimetryBathymetry);
                 std::abort();
             }
             
             // y values
             LIST(BDRYFile); BDRYFile.Read(bdinfotb->NPts.y);
-            PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in y-direction "
+            PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in y "
                 << bdinfotb->NPts.y << "\n";
             
             Globaly = allocate<real>(std::max(bdinfotb->NPts.y, 3));
@@ -555,7 +551,7 @@ template<bool O3D> inline void ReadBoundary(std::string FileRoot, char BdryDefMo
             SubTab(Globaly, bdinfotb->NPts.y);
             EchoVector(Globaly, bdinfotb->NPts.y, PRTFile, Bdry_Number_to_Echo);
             if(!monotonic(Globaly, bdinfotb->NPts.y)){
-                GlobalLog("BELLHOP:Read%s: %s Y values are not monotonically increasing\n",
+                GlobalLog("BELLHOP:Read%s: %s y-coordinates are not monotonically increasing\n",
                     s_ATIBTY, s_AltimetryBathymetry);
                 std::abort();
             }
