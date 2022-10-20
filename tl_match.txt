@@ -38,7 +38,6 @@ freePoint_gbtB
 GulfB_ri_gb
 GulfB_rd_gb
 LloydPoint_gbtB
-LloydLine_gbtB
 lower_half_gbt
 MunkB_Coh_gb
 MunkB_gb
@@ -61,6 +60,3 @@ MunkB_Semi_SGB
 free_gbtB_Inc
 MunkB_Inc_gb
 MunkB_Inc_SGB
-//
-//Matches on single-threaded, but sometimes matches and sometimes not on multi-threaded or CUDA
-freeLine_ParaxialB

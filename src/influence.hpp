@@ -23,8 +23,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "arrivals.hpp"
 
 // #define INFL_DEBUGGING_ITHETA 0
-// #define INFL_DEBUGGING_IR 299
-// #define INFL_DEBUGGING_IZ 0
+// #define INFL_DEBUGGING_IZ 52
+// #define INFL_DEBUGGING_IR 230
 
 namespace bhc {
     

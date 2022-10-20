@@ -102,7 +102,6 @@ compare_results () {
     runname="$1"
     dir=$2
     envfil=$3
-    echo "runname $runname dir $dir envfil $envfil"
     if [[ $desiredresult == "1" ]]; then
         echo "Skipping results comparison because in shouldfail mode"
         return 0

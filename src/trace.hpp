@@ -390,7 +390,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
             if constexpr(O3D){
                 GlobalLog("Ray left beam box (%g,%g,%g)\n", Beam->Box.x, Beam->Box.y, Beam->Box.z);
             }else{
-                GlobalLog("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
+                GlobalLog("Ray left beam box (%g,%g)\n", Beam->Box.x, Beam->Box.y);
             }
         }else if(escapedboundaries){
             GlobalLog("Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g DistEndBot %g\n",

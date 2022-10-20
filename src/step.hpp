@@ -268,6 +268,8 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
     BeamBoxCrossing<O3D, 1>(hBoxyz, x, x0, urayt, Beam, xs, false);
     if constexpr(O3D){
         BeamBoxCrossing<O3D, 2>(hBoxz_, x, x0, urayt, Beam, xs, false);
+    }else{
+        hBoxz_ = REAL_MAX;
     }
     TopBotCrossing<O3D>(hTop, bds.top, x, x0, urayt, false, dummy);
     TopBotCrossing<O3D>(hBot, bds.bot, x, x0, urayt, false, dummy);
@@ -312,7 +314,7 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
     const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const SSPStructure *ssp)
 {
     #ifdef STEP_DEBUGGING
-    GlobalLog("StepToBdry:\n");
+    GlobalLog("StepToBdry\n");
     #endif
     // Original step due to maximum step size
     h = Beam->deltas;
@@ -365,6 +367,10 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
         }else{
             botRefl = false;
         }
+    }else{
+        #ifdef STEP_DEBUGGING
+        GlobalLog("StepToBdry normal h %20.17g to (%20.17g,%20.17g)\n", h, x2.x, x2.y);
+        #endif
     }
 }
 
@@ -616,6 +622,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
             ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y);
         GlobalLog("iSegr iSegz %d %d\n", iSeg.r + 1, iSeg.z + 1);
     }
+    // if(ray0.x.x > RL(10.0)){
+    //     GlobalLog("Enough\n");
+    //     bail();
+    // }
     #endif
     
     // The numerical integrator used here is a version of the polygon (a.k.a. midpoint, leapfrog, or Box method), and similar
