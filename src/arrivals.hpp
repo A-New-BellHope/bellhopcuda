@@ -54,16 +54,8 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
     int32_t Nt;
     
     if(arrinfo->singlethread){
-        // LP: Besides this algorithm being virtually impossible to adapt for
-        // multithreading, there is a more fundamental BUG with it: it does
-        // not have any handling for the case where the current arrival is the
-        // second step of a pair, but the storage is full and the first step of
-        // the pair got stored in some slot other than the last one. It will
-        // only consider the last ray in storage as a candidate for the first
-        // half of the pair. This means that whether a given pair is
-        // successfully paired or not depends on the number of arrivals before
-        // that pair, which depends on the order rays were computed, which is
-        // arbitrary and non-physical.
+        // LP: BUG: This only checks the last arrival, whereas the first step of the
+        // pair could have been placed in previous slots. See the Fortran version readme.
     
         Nt = *baseNArr; // # of arrivals
         

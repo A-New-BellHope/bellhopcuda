@@ -35,16 +35,32 @@ namespace bhc {
 /**
 * detect and skip duplicate points (happens at boundary reflection)
 */
-template<bool R3D> HOST_DEVICE inline bool IsDuplicatePoint(
-    const rayPt<R3D> &point0, const rayPt<R3D> &point1, bool const_thresh)
+template<bool R3D> HOST_DEVICE inline bool IsSmallValue(
+    real delta, real ref, bool const_thresh)
 {
-    const real threshold = const_thresh ? FL(1.0e-4) : RL(1.0e3) * spacing(point1.x.x);
-    if constexpr(R3D){
-        return glm::length(point1.x - point0.x) <= threshold;
-    }else{
-        return STD::abs(point1.x.x - point0.x.x) < threshold;
-    }
+    const real threshold = const_thresh ? FL(1.0e-4) : RL(1.0e3) * spacing(ref);
+    if constexpr(R3D) return delta <= threshold;
+    else              return delta <  threshold;
 }
+
+template<bool R3D> HOST_DEVICE inline bool IsDuplicatePoint(
+    real a, real b, bool const_thresh)
+{
+    return IsSmallValue<R3D>(STD::abs(b - a), b, const_thresh);
+}
+
+HOST_DEVICE inline bool IsDuplicatePoint(
+    const rayPt<false> &point0, const rayPt<false> &point1, bool const_thresh)
+{
+    return IsDuplicatePoint<false>(point0.x.x, point1.x.x, const_thresh);
+}
+
+HOST_DEVICE inline bool IsDuplicatePoint(
+    const rayPt<true> &point0, const rayPt<true> &point1, bool const_thresh)
+{
+    return IsSmallValue<true>(glm::length(point1.x - point0.x), point1.x.x, const_thresh);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //Geometrical-only helper functions
@@ -182,7 +198,8 @@ HOST_DEVICE inline bool Compute_M_N_R_IR(
 template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
     real omega, real c, vec2 gradc, real angle, real Dangle, const BeamStructure<O3D> *Beam)
 {
-    // LP: BUG: Multiple codepaths do not set epsilonOpt, leads to UB
+    // LP: BUG: Multiple codepaths do not set epsilonOpt, would lead to UB if
+    // set up that way in env file. Instead, here they are set to debug values.
     real halfwidth = R3D ? RL(0.0) : DEBUG_LARGEVAL;
     cpx epsilonOpt = cpx(DEBUG_LARGEVAL, DEBUG_LARGEVAL);
     bool defaultHalfwidth = true, defaultEps = true, zeroEps = false;
@@ -213,8 +230,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
         if constexpr(R3D){
             zeroEps = true;
         }else{
-            if(Beam->Type[0] == '^'){
-                GlobalLog("Warning, Beam->Type[0] = ^ not properly handled in BELLHOP (2D)\n");
+            if(Beam->Type[0] == '^' || Beam->Type[0] == ' '){
+                GlobalLog("Warning, Beam->Type[0] = ^ or ' ' not properly handled in BELLHOP (2D)\n");
                 defaultHalfwidth = defaultEps = false;
             }else if(IsGaussianGeomInfl(Beam) && IsRayCenInfl(Beam)){
                 GlobalLog(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
@@ -463,6 +480,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
 {
     if constexpr(R3D) IGNORE_UNUSED(ssp);
     
+    if(IsCervenyInfl(Beam) && !IsTLRun(Beam)){
+        GlobalLog("Cerveny influence does not support eigenrays or arrivals\n");
+        bail();
+    }
+    
     inflray.init = rinit;
     inflray.freq0 = freqinfo->freq0;
     inflray.omega = FL(2.0) * REAL_PI * inflray.freq0;
@@ -603,9 +625,8 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     vec2 rayn1, dummy;
     RayNormalRayCen<false>(point1, rayn1, dummy);
     // If normal parallel to TL-line, skip to next step on ray
-    // LP: Changed from (the FORTRAN equivalent of) REAL_MINPOS as this is the
-    // smallest positive floating point number, which would be equivalent to
-    // just value == 0.0.
+    // LP: Changed from (the FORTRAN equivalent of) REAL_MINPOS, see Fortran
+    // version readme.
     if(STD::abs(DEP(rayn1)) < REAL_EPSILON) return true;
     
     // detect and skip duplicate points (happens at boundary reflection)
@@ -1113,7 +1134,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoCart(
         // it doesn't use inflray.x at all.
         rA = glm::length(XYCOMP(point0.x) - XYCOMP(inflray.xs));
         rB = glm::length(XYCOMP(point1.x) - XYCOMP(inflray.xs));
-        if(STD::abs(rB - rA) <= RL(1e3) * spacing(rA)) return true;
+        if(IsDuplicatePoint<R3D>(rB, rA, false)) return true;
         // LP: This is silly logic, see comments in influence3D.f90
         if(is == 0){
             inflray.ir = (rB > rA) ? 0 : Pos->NRr-1;
@@ -1130,8 +1151,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoCart(
     real rlen = glm::length(rayt);
     // if duplicate point in ray, skip to next step along the ray
     // LP: 2D: and don't update rA (inflray.x) for next time
-    real rlen_small = RL(1.0e3) * spacing(point1.x.x);
-    if(rlen < rlen_small || (R3D && rlen == rlen_small)) return true;
+    if(IsSmallValue<R3D>(rlen, point1.x.x, false)) return true;
     rayt /= rlen;
     
     // LP: Ray normals
@@ -1321,10 +1341,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
     inflray.qOld = q;
     
     // Loop over bracketed receiver ranges
-    // LP: BUG: This way of setting up the loop (which matches the FORTRAN
-    // implementation) assumes the ray always travels towards positive R, which
-    // is not true for certain bathymetries (or for rays simply shot backwards,
-    // which would also crash during the setup, see Init_Influence).
+    // LP: BUG: See README.md.
     while(STD::abs(rB - rA) > RL(1.0e3) * spacing(rA) && rB > Pos->Rr[inflray.ir]){
         w    = (Pos->Rr[inflray.ir] - rA) / (rB - rA);
         x    = point0.x   + w * (point1.x   - point0.x);

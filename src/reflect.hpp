@@ -219,7 +219,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     // Calculate the change in curvature
     // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
     
-    // just to get c [LP: o.ccpx.real(); also, this is wrong, it is also using o.gradc]
+    // just to get c [LP: o.ccpx.real(); also, this comment is wrong, it is also using o.gradc]
     SSPOutputs<R3D> o;
     EvaluateSSP<O3D, R3D>(oldPoint.x, (O3D ? newPoint.t : oldPoint.t),
         o, org, ssp, iSeg);

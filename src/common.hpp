@@ -614,8 +614,10 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGT(REAL *arr,
 template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *angles,
 	int32_t &n){
     CHECK_REAL_T();
+    // LP: Changed from (the FORTRAN equivalent of) REAL_MINPOS, see Fortran
+    // version readme.
 	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], FL(360.0)))
-            < FL(10.0) * spacing(RL(1.0)))
+            < FL(10.0) * spacing(RL(360.0)))
         --n;
 }
 

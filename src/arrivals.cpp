@@ -123,9 +123,7 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
                             
                             for(int32_t iArr=0; iArr<narr; ++iArr){
                                 Arrival *arr = &arrinfo->Arr[base * arrinfo->MaxNArr + iArr];
-                                // LP: Inconsistent and sometimes harmful casting to float
-                                // on these variables; some fixed by mbp in 2022 version,
-                                // but others not.
+                                // LP: Unnecessary inconsistent casting to float; see Fortran version readme.
                                 if(isAscii){
                                     // You can compress the output file a lot by putting in an explicit format statement here ...
                                     // However, you'll need to make sure you keep adequate precision
