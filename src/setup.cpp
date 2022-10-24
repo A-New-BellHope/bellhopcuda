@@ -302,15 +302,21 @@ template<bool O3D, bool R3D> bool setup(
     return api_okay;
 }
 
+#if BHC_ENABLE_2D
 template bool BHC_API setup<false, false>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
 template bool BHC_API setup<true, false>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
 template bool BHC_API setup<true, true>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 template<bool O3D, bool R3D> void finalize(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
@@ -373,11 +379,17 @@ template<bool O3D, bool R3D> void finalize(
     checkdeallocate(outputs.arrinfo);
 }
 
+#if BHC_ENABLE_2D
 template void BHC_API finalize<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
 template void BHC_API finalize<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
 template void BHC_API finalize<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 }

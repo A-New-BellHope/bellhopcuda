@@ -72,12 +72,18 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) delete[] localmem;
 }
 
+#if BHC_ENABLE_2D
 template void EigenModePostWorker<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
 template void EigenModePostWorker<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
 template void EigenModePostWorker<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 template<bool O3D, bool R3D> void FinalizeEigenMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
@@ -99,14 +105,20 @@ template<bool O3D, bool R3D> void FinalizeEigenMode(
     FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
 }
 
+#if BHC_ENABLE_2D
 template void FinalizeEigenMode<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
     std::string FileRoot, bool singlethread);
+#endif
+#if BHC_ENABLE_NX2D
 template void FinalizeEigenMode<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
     std::string FileRoot, bool singlethread);
+#endif
+#if BHC_ENABLE_3D
 template void FinalizeEigenMode<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
     std::string FileRoot, bool singlethread);
+#endif
 
 }

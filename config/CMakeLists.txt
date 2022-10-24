@@ -16,9 +16,10 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
 add_subdirectory(cxx)
-add_subdirectory(cxxlib)
 
-option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
+if(BHC_ENABLE_LIB)
+    add_subdirectory(cxxlib)
+endif()
 
 if(BHC_ENABLE_CUDA AND NOT(APPLE OR DEFINED ENV{BHC_NO_CUDA}))
     add_subdirectory(cuda)

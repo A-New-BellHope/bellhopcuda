@@ -55,12 +55,18 @@ template<bool O3D, bool R3D> void RayModeWorker(
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) delete[] localmem;
 }
 
+#if BHC_ENABLE_2D
 template void RayModeWorker<false, false>(
     const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
 template void RayModeWorker<true, false>(
     const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
 template void RayModeWorker<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 // TL, arrivals, eigenrays
 
@@ -88,12 +94,18 @@ template<bool O3D, bool R3D> void FieldModesWorker(
     }
 }
 
+#if BHC_ENABLE_2D
 template void FieldModesWorker<false, false>(
     const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
 template void FieldModesWorker<true, false>(
     const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
 template void FieldModesWorker<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 template<bool O3D, bool R3D> bool run_cxx(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
@@ -123,12 +135,18 @@ template<bool O3D, bool R3D> bool run_cxx(
     return api_okay;
 }
 
+#if BHC_ENABLE_2D
 template bool run_cxx<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+#endif
+#if BHC_ENABLE_NX2D
 template bool run_cxx<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+#endif
+#if BHC_ENABLE_3D
 template bool run_cxx<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+#endif
 
 #ifndef BHC_BUILD_CUDA
 
@@ -138,12 +156,18 @@ template<bool O3D, bool R3D> bool run(
     return run_cxx(params, outputs, singlethread);
 }
 
+#if BHC_ENABLE_2D
 template bool BHC_API run<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+#endif
+#if BHC_ENABLE_NX2D
 template bool BHC_API run<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+#endif
+#if BHC_ENABLE_3D
 template bool BHC_API run<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+#endif
 
 #endif
 

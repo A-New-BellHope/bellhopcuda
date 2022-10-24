@@ -36,12 +36,18 @@ FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs)
     }
 }
 
+#if BHC_ENABLE_2D
 template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<false, false>(
     bhcParams<false, false> params, bhcOutputs<false, false> outputs);
+#endif
+#if BHC_ENABLE_NX2D
 template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true, false>(
     bhcParams<true, false> params, bhcOutputs<true, false> outputs);
+#endif
+#if BHC_ENABLE_3D
 template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true, true>(
     bhcParams<true, true> params, bhcOutputs<true, true> outputs);
+#endif
 
 int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
 void setupGPU()
@@ -100,12 +106,18 @@ template<bool O3D, bool R3D> bool run_cuda(
     return api_okay;
 }
 
+#if BHC_ENABLE_2D
 template bool run_cuda<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
 template bool run_cuda<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
 template bool run_cuda<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
@@ -120,12 +132,18 @@ template<bool O3D, bool R3D> bool run(
     }
 }
 
+#if BHC_ENABLE_2D
 template bool BHC_API run<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+#endif
+#if BHC_ENABLE_NXD
 template bool BHC_API run<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+#endif
+#if BHC_ENABLE_3D
 template bool BHC_API run<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+#endif
 
 
 }

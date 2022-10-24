@@ -1,11 +1,11 @@
 # bellhopcxx / bellhopcuda
-C++/CUDA port of `BELLHOP` underwater acoustics simulator.
+C++/CUDA port of `BELLHOP`/`BELLHOP3D` underwater acoustics simulator.
 
 ### Impressum
 
 Copyright (C) 2021-2022 The Regents of the University of California \
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu \
-Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+Based on BELLHOP, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software

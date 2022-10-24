@@ -24,6 +24,9 @@ set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE} CACHE STRING "" FORCE) # Only 
 
 project(bellhoptoplevel LANGUAGES NONE)
 
+option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
+option(BHC_ENABLE_LIB "Build shared library version in addition to executable versions" ON)
+option(BHC_3D_SEPARATE "Build separate 3D / Nx2D executables instead of selecting dimensionality with command line" OFF)
 option(USE_FLOAT "Perform all floating-point arithmetic as 32-bit" OFF)
 
 add_subdirectory(config)

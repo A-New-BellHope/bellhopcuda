@@ -151,12 +151,18 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
     deallocate(outputs.uAllSources);
 }
 
+#if BHC_ENABLE_2D
 template void FinalizeTLMode<false, false>(
     std::string FileRoot, const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
 template void FinalizeTLMode<true, false>(
     std::string FileRoot, const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
 template void FinalizeTLMode<true, true>(
     std::string FileRoot, const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 
 }

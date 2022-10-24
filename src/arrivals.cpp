@@ -163,14 +163,20 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
     }
 }
 
+#if BHC_ENABLE_2D
 template void FinalizeArrivalsMode<false, false>(
     const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure<false> *Beam, std::string FileRoot);
+#endif
+#if BHC_ENABLE_NX2D
 template void FinalizeArrivalsMode<true, false>(
     const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure<true> *Beam, std::string FileRoot);
+#endif
+#if BHC_ENABLE_3D
 template void FinalizeArrivalsMode<true, true>(
     const ArrInfo *arrinfo, const Position *Pos,
     const FreqInfo *freqinfo, const BeamStructure<true> *Beam, std::string FileRoot);
+#endif
 
 }

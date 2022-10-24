@@ -18,6 +18,19 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 
+////////////////////////////////////////////////////////////////////////////////
+//Build configuration
+////////////////////////////////////////////////////////////////////////////////
+
+// BHC_DIMMODE is undefined or 0 for "all enabled, set on command line"
+#define BHC_ENABLE_2D   (!(BHC_DIMMODE == 3 || BHC_DIMMODE == 4))
+#define BHC_ENABLE_3D   (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 4))
+#define BHC_ENABLE_NX2D (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 3))
+
+////////////////////////////////////////////////////////////////////////////////
+//General headers
+////////////////////////////////////////////////////////////////////////////////
+
 #define _USE_MATH_DEFINES 1 //must be before anything which includes math.h
 #include <math.h>
 
