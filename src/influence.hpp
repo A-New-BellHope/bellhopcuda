@@ -630,7 +630,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     if(STD::abs(DEP(rayn1)) < REAL_EPSILON) return true;
     
     // detect and skip duplicate points (happens at boundary reflection)
-    if(IsDuplicatePoint<false>(point0, point1, false)){
+    if(IsDuplicatePoint(point0, point1, false)){
         inflray.lastValid = true;
         inflray.x = point1.x;
         inflray.rayn1 = rayn1;
@@ -750,7 +750,7 @@ template<bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCart(
     }
     real rA = point0.x.x;
     real rB = point1.x.x;
-    if(IsDuplicatePoint<false>(point0, point1, false)) return true; // don't process duplicate points
+    if(IsDuplicatePoint(point0, point1, false)) return true; // don't process duplicate points
     
     // Compute upper index on rcvr line
     // Assumes r is a vector of equally spaced points
@@ -987,7 +987,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool Step_InfluenceGeoRayCen(
     }
     
     // LP: Non-constant threshold (same as all others) commented out in favor of constant one.
-    if(IsDuplicatePoint<R3D>(point0, point1, R3D && !isGaussian)){
+    if(IsDuplicatePoint(point0, point1, R3D && !isGaussian)){
         inflray.lastValid = true;
         inflray.x = point1.x;
         inflray.rayn1 = rayn1;
