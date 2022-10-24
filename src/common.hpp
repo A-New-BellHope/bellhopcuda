@@ -26,6 +26,15 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #define BHC_ENABLE_2D   (!(BHC_DIMMODE == 3 || BHC_DIMMODE == 4))
 #define BHC_ENABLE_3D   (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 4))
 #define BHC_ENABLE_NX2D (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 3))
+#if BHC_DIMMODE == 2
+#define BHC_DIMNAME "2d"
+#elif BHC_DIMMODE == 3
+#define BHC_DIMNAME "3d"
+#elif BHC_DIMMODE == 4
+#define BHC_DIMNAME "nx2d"
+#else
+#define BHC_DIMNAME
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 //General headers
@@ -71,11 +80,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
 #define STD cuda::std
-#define BHC_PROGRAMNAME "bellhopcuda"
+#define BHC_PROGRAMNAME "bellhopcuda" BHC_DIMNAME
 #else
 #define HOST_DEVICE
 #define STD std
-#define BHC_PROGRAMNAME "bellhopcxx"
+#define BHC_PROGRAMNAME "bellhopcxx" BHC_DIMNAME
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////

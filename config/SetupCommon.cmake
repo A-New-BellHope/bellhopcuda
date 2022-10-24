@@ -49,6 +49,23 @@ function(bellhop_setup_target target_name)
     target_link_libraries(${target_name} Threads::Threads)
 endfunction()
 
+function(bellhop_create_executable target_name sources defs incs)
+    add_executable(${target_name} ${sources})
+    target_compile_definitions(${target_name} PUBLIC BHC_CMDLINE=1 ${defs})
+    target_include_directories(${target_name} PRIVATE ${incs})
+    bellhop_setup_target(${target_name})
+endfunction()
+
+function(bellhop_create_executables type_name sources defs incs)
+    if(BHC_3D_SEPARATE)
+        bellhop_create_executable(bellhop${type_name}2d   "${sources}" "BHC_DIMMODE=2;${defs}" "${incs}")
+        bellhop_create_executable(bellhop${type_name}nx2d "${sources}" "BHC_DIMMODE=3;${defs}" "${incs}")
+        bellhop_create_executable(bellhop${type_name}3d   "${sources}" "BHC_DIMMODE=4;${defs}" "${incs}")
+    else()
+        bellhop_create_executable(bellhop${type_name}     "${sources}" "BHC_DIMMODE=0;${defs}" "${incs}")
+    endif()
+endfunction()
+
 function(prepend OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend to
     set(TEMP "")
     foreach(ITEM ${ARGN})

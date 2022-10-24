@@ -40,8 +40,8 @@ cores, as compared to `BELLHOP` which is single-threaded. On a 12-core /
 24-thread test machine, `bellhopcxx` is typically about 10 to 30 times faster
 than `BELLHOP`.
 - For some very large simulations, `bellhopcuda` is even faster, occasionally 
-approaching 100x gain over `BELLHOP`. (For typical small simulations,
-`bellhopcuda` is often slower than `bellhopcxx` multithreaded; see below.)
+approaching 100x gain over `BELLHOP`. For typical small simulations,
+`bellhopcuda` is often slower than `bellhopcxx` multithreaded; see below.
 - Our team has made [fixes to `BELLHOP`](https://github.com/A-New-BellHope/bellhop)
 to improve its numerical properties and robustness (see below). These fixes were
 essential to being able to reproduce its results in another language (or two).
@@ -53,19 +53,27 @@ rerun, and it is not bottlenecked by slow file I/O for getting the results.
 
 ### Can I use `bellhopcxx` / `bellhopcuda` with MATLAB?
 
-Yes, simply rename `bellhopcxx.exe` to `bellhop.exe` and replace the Fortran
-`BELLHOP` executable in your MATLAB setup with it. It reads the same `.env` and
-other input files and produces output files in the same formats as `BELLHOP`.
+Yes. `bellhopcxx` and `bellhopcuda` read the same `.env` and other input files
+and produce output files in the same formats as `BELLHOP`.
 
-### What about `BELLHOP3D`?
+By default, one `bellhopcxx.exe` executable is produced, and you select the
+dimensionality with command-line flags (`--2D`, `--3D`, `--Nx2D`, defaults to
+2D). For no-code-changes MATLAB compatibility, you can set the `BHC_3D_SEPARATE`
+CMake option, which will then instead produce separate `bellhopcxx2d.exe`,
+`bellhopcxx3d.exe`, and `bellhopcxxnx2d.exe` executables, each only supporting
+their respective dimensionality. (The corresponding CUDA executables are also
+produced in each of these two modes, if enabled.)
 
-At the time of writing, translation of `BELLHOP3D` (including both full 3D and
-2D-3D simulations) to the same C++/CUDA codebase is in progress. You can view
-progress on the [Bellhop3D
-branch](https://github.com/A-New-BellHope/bellhopcuda/tree/Bellhop3D); keep in
-mind that this is a development branch and likely will not build or work
-correctly. If/when it is done and reasonably stable, it will be merged into the
-main project and included in binary releases.
+Once you have your desired executable, simply rename it to `bellhop.exe` or
+`bellhop3d.exe` and replace the `BELLHOP` / `BELLHOP3D` executable in your
+MATLAB setup with it. Multithreading is enabled by default, so you should get a
+significant speedup.
+
+### Which features of the simulators are working?
+
+Generally, all features of 2D and 3D are well-tested and reasonably mature (see
+more detailed discussion below). In contrast, Nx2D has received little attention
+so far; you can expect issues when trying to use Nx2D.
 
 ### How do I download the project?
 
@@ -82,7 +90,7 @@ set the environment variable `BHC_NO_CUDA` (to something like "1") or turn off
 the CMake option `BHC_ENABLE_CUDA`.
 - Build the project with CMake in the usual way for your platform. If you are
 not familiar with CMake, there are numerous tutorials online; the process is
-not project-specific, besides the option mentioned above.
+not project-specific, besides the options mentioned in this readme.
 
 ### Why do I get errors about `hypot` when building with CUDA?
 
@@ -91,7 +99,7 @@ conflicts with a previous declaration` or similar, this is a bug in libcu++
 which was fixed between libcu++ 1.7.0 (included in CUDA Toolkit 11.6) and
 libcu++ 1.8.0. At time of writing, there is no CUDA toolkit download including
 the latter, but if you are reading this in the future probably CUDA Toolkit
-11.7 or 12.x will include the fix. Until then, you have to 
+11.7 or later will include the fix. Until then, you have to 
 [download libcu++ source manually](https://github.com/NVIDIA/libcudacxx)
 and replace `include/cuda` and `include/nv` in your CUDA installation with the
 appropriate directories from the Git repo.
@@ -101,19 +109,22 @@ appropriate directories from the Git repo.
 - Copy the `[bellhopcuda repo]/include/bhc` directory to an `include` directory
 in your other project. Or, if a Git submodule, add the `[bellhopcuda repo]/include`
 directory to your include paths.
+- Set your parent project's C++ version to C++17 or later.
 - `#include <bhc/bhc.hpp>`. Follow the instructions in that file for API use.
 - Link to `bellhopcxxlib.dll` / `libbellhopcxxlib.so`.
 
 ### How do I report bugs?
 
-If the bug is regarding results being wrong (or different from `BELLHOP`),
-please check and report to us whether the behavior is the same in [our version
-of `BELLHOP` with improved numerical stability and robustness](https://github.com/A-New-BellHope/bellhop).
-Also, please provide an environment file which traces only the ray whose results
-are incorrect (if applicable); if this is impossible, due to the bug
-disappearing when a different set of rays are traced, let us know of this.
+If the bug is regarding results being wrong (or different from
+`BELLHOP`/`BELLHOP3D`), please check and report to us whether the behavior is
+the same in [our version of `BELLHOP`/`BELLHOP3D` with improved numerical
+stability and robustness](https://github.com/A-New-BellHope/bellhop). Also,
+please provide an environment file which traces only the ray whose results are
+incorrect (if applicable); if this is impossible, due to the bug disappearing
+when a different set of rays are traced, let us know of this.
 
-Submit a bug report on the [GitHub issues page](https://github.com/A-New-BellHope/bellhopcuda/issues).
+Submit a bug report on the
+[GitHub issues page](https://github.com/A-New-BellHope/bellhopcuda/issues).
 
 # Results
 
@@ -212,6 +223,7 @@ versions due to initially small numerical differences being amplified.
 # Miscellaneous
 
 ## Comments
+
 Unattributed comments in all translated code are copied directly from the
 original `BELLHOP` and/or Acoustics Toolbox code, mostly by Michael B. Porter.
 Unattributed comments in new code are by the Jules Jaffe team, mostly Louis
@@ -219,6 +231,8 @@ Pisha. It should usually be easy to distinguish the comment author from the
 style.
 
 ## Code style
-Code style (things like where newlines and if statements are) is kept as close
-as possible to the original Fortran code, for ease of comparing the source
-files.
+
+Initially, code style (things like where newlines and if statements are) was
+kept as close as possible to the original Fortran code, for ease of comparing
+the source files. As the project has evolved and templated 2D/Nx2D/3D was added,
+the code style and organization has changed somewhat.

@@ -136,7 +136,7 @@ template<bool O3D, bool R3D> bool run(
 template bool BHC_API run<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
 #endif
-#if BHC_ENABLE_NXD
+#if BHC_ENABLE_NX2D
 template bool BHC_API run<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 #endif

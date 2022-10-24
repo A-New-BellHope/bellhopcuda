@@ -60,7 +60,7 @@ template<bool O3D, bool R3D> int mainmain()
 
 int main(int argc, char **argv)
 {
-    int dimmode = 0;
+    int dimmode = BHC_DIMMODE;
     for(int32_t i=1; i<argc; ++i){
         std::string s = argv[i];
         if(argv[i][0] == '-'){
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
                 singlethread = true;
             }else if(s == "-2" || s == "-2D"){
                 dimmode = 2;
-            }else if(s == "-Nx2D" || s == "-2D3D" || s == "-2.5D"){
+            }else if(s == "-Nx2D" || s == "-2D3D" || s == "-2.5D" || s == "-4"){
                 dimmode = 4;
             }else if(s == "-3" || s == "-3D"){
                 dimmode = 3;
@@ -93,19 +93,33 @@ int main(int argc, char **argv)
         std::cout << "Must provide FileRoot as command-line parameter\n";
         std::abort();
     }
+    #if BHC_DIMMODE
+    if(dimmode != BHC_DIMMODE){
+        std::cout << "Cannot change dimensionality, this is " BHC_PROGRAMNAME "\n";
+        std::abort();
+    }
+    #else
     if(dimmode == 0){
         std::cout << "No dimensionality specified (--2D, --Nx2D, --3D), assuming 2D\n";
         dimmode = 2;
     }
+    #endif
     
+    #if BHC_ENABLE_2D
     if(dimmode == 2){
         return mainmain<false, false>();
-    }else if(dimmode == 3){
-        return mainmain<true, true>();
-    }else if(dimmode == 4){
-        return mainmain<true, false>();
-    }else{
-        std::cout << "Internal error\n";
-        std::abort();
     }
+    #endif
+    #if BHC_ENABLE_3D
+    if(dimmode == 3){
+        return mainmain<true, true>();
+    }
+    #endif
+    #if BHC_ENABLE_NX2D
+    if(dimmode == 4){
+        return mainmain<true, false>();
+    }
+    #endif
+    std::cout << "Internal error\n";
+    std::abort();
 }
