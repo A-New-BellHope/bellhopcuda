@@ -60,6 +60,3 @@ MunkB_Semi_SGB
 free_gbtB_Inc
 MunkB_Inc_gb
 MunkB_Inc_SGB
-//
-//Sometimes matches and sometimes not on multi-threaded or CUDA
-freeLine_ParaxialB

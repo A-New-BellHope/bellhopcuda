@@ -1,0 +1,29 @@
+//
+// Coherent
+//
+// Hat Cartesian
+pwedge3d_rot
+KermitRooseveltLSCart
+DoubleSeamount3DHat
+KoreanSea_3D
+//
+//
+//
+// Gaussian Cartesian
+KR3dGaussian
+Munkslice3dGaussian
+TruncatedWedge3dGaussian_side
+//
+//
+//
+//
+//
+// Tested as long
+//100 minutes
+TruncatedWedge3dCart
+//80 minutes
+KR3dGaussian
+//15 minutes
+TruncatedWedge3dGaussian_side
+//40 minutes
+TruncatedWedge3dHatRayCen

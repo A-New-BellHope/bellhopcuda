@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
-set(CMAKE_CXX_STANDARD 14) # C++14
+set(CMAKE_CXX_STANDARD 17) # C++17
 set(CMAKE_CXX_STANDARD_REQUIRED ON) # ...is required
 set(CMAKE_CXX_EXTENSTIONS OFF) # ...without compiler extensions like gnu++11
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Necessary to build shared libraries
@@ -47,6 +47,23 @@ function(bellhop_setup_target target_name)
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/include")
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
     target_link_libraries(${target_name} Threads::Threads)
+endfunction()
+
+function(bellhop_create_executable target_name sources defs incs)
+    add_executable(${target_name} ${sources})
+    target_compile_definitions(${target_name} PUBLIC BHC_CMDLINE=1 ${defs})
+    target_include_directories(${target_name} PRIVATE ${incs})
+    bellhop_setup_target(${target_name})
+endfunction()
+
+function(bellhop_create_executables type_name sources defs incs)
+    if(BHC_3D_SEPARATE)
+        bellhop_create_executable(bellhop${type_name}2d   "${sources}" "BHC_DIMMODE=2;${defs}" "${incs}")
+        bellhop_create_executable(bellhop${type_name}nx2d "${sources}" "BHC_DIMMODE=3;${defs}" "${incs}")
+        bellhop_create_executable(bellhop${type_name}3d   "${sources}" "BHC_DIMMODE=4;${defs}" "${incs}")
+    else()
+        bellhop_create_executable(bellhop${type_name}     "${sources}" "BHC_DIMMODE=0;${defs}" "${incs}")
+    endif()
 endfunction()
 
 function(prepend OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend to
@@ -86,15 +103,15 @@ set(COMMON_SOURCE
     eigenrays.cpp
     eigenrays.hpp
     influence.hpp
+    jobs.hpp
     ldio.hpp
     logging.cpp
     logging.hpp
     prtfileemu.hpp
-    raymode.cpp
     raymode.hpp
     readenv.cpp
     readenv.hpp
-    refcoef.hpp
+    reflect.hpp
     run_cxx.cpp
     run.hpp
     setup.cpp

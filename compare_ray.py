@@ -22,11 +22,6 @@ if sys.version_info.major < 3:
     print('This is a python3 script')
     sys.exit(-1)
 
-if len(sys.argv) != 2:
-    print('Usage: python3 compare_ray.py MunkB_ray')
-    print('No path, no .ray')
-    sys.exit(1)
-
 use_float = False
 if use_float:
     thresh_rel_print = 1e-4
@@ -58,6 +53,8 @@ def compare_files(cxxf, forf):
                     ff = float(f)
                 except ValueError:
                     return False
+                if abs(cf - ff) < 1e-8:
+                    continue # Ignore relative error if abs error very small
                 if (cf == 0.0) != (ff == 0.0):
                     return False
                 if cf != 0.0:
@@ -74,8 +71,12 @@ def compare_files(cxxf, forf):
                     return False
                 if ci == fi:
                     continue
-                elif len(cxxt) == 3 and i == 0 and (ci == fi + 1 or ci + 1 == fi):
+                elif len(cxxt) == 3 and i == 0 and \
+                    all('.' not in t for t in (cxxt + fort)) and \
+                    int(cxxt[1]) == int(fort[1]) and int(cxxt[2]) == int(fort[2]):
                     printlns()
+                    if abs(ci - fi) > 1:
+                        print('Warning, CXX {} steps / FOR {} steps'.format(ci, fi))
                 else:
                     return False
         return True
@@ -112,12 +113,23 @@ def compare_files(cxxf, forf):
             cxx_num += 1
             for_num += 1
 
-cxx1file = 'test/cxx1/{}.ray'.format(sys.argv[1])
-forfile = 'test/FORTRAN/{}.ray'.format(sys.argv[1])
+if len(sys.argv) not in {2, 3}:
+    print('Usage: python3 compare_ray.py MunkB_ray [cxx1/cxxmulti/cuda]')
+    print('No paths, no .ray')
+    sys.exit(1)
 
-with open(cxx1file, 'r') as cxxf, open(forfile, 'r') as forf:
-    print('bellhopcxx single-threaded')
-    compare_files(cxxf, forf)
+rayfil = sys.argv[1]
+if len(sys.argv) == 3:
+    comparisons = [sys.argv[2]]
+else:
+    comparisons = ['cxx1', 'cxxmulti', 'cuda']
 
-print('Skipping ray results comparison for bellhopcxx multi-threaded')
-print('Skipping ray results comparison for bellhopcuda')
+for c in comparisons:
+    with open('test/FORTRAN/{}.ray'.format(rayfil), 'r') as forf:
+        cxxfile = 'test/{}/{}.ray'.format(c, rayfil)
+        try:
+            with open(cxxfile, 'r') as cxxf:
+                print('Ray comparison FORTRAN vs. {}:'.format(c))
+                compare_files(cxxf, forf)
+        except FileNotFoundError:
+            print('{} not found, skipping {}'.format(cxxfile, c))

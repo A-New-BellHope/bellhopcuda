@@ -28,12 +28,12 @@ namespace bhc {
  * FileName: Name of the file (could be a shade file or a Green's function file)
  * Title: Arbitrary title
  * freq0: Nominal frequency [LP: now in freqinfo]
- * Atten: stabilizing attenuation (for wavenumber integration only)
+ * atten: stabilizing attenuation (for wavenumber integration only)
  * PlotType: If "TL", writes only first and last Sx and Sy [LP: never set to
  * "TL" in BELLHOP]
  */
 void WriteHeader(DirectOFile &SHDFile, const std::string &FileName, 
-    const char (&Title)[80], float Atten, const std::string &PlotType, 
+    const char (&Title)[80], float atten, const std::string &PlotType, 
     const Position *Pos, const FreqInfo *freqinfo)
 {
     bool isTL = (PlotType[0] == 'T' && PlotType[1] == 'L');
@@ -66,7 +66,7 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
         DOFWRITEV(SHDFile, Pos->NRz);
         DOFWRITEV(SHDFile, Pos->NRr);
         DOFWRITEV(SHDFile, (float)freqinfo->freq0);
-        DOFWRITEV(SHDFile, Atten);
+        DOFWRITEV(SHDFile, atten);
     SHDFile.rec(3); DOFWRITE(SHDFile, freqinfo->freqVec, freqinfo->Nfreq * sizeof(freqinfo->freqVec[0]));
     SHDFile.rec(4); DOFWRITE(SHDFile, Pos->theta, Pos->Ntheta * sizeof(Pos->theta[0]));
     
@@ -87,45 +87,82 @@ void WriteHeader(DirectOFile &SHDFile, const std::string &FileName,
 /**
  * LP: Write TL results
  */
-void FinalizeTLMode(std::string FileRoot, const bhcParams &params, bhcOutputs &outputs)
+ template<bool O3D, bool R3D> void FinalizeTLMode(
+     std::string FileRoot, const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     real atten = FL(0.0);
     std::string PlotType;
     DirectOFile SHDFile;
     
     // following to set PlotType has already been done in READIN if that was used for input
-    switch(params.Beam->RunType[4]){
-    case 'R':
-        PlotType = "rectilin  "; break;
-    case 'I':
-        PlotType = "irregular "; break;
-    default:
-        PlotType = "rectilin  ";
-    }
+    PlotType = IsIrregularGrid(params.Beam) ? "irregular " : "rectilin  ";
     WriteHeader(SHDFile, FileRoot + ".shd", params.Title, atten, PlotType,
         params.Pos, params.freqinfo);
     
-    for(int32_t isrc=0; isrc<params.Pos->NSz; ++isrc){
-        cpx ccpx;
-        int32_t iSegz = 0, iSegr = 0;
-        EvaluateSSPCOnly(vec2(RL(0.0), params.Pos->Sz[isrc]), vec2(RL(1.0), RL(0.0)),
-            ccpx, params.freqinfo->freq0, params.ssp, iSegz, iSegr);
-        ScalePressure(params.Angles->Dalpha, ccpx.real(), params.Pos->Rr, 
-            &outputs.uAllSources[isrc * params.Pos->NRz_per_range * params.Pos->NRr], 
-            params.Pos->NRz_per_range, params.Pos->NRr, params.Beam->RunType,
-            params.freqinfo->freq0);
-        int32_t IRec = 10 + params.Pos->NRz_per_range * isrc;
-        for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1){
-            SHDFile.rec(IRec);
-            for(int32_t r=0; r < params.Pos->NRr; ++r){
-                DOFWRITEV(SHDFile, outputs.uAllSources[
-                    (isrc * params.Pos->NRz_per_range + Irz1) * params.Pos->NRr + r]);
+    for(int32_t isz=0; isz<params.Pos->NSz; ++isz){
+        for(int32_t isx=0; isx<params.Pos->NSx; ++isx){
+            for(int32_t isy=0; isy<params.Pos->NSy; ++isy){
+                SSPSegState iSeg; iSeg.r = iSeg.x = iSeg.y = iSeg.z = 0;
+                VEC23<O3D> xs, tinit;
+                SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(isx, isy, isz, FL(0.0),
+                    iSeg, params.Pos, params.ssp, xs, tinit);
+                cpx epsilon1, epsilon2;
+                if constexpr(R3D){
+                    epsilon1 = PickEpsilon<O3D, R3D>(
+                        FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(), o.gradc, FL(0.0),
+                        params.Angles->alpha.d, params.Beam);
+                    epsilon2 = PickEpsilon<O3D, R3D>(
+                        FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(), o.gradc, FL(0.0),
+                        params.Angles->beta.d, params.Beam);
+                }else{
+                    epsilon1 = epsilon2 = RL(0.0);
+                }
+                ScalePressure<O3D, R3D>(
+                    params.Angles->alpha.d, params.Angles->beta.d, o.ccpx.real(),
+                    epsilon1, epsilon2, params.Pos->Rr, 
+                    &outputs.uAllSources[GetFieldAddr(isx, isy, isz, 0, 0, 0, params.Pos)], 
+                    params.Pos->Ntheta, params.Pos->NRz_per_range, params.Pos->NRr,
+                    params.freqinfo->freq0, params.Beam);
+                for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1){ // LP: depth
+                    for(int32_t itheta = 0; itheta < params.Pos->Ntheta; ++itheta){
+                        // LP: This is in a different order from the field.
+                        // Field: (largest) Z, X, Y, theta, depth, radius (smallest)
+                        // File:  (largest) X, Y, theta, Z, depth, radius (smallest)
+                        // (XYZ are source; theta depth radius are receiver)
+                        // Also, for 3D, mbp iterates over theta inside depth, which does
+                        // not match the order of writing to the file.
+                        size_t IRec = 10 + (((                      (size_t)isx     *
+                                (size_t)params.Pos->NSy           + (size_t)isy)    *
+                                (size_t)params.Pos->Ntheta        + (size_t)itheta) *
+                                (size_t)params.Pos->NSz           + (size_t)isz)    *
+                                (size_t)params.Pos->NRz_per_range + (size_t)Irz1;
+                        SHDFile.rec(IRec);
+                        for(int32_t r=0; r < params.Pos->NRr; ++r){
+                            cpxf v = outputs.uAllSources[GetFieldAddr(
+                                isx, isy, isz, itheta, Irz1, r, params.Pos)];
+                            DOFWRITEV(SHDFile, v);
+                        }
+                    }
+                }
             }
-            ++IRec;
         }
     }
     
     deallocate(outputs.uAllSources);
 }
+
+#if BHC_ENABLE_2D
+template void FinalizeTLMode<false, false>(
+    std::string FileRoot, const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template void FinalizeTLMode<true, false>(
+    std::string FileRoot, const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template void FinalizeTLMode<true, true>(
+    std::string FileRoot, const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
 
 }

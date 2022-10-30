@@ -1,0 +1,4 @@
+// Gaussian Cartesian
+//7.5 HOURS for BELLHOP3D
+//TruncatedWedge3dGaussian
+//

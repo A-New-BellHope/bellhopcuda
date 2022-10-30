@@ -21,9 +21,25 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-void ReadEnvironment(const std::string &FileRoot, PrintFileEmu &PRTFile,
+template<bool O3D, bool R3D> void ReadEnvironment(
+    const std::string &FileRoot, PrintFileEmu &PRTFile,
     char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
-    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure *Beam,
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<O3D> *Beam,
+    HSInfo &RecycledHS);
+extern template void ReadEnvironment<false, false>(
+    const std::string &FileRoot, PrintFileEmu &PRTFile,
+    char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<false> *Beam,
+    HSInfo &RecycledHS);
+extern template void ReadEnvironment<true, false>(
+    const std::string &FileRoot, PrintFileEmu &PRTFile,
+    char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<true> *Beam,
+    HSInfo &RecycledHS);
+extern template void ReadEnvironment<true, true>(
+    const std::string &FileRoot, PrintFileEmu &PRTFile,
+    char (&Title)[80], real &fT, BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, 
+    Position *Pos, AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<true> *Beam,
     HSInfo &RecycledHS);
 
 }

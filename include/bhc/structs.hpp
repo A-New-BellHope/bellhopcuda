@@ -22,7 +22,30 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #error "This file must be included via #include <bhc/bhc.hpp>!"
 #endif
 
+#include <type_traits>
+
 namespace bhc {
+
+/*
+O3D: ocean (SSP, boundaries, etc.) is 3D.
+R3D: rays (beams) are 3D. In 2D-3D mode, S3D == true && R3D == false.
+X3D: generic 3D boolean value for templated types.
+*/
+
+template<bool X3D> struct TmplVec23 {};
+template<> struct TmplVec23<false> { typedef vec2 type; };
+template<> struct TmplVec23<true>  { typedef vec3 type; };
+template<bool X3D> using VEC23 = typename TmplVec23<X3D>::type;
+
+template<bool X3D> struct TmplInt12 {};
+template<> struct TmplInt12<false> { typedef int32_t type; };
+template<> struct TmplInt12<true>  { typedef int2 type; };
+template<bool X3D> using IORI2 = typename TmplInt12<X3D>::type;
+
+template<bool X3D> struct TmplVec2Mat2 {};
+template<> struct TmplVec2Mat2<false> { typedef vec2 type; };
+template<> struct TmplVec2Mat2<true>  { typedef mat2x2 type; };
+template<bool X3D> using V2M2 = typename TmplVec2Mat2<X3D>::type;
 
 ////////////////////////////////////////////////////////////////////////////////
 //SSP / Boundary
@@ -40,12 +63,30 @@ struct SSPStructure {
     real z[MaxSSP], rho[MaxSSP];
     cpx c[MaxSSP], cz[MaxSSP], n2[MaxSSP], n2z[MaxSSP], cSpline[4][MaxSSP];
     cpx cCoef[4][MaxSSP], CSWork[4][MaxSSP]; // for PCHIP coefs.
-    real *cMat, *czMat, *cMat3, *czMat3;
+    real *cMat, *czMat; // LP: No need for separate cMat3 / czMat3 as we don't have to specify the dimension here.
     rxyz_vector Seg;
     char Type;
     char AttenUnit[2];
     real alphaR[MaxSSP], alphaI[MaxSSP];
     bool dirty; //reset and update derived params
+};
+
+template<bool R3D> struct SSPOutputsExtras {};
+template<> struct SSPOutputsExtras<false> {
+    real crr, crz;
+};
+template<> struct SSPOutputsExtras<true> {
+    real cxx, cyy, cxy, cxz, cyz;
+};
+template<bool R3D> struct SSPOutputs : public SSPOutputsExtras<R3D>
+{
+    cpx ccpx;
+    VEC23<R3D> gradc;
+    real rho, czz;
+};
+
+struct SSPSegState {
+    int32_t r, x, y, z;
 };
 
 struct HSInfo {
@@ -61,30 +102,85 @@ struct BdryPtSmall {
 };
 
 /**
- * LP: There are two boundary structures. This one actually existed in the
- * FORTRAN, and is called Bdry. The other is BdryInfo bdinfo (below).
+ * LP: There are three boundary structures. This one actually existed in the
+ * FORTRAN, and is called Bdry. This holds the boundary properties for the
+ * current segment.
  */
 struct BdryType {
     BdryPtSmall Top, Bot;
 };
 
-struct BdryPtFull {
-    vec2 x, t, n; // coordinate, tangent, and outward normal for a segment
-    vec2 Nodet, Noden; // tangent and normal at the node, if the curvilinear option is used
-    real Len, kappa; // length and curvature of a segement
+template<bool O3D> struct ReflCurvature {};
+template<> struct ReflCurvature<false> {
+    real kappa; // curvature of a segment
+};
+template<> struct ReflCurvature<true> {
+    real z_xx, z_xy, z_yy, kappa_xx, kappa_xy, kappa_yy;
+};
+
+template<bool O3D> struct BdryPtFullExtras {};
+template<> struct BdryPtFullExtras<false> {
+    vec2 Nodet; // tangent at the node, if the curvilinear option is used
     real Dx, Dxx, Dss; // first, second derivatives wrt depth; s is along tangent
     HSInfo hs;
 };
+template<> struct BdryPtFullExtras<true> {
+    vec3 n1, n2; // (outward-pointing) normals for each of the triangles in a pair, n is selected from those
+    vec3 Noden_unscaled;
+    real phi_xx, phi_xy, phi_yy;
+};
+template<bool O3D> struct BdryPtFull : public BdryPtFullExtras<O3D>, public ReflCurvature<O3D>
+{
+    VEC23<O3D> x; // 2D: coordinate for a segment / 3D: coordinate of boundary
+    VEC23<O3D> t; // 2D: tangent for a segment / 3D: tangent for a facet
+    VEC23<O3D> n; // 2D: outward normal for a segment / 3D: normal for a facet (outward pointing)
+    VEC23<O3D> Noden; // normal at the node, if the curvilinear option is used
+    real Len; // 2D: length of a segment / 3D: length of tangent (temporary variable to normalize tangent)
+};
+
+template<bool O3D> struct BdryInfoTopBot {
+    IORI2<O3D> NPts;
+    char type[2]; // In 3D, only first char is used
+    BdryPtFull<O3D> *bd; // 2D: 1D array / 3D: 2D array
+};
+/**
+ * LP: There are three boundary structures. This one represents static/global 
+ * data in the FORTRAN which was not within any structure, and is called bdinfo.
+ */
+template<bool O3D> struct BdryInfo {
+    BdryInfoTopBot<O3D> top, bot;
+};
+
+struct BdryLimits { real min, max; };
+struct BdryLimits2 { BdryLimits x, y; };
+template<bool O3D> struct TmplBdryLimits12 {};
+template<> struct TmplBdryLimits12<false> { typedef BdryLimits type; };
+template<> struct TmplBdryLimits12<true>  { typedef BdryLimits2 type; };
+template<bool O3D> struct BdryStateTopBotExtras {};
+template<> struct BdryStateTopBotExtras<true> { bool tridiag_pos; };
+template<bool O3D> struct BdryStateTopBot : public BdryStateTopBotExtras<O3D> {
+    IORI2<O3D> Iseg; // indices that point to the current active segment
+    typename TmplBdryLimits12<O3D>::type lSeg; // LP: limits of current segment
+    VEC23<O3D> x, n; // only explicitly written in 3D, but effectively present in 2D
+    VEC23<O3D> xmid; // coordinates of center of active rectangle (3D) / segment (2D)
+    // because corners may be at big number and mess up floating point precision
+};
+/**
+ * LP: There are three boundary structures. This one holds variables describing
+ * where the ray currently is in terms of boundary segments, and is called bds.
+ */
+template<bool O3D> struct BdryState {
+    BdryStateTopBot<O3D> top, bot;
+};
 
 /**
- * LP: There are two boundary structures. This one represents data in the
- * FORTRAN which was not within any structure, and is called bdinfo.
+ * LP: In 2D-3D mode, describes the position of the 2D ray space relative to the
+ * 3D ocean. Unused (empty struct) in 2D and full 3D mode.
  */
-struct BdryInfo {
-    int32_t NATIPts, NBTYPts;
-    char atiType[2];
-    char btyType[2];
-    BdryPtFull *Top, *Bot;
+template<bool O3D, bool R3D> struct Origin {};
+template<> struct Origin<true, false> {
+    vec3 xs;
+    vec2 tradial;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -95,9 +191,12 @@ struct ReflectionCoef {
     real theta, r, phi;
 };
 
+struct ReflectionInfoTopBot {
+    int32_t NPts;
+    ReflectionCoef *r;
+};
 struct ReflectionInfo {
-    int32_t NBotPts, NTopPts;
-    ReflectionCoef *RBot, *RTop;
+    ReflectionInfoTopBot bot, top;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,17 +228,22 @@ struct Position {
     float *Sx, *Sy, *Sz; // Source x, y, z coordinates
     float *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
     float *theta; // Receiver bearings
+    vec2 *t_rcvr; // Receiver directions (cos(theta), sin(theta))
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 //Source angles
 ////////////////////////////////////////////////////////////////////////////////
 
+struct AngleInfo {
+    int32_t n, iSingle;
+    real d; // angular spacing between beams
+    real *angles;
+};
+
 struct AnglesStructure {
-    int32_t Nalpha, Nbeta, iSingle_alpha, iSingle_beta;
-    real Dalpha, Dbeta; // angular spacing between beams
-    real *alpha; // LP: elevation angles
-    real *beta; // LP: azimuth angles
+    AngleInfo alpha; // LP: elevation angles
+    AngleInfo beta; // LP: azimuth angles
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,22 +260,18 @@ struct FreqInfo {
 //Beams
 ////////////////////////////////////////////////////////////////////////////////
 
-struct rxyz {
-    real r, x, y, z;
-};
-
 /**
  * LP: Like boundaries, there are two beam structures. This one is (mostly)
  * in the FORTRAN, and is called Beam.
  */
-struct BeamStructure {
+template<bool O3D> struct BeamStructure {
     //LP: NSteps moved out of this struct as it's a property of a single beam.
     int32_t NBeams, Nimage, iBeamWindow;
     real deltas, epsMultiplier, rLoop;
     char Component;
     char Type[4];
     char RunType[7];
-    rxyz Box;
+    VEC23<O3D> Box;
 };
 
 /**
@@ -189,12 +289,12 @@ struct BeamInfo {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct EigenHit {
-    // LP: Receiver this hit pertains to
-    int32_t ir, iz;
-    // LP: Identifying info to re-trace this ray
-    int32_t isrc, ialpha;
     // LP: Number of steps until the ray hit the receiver
     int32_t is;
+    // LP: Receiver this hit pertains to
+    int32_t itheta, ir, iz;
+    // LP: Identifying info to re-trace this ray
+    int32_t isx, isy, isz, ialpha, ibeta;
 };
 
 struct EigenInfo {
@@ -227,56 +327,114 @@ struct ArrInfo {
 //Rays/beams
 ////////////////////////////////////////////////////////////////////////////////
 
-struct ray2DPt {
+template<bool R3D> struct rayPtExtras {};
+template<> struct rayPtExtras<false> {
+    vec2 p, q;
+};
+template<> struct rayPtExtras<true> {
+    // LP: p and q don't actually affect the ray trajectory or results; they are
+    // used to update the corresponding variables for the next step, but that's
+    // never actually used for anything else. There is commented out code which
+    // uses them, as well as additional commented-out variables in this struct,
+    // for 3D Cerveny beams.
+    mat2x2 p, q; // LP: The ROWS of p are p_tilde and p_hat; same for q.
+    // real DetQ; LP: Precomputed at the start of Influence functions, only used
+    // for detecting phase inversions. Changed to compute when needed.
+    real phi;
+};
+template<bool R3D> struct rayPt : public rayPtExtras<R3D>
+{
     int32_t NumTopBnc, NumBotBnc;
     ///ray coordinate, (r,z)
-    vec2 x;
+    VEC23<R3D> x;
     ///scaled tangent to the ray (previously (rho, zeta))
-    vec2 t;
-    vec2 p, q;
+    VEC23<R3D> t;
     ///c * t would be the unit tangent
     real c;
     real Amp, Phase;
     cpx tau;
 };
 
-struct RayResult {
-    ray2DPt *ray2D;
+template<bool R3D> struct StepPartials {};
+template<> struct StepPartials<false> {
+    real cnn_csq;
+};
+template<> struct StepPartials<true> {
+    real cnn, cmn, cmm;
+};
+
+template<bool O3D, bool R3D> struct RayResult {
+    rayPt<R3D> *ray;
+    Origin<O3D, R3D> org;
     real SrcDeclAngle;
     int32_t Nsteps;
 };
 
-struct RayInfo {
-    ray2DPt *raymem;
+template<bool O3D, bool R3D> struct RayInfo {
+    rayPt<R3D> *raymem;
     uint32_t NPoints;
     uint32_t MaxPoints;
-    RayResult *results;
+    RayResult<O3D, R3D> *results;
     int32_t NRays;
+};
+
+struct RayInitInfo {
+    int32_t isx, isy, isz, ialpha, ibeta;
+    real alpha, beta;
+    real SrcDeclAngle, SrcAzimAngle;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//Influence / transmission loss
+////////////////////////////////////////////////////////////////////////////////
+
+template<bool R3D> struct InfluenceRayInfo {
+    // LP: Constants.
+    RayInitInfo init;
+    real Dalpha, Dbeta; // angular spacing
+    real c0; // LP: c at start of ray
+    cpx epsilon1, epsilon2; // beam constant
+    VEC23<R3D> xs; // source
+    real freq0, omega;
+    real RadMax;
+    real BeamWindow;
+    int32_t iBeamWindow2;
+    real Ratio1; // scale factor (point source vs. line source)
+    real rcp_q0, rcp_qhat0;
+    // LP: Variables carried over between iterations.
+    real phase;
+    real qOld; // LP: Det_QOld in 3D
+    VEC23<R3D> x;
+    VEC23<R3D> rayn1, rayn2; // LP: rayn1 was rn, zn in 2D
+    bool lastValid;
+    int32_t kmah;
+    int32_t ir;
+    cpx gamma;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 //Meta-structures
 ////////////////////////////////////////////////////////////////////////////////
 
-struct bhcParams {
+template<bool O3D, bool R3D> struct bhcParams {
     char Title[80]; // Size determined by WriteHeader for TL
     real fT;
     BdryType *Bdry;
-    BdryInfo *bdinfo;
+    BdryInfo<O3D> *bdinfo;
     ReflectionInfo *refl;
     SSPStructure *ssp;
     AttenInfo *atten;
     Position *Pos;
     AnglesStructure *Angles;
     FreqInfo *freqinfo;
-    BeamStructure *Beam;
+    BeamStructure<O3D> *Beam;
     BeamInfo *beaminfo;
     ///Pointer to internal data structure for program (non-marine-related) state.
     void *internal;
 };
 
-struct bhcOutputs {
-    RayInfo *rayinfo;
+template<bool O3D, bool R3D> struct bhcOutputs {
+    RayInfo<O3D, R3D> *rayinfo;
     cpxf *uAllSources;
     EigenInfo *eigen;
     ArrInfo *arrinfo;

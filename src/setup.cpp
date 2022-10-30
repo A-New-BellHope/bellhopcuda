@@ -19,7 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "readenv.hpp"
 #include "boundary.hpp"
-#include "refcoef.hpp"
+#include "reflect.hpp"
 #include "ssp.hpp"
 #include "beams.hpp"
 #include "run.hpp"
@@ -34,8 +34,9 @@ bool api_okay = false;
 
 constexpr bool Init_Inline = false;
 
-BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams &params, bhcOutputs &outputs)
+template<bool O3D, bool R3D> bool setup(
+    const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     api_okay = true;
     InitLog(outputCallback);
@@ -50,16 +51,16 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
 
     // Allocate main structs
     params.Bdry = allocate<BdryType>();
-    params.bdinfo = allocate<BdryInfo>();
+    params.bdinfo = allocate<BdryInfo<O3D>>();
     params.refl = allocate<ReflectionInfo>();
     params.ssp = allocate<SSPStructure>();
     params.atten = allocate<AttenInfo>();
     params.Pos = allocate<Position>();
     params.Angles = allocate<AnglesStructure>();
     params.freqinfo = allocate<FreqInfo>();
-    params.Beam = allocate<BeamStructure>();
+    params.Beam = allocate<BeamStructure<O3D>>();
     params.beaminfo = allocate<BeamInfo>();
-    outputs.rayinfo = allocate<RayInfo>();
+    outputs.rayinfo = allocate<RayInfo<O3D, R3D>>();
     outputs.eigen = allocate<EigenInfo>();
     outputs.arrinfo = allocate<ArrInfo>();
     HSInfo RecycledHS; //Values only initialized once--reused from top to ssp, and ssp to bot
@@ -67,14 +68,12 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     // Set pointers to null because we always check if they are not null (and
     // deallocate them if so) before allocating them
     // IMPORTANT--if changes are made here, make the same changes in finalize
-    params.bdinfo->Top = nullptr;
-    params.bdinfo->Bot = nullptr;
-    params.refl->RBot = nullptr;
-    params.refl->RTop = nullptr;
+    params.bdinfo->top.bd = nullptr;
+    params.bdinfo->bot.bd = nullptr;
+    params.refl->bot.r = nullptr;
+    params.refl->top.r = nullptr;
     params.ssp->cMat = nullptr;
     params.ssp->czMat = nullptr;
-    params.ssp->cMat3 = nullptr;
-    params.ssp->czMat3 = nullptr;
     params.ssp->Seg.r = nullptr;
     params.ssp->Seg.x = nullptr;
     params.ssp->Seg.y = nullptr;
@@ -89,8 +88,9 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     params.Pos->ws = nullptr;
     params.Pos->wr = nullptr;
     params.Pos->theta = nullptr;
-    params.Angles->alpha = nullptr;
-    params.Angles->beta = nullptr;
+    params.Pos->t_rcvr = nullptr;
+    params.Angles->alpha.angles = nullptr;
+    params.Angles->beta.angles = nullptr;
     params.freqinfo->freqVec = nullptr;
     params.beaminfo->SrcBmPat = nullptr;
     outputs.rayinfo->raymem = nullptr;
@@ -103,10 +103,17 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     // Fill in default / "constructor" data
     params.fT = RL(1.0e20);
     //Bdry: none
-    params.bdinfo->NATIPts = 2;
-    params.bdinfo->NBTYPts = 2;
-    memcpy(params.bdinfo->atiType, "LS", 2);
-    memcpy(params.bdinfo->btyType, "LS", 2);
+    if constexpr(O3D){
+        params.bdinfo->top.NPts.x = 2;
+        params.bdinfo->top.NPts.y = 2;
+        params.bdinfo->bot.NPts.x = 2;
+        params.bdinfo->bot.NPts.y = 2;
+    }else{
+        params.bdinfo->top.NPts = 2;
+        params.bdinfo->bot.NPts = 2;
+    }
+    memcpy(params.bdinfo->top.type, "LS", 2);
+    memcpy(params.bdinfo->bot.type, "LS", 2);
     //params.refl: none
     params.ssp->dirty = false;
     params.atten->t = FL(20.0);
@@ -115,14 +122,18 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     params.atten->z_bar = FL(0.0);
     params.Pos->NSx = 1;
     params.Pos->NSy = 1;
-    params.Angles->Nalpha = 0;
-    params.Angles->Nbeta = 1;
+    params.Pos->NSz = 1;
+    params.Pos->NRz = 1;
+    params.Pos->NRr = 1;
+    params.Pos->Ntheta = 1;
+    params.Angles->alpha.n = 0;
+    params.Angles->beta.n = 1;
     //LP: not a typo; this is an index, one less than the start of the array,
     //which in Fortran (and in the env file!) is 0. This gets converted to 0-
     //indexed when it is used.
-    params.Angles->iSingle_alpha = 0;
-    params.Angles->iSingle_beta = 0;
-    //params.freqinfo: none
+    params.Angles->alpha.iSingle = 0;
+    params.Angles->beta.iSingle = 0;
+    params.freqinfo->Nfreq = 1;
     params.Beam->epsMultiplier = FL(1.0);
     memcpy(params.Beam->Type, "G S ", 4);
     //params.beaminfo: none
@@ -138,7 +149,7 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     RecycledHS.betaI = FL(0.0);
     RecycledHS.rho = FL(1.0);
     
-    if(Init_Inline){
+    if constexpr(!O3D && !R3D && Init_Inline){
         // NPts, Sigma not used by BELLHOP
         std::string TempTitle = BHC_PROGRAMNAME "- Calibration case with envfil passed as parameters";
         size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
@@ -185,38 +196,44 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
                 params.Pos->iRz = allocate<int32_t>(params.Pos->NRz);
         params.Pos->Rr = allocate<float>(params.Pos->NRr);
         
+        params.Pos->Sz[0] = FL(50.0);
+        // params.Pos->Rz = {0, 50, 100};
+        // params.Pos->Rr = {1000, 2000, 3000, 4000, 5000}; // meters !!!
+        for(int32_t jj=0; jj<params.Pos->NRz; ++jj) params.Pos->Rz[jj] = jj;
+        for(int32_t jj=0; jj<params.Pos->NRr; ++jj) params.Pos->Rr[jj] = FL(10.0) * jj;
+        
         memcpy(params.Beam->RunType, "C      ", 7);
         memcpy(params.Beam->Type, "G   ", 4);
         params.Beam->deltas  = FL(0.0);
-        params.Beam->Box.z   = FL(101.0);
-        params.Beam->Box.r   = FL(5100.0); // meters
+        params.Beam->Box.y   = FL(101.0);
+        params.Beam->Box.x   = FL(5100.0); // meters
         
-        params.Angles->Nalpha = 1789;
-        //params.Angles->alpha = {-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80}; // -89 89
-        for(int32_t jj=0; jj<params.Angles->Nalpha; ++jj){
-            params.Angles->alpha[jj] = (FL(180.0) / params.Angles->Nalpha) 
+        params.Angles->alpha.n = 1789;
+        //params.Angles->alpha.angles = {-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80}; // -89 89
+        for(int32_t jj=0; jj<params.Angles->alpha.n; ++jj){
+            params.Angles->alpha.angles[jj] = (FL(180.0) / params.Angles->alpha.n) 
                 * (real)jj - FL(90.0);
         }
         
         // *** altimetry ***
         
-        params.bdinfo->Top = allocate<BdryPtFull>(2);
-        params.bdinfo->Top[0].x = vec2(-BdryInfinity, RL(0.0));
-        params.bdinfo->Top[1].x = vec2( BdryInfinity, RL(0.0));
+        params.bdinfo->top.bd = allocate<BdryPtFull<false>>(2);
+        params.bdinfo->top.bd[0].x = vec2(-bdry_big<false>::value(), RL(0.0));
+        params.bdinfo->top.bd[1].x = vec2( bdry_big<false>::value(), RL(0.0));
         
-        ComputeBdryTangentNormal(params.bdinfo->Top, true, params.bdinfo);
+        ComputeBdryTangentNormal<O3D>(&params.bdinfo->top, true);
         
         // *** bathymetry ***
         
-        params.bdinfo->Bot = allocate<BdryPtFull>(2);
-        params.bdinfo->Bot[0].x = vec2(-BdryInfinity, RL(5000.0));
-        params.bdinfo->Bot[1].x = vec2( BdryInfinity, RL(5000.0));
+        params.bdinfo->bot.bd = allocate<BdryPtFull<false>>(2);
+        params.bdinfo->bot.bd[0].x = vec2(-bdry_big<false>::value(), RL(5000.0));
+        params.bdinfo->bot.bd[1].x = vec2( bdry_big<false>::value(), RL(5000.0));
         
-        ComputeBdryTangentNormal(params.bdinfo->Bot, false, params.bdinfo);
+        ComputeBdryTangentNormal<O3D>(&params.bdinfo->bot, false);
         
-        params.refl->RBot = allocate<ReflectionCoef>(1);
-        params.refl->RTop = allocate<ReflectionCoef>(1);
-        params.refl->NBotPts = params.refl->NTopPts = 1;
+        params.refl->bot.r = allocate<ReflectionCoef>(1);
+        params.refl->top.r = allocate<ReflectionCoef>(1);
+        params.refl->bot.NPts = params.refl->top.NPts = 1;
         
         // *** Source Beam Pattern ***
         params.beaminfo->NSBPPts = 2;
@@ -226,29 +243,33 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
         for(int32_t i=0; i<2; ++i) params.beaminfo->SrcBmPat[i*2+1] = 
             STD::pow(FL(10.0), params.beaminfo->SrcBmPat[i*2+1] / FL(20.0)); // convert dB to linear scale !!!
     }else{
-        ReadEnvironment(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
+        ReadEnvironment<O3D, R3D>(FileRoot, PRTFile, params.Title, params.fT, params.Bdry,
             params.ssp, params.atten, params.Pos, params.Angles, params.freqinfo,
             params.Beam, RecycledHS);
-        ReadATI(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
-            PRTFile, params.bdinfo); // AlTImetry
-        ReadBTY(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
-            PRTFile, params.bdinfo); // BaThYmetry
+        ReadBoundary<O3D>(FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
+            PRTFile, &params.bdinfo->top, true,  params.freqinfo->freq0, params.fT, params.atten); // AlTImetry
+        ReadBoundary<O3D>(FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
+            PRTFile, &params.bdinfo->bot, false, params.freqinfo->freq0, params.fT, params.atten); // BaThYmetry
         ReadReflectionCoefficient(FileRoot, 
             params.Bdry->Bot.hs.Opt[0], params.Bdry->Top.hs.Opt[1], PRTFile, params.refl); // (top and bottom)
         params.beaminfo->SBPFlag = params.Beam->RunType[2];
         ReadPat(FileRoot, PRTFile, params.beaminfo); // Source Beam Pattern
-        // dummy bearing angles
-        params.Pos->Ntheta = 1;
-        params.Pos->theta = allocate<float>(params.Pos->Ntheta);
-        params.Pos->theta[0] = FL(0.0);
+        if constexpr(!O3D){
+            // dummy bearing angles
+            params.Pos->Ntheta = 1;
+            params.Pos->theta = allocate<float>(params.Pos->Ntheta);
+            params.Pos->theta[0] = FL(0.0);
+            params.Pos->t_rcvr = allocate<vec2>(params.Pos->Ntheta);
+        }
     }
     
     // LP: Moved from WriteHeader
     // receiver bearing angles
     if(params.Pos->theta == nullptr){
+        params.Pos->Ntheta = 1;
         params.Pos->theta = allocate<float>(1);
         params.Pos->theta[0] = FL(0.0); // dummy bearing angle
-        params.Pos->Ntheta = 1;
+        params.Pos->t_rcvr = allocate<vec2>(1);
     }
     // source x-coordinates
     if(params.Pos->Sx == nullptr){
@@ -266,48 +287,8 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     if(params.Beam->deltas == FL(0.0)){
          // Automatic step size selection
         params.Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth) / FL(10.0);
-        PRTFile << "\n Step length,       deltas = " << params.Beam->deltas << " m (automatically selected)\n";
-    }
-    
-    for(int32_t i=0; i<params.Angles->Nalpha; ++i)
-        params.Angles->alpha[i] *= DegRad; // convert to radians
-    params.Angles->Dalpha = FL(0.0);
-    if(params.Angles->Nalpha != 1)
-        params.Angles->Dalpha = (params.Angles->alpha[params.Angles->Nalpha-1] 
-            - params.Angles->alpha[0]) / (params.Angles->Nalpha-1);
-    
-    // convert range-dependent geoacoustic parameters from user to program units
-    if(params.bdinfo->atiType[1] == 'L'){
-        for(int32_t iSeg = 0; iSeg < params.bdinfo->NATIPts; ++iSeg){
-             // compressional wave speed
-            params.bdinfo->Top[iSeg].hs.cP = crci(RL(1.0e20),
-                params.bdinfo->Top[iSeg].hs.alphaR,
-                params.bdinfo->Top[iSeg].hs.alphaI,
-                params.freqinfo->freq0, params.freqinfo->freq0,
-                {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
-             // shear         wave speed
-            params.bdinfo->Top[iSeg].hs.cS = crci(RL(1.0e20),
-                params.bdinfo->Top[iSeg].hs.betaR,
-                params.bdinfo->Top[iSeg].hs.betaI, 
-                params.freqinfo->freq0, params.freqinfo->freq0,
-                {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
-        }
-    }
-    
-    if(params.bdinfo->btyType[1] == 'L'){
-        for(int32_t iSeg = 0; iSeg < params.bdinfo->NBTYPts; ++iSeg){
-             // compressional wave speed
-            params.bdinfo->Bot[iSeg].hs.cP = crci(RL(1.0e20),
-                params.bdinfo->Bot[iSeg].hs.alphaR,
-                params.bdinfo->Bot[iSeg].hs.alphaI,
-                params.freqinfo->freq0, params.freqinfo->freq0,
-                {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
-             // shear         wave speed
-            params.bdinfo->Bot[iSeg].hs.cS = crci(RL(1.0e20),
-                params.bdinfo->Bot[iSeg].hs.betaR,
-                params.bdinfo->Bot[iSeg].hs.betaI, 
-                params.freqinfo->freq0, params.freqinfo->freq0,
-                {'W', ' '}, betaPowerLaw, params.fT, params.atten, PRTFile);
+        if constexpr(!O3D){
+            PRTFile << "\n Step length,       deltas = " << params.Beam->deltas << " m (automatically selected)\n";
         }
     }
     
@@ -321,7 +302,24 @@ BHC_API bool setup(const char *FileRoot, void (*outputCallback)(const char *mess
     return api_okay;
 }
 
-BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
+#if BHC_ENABLE_2D
+template bool BHC_API setup<false, false>(
+    const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template bool BHC_API setup<true, false>(
+    const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template bool BHC_API setup<true, true>(
+    const char *FileRoot, void (*outputCallback)(const char *message),
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+template<bool O3D, bool R3D> void finalize(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     // IMPORTANT--if changes are made here, make the same changes in setup
     // (i.e. setting the pointers to nullptr initially)
@@ -334,14 +332,12 @@ BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
     #endif
     api_okay = false;
     
-    checkdeallocate(params.bdinfo->Top);
-    checkdeallocate(params.bdinfo->Bot);
-    checkdeallocate(params.refl->RBot);
-    checkdeallocate(params.refl->RTop);
+    checkdeallocate(params.bdinfo->top.bd);
+    checkdeallocate(params.bdinfo->bot.bd);
+    checkdeallocate(params.refl->bot.r);
+    checkdeallocate(params.refl->top.r);
     checkdeallocate(params.ssp->cMat);
     checkdeallocate(params.ssp->czMat);
-    checkdeallocate(params.ssp->cMat3);
-    checkdeallocate(params.ssp->czMat3);
     checkdeallocate(params.ssp->Seg.r);
     checkdeallocate(params.ssp->Seg.x);
     checkdeallocate(params.ssp->Seg.y);
@@ -356,8 +352,9 @@ BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
     checkdeallocate(params.Pos->ws);
     checkdeallocate(params.Pos->wr);
     checkdeallocate(params.Pos->theta);
-    checkdeallocate(params.Angles->alpha);
-    checkdeallocate(params.Angles->beta);
+    checkdeallocate(params.Pos->t_rcvr);
+    checkdeallocate(params.Angles->alpha.angles);
+    checkdeallocate(params.Angles->beta.angles);
     checkdeallocate(params.freqinfo->freqVec);
     checkdeallocate(params.beaminfo->SrcBmPat);
     checkdeallocate(outputs.rayinfo->raymem);
@@ -381,5 +378,18 @@ BHC_API void finalize(bhcParams &params, bhcOutputs &outputs)
     checkdeallocate(outputs.eigen);
     checkdeallocate(outputs.arrinfo);
 }
+
+#if BHC_ENABLE_2D
+template void BHC_API finalize<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template void BHC_API finalize<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template void BHC_API finalize<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 }

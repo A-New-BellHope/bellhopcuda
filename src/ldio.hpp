@@ -384,6 +384,12 @@ public:
         this->operator<<(v.y);
         return *this;
     }
+    LDOFile &operator<<(const vec3 &v){
+        this->operator<<(v.x);
+        this->operator<<(v.y);
+        this->operator<<(v.z);
+        return *this;
+    }
     
     template<typename T> void write(const T *v, int32_t n){
         for(int32_t i=0; i<n; ++i){
@@ -409,7 +415,7 @@ private:
             return;
         }
         ostr << "  ";
-        if(!isfinite(r)){
+        if(!std::isfinite(r)){
             ostr << std::setw(width)
                 << std::left
                 << r;

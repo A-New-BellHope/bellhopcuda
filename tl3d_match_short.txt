@@ -1,0 +1,64 @@
+// 
+// Coherent
+//
+// Hat Cartesian
+//
+// About 1 second each
+freeBhat
+freeBhatpolar
+lower_halfB
+upper_halfB
+HyperBot3DHatCart
+// About 15 seconds each
+Munkfoo
+MunkRot3D
+MunkRotfoo
+MunkRotfoozz
+Munkslice3dHatCart
+//Env file is wrong, it is cart despite being called raycen
+Munkslice3dHatRaycen
+// 19 seconds
+DoubleSeamount3DHat
+// 20 seconds
+munk3d
+//36 seconds
+HyperBot3DPolar
+// 4 minutes
+TruncatedWedge3dHat_side
+// 5 minutes
+KR3dCart
+//
+// Gaussian Cartesian
+//
+// About 8 seconds each
+freeBgaussian
+freeBgaussianpolar
+//
+// Hat ray-centered
+// 15 seconds
+freeBhat_raycen
+//
+// Gaussian ray-centered
+// 9 seconds
+freeBgaussian_raycen
+//
+//
+// Semi-coherent
+// Hat Cartesian
+// 11 seconds
+Munkslice3dHatCartSemi
+// Gaussian Cartesian
+// 59 seconds
+Munkslice3dGaussianSemi
+// Hat ray-centered
+// 4.5 minutes
+Munkslice3dHatRaycenSemi
+//
+// Incoherent
+// Hat Cartesian
+// 2 seconds
+Munkslice3dHatCartInc
+// Hat ray-centered
+// 30 seconds
+Munkslice3dHatRaycenInc
+//

@@ -20,22 +20,34 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-#define MAX_THREADS 256
-__global__ void 
-__launch_bounds__(MAX_THREADS, 1)
-FieldModesKernel(bhcParams params, bhcOutputs outputs)
+#define NUM_THREADS 256
+
+template<bool O3D, bool R3D> __global__ void __launch_bounds__(NUM_THREADS, 1)
+FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
-        int32_t isrc, ialpha;
-        if(!GetJobIndices(isrc, ialpha, job, params.Pos, params.Angles)) break;
+        RayInitInfo rinit;
+        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
         
-        real SrcDeclAngle;
-        MainFieldModes(isrc, ialpha, SrcDeclAngle, outputs.uAllSources,
+        MainFieldModes<O3D, R3D>(rinit, outputs.uAllSources,
             params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
             params.Angles, params.freqinfo, params.Beam, params.beaminfo, 
             outputs.eigen, outputs.arrinfo);
     }
 }
+
+#if BHC_ENABLE_2D
+template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<false, false>(
+    bhcParams<false, false> params, bhcOutputs<false, false> outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true, false>(
+    bhcParams<true, false> params, bhcOutputs<true, false> outputs);
+#endif
+#if BHC_ENABLE_3D
+template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true, true>(
+    bhcParams<true, true> params, bhcOutputs<true, true> outputs);
+#endif
 
 int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
 void setupGPU()
@@ -74,14 +86,15 @@ void setupGPU()
     checkCudaErrors(cudaSetDevice(m_gpu));
 }
 
-bool run_cuda(bhcParams &params, bhcOutputs &outputs)
+template<bool O3D, bool R3D> bool run_cuda(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     if(!api_okay) return false;
     
     try{
     
-    InitSelectedMode(params, outputs, false);
-    FieldModesKernel<<<d_multiprocs,MAX_THREADS>>>(params, outputs);
+    InitSelectedMode<O3D, R3D>(params, outputs, false);
+    FieldModesKernel<O3D, R3D><<<d_multiprocs,NUM_THREADS>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel");
     
     }catch(const std::exception &e){
@@ -93,16 +106,44 @@ bool run_cuda(bhcParams &params, bhcOutputs &outputs)
     return api_okay;
 }
 
-BHC_API bool run(bhcParams &params, bhcOutputs &outputs, bool singlethread)
+#if BHC_ENABLE_2D
+template bool run_cuda<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template bool run_cuda<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template bool run_cuda<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+template<bool O3D, bool R3D> bool run(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     if(singlethread){
         GlobalLog("Single threaded mode is nonsense on CUDA, ignoring\n");
     }
-    if(params.Beam->RunType[0] == 'R'){
-        return run_cxx(params, outputs, false);
+    if(IsRayRun(params.Beam)){
+        return run_cxx<O3D, R3D>(params, outputs, false);
     }else{
-        return run_cuda(params, outputs);
+        return run_cuda<O3D, R3D>(params, outputs);
     }
 }
+
+#if BHC_ENABLE_2D
+template bool BHC_API run<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+#endif
+#if BHC_ENABLE_NX2D
+template bool BHC_API run<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+#endif
+#if BHC_ENABLE_3D
+template bool BHC_API run<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+#endif
+
 
 }

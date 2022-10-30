@@ -26,54 +26,44 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-HOST_DEVICE inline int32_t GetNumJobs(const Position *Pos, const AnglesStructure *Angles)
-{
-    return Pos->NSz * (Angles->iSingle_alpha >= 1 ? 1 : Angles->Nalpha);
-}
-
-/**
- * Returns whether the job should continue.
- * `is` changed to `isrc` because `is` is used for steps
- */
-HOST_DEVICE inline bool GetJobIndices(int32_t &isrc, int32_t &ialpha, int32_t job,
-    const Position *Pos, const AnglesStructure *Angles)
-{
-    if(Angles->iSingle_alpha >= 1){
-        isrc = job;
-        ialpha = Angles->iSingle_alpha - 1; //iSingle_alpha is 1-indexed because how defined in env file
-    }else{
-        isrc = job / Angles->Nalpha;
-        ialpha = job % Angles->Nalpha;
-    }
-    return (isrc < Pos->NSz);
-}
-
-inline void InitSelectedMode(bhcParams &params, bhcOutputs &outputs, bool singlethread)
+template<bool O3D, bool R3D> inline void InitSelectedMode(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     //this is always called from run_* so update intermediate params
     PrintFileEmu& PRTFile = *(PrintFileEmu*)params.internal;
-    bhc::UpdateSSP(params.Bdry->Bot.hs.Depth, params.freqinfo->freq0, 
-        params.fT, params.ssp, PRTFile, params.atten);
+    bhc::UpdateSSP(params.freqinfo->freq0, params.fT, params.ssp, PRTFile, params.atten);
 
     // Common
+    int32_t ns = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;
+    BASSERT(ns >= 1);
+    
     // irregular or rectilinear grid
-    params.Pos->NRz_per_range = (params.Beam->RunType[4] == 'I') ? 1 : params.Pos->NRz;
+    params.Pos->NRz_per_range = IsIrregularGrid(params.Beam) ? 1 : params.Pos->NRz;
     
     // Mode specific
-    if(params.Beam->RunType[0] == 'R'){
-        InitRayMode(outputs.rayinfo, params);
-    }else if(params.Beam->RunType[0] == 'C' || params.Beam->RunType[0] == 'S' || params.Beam->RunType[0] == 'I'){
+    if(IsRayRun(params.Beam)){
+        InitRayMode<O3D, R3D>(outputs.rayinfo, params);
+    }else if(IsTLRun(params.Beam)){
         InitTLMode(outputs.uAllSources, params.Pos);
-    }else if(params.Beam->RunType[0] == 'E'){
+    }else if(IsEigenraysRun(params.Beam)){
         InitEigenMode(outputs.eigen);
-    }else if(params.Beam->RunType[0] == 'A' || params.Beam->RunType[0] == 'a'){
-        InitArrivalsMode(outputs.arrinfo, singlethread, params.Pos, *(PrintFileEmu*)params.internal);
+    }else if(IsArrivalsRun(params.Beam)){
+        InitArrivalsMode(outputs.arrinfo, singlethread, R3D, params.Pos,
+            *(PrintFileEmu*)params.internal);
     }else{
         GlobalLog("Invalid RunType %c\n", params.Beam->RunType[0]);
         std::abort();
     }
 }
 
-bool run_cxx(bhcParams &params, bhcOutputs &outputs, bool singlethread);
+template<bool O3D, bool R3D> bool run_cxx(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
+extern template bool run_cxx<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+extern template bool run_cxx<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+extern template bool run_cxx<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+
 
 }

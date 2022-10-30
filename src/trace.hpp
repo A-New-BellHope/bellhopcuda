@@ -18,8 +18,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "runtype.hpp"
 #include "step.hpp"
-#include "refcoef.hpp"
+#include "reflect.hpp"
 
 namespace bhc {
 
@@ -29,234 +30,39 @@ namespace bhc {
  * 
  * rayx: ray coordinate
  * Topx, Botx: top, bottom coordinate
- * dTop, dBot: vector pointing from top, bottom bdry to ray
  * Topn, Botn: top, bottom normal vector (outward)
  * DistTop, DistBot: distance (normal to bdry) from the ray to top, bottom boundary
 */
-HOST_DEVICE inline void Distances2D(const vec2 &rayx, 
-    const vec2 &Topx, const vec2 &Botx, vec2 &dTop, vec2 &dBot,
-    const vec2 &Topn, const vec2 &Botn, real &DistTop, real &DistBot)
+template<bool R3D> HOST_DEVICE inline void Distances(const VEC23<R3D> &rayx, 
+    const VEC23<R3D> &Topx, const VEC23<R3D> &Botx,
+    const VEC23<R3D> &Topn, const VEC23<R3D> &Botn, real &DistTop, real &DistBot)
 {
-    dTop = rayx - Topx; // vector pointing from top    to ray
-    dBot = rayx - Botx; // vector pointing from bottom to ray
+    VEC23<R3D> dTop = rayx - Topx; // vector pointing from top    bdry to ray
+    VEC23<R3D> dBot = rayx - Botx; // vector pointing from bottom bdry to ray
     DistTop = -glm::dot(Topn, dTop);
     DistBot = -glm::dot(Botn, dBot);
 }
 
 /**
- * LP: No function description given.
- * 
- * hs: half-space properties
- * isTop: Flag indicating bottom or top reflection
- * tBdry, nBdry: Tangent and normal to the boundary
- * kappa: Boundary curvature
- * RefC: reflection coefficient
+ * LP: Not a typo that this is templated on O3D only
  */
-HOST_DEVICE inline void Reflect2D(const ray2DPt &oldPoint, ray2DPt &newPoint,
-    const HSInfo &hs, bool isTop,
-    const vec2 &tBdry, const vec2 &nBdry, real kappa, real freq,
-    const ReflectionCoef *RefC, int32_t Npts,
-    const BeamStructure *Beam, const SSPStructure *ssp,
-    int32_t &iSegz, int32_t &iSegr)
+template<bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
+    int32_t isx, int32_t isy, int32_t isz, real alpha,
+    SSPSegState &iSeg, const Position *Pos, const SSPStructure *ssp,
+    VEC23<O3D> &xs, VEC23<O3D> &tinit)
 {
-    cpx ccpx;
-    vec2 gradc;
-    real crr, crz, czz, rho; // derivatives of sound speed
-    real rm, rn, Tg, Th;
-    vec2 rayt, rayn, rayt_tilde, rayn_tilde;
-    real cnjump, csjump; // for curvature change
-    real ck, co, si, cco, ssi, pdelta, rddelta, sddelta, theta_bot; // for beam shift
-    cpx kx, kz, kzP, kzS, kzP2, kzS2, mu, f, g, y2, y4, Refl; // for tabulated reflection coef.
-    cpx ch, a, b, d, sb, delta, ddelta; // for beam shift
-    ReflectionCoef RInt;
-    real omega = FL(2.0) * REAL_PI * freq;
-    
-    Tg = glm::dot(oldPoint.t, tBdry); // component of ray tangent, along boundary
-    Th = glm::dot(oldPoint.t, nBdry); // component of ray tangent, normal to boundary
-    
-    // LP: Incrementing bounce count moved here
-    newPoint.NumTopBnc = oldPoint.NumTopBnc + (isTop ? 1 : 0);
-    newPoint.NumBotBnc = oldPoint.NumBotBnc + (isTop ? 0 : 1);
-    newPoint.x         = oldPoint.x;
-    newPoint.t         = oldPoint.t - FL(2.0) * Th * nBdry; // changing the ray direction
-    
-    // Calculate the change in curvature
-    // Based on formulas given by Muller, Geoph. J. R.A.S., 79 (1984).
-    
-    // just to get c 
-    // LP: ccpx.real(); also, this is wrong, it is also using gradc
-    EvaluateSSP(oldPoint.x, oldPoint.t, ccpx, gradc, crr, crz, czz, rho, freq, ssp, iSegz, iSegr);
-    
-    // incident unit ray tangent and normal
-    rayt = ccpx.real() * oldPoint.t; // unit tangent to ray
-    rayn = vec2(-rayt.y, rayt.x);     // unit normal  to ray
-    
-    // reflected unit ray tangent and normal (the reflected tangent, normal system has a different orientation)
-    rayt_tilde = ccpx.real() * newPoint.t;         // unit tangent to ray
-    rayn_tilde = -vec2(-rayt_tilde.y, rayt_tilde.x); // unit normal  to ray
-    
-    rn = FL(2.0) * kappa / SQ(ccpx.real()) / Th; // boundary curvature correction
-    
-    // get the jumps (this could be simplified, e.g. jump in rayt is roughly 2 * Th * nbdry
-    cnjump = -glm::dot(gradc, rayn_tilde - rayn);
-    csjump = -glm::dot(gradc, rayt_tilde - rayt);
-    
-    if(isTop){
-        cnjump = -cnjump; // this is because the (t,n) system of the top boundary has a different sense to the bottom boundary
-        rn = -rn;
-    }
-    
-    rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
-    rn = rn + rm * (FL(2.0) * cnjump - rm * csjump) / SQ(ccpx.real());
-    
-    if(Beam->Type[2] == 'D'){
-        rn = FL(2.0) * rn;
-    }else if(Beam->Type[2] == 'Z'){
-        rn = FL(0.0);
-    }
-    
-    newPoint.c   = ccpx.real();
-    newPoint.tau = oldPoint.tau;
-    newPoint.p   = oldPoint.p + oldPoint.q * rn;
-    newPoint.q   = oldPoint.q;
-    
-    // account for phase change
-    
-    if(hs.bc == 'R'){ // rigid
-        newPoint.Amp   = oldPoint.Amp;
-        newPoint.Phase = oldPoint.Phase;
-    }else if(hs.bc == 'V'){ // vacuum
-        newPoint.Amp   = oldPoint.Amp;
-        newPoint.Phase = oldPoint.Phase + REAL_PI;
-    }else if(hs.bc == 'F'){ // file
-        RInt.theta = RadDeg * STD::abs(STD::atan2(Th, Tg)); // angle of incidence (relative to normal to bathymetry)
-        if(RInt.theta > FL(90.0)) RInt.theta = FL(180.0) - RInt.theta; // reflection coefficient is symmetric about 90 degrees
-        InterpolateReflectionCoefficient(RInt, RefC, Npts);
-        newPoint.Amp   = oldPoint.Amp * RInt.r;
-        newPoint.Phase = oldPoint.Phase + RInt.phi;
-    }else if(hs.bc == 'A' || hs.bc == 'G'){ // half-space
-        kx = omega * Tg; // wavenumber in direction parallel      to bathymetry
-        kz = omega * Th; // wavenumber in direction perpendicular to bathymetry (in ocean)
-        cpx kx2 = SQ(kx);
-        
-        // notation below is a bit mis-leading
-        // kzS, kzP is really what I called gamma in other codes, and differs by a factor of +/- i
-        if(hs.cS.real() > FL(0.0)){
-            kzS2 = kx2 - SQ(omega / hs.cS);
-            kzP2 = kx2 - SQ(omega / hs.cP);
-            kzS  = STD::sqrt(kzS2);
-            kzP  = STD::sqrt(kzP2);
-            mu   = hs.rho * SQ(hs.cS);
-            
-            y2 = (SQ(kzS2 + kx2) - FL(4.0) * kzS * kzP * kx2) * mu;
-            y4 = kzP * (kx2 - kzS2);
-            
-            f = SQ(omega) * y4;
-            g = y2;
-        }else{
-            kzP = STD::sqrt(kx2 - SQ(omega / hs.cP));
-            
-            // Intel and GFortran compilers return different branches of the SQRT for negative reals
-            // LP: looks like this just means we want the positive branch
-            if(kzP.real() == RL(0.0) && kzP.imag() < RL(0.0)) kzP = -kzP;
-            f = kzP;
-            g = hs.rho;
-        }
-        
-        Refl = -(rho * f - J * kz * g) / (rho * f + J * kz * g); // complex reflection coef.
-        /*
-        GlobalLog("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
-            hs.cP.real(), hs.cP.imag(), hs.rho);
-        GlobalLog("kx kz f g Refl (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
-            kx.real(), kx.imag(), kz.real(), kz.imag(), f.real(), f.imag(),
-            g.real(), g.imag(), Refl.real(), Refl.imag());
-        */
-        
-        if(STD::abs(Refl) < FL(1.0e-5)){ // kill a ray that has lost its energy in reflection
-            newPoint.Amp   = FL(0.0);
-            newPoint.Phase = oldPoint.Phase;
-        }else{
-            newPoint.Amp   = STD::abs(Refl) * oldPoint.Amp;
-            newPoint.Phase = oldPoint.Phase + STD::atan2(Refl.imag(), Refl.real());
-            
-            // compute beam-displacement Tindle, Eq. (14)
-            // needs a correction to beam-width as well ...
-            // LP: most of these variables don't exist, likely very old code
-            // if(kz2Sq.real() < FL(0.0)){
-            //     rhoW = FL(1.0); // density of water
-            //     rhoWSq = rhoW * rhoW;
-            //     rhoHSSq = rhoHS * rhoHS;
-            //     delta = FL(2.0) * gk * rhoW * rhoS * (kz1Sq - kz2Sq) /
-            //         (kz1 * i * kz2 *
-            //             (-rhoWSq * kz2Sq + rhoHSSq * kz1Sq));
-            //     rv[is+1] = rv[is+1] + delta;
-            // }
-            
-            if(Beam->Type[3] == 'S'){ // beam displacement & width change (Seongil's version)
-                ch = oldPoint.c / STD::conj(hs.cP);
-                co = oldPoint.t.x * oldPoint.c;
-                si = oldPoint.t.y * oldPoint.c;
-                ck = omega / oldPoint.c;
-                
-                a   = FL(2.0) * hs.rho * (FL(1.0) - SQ(ch));
-                b   = SQ(co) - SQ(ch);
-                d   = SQ(hs.rho) * SQ(si) + b;
-                sb  = STD::sqrt(b);
-                cco = SQ(co);
-                ssi = SQ(si);
-                
-                if(si != FL(0.0)){
-                    delta = a * co / si / (ck * sb * d); // Do we need an abs() on this???
-                }else{
-                    delta = FL(0.0);
-                }
-                
-                pdelta = delta.real() / (oldPoint.c / co);
-                // LP: The spacing in the original version of this formula,
-                // the fact that several terms could be factored out to reduce
-                // computation, and the repeated divisons, lead me to believe
-                // that it may not be correct.
-                // Here is the original version with the weird spacing:
-                // ddelta = -a / (ck*sb*d) - a*cco / ssi / (ck*sb*d) + a*cco / (ck*b*sb*d)
-                //     -a*co / si / (ck*sb*d*d) * (FL(2.0)* SQ(hs.rho) *si*co-FL(2.0)*co*si);
-                // Here is a version with things factored better:
-                cpx cksbd = ck * sb * d;
-                ddelta = a * (cco / (cksbd * b)
-                    - (RL(1.0) + (cco / ssi)) / cksbd
-                    - FL(2.0) * SQ(co) * (SQ(hs.rho) - RL(1.0)) / (cksbd * d) );
-                rddelta = -ddelta.real();
-                sddelta = rddelta / STD::abs(rddelta);
-                
-                // next 3 lines have an update by Diana McCammon to allow a sloping bottom
-                // I think the formulas are good, but this won't be reliable because it doesn't have the logic
-                // that tracks crossing into new segments after the ray displacement.
-                
-                theta_bot = STD::atan(tBdry.y / tBdry.x); // bottom angle
-                newPoint.x.x = newPoint.x.x + delta.real() * STD::cos(theta_bot); // range displacement
-                newPoint.x.y = newPoint.x.y + delta.real() * STD::sin(theta_bot); // depth displacement
-                newPoint.tau = newPoint.tau + pdelta; // phase change
-                newPoint.q   = newPoint.q + sddelta * rddelta * si * ccpx.real() * oldPoint.p; // beam-width change
-            }
-        }
+    if constexpr(O3D){
+        xs = vec3(Pos->Sx[isx], Pos->Sy[isy], Pos->Sz[isz]);
+        tinit = vec3(FL(0.0), FL(0.0), FL(1.0));
+        IGNORE_UNUSED(alpha);
     }else{
-        GlobalLog("Reflect2D: Unknown boundary condition type\n");
-        bail();
+        xs = vec2(FL(0.0), Pos->Sz[isz]); // x-y [LP: r-z] coordinate of the source
+        tinit = vec2(STD::cos(alpha), STD::sin(alpha));
     }
-    
-    // GlobalLog("Reflection amp changed from to %g %g\n", oldPoint.Amp, newPoint.Amp);
-}
-
-/**
- * Copy only specific data from the HSInfo (halfspace info) struct.
- * [LP: FORTRAN] compiler is not accepting the copy of the whole structure at once ...
- * LP: maybe this means actually the whole struct should be copied, but he
- * only copied the elements which were needed?
- */
-HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
-{
-    b.cP  = a.cP;
-    b.cS  = a.cS;
-    b.rho = a.rho;
+    SSPOutputs<O3D> o;
+    // LP: Not a typo that this is templated on O3D only
+    EvaluateSSP<O3D, O3D>(xs, tinit, o, Origin<O3D,O3D>(), ssp, iSeg);
+    return o;
 }
 
 /**
@@ -265,100 +71,146 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  * Original comments follow.
  * 
  * DistBegTop etc.: Distances from ray beginning, end to top and bottom
- * IsegTop, IsegBot: indices that point to the current active segment
- * rTopSeg, rBotSeg: range intervals defining the current active segment
  */
-HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle,
-    ray2DPt &point0, vec2 &gradc, real &DistBegTop, real &DistBegBot, 
-    int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
-    int32_t &iSegz, int32_t &iSegr, BdryType &Bdry,
-    const BdryType *ConstBdry, const BdryInfo *bdinfo,
+template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
+    RayInitInfo &rinit, VEC23<O3D> &xs, 
+    rayPt<R3D> &point0, VEC23<O3D> &gradc, real &DistBegTop, real &DistBegBot, 
+    Origin<O3D, R3D> &org, SSPSegState &iSeg, BdryState<O3D> &bds, BdryType &Bdry,
+    const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, const BeamInfo *beaminfo)
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo)
 {
-    if(isrc < 0 || ialpha < 0 || isrc >= Pos->NSz || ialpha >= Angles->Nalpha){
-        GlobalLog("Invalid isrc %d ialpha %d\n", isrc, ialpha);
+    if(    rinit.isz < 0    || rinit.isz >= Pos->NSz 
+        || rinit.ialpha < 0 || rinit.ialpha >= Angles->alpha.n
+        || (O3D && (
+            rinit.isx < 0   || rinit.isx >= Pos->NSx ||
+            rinit.isy < 0   || rinit.isy >= Pos->NSy ||
+            rinit.ibeta < 0 || rinit.ibeta >= Angles->beta.n
+    ))){
+        GlobalLog("Invalid ray init indexes!\n");
         bail();
     }
+    // GlobalLog("Tracing azimuthal %d declination %d beam\n", rinit.ibeta, rinit.ialpha);
     
     // LP: This part from BellhopCore
-    float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
-    vec2 xs = vec2(FL(0.0), Pos->Sz[isrc]); // x-y coordinate of the source
     
-    // LP: Changed in BELLHOP to just reinitialize before every ray.
-    iSegz = iSegr = 0;
-    
-    real alpha = Angles->alpha[ialpha]; // initial angle
-    SrcDeclAngle = RadDeg * alpha; // take-off declination angle in degrees
-    
-    cpx ccpx; real crr, crz, czz, rho;
-    vec2 tinit = vec2(STD::cos(alpha), STD::sin(alpha));
-    EvaluateSSP(xs, tinit, ccpx, gradc, crr, crz, czz, rho, freqinfo->freq0, ssp, iSegz, iSegr);
-    
-    // Are there enough beams?
-    real DalphaOpt = STD::sqrt(ccpx.real() / (FL(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
-    int32_t NalphaOpt = 2 + (int)((Angles->alpha[Angles->Nalpha-1] - Angles->alpha[0]) / DalphaOpt);
-    
-    if(Beam->RunType[0] == 'C' && Angles->Nalpha < NalphaOpt && ialpha == 0){
-        GlobalLog("Warning in " BHC_PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
+    rinit.alpha = Angles->alpha.angles[rinit.ialpha]; // initial angle
+    rinit.SrcDeclAngle = RadDeg * rinit.alpha; // take-off declination angle in degrees
+    if constexpr(O3D){
+        rinit.beta = Angles->beta.angles[rinit.ibeta];
+        rinit.SrcAzimAngle = RadDeg * rinit.beta; // take-off azimuthal   angle in degrees
+    }else{
+        rinit.beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
+    }
+    if constexpr(O3D && !R3D){
+        org.xs = xs;
+        org.tradial = vec2(STD::cos(rinit.beta), STD::sin(rinit.beta));
     }
     
-    int32_t ibp = BinarySearchLEQ(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, SrcDeclAngle);
-    ibp = bhc::min(ibp, beaminfo->NSBPPts-2); // don't go past end of table
+    iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
+    VEC23<O3D> tinit;
+    SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(
+        rinit.isx, rinit.isy, rinit.isz, rinit.alpha,
+        iSeg, Pos, ssp, xs, tinit);
+    gradc = o.gradc;
+    
+    if constexpr(!O3D){
+        // Are there enough beams?
+        real DalphaOpt = STD::sqrt(o.ccpx.real() / (FL(6.0) * freqinfo->freq0 * Pos->Rr[Pos->NRr-1]));
+        int32_t NalphaOpt = 2 + (int)((Angles->alpha.angles[Angles->alpha.n-1] - Angles->alpha.angles[0]) / DalphaOpt);
+        
+        if(IsCoherentRun(Beam) && Angles->alpha.n < NalphaOpt && rinit.ialpha == 0){
+            GlobalLog("Warning in " BHC_PROGRAMNAME " : Too few beams\nNalpha should be at least = %d\n", NalphaOpt);
+        }
+    }
+    
+    int32_t ibp = BinarySearchLEQ(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, rinit.SrcDeclAngle);
+    // LP: Our function won't ever go outside the table, but we need to limit it
+    // to 2 from the end.
+    ibp = bhc::min(ibp, beaminfo->NSBPPts-2);
     
     // linear interpolation to get amplitude
-    real s = (SrcDeclAngle - beaminfo->SrcBmPat[2*ibp+0]) / (beaminfo->SrcBmPat[2*(ibp+1)+0] - beaminfo->SrcBmPat[2*ibp+0]);
+    real s = (rinit.SrcDeclAngle - beaminfo->SrcBmPat[2*ibp+0]) /
+        (beaminfo->SrcBmPat[2*(ibp+1)+0] - beaminfo->SrcBmPat[2*ibp+0]);
     float Amp0 = (FL(1.0) - s) * beaminfo->SrcBmPat[2*ibp+1] + s * beaminfo->SrcBmPat[2*(ibp+1)+1]; // initial amplitude
     
     // Lloyd mirror pattern for semi-coherent option
-    if(Beam->RunType[0] == 'S')
-        Amp0 *= STD::sqrt(FL(2.0)) * STD::abs(STD::sin(omega / ccpx.real() * xs.y * STD::sin(alpha)));
+    if(IsSemiCoherentRun(Beam)){
+        float omega = FL(2.0) * REAL_PI * freqinfo->freq0;
+        Amp0 *= STD::sqrt(FL(2.0)) * STD::abs(STD::sin(omega / o.ccpx.real() * DEP(xs) * STD::sin(rinit.alpha)));
+    }
         
-    // LP: This part from TraceRay2D
+    // LP: This part from TraceRay
     
-    point0 = ray2DPt{
-        /*.NumTopBnc =*/ 0,
-        /*.NumBotBnc =*/ 0,
-        /*.x         =*/ xs,
-        /*.t         =*/ tinit / ccpx.real(),
-        /*.p         =*/ vec2(FL(1.0), FL(0.0)),
-        /*.q         =*/ vec2(FL(0.0), FL(1.0)),
-        /*.c         =*/ ccpx.real(),
-        /*.Amp       =*/ Amp0,
-        /*.Phase     =*/ FL(0.0),
-        /*.tau       =*/ cpx(FL(0.0), FL(0.0)),
-    };
-    // second component of qv is not used in geometric beam tracing
-    // set I.C. to 0 in hopes of saving run time
-    if(Beam->RunType[1] == 'G') point0.q = vec2(FL(0.0), FL(0.0));
+    VEC23<R3D> tinit2;
+    if constexpr(R3D){
+        tinit2 = vec3(STD::cos(rinit.alpha) * STD::cos(rinit.beta),
+                      STD::cos(rinit.alpha) * STD::sin(rinit.beta),
+                      STD::sin(rinit.alpha));
+    }else if constexpr(O3D){
+        tinit2 = vec2(STD::cos(rinit.alpha), STD::sin(rinit.alpha));
+    }else{
+        tinit2 = tinit;
+    }
+    if constexpr(O3D && !R3D){
+        point0.x     = vec2(RL(0.0), xs.z);
+    }else{
+        point0.x     = xs;
+    }
+    point0.c         = o.ccpx.real();
+    point0.t         = tinit2 / o.ccpx.real();
+    point0.tau       = cpx(FL(0.0), FL(0.0));
+    point0.Amp       = Amp0;
+    point0.Phase     = FL(0.0);
+    point0.NumTopBnc = 0;
+    point0.NumBotBnc = 0;
+    if constexpr(R3D){
+        point0.p     = mat2x2(FL(1.0)); // LP: identity
+        point0.q     = mat2x2(FL(0.0)); // LP: zero matrix
+        // point0.DetQ  = epsilon1 * epsilon2 // LP: commented out
+        point0.phi   = FL(0.0);
+    }else{
+        point0.p     = vec2(FL(1.0), FL(0.0));
+        point0.q     = vec2(FL(0.0), FL(1.0));
+    }
     
-    IsegTop = 0; IsegBot = 0;
-    GetTopSeg(xs.x, point0.t.x, IsegTop, rTopSeg, bdinfo); // identify the top    segment above the source
-    GetBotSeg(xs.x, point0.t.x, IsegBot, rBotSeg, bdinfo); // identify the bottom segment below the source
+    if constexpr(!O3D){
+        // second component of qv is not used in geometric beam tracing
+        // set I.C. to 0 in hopes of saving run time
+        // LP: I don't think modern CPUs / GPUs have early return from the
+        // floating-point unit if one of the operands is zero, as the floating-
+        // point unit is pipelined and produces results every clock anyway.
+        // LP: Also, this only applies to geometric hat beams in Cartesian
+        // coordinates specified as 'G' rather than '^', not any of the other
+        // geometric types.
+        if(Beam->RunType[1] == 'G') point0.q = vec2(FL(0.0), FL(0.0));
+    }
     
-    // convert range-dependent geoacoustic parameters from user to program units
-    // LP: BELLHOP uses all values from ConstBdry except replaces cP, cS, and rho
-    // from the current segment in bdinfo. rho is read from files in ReadATI and
-    // ReadBTY, and cP and cS are computed in core_setup. bc, which is also read
-    // by Reflect2D, is never set in bdinfo and is left alone from ConstBdry.
     Bdry = *ConstBdry;
-    if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs);
-    if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs);
-    // GlobalLog("btyType cP top bot %c%c (%g,%g) (%g,%g)\n", bdinfo->btyType[0], bdinfo->btyType[1],
-    //     Bdry.Top.hs.cP.real(), Bdry.Top.hs.cP.imag(),
-    //     Bdry.Bot.hs.cP.real(), Bdry.Bot.hs.cP.imag());
+    if constexpr(O3D){
+        bds.top.Iseg.x = bds.top.Iseg.y = 0;
+        bds.bot.Iseg.x = bds.bot.Iseg.y = 0;
+    }else{
+        bds.top.Iseg = bds.bot.Iseg = 0;
+    }
+    GetBdrySeg<O3D>(xs, RayToOceanT(point0.t, org), bds.top, &bdinfo->top, Bdry.Top, true , true); // identify the top    segment above the source
+    GetBdrySeg<O3D>(xs, RayToOceanT(point0.t, org), bds.bot, &bdinfo->bot, Bdry.Bot, false, true); // identify the bottom segment below the source
     
-    vec2 dEndTop_temp, dEndBot_temp;
-    Distances2D(point0.x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, 
-        dEndTop_temp, dEndBot_temp,
-        bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistBegTop, DistBegBot);
-        
+    Distances<R3D>(point0.x, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
+    
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)){
         GlobalLog("Terminating the ray trace because the source is on or outside the boundaries\n");
-        // GlobalLog("xs (%g,%g) Bot.x (%g,%g) Bot.n (%g,%g) DistBegBot %g\n",
-        //     xs.x, xs.y,
-        //     bdinfo->Bot[IsegBot].x.x, bdinfo->Bot[IsegBot].x.y,
-        //     bdinfo->Bot[IsegBot].n.x, bdinfo->Bot[IsegBot].n.y, DistBegBot);
+        /*
+        if(DistBegTop <= FL(0.0)){
+            GlobalLog("point0.x %f,%f bds.top.x %f,%f bds.top.n %f,%f DistBegTop %f\n",
+                point0.x.x, point0.x.y, bds.top.x.x, bds.top.x.y,
+                bds.top.n.x, bds.top.n.y, DistBegTop);
+        }else{
+            GlobalLog("point0.x %f,%f bds.bot.x %f,%f bds.bot.n %f,%f DistBegBot %f\n",
+                point0.x.x, point0.x.y, bds.bot.x.x, bds.bot.x.y,
+                bds.bot.n.x, bds.bot.n.y, DistBegBot);
+        }
+        */
         return false; // source must be within the medium
     }
     
@@ -369,19 +221,18 @@ HOST_DEVICE inline bool RayInit(int32_t isrc, int32_t ialpha, real &SrcDeclAngle
  * LP: Pulled out contents of ray update loop. Returns the number of ray steps
  * taken (i.e. normally 1, or 2 if reflected).
  */
-HOST_DEVICE inline int32_t RayUpdate(
-    const ray2DPt &point0, ray2DPt &point1, ray2DPt &point2,
-    real &DistEndTop, real &DistEndBot, 
-    int32_t &IsegTop, int32_t &IsegBot, vec2 &rTopSeg, vec2 &rBotSeg,
-    int32_t &iSmallStepCtr, int32_t &iSegz, int32_t &iSegr,
-    BdryType &Bdry, const BdryInfo *bdinfo, const ReflectionInfo *refl,
-    const SSPStructure *ssp, const FreqInfo *freqinfo, const BeamStructure *Beam)
+template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
+    const rayPt<R3D> &point0, rayPt<R3D> &point1, rayPt<R3D> &point2,
+    real &DistEndTop, real &DistEndBot,
+    int32_t &iSmallStepCtr, const Origin<O3D, R3D> &org, SSPSegState &iSeg,
+    BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo,
+    const ReflectionInfo *refl, const SSPStructure *ssp, const FreqInfo *freqinfo,
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs)
 {
     int32_t numRaySteps = 1;
-    bool topRefl, botRefl;
-    Step2D(point0, point1, bdinfo->Top[IsegTop].x, bdinfo->Top[IsegTop].n,
-        bdinfo->Bot[IsegBot].x, bdinfo->Bot[IsegBot].n, rTopSeg, rBotSeg, 
-        freqinfo->freq0, Beam, ssp, iSegz, iSegr, iSmallStepCtr, topRefl, botRefl);
+    bool topRefl, botRefl, flipTopDiag, flipBotDiag;
+    Step<O3D, R3D>(point0, point1, bds, Beam, xs, org, ssp, iSeg, iSmallStepCtr,
+        topRefl, botRefl, flipTopDiag, flipBotDiag);
     /*
     if(point0.x == point1.x){
         GlobalLog("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -389,56 +240,83 @@ HOST_DEVICE inline int32_t RayUpdate(
     }
     */
     
-    // New altimetry segment?
-    if(    point1.x.x < rTopSeg.x || (point1.x.x == rTopSeg.x && point1.t.x < FL(0.0))
-        || point1.x.x > rTopSeg.y || (point1.x.x == rTopSeg.y && point1.t.x >= FL(0.0))){
-        GetTopSeg(point1.x.x, point1.t.x, IsegTop, rTopSeg, bdinfo);
-        if(bdinfo->atiType[1] == 'L') CopyHSInfo(Bdry.Top.hs, bdinfo->Top[IsegTop].hs); // grab the geoacoustic info for the new segment
+    if constexpr(O3D){
+        if(flipTopDiag) bds.top.tridiag_pos = !bds.top.tridiag_pos;
+        if(flipBotDiag) bds.bot.tridiag_pos = !bds.bot.tridiag_pos;
     }
-    
-    // New bathymetry segment?
-    if(    point1.x.x < rBotSeg.x || (point1.x.x == rBotSeg.x && point1.t.x < FL(0.0))
-        || point1.x.x > rBotSeg.y || (point1.x.x == rBotSeg.y && point1.t.x >= FL(0.0))){
-        GetBotSeg(point1.x.x, point1.t.x, IsegBot, rBotSeg, bdinfo);
-        if(bdinfo->btyType[1] == 'L') CopyHSInfo(Bdry.Bot.hs, bdinfo->Bot[IsegBot].hs); // grab the geoacoustic info for the new segment
-    }
+    VEC23<O3D> x_o = RayToOceanX(point1.x, org);
+    VEC23<O3D> t_o = RayToOceanT(point1.t, org);
+    GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true , false);
+    GetBdrySeg<O3D>(x_o, t_o, bds.bot, &bdinfo->bot, Bdry.Bot, false, false);
     
     // Reflections?
     // Tests that ray at step is is inside, and ray at step is+1 is outside
     // to detect only a crossing from inside to outside
     // DistBeg is the distance at point0, which is saved
     // DistEnd is the distance at point1, which needs to be calculated
-    vec2 dEndTop, dEndBot;
-    Distances2D(point1.x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x,
-        dEndTop, dEndBot,
-        bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
+    Distances<R3D>(x_o, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
     
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl){
         // GlobalLog(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
-        vec2 dEnd = topRefl ? dEndTop : dEndBot;
-        BdryPtFull *bd0 = topRefl ? &bdinfo->Top[IsegTop] : &bdinfo->Bot[IsegBot];
-        BdryPtFull *bd1 = &bd0[1]; // LP: next segment
-        vec2 nInt, tInt;
-        // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
-        if((topRefl ? bdinfo->atiType[0] : bdinfo->btyType[0]) == 'C'){
-            real sss = glm::dot(dEnd, bd0->t) / bd0->Len; // proportional distance along segment
-            nInt = (FL(1.0) - sss) * bd0->Noden + sss * bd1->Noden;
-            tInt = (FL(1.0) - sss) * bd0->Nodet + sss * bd1->Nodet;
+        const BdryInfoTopBot<O3D> &bdi = topRefl ? bdinfo->top : bdinfo->bot;
+        const BdryStateTopBot<O3D> &bdstb = topRefl ? bds.top : bds.bot;
+        const HSInfo &hs = topRefl ? Bdry.Top.hs : Bdry.Bot.hs;
+        const ReflectionInfoTopBot &refltb = topRefl ? refl->top : refl->bot;
+        ReflCurvature<O3D> rcurv;
+        VEC23<R3D> tInt(RL(0.0));
+        VEC23<O3D> nInt;
+        
+        if constexpr(O3D){
+            // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
+            if(bdi.type[0] == 'C'){
+                real s1 = (x_o.x - bdstb.x.x) / (bdstb.lSeg.x.max - bdstb.lSeg.x.min);
+                real s2 = (x_o.y - bdstb.x.y) / (bdstb.lSeg.y.max - bdstb.lSeg.y.min);
+                real m1 = FL(1.0) - s1;
+                real m2 = FL(1.0) - s2;
+                
+                BdryPtFull<true> *bd00 = &bdi.bd[(bdstb.Iseg.x  )*bdi.NPts.y+bdstb.Iseg.y  ];
+                BdryPtFull<true> *bd01 = &bdi.bd[(bdstb.Iseg.x  )*bdi.NPts.y+bdstb.Iseg.y+1];
+                BdryPtFull<true> *bd10 = &bdi.bd[(bdstb.Iseg.x+1)*bdi.NPts.y+bdstb.Iseg.y  ];
+                BdryPtFull<true> *bd11 = &bdi.bd[(bdstb.Iseg.x+1)*bdi.NPts.y+bdstb.Iseg.y+1];
+                
+                nInt = bd00->Noden * m1 * m2 +
+                       bd10->Noden * s1 * m2 +
+                       bd11->Noden * s1 * s2 +
+                       bd01->Noden * m1 * s2;
+                rcurv.z_xx = bd00->z_xx;
+                rcurv.z_xy = bd00->z_xy;
+                rcurv.z_yy = bd00->z_yy;
+                
+                rcurv.kappa_xx = bd00->kappa_xx;
+                rcurv.kappa_xy = bd00->kappa_xy;
+                rcurv.kappa_yy = bd00->kappa_yy;
+            }else{
+                nInt = bdstb.n;
+                rcurv.z_xx = rcurv.z_xy = rcurv.z_yy = FL(0.0);
+                rcurv.kappa_xx = rcurv.kappa_xy = rcurv.kappa_yy = FL(0.0);
+            }
         }else{
-            nInt = bd0->n; // normal is constant in a segment
-            tInt = bd0->t;
+            BdryPtFull<false> *bd0 = &bdi.bd[bdstb.Iseg];
+            BdryPtFull<false> *bd1 = &bd0[1]; // LP: next segment
+            // LP: FORTRAN actually checks if the whole string is just "C", not just the first char
+            if(bdi.type[0] == 'C'){
+                real sss = glm::dot(point1.x - bdstb.x, bd0->t) / bd0->Len; // proportional distance along segment
+                nInt = (FL(1.0) - sss) * bd0->Noden + sss * bd1->Noden;
+                tInt = (FL(1.0) - sss) * bd0->Nodet + sss * bd1->Nodet;
+            }else{
+                nInt = bd0->n; // normal is constant in a segment
+                tInt = bd0->t;
+            }
+            rcurv.kappa = bd0->kappa;
         }
-        Reflect2D(point1, point2, 
-            topRefl ? Bdry.Top.hs : Bdry.Bot.hs,
-            topRefl, tInt, nInt, bd0->kappa, freqinfo->freq0,
-            topRefl ? refl->RTop : refl->RBot,
-            topRefl ? refl->NTopPts : refl->NBotPts,
-            Beam, ssp, iSegz, iSegr);
-        //Incrementing bounce count moved to Reflect2D
+        
+        Reflect<O3D, R3D>(point1, point2, hs, topRefl, tInt, nInt, rcurv,
+            freqinfo->freq0, refltb, Beam, org, ssp, iSeg);
+        //Incrementing bounce count moved to Reflect
         numRaySteps = 2;
-        Distances2D(point2.x, bdinfo->Top[IsegTop].x, bdinfo->Bot[IsegBot].x, dEndTop, dEndBot,
-            bdinfo->Top[IsegTop].n, bdinfo->Bot[IsegBot].n, DistEndTop, DistEndBot);
+        x_o = RayToOceanX(point2.x, org);
+        Distances<R3D>(x_o, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
     }
     
     return numRaySteps;
@@ -447,35 +325,91 @@ HOST_DEVICE inline int32_t RayUpdate(
 /**
  * Has the ray left the box, lost its energy, escaped the boundaries, or 
  * exceeded storage limit?
+ * [LP: Nx2D only:]
+ * this should be modified to have a single box
+ * no need to test point.x.x, for instance, against several limits; calculate one limit in advance
  * LP: Also updates DistBegTop, DistBegBot.
  */
-HOST_DEVICE inline bool RayTerminate(const ray2DPt &point, int32_t &Nsteps, int32_t is,
+template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
+    const rayPt<R3D> &point, int32_t &Nsteps, int32_t is,
+    const VEC23<O3D> &xs, const int32_t &iSmallStepCtr,
     real &DistBegTop, real &DistBegBot, const real &DistEndTop, const real &DistEndBot,
-    const BeamStructure *Beam
+    const Origin<O3D, R3D> &org, const BdryInfo<O3D> *bdinfo, const BeamStructure<O3D> *Beam
     )
 {
-    bool leftbox = STD::abs(point.x.x) > Beam->Box.r ||
-                   STD::abs(point.x.y) > Beam->Box.z;
-    bool lostenergy = point.Amp < FL(0.005);
-    bool escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0)) ||
-                             (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
-    //bool backward = ray2D[is+1].t.x < 0; // this last test kills off a backward traveling ray
-    if(leftbox || lostenergy || escapedboundaries // || backward
-    ){
-        /*
-        if(leftbox){
-            GlobalLog("Ray left beam box (%g,%g)\n", Beam->Box.r, Beam->Box.z);
-        }else if(lostenergy){
-            GlobalLog("Ray energy dropped to %g\n", point.Amp);
+    bool leftbox, escapedboundaries, toomanysmallsteps;
+    bool escaped0bdry, escapedNbdry;
+    if constexpr(O3D){
+        vec3 x_o = RayToOceanX(point.x, org);
+        vec3 t_o = RayToOceanT(point.t, org);
+        if constexpr(R3D){
+            leftbox = IsOutsideBeamBoxDim<true, 0>(x_o, Beam, xs) ||
+                      IsOutsideBeamBoxDim<true, 1>(x_o, Beam, xs) ||
+                      IsOutsideBeamBoxDim<true, 2>(x_o, Beam, xs);
         }else{
+            // LP: This condition was inexplicably commented out in 2022 revision of Nx2D.
+            leftbox = false;
+            IGNORE_UNUSED(Beam);
+        }
+        real minx = bhc::max(bdinfo->bot.bd[0].x.x, bdinfo->top.bd[0].x.x);
+        real miny = bhc::max(bdinfo->bot.bd[0].x.y, bdinfo->top.bd[0].x.y);
+        real maxx = bhc::min(bdinfo->bot.bd[(bdinfo->bot.NPts.x-1)*bdinfo->bot.NPts.y].x.x, 
+                             bdinfo->top.bd[(bdinfo->top.NPts.x-1)*bdinfo->top.NPts.y].x.x);
+        real maxy = bhc::min(bdinfo->bot.bd[bdinfo->bot.NPts.y-1].x.y, 
+                             bdinfo->top.bd[bdinfo->top.NPts.y-1].x.y);
+        escaped0bdry = x_o.x < minx || x_o.y < miny;
+        escapedNbdry = x_o.x > maxx || x_o.y > maxy;
+        // LP: See discussion in GetBdrySeg for why this was changed from the
+        // original BELLHOP3D version.
+        escaped0bdry = escaped0bdry ||
+            (x_o.x == minx && t_o.x < RL(0.0)) ||
+            (x_o.y == miny && t_o.y < RL(0.0));
+        escapedNbdry = escapedNbdry ||
+            (x_o.x == maxx && t_o.x > RL(0.0)) ||
+            (x_o.y == maxy && t_o.y > RL(0.0));
+        escapedboundaries = escaped0bdry || escapedNbdry;
+        toomanysmallsteps = iSmallStepCtr > 50;
+    }else{
+        IGNORE_UNUSED(bdinfo);
+        leftbox = IsOutsideBeamBoxDim<false, 0>(point.x, Beam, xs) ||
+                  IsOutsideBeamBoxDim<false, 1>(point.x, Beam, xs);
+        escaped0bdry = escapedNbdry = false;
+        escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0)) ||
+                            (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
+        toomanysmallsteps = false; // LP: The small step counter is never checked in 2D.
+    }
+    bool lostenergy = point.Amp < FL(0.005);
+    bool backward = false;
+    if constexpr(O3D && !R3D){
+        //backward = point.t.x < FL(0.0); // kills off a backward traveling ray
+        // LP: Condition above is now (2022) commented out in Nx2D as well.
+    }
+    if(leftbox || lostenergy || escapedboundaries || backward || toomanysmallsteps){
+        #ifdef STEP_DEBUGGING
+        if(leftbox){
+            if constexpr(O3D){
+                GlobalLog("Ray left beam box (%g,%g,%g)\n", Beam->Box.x, Beam->Box.y, Beam->Box.z);
+            }else{
+                GlobalLog("Ray left beam box (%g,%g)\n", Beam->Box.x, Beam->Box.y);
+            }
+        }else if(escapedboundaries){
             GlobalLog("Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g DistEndBot %g\n",
                 DistBegTop, DistEndTop, DistBegBot, DistEndBot);
+        }else if(lostenergy){
+            GlobalLog("Ray energy dropped to %g\n", point.Amp);
+        }else if(backward){
+            GlobalLog("Ray is going backwards\n");
+        }else if(toomanysmallsteps){
+            GlobalLog("Too many small steps\n");
+        }else{
+            GlobalLog("Internal error in RayTerminate\n");
+            bail();
         }
-        */
+        #endif
         Nsteps = is + 1;
         return true;
     }else if(is >= MaxN - 3){
-        GlobalLog("Warning in TraceRay2D: Insufficient storage for ray trajectory\n");
+        GlobalLog("Warning in TraceRay: Insufficient storage for ray trajectory\n");
         Nsteps = is;
         return true;
     }

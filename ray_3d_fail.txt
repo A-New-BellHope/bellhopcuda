@@ -1,0 +1,4 @@
+//Env file has bugs (both Fortran and C++ fail)
+munk3dGood
+//No 3D ATI/BTY available; yes the env file is 3D
+ParaBot_ray

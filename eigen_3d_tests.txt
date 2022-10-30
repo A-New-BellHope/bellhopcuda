@@ -1,0 +1,3 @@
+//After 196 minutes, 91344 eigenrays, then out of memory
+//Fortran has not finished by this point, or has stalled due to memory
+KoreanSea_3D_eigen

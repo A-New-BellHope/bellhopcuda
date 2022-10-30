@@ -18,6 +18,28 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 
+////////////////////////////////////////////////////////////////////////////////
+//Build configuration
+////////////////////////////////////////////////////////////////////////////////
+
+// BHC_DIMMODE is undefined or 0 for "all enabled, set on command line"
+#define BHC_ENABLE_2D   (!(BHC_DIMMODE == 3 || BHC_DIMMODE == 4))
+#define BHC_ENABLE_3D   (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 4))
+#define BHC_ENABLE_NX2D (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 3))
+#if BHC_DIMMODE == 2
+#define BHC_DIMNAME "2d"
+#elif BHC_DIMMODE == 3
+#define BHC_DIMNAME "3d"
+#elif BHC_DIMMODE == 4
+#define BHC_DIMNAME "nx2d"
+#else
+#define BHC_DIMNAME
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+//General headers
+////////////////////////////////////////////////////////////////////////////////
+
 #define _USE_MATH_DEFINES 1 //must be before anything which includes math.h
 #include <math.h>
 
@@ -42,6 +64,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtc/matrix_access.hpp>
 
 ////////////////////////////////////////////////////////////////////////////////
 //Select which standard library
@@ -57,11 +80,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
 #define STD cuda::std
-#define BHC_PROGRAMNAME "bellhopcuda"
+#define BHC_PROGRAMNAME "bellhopcuda" BHC_DIMNAME
 #else
 #define HOST_DEVICE
 #define STD std
-#define BHC_PROGRAMNAME "bellhopcxx"
+#define BHC_PROGRAMNAME "bellhopcxx" BHC_DIMNAME
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,6 +188,15 @@ if(!(statement)){ \
 // should have one or the other macro on it, making it easier to spot errors.
 #define FL(a) (a##f)
 
+#define CHECK_REAL_T() static_assert(std::is_floating_point<REAL>::value, "Invalid type for REAL!")
+
+template<typename REAL> REAL fmsub(REAL x, REAL y, REAL z){
+    // LP: Fused multiply-subtract is a separate instruction in x86. Hopefully
+    // this will be emitted, but even if it isn't, the negative z should never
+    // change any precision results.
+    return STD::fma(x, y, -z);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //Complex types
 ////////////////////////////////////////////////////////////////////////////////
@@ -177,8 +209,8 @@ HOST_DEVICE constexpr inline cpx Cpxf2Cpx(const cpxf &c){
 	return cpx((real)c.real(), (real)c.imag());
 }
 
-//CUDA::std::cpx<double> does not like operators being applied with float
-//literals, due to template type deduction issues.
+//CUDA::std::cpx<double> and glm::mat2x2 do not like operators being applied
+//with float literals, due to template type deduction issues.
 #ifndef BHC_USE_FLOATS
 HOST_DEVICE constexpr inline cpx operator-(float a, const cpx &b){
     return cpx(a - b.real(), -b.imag());
@@ -195,6 +227,9 @@ HOST_DEVICE constexpr inline cpx operator/(const cpx &a, float b){
 HOST_DEVICE inline cpx operator/(float a, const cpx &b){
     return (double)a / b;
 }
+HOST_DEVICE inline mat2x2 operator*(float a, const mat2x2 &b){
+    return (double)a * b;
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -207,7 +242,26 @@ constexpr real RadDeg = RL(180.0) / REAL_PI;
 constexpr real DegRad = REAL_PI / RL(180.0);
 
 template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v){
+    CHECK_REAL_T();
 	return STD::abs(STD::nextafter(v, (REAL)(0.0f)) - v);
+}
+
+inline HOST_DEVICE bool isfinite(const vec3 &v){
+    return STD::isfinite(v.x) && STD::isfinite(v.y) && STD::isfinite(v.z);
+}
+
+template<bool X3D> HOST_DEVICE inline constexpr int ZDIM() { if constexpr(X3D) return 2; else return 1; }
+template<typename VEC> HOST_DEVICE inline real &DEP(VEC &v);
+template<> HOST_DEVICE inline real &DEP(vec2 &v) { return v.y; }
+template<> HOST_DEVICE inline real &DEP(vec3 &v) { return v.z; }
+template<typename VEC> HOST_DEVICE inline const real &DEP(const VEC &v);
+template<> HOST_DEVICE inline const real &DEP(const vec2 &v) { return v.y; }
+template<> HOST_DEVICE inline const real &DEP(const vec3 &v) { return v.z; }
+inline HOST_DEVICE vec2 XYCOMP(const vec3 &v){
+    return vec2(v.x, v.y);
+}
+inline HOST_DEVICE void SETXY(vec3 &v, const vec2 &xy){
+    v.x = xy.x; v.y = xy.y;
 }
 
 //max/min are not handled the same way as other math functions by the C++
@@ -235,6 +289,89 @@ DEFINE_MATH_FUNC_2(max, fmaxf, std::max, fmax, std::max)
 DEFINE_MATH_FUNC_2(min, fminf, std::min, fmin, std::min)
 DEFINE_MATH_FUNC_INT_2(max, ::max, std::max)
 DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
+
+HOST_DEVICE inline float RealBitsAddInt(float r, int32_t i){
+    #ifdef __CUDA_ARCH__
+    return __int_as_float(__float_as_int(r) + i);
+    #else
+    int32_t k;
+    std::memcpy(&k, &r, 4);
+    k += i;
+    float x;
+    std::memcpy(&x, &k, 4);
+    return x;
+    #endif
+}
+HOST_DEVICE inline double RealBitsAddInt(double r, int32_t i){
+    #ifdef __CUDA_ARCH__
+    return __longlong_as_double(__double_as_longlong(r) + (int64_t)i);
+    #else
+    int64_t k;
+    std::memcpy(&k, &r, 8);
+    k += i;
+    double x;
+    std::memcpy(&x, &k, 8);
+    return x;
+    #endif
+}
+
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanX(
+    const VEC23<R3D> &x, const Origin<O3D, R3D> &org)
+{
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D){
+        return vec3(org.xs.x + x.x * org.tradial.x, org.xs.y + x.x * org.tradial.y, x.y);
+    }else{
+        return x;
+    }
+}
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanT(
+    const VEC23<R3D> &t, const Origin<O3D, R3D> &org)
+{
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D){
+        return vec3(           t.x * org.tradial.x,            t.x * org.tradial.y, t.y);
+    }else{
+        return t;
+    }
+}
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
+    const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t)
+{
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D){
+        // LP: Going back and forth through the coordinate transform won't
+        // always keep the precise value, so we may have to finesse the floats.
+        vec2 x_orig;
+        x_orig.y = x.z;
+        if(STD::abs(org.tradial.x) >= STD::abs(org.tradial.y)){
+            x_orig.x = (x.x - org.xs.x) / org.tradial.x;
+        }else{
+            x_orig.x = (x.x - org.xs.y) / org.tradial.y;
+        }
+        vec3 x_res = RayToOceanX(x_orig, org);
+        if(x_res.x == x.x && x_res.y == x.y){
+            // Got lucky--it went through and came back with the same values.
+            return x_orig;
+        }
+        //Try adding or subtracting one ulp.
+        vec2 x_try = x_orig;
+        x_try.x = RealBitsAddInt(x_orig.x, 1);
+        vec2 x_res2 = RayToOceanX(x_try, org);
+        if(x_res2.x == x.x && x_res2.y == x.y) return x_try;
+        x_try.x = RealBitsAddInt(x_orig.x, -1);
+        x_res2 = RayToOceanX(x_try, org);
+        if(x_res2.x == x.x && x_res2.y == x.y) return x_try;
+        //No hope of being exact. Just try to be slightly forward of the boundary.
+        x_try.x = x_orig.x + RL(1e-6) * t.x;
+        if(x_try.x == x_orig.x){
+            x_try.x = x_orig.x + RL(1e-3) * t.x;
+        }
+        return x_try;
+    }else{
+        return x;
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //String manipulation
@@ -380,6 +517,7 @@ template<> inline void Sort(cpx *arr, size_t n){
  * mbp: tests whether an input vector is strictly monotonically increasing
  */
 template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n){
+    CHECK_REAL_T();
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
 		if(arr[i+1] <= arr[i]) return false;
@@ -397,6 +535,7 @@ template<typename VEC2> HOST_DEVICE inline bool monotonic(VEC2 *arr, size_t n,
 template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n,
 	const int32_t stridereals, const int32_t offset)
 {
+    CHECK_REAL_T();
 	if(n == 1) return true;
 	for(size_t i=0; i<n-1; ++i){
 		if(arr[(i+1)*stridereals+offset] <= arr[i*stridereals+offset]) return false;
@@ -415,6 +554,7 @@ template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n,
 template<typename REAL> HOST_DEVICE inline int32_t BinarySearchLEQ(REAL *arr, 
 	int32_t n, const int32_t stride, const int32_t offset, real target)
 {
+    CHECK_REAL_T();
 	int32_t low = 0; //Low is included
 	int32_t hi = n; //Hi is excluded
 	while(low < hi){
@@ -443,6 +583,7 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchLEQ(REAL *arr,
 template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGEQ(REAL *arr,
 	int32_t n, const int32_t stride, const int32_t offset, real target)
 {
+    CHECK_REAL_T();
 	int32_t low = -1; //Low is excluded
 	int32_t hi = n-1; //Hi is included
 	while(low < hi){
@@ -471,6 +612,7 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGEQ(REAL *arr,
 template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGT(REAL *arr,
 	int32_t n, const int32_t stride, const int32_t offset, real target)
 {
+    CHECK_REAL_T();
 	int32_t low = -1; //Low is excluded
 	int32_t hi = n-1; //Hi is included
 	while(low < hi){
@@ -493,21 +635,25 @@ template<typename REAL> HOST_DEVICE inline int32_t BinarySearchGT(REAL *arr,
  */
 template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(const REAL *angles,
 	int32_t &n){
+    CHECK_REAL_T();
+    // LP: Changed from (the FORTRAN equivalent of) REAL_MINPOS, see Fortran
+    // version readme.
 	if(n > 1 && STD::abs(STD::fmod(angles[n-1] - angles[0], FL(360.0)))
-            < FL(10.0) * spacing(RL(1.0)))
+            < FL(10.0) * spacing(RL(360.0)))
         --n;
 }
 
-template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, PrintFileEmu &PRTFile)
+template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv,
+    PrintFileEmu &PRTFile, int32_t NEcho = 10, const char *ExtraSpaces = "")
 {
-    constexpr int32_t NEcho = 10;
-    PRTFile << std::setprecision(6);
+    CHECK_REAL_T();
+    PRTFile << std::setprecision(6) << ExtraSpaces;
     for(int32_t i=0, r=0; i<bhc::min(Nv, NEcho); ++i){
         PRTFile << std::setw(14) << v[i] << " ";
         ++r;
         if(r == 5){
             r = 0;
-            PRTFile << "\n";
+            PRTFile << "\n" << ExtraSpaces;
         }
     }
     if(Nv > NEcho) PRTFile << "... " << std::setw(14) << v[Nv-1];
@@ -519,11 +665,32 @@ template<typename REAL> inline void EchoVector(REAL *v, int32_t Nv, PrintFileEmu
     */
 }
 
+/**
+ * If x[2] == -999.9 then subtabulation is performed
+ * i.e., a vector is generated with Nx points in [x[0], x[1]]
+ * If x[1] == -999.9 then x[0] is repeated into x[1]
+ */
 template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 {
+    CHECK_REAL_T();
+    // LP: Must be literals in the type of REAL. (double)(0.01f) != 0.01 and
+    // (float)(0.01) is not guaranteed to equal 0.01f.
+    // (For proof, we write the true real number as 0.01* and double as 0.01d.
+    // Suppose 0.01f = 0.01* + 4.9e-9* because it is the closest floating point
+    // value to 0.01*, because the next number below is 0.01* - 5.1e-9.
+    // Now suppose 0.01d = 0.01* - 0.2e-9 (because the next number up is
+    // 0.01* + 0.3e-9 or whatever). Now, (float)(0.01d) will evaluate to 
+    // 0.01* - 5.1e-9, because 0.01* - 0.2e-9 is closer to 0.01* - 5.1e-9 than
+    // it is to 0.01* + 4.9e-9*.)
+    REAL minus999, pointohone;
+    if constexpr(sizeof(REAL) == 4){
+        minus999 = -999.9f; pointohone = 0.01f;
+    }else{
+        minus999 = -999.9;  pointohone = 0.01;
+    }
     if(Nx >= 3){
-        if(STD::abs(x[2] - (REAL)(-999.9f)) < (REAL)(0.01f)){ 
-            if(STD::abs(x[1] - (REAL)(-999.9f)) < (REAL)(0.01f)) x[1] = x[0];
+        if(STD::abs(x[2] - minus999) < pointohone){ 
+            if(STD::abs(x[1] - minus999) < pointohone) x[1] = x[0];
             REAL deltax = (x[1] - x[0]) / (REAL)(Nx - 1);
             REAL x0 = x[0];
             for(int32_t i=0; i<Nx; ++i){
@@ -535,6 +702,79 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
             }
         }
     }
+}
+
+HOST_DEVICE inline void RayNormalImpl(const vec3 &t, real phi, bool ignorephi0, 
+    real c, vec3 &e1, vec3 &e2)
+{
+    real rl = glm::length(vec2(t.x, t.y));
+    
+    if(phi != RL(0.0) || ignorephi0){
+        real cosphi = STD::cos(phi), sinphi = STD::sin(phi);
+        
+        // e1
+        e1.x = (c * t.x * t.z * cosphi + t.y * sinphi) / rl;
+        e1.y = (c * t.y * t.z * cosphi - t.x * sinphi) / rl;
+        e1.z = -c * rl * cosphi;
+        
+        // e2
+        e2.x = (c * t.x * t.z * sinphi - t.y * cosphi) / rl;
+        e2.y = (c * t.y * t.z * sinphi + t.x * cosphi) / rl;
+        e2.z = -c * rl * sinphi;
+        /*
+        // LP: This algorithm is sensitive to precision. e1 is used to compute
+        // an update to phi, and phi is used here to compute e1. Even if the
+        // other variables (t, c, rayn1) do not diverge between Fortran and C++,
+        // phi and e1 may diverge due to floating-point precision.
+        // This implementation matches the set of AVX-512 operations performed
+        // by the gfortran build of BELLHOP.
+        real t1t3 = t.x * t.z;
+        real t2t3 = t.y * t.z;
+        real ct1t3 = c * t1t3;
+        real ct2t3 = c * t2t3;
+        real crl   = c * rl;
+        real rcprl = RL(1.0) / rl;
+        real e11build = sinphi * t.y;
+        real e12build = sinphi * t.x;
+        e11build = STD::fma(cosphi, ct1t3, e11build);
+        real t2cosphi = cosphi * t.y;
+        e12build =    fmsub(cosphi, ct2t3, e12build);
+        real e13build = cosphi * crl;
+        real e22build = cosphi * t.x;
+        real e21build = fmsub(ct1t3, sinphi, t2cosphi);
+        e1.z = -e13build;
+        e22build = STD::fma(sinphi, ct2t3, e22build);
+        real e23build = sinphi * crl;
+        e1.x = e11build * rcprl;
+        e1.y = e12build * rcprl;
+        e2.z = -e23build;
+        e2.x = e21build * rcprl;
+        e2.y = e22build * rcprl;
+        */
+    }else{
+        e1 = vec3(c * t.x * t.z / rl, c * t.y * t.z / rl, -c * rl);
+        e2 = vec3(-t.y / rl, t.x / rl, RL(0.0));
+    }
+}
+/**
+ * Computes the ray normals
+ *
+ * t: tangent vector (NOT) normalized
+ * phi: torsion
+ * c: sound speed
+ * e1, e2: ray unit normals
+ */
+HOST_DEVICE inline void RayNormal(const vec3 &t, real phi, real c, vec3 &e1, vec3 &e2)
+{
+    RayNormalImpl(t, phi, false, c, e1, e2);
+}
+/**
+ * Computes the ray normals
+ * Same as routine RayNormal except this version assumes t is already normalized
+ */
+HOST_DEVICE inline void RayNormal_unit(const vec3 &t, real phi, vec3 &e1, vec3 &e2)
+{
+    RayNormalImpl(t, phi, true, RL(1.0), e1, e2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -558,5 +798,11 @@ public:
 private:
     std::chrono::high_resolution_clock::time_point tstart;
 };
+
+HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
+{
+    GlobalLog("%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n",
+        label, m[0][0], m[1][0], m[0][1], m[1][1]);
+}
 
 }

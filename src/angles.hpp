@@ -18,71 +18,97 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "runtype.hpp"
 
 namespace bhc {
 
 /**
- * LP: RunType was originally length 6 in the FORTRAN, but Beam->RunType was
- * being passed to it, which is definitely length 7.
+ * LP: RunType now passed as part of Beam.
  */
-inline void ReadRayElevationAngles(real freq, real Depth,
-    const char (&TopOpt)[6], const char (&RunType)[7],
-    LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    AnglesStructure *Angles, Position *Pos)
+template<bool O3D, bool BEARING> inline void ReadRayAngles(real freq, real Depth,
+    const char (&TopOpt)[6], LDIFile &ENVFile, PrintFileEmu &PRTFile,
+    AngleInfo &a, Position *Pos, const BeamStructure<O3D> *Beam)
 {
     constexpr real c0 = FL(1500.0);
+    const char *const FuncName = BEARING ? "ReadRayBearingAngles" : "ReadRayElevationAngles";
     
     if(TopOpt[5] == 'I'){
         // option to trace a single beam
-        LIST(ENVFile); ENVFile.Read(Angles->Nalpha); ENVFile.Read(Angles->iSingle_alpha);
+        LIST(ENVFile); ENVFile.Read(a.n); ENVFile.Read(a.iSingle);
     }else{
-        LIST(ENVFile); ENVFile.Read(Angles->Nalpha);
+        LIST(ENVFile); ENVFile.Read(a.n);
     }
     
-    if(Angles->Nalpha == 0){ // automatically estimate Nalpha to use
-        if(RunType[0] == 'R'){
-            Angles->Nalpha = 50; // For a ray trace plot, we don't want too many rays ...
+    if(a.n == 0){ // automatically estimate n to use
+        if(IsRayRun(Beam)){
+            a.n = 50; // For a ray trace plot, we don't want too many rays ...
         }else{
             // you're letting ME choose? OK: ideas based on an isospeed ocean
             // limit based on phase of adjacent beams at maximum range
-            Angles->Nalpha = bhc::max((int)(FL(0.3) * Pos->Rr[Pos->NRr-1] * freq / c0), 300);
+            a.n = bhc::max((int)((BEARING ? FL(0.1) : FL(0.3)) * Pos->Rr[Pos->NRr-1] * freq / c0), 300);
             
-            // limit based on having beams that are thin with respect to the water depth
-            // assumes also a full 360 degree angular spread of rays
-            // Should check which Depth is used here, in case where there is a variable bathymetry
-            real d_theta_recommended = STD::atan(Depth / (FL(10.0) * Pos->Rr[Pos->NRr-1]));
-            Angles->Nalpha = bhc::max((int)(REAL_PI / d_theta_recommended), Angles->Nalpha);
+            if constexpr(!BEARING){
+                // limit based on having beams that are thin with respect to the water depth
+                // assumes also a full 360 degree angular spread of rays
+                // Should check which Depth is used here, in case where there is a variable bathymetry
+                real d_theta_recommended = STD::atan(Depth / (FL(10.0) * Pos->Rr[Pos->NRr-1]));
+                a.n = bhc::max((int)(REAL_PI / d_theta_recommended), a.n);
+            }
         }
     }
     
-    checkallocate(Angles->alpha, bhc::max(3, Angles->Nalpha));
+    checkallocate(a.angles, bhc::max(3, a.n));
     
-    if(Angles->Nalpha > 2) Angles->alpha[2] = FL(-999.9);
-    LIST(ENVFile); ENVFile.Read(Angles->alpha, Angles->Nalpha);
+    if(a.n > 2) a.angles[2] = FL(-999.9);
+    LIST(ENVFile); ENVFile.Read(a.angles, a.n);
     
-    SubTab(Angles->alpha, Angles->Nalpha);
-    Sort(  Angles->alpha, Angles->Nalpha);
+    SubTab(a.angles, a.n);
+    Sort(  a.angles, a.n);
     
-    CheckFix360Sweep(Angles->alpha, Angles->Nalpha);
+    CheckFix360Sweep(a.angles, a.n);
     
-    PRTFile << "__________________________________________________________________________\n\n";
-    PRTFile << "Number of beams in elevation   = " << Angles->Nalpha << "\n";
-    if(Angles->iSingle_alpha > 0) PRTFile << "Trace only beam number " << Angles->iSingle_alpha << "\n";
-    PRTFile << "Beam take-off angles (degrees)\n";
+    if constexpr(BEARING){
+        // Nx2D CASE: beams must lie on rcvr radials--- replace beta with theta
+        if(Beam->RunType[5] == '2' && !IsRayRun(Beam)){
+            PRTFile << "\nReplacing beam take-off angles, beta, with receiver bearing lines, theta\n";
+            checkdeallocate(a.angles);
+            
+            a.n = Pos->Ntheta;
+            checkallocate(a.angles, bhc::max(3, a.n));
+            for(int32_t i=0; i<a.n; ++i) a.angles[i] = Pos->theta[i]; // a.n should = Pos->Ntheta
+        }
+    }
     
-    EchoVector(Angles->alpha, Angles->Nalpha, PRTFile);
+    if constexpr(!BEARING){
+        PRTFile << "__________________________________________________________________________\n";
+    }
+    PRTFile << "\n   Number of beams in " << (BEARING ? "bearing  " : "elevation") << "   = " << a.n << "\n";
+    if(a.iSingle > 0) PRTFile << "Trace only beam number " << a.iSingle << "\n";
+    PRTFile << "   Beam take-off angles (degrees)\n";
     
-    if(Angles->Nalpha > 1 && Angles->alpha[Angles->Nalpha-1] == Angles->alpha[0]){
-        GlobalLog("ReadRayElevationAngles: First and last beam take-off angle are identical\n");
+    EchoVector(a.angles, a.n, PRTFile);
+    
+    if(a.n > 1 && a.angles[a.n-1] == a.angles[0]){
+        GlobalLog("%s: First and last beam take-off angle are identical\n", FuncName);
         std::abort();
     }
     
     if(TopOpt[5] == 'I'){
-        if(Angles->iSingle_alpha < 1 || Angles->iSingle_alpha > Angles->Nalpha){
-            GlobalLog("ReadRayElevationAngles: Selected beam, iSingl not in [1, Angles->Nalpha]\n");
+        if(a.iSingle < 1 || a.iSingle > a.n){
+            GlobalLog("%s: Selected beam, iSingle not in [1, a.n]\n", FuncName);
             std::abort();
         }
     }
+    
+    // LP: This and the d computation below was in setup / BellhopCore for alpha,
+    // but here for beta. 
+    for(int32_t i=0; i<a.n; ++i)
+        a.angles[i] *= DegRad; // convert to radians
+    
+    a.d = FL(0.0);
+    if(a.n != 1)
+        a.d = (a.angles[a.n-1] - a.angles[0]) / (a.n-1); // angular spacing between beams
+    
 }
 
 }

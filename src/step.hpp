@@ -18,10 +18,14 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "runtype.hpp"
 #include "ssp.hpp"
 #include "boundary.hpp"
+#include "beams.hpp"
 
 namespace bhc {
+
+// #define STEP_DEBUGGING 1
 
 #ifdef BHC_USE_FLOATS
 #define INFINITESIMAL_STEP_SIZE (RL(1e-3))
@@ -30,245 +34,599 @@ namespace bhc {
 #endif
 
 /**
+ * interface crossing in depth
+ * LP: 3D only:
+ * Step reduction is not done for the top or bottom layer
+ * Instead the SSP is extrapolated
+ * This prevents problems when the boundaries are outside the domain of the SSP
+ */
+template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
+    real &hInt, VEC23<O3D> &x, const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
+    const SSPSegState &iSeg0, const SSPStructure *ssp, bool stepTo)
+{
+    if(!stepTo) hInt = REAL_MAX;
+    if(STD::abs(DEP(urayt)) > REAL_EPSILON){
+        if(        ssp->z[iSeg0.z]     > DEP(x) && (!O3D || iSeg0.z > 0)){
+            hInt= (ssp->z[iSeg0.z]     - DEP(x0)) / DEP(urayt);
+            #ifdef STEP_DEBUGGING
+            GlobalLog("Shallower bound SSP Z %g > z %g; hInt = %g\n", ssp->z[iSeg0.z], DEP(x), hInt);
+            #endif
+            if(stepTo){
+                x = x0 + hInt * urayt; // X or X,Y
+                DEP(x) = ssp->z[iSeg0.z];
+                #ifdef STEP_DEBUGGING
+                GlobalLog("to %20.17f %20.17f\n", x.x, x.y);
+                #endif
+            }
+        }else if(   ssp->z[iSeg0.z + 1] < DEP(x) && (!O3D || iSeg0.z + 1 < ssp->Nz-1)){
+            hInt = (ssp->z[iSeg0.z + 1] - DEP(x0)) / DEP(urayt);
+            #ifdef STEP_DEBUGGING
+            GlobalLog("Deeper bound SSP Z %g < z %g; hInt = %g\n", ssp->z[iSeg0.z+1], DEP(x), hInt);
+            #endif
+            if(stepTo){
+                x = x0 + hInt * urayt; // X or X,Y
+                DEP(x) = ssp->z[iSeg0.z + 1];
+                #ifdef STEP_DEBUGGING
+                GlobalLog("to %20.17f %20.17f\n", x.x, x.y);
+                #endif
+            }
+        }
+    }
+}
+
+/**
+ * ray mask using a box centered at (0, 0) [2D] / (source x, source y, 0) [3D]
+ */
+template<bool O3D, int DIM> HOST_DEVICE inline void BeamBoxCrossing(
+    real &hBox, VEC23<O3D> &x, const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, bool stepTo)
+{
+    if(!stepTo) hBox = REAL_MAX;
+    if(IsOutsideBeamBoxDim<O3D, DIM>(x, Beam, xs)){
+        real d0 = x0[DIM] - BeamBoxCenter<O3D>(xs)[DIM];
+        hBox = (Beam->Box[DIM] - STD::abs(d0)) / STD::abs(urayt[DIM]);
+        #ifdef STEP_DEBUGGING
+        GlobalLog("Beam box crossing %c %g, hBox = %g\n",
+            (O3D ? (DIM == 0 ? 'X' : DIM == 1 ? 'Y' : 'Z') : (DIM == 0 ? 'R' : 'Z')),
+            Beam->Box[DIM], hBox);
+        #endif
+        if(stepTo){
+            x = x0 + hBox * urayt;
+            x[DIM] = BeamBoxCenter<O3D>(xs)[DIM] + STD::copysign(Beam->Box[DIM], d0);
+        }
+    }
+}
+
+/**
+ * LP: h = hTop or hBot
+ */
+template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
+    real &h, const BdryStateTopBot<O3D> &bd, VEC23<O3D> &x,
+    const VEC23<O3D> &x0, const VEC23<O3D> &urayt, bool stepTo, bool &refl)
+{
+    if(!stepTo) h = REAL_MAX;
+    VEC23<O3D> d, d0;
+    d  = x  - bd.x; // vector from top / bottom to ray
+    d0 = x0 - bd.x; // vector from top / bottom node to ray origin
+    // Originally, this value had to be > a small positive number, meaning the
+    // new step really had to be outside the boundary, not just to the boundary.
+    // Also, this is not missing a normalization factor, bd.n is normalized so
+    // this is actually the distance above the top / below the bottom in meters.
+    real w = glm::dot(bd.n, d);
+    if(stepTo ? (w > -INFINITESIMAL_STEP_SIZE) : (w >= RL(0.0))){
+        h = -glm::dot(d0, bd.n) / glm::dot(urayt, bd.n);
+        #ifdef STEP_DEBUGGING
+        GlobalLog("Top/bot crossing h %g\n", h);
+        #endif
+        if(stepTo){
+            x = x0 + h * urayt;
+            // Snap to exact top / bot depth value if it's flat
+            if(STD::abs(bd.n.x) < REAL_EPSILON && (!O3D || STD::abs(bd.n.y) < REAL_EPSILON)){
+                DEP(x) = DEP(bd.x);
+            }
+            #ifdef STEP_DEBUGGING
+            GlobalLog("to %20.17f %20.17f\n", x.x, x.y);
+            #endif
+        }
+        refl = true;
+    }else{
+        refl = false;
+    }
+}
+
+/**
+ * top, bottom, or ocean segment crossing in range / x / y
+ * LP: w = range, x, or y
+ */
+template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
+    real &hSeg, const BdryLimits &TopSeg, const BdryLimits &BotSeg,
+    const real *seg_w, int32_t iSeg, VEC23<O3D> &x,
+    const VEC23<O3D> &x0, const VEC23<O3D> &urayt, char qh, 
+    const SSPStructure *ssp, bool stepTo, bool &topRefl, bool &botRefl, bool isY)
+{
+    BdryLimits segLim;
+    segLim.min = bhc::max(TopSeg.min, BotSeg.min);
+    segLim.max = bhc::min(TopSeg.max, BotSeg.max);
+    
+    if(ssp->Type == qh){
+        segLim.min = bhc::max(segLim.min, seg_w[iSeg  ]);
+        segLim.max = bhc::min(segLim.max, seg_w[iSeg+1]);
+    }
+    
+    real &x_w    = isY ?     x.y :     x.x;
+    real x0_w    = isY ?    x0.y :    x0.x;
+    real urayt_w = isY ? urayt.y : urayt.x;
+    #ifdef STEP_DEBUGGING
+    const char *wlbl = O3D ? (isY ? "Y" : "X") : "R";
+    #endif
+    if(!stepTo) hSeg = REAL_MAX;
+    if(STD::abs(urayt_w) > REAL_EPSILON){
+        if(x_w < segLim.min){
+            hSeg = -(x0_w - segLim.min) / urayt_w;
+            if(stepTo){
+                x = x0 + hSeg * urayt;
+                x_w = segLim.min;
+                topRefl = botRefl = false;
+            }
+            #ifdef STEP_DEBUGGING
+            GlobalLog("Min bound SSP %s %g > %s %g; hSeg = %g\n",
+                wlbl, segLim.min, wlbl, x_w, hSeg);
+            #endif
+        }else if(x_w > segLim.max){
+            hSeg = -(x0_w - segLim.max) / urayt_w;
+            if(stepTo){
+                x = x0 + hSeg * urayt;
+                x_w = segLim.max;
+                topRefl = botRefl = false;
+            }
+            #ifdef STEP_DEBUGGING
+            GlobalLog("Max bound SSP %s %g < %s %g; hSeg = %g\n",
+                wlbl, segLim.max, wlbl, x_w, hSeg);
+            #endif
+        }
+    }
+}
+
+HOST_DEVICE inline bool CheckDiagCrossing(const vec3 &tri_n,
+    const vec3 &d, const bool &tridiag_pos)
+{
+    real dend   = glm::dot(tri_n, d);
+    // GlobalLog("pos %s dend %g\n", tridiag_pos ? "true" : "false", dend);
+    return (tridiag_pos && dend < -TRIDIAG_THRESH) ||
+          (!tridiag_pos && dend >  TRIDIAG_THRESH);
+}
+
+/**
+ * triangle crossing within a top / bottom segment
+ */
+HOST_DEVICE inline void TriDiagCrossing(
+    real &h, const BdryStateTopBot<true> &bd,
+    vec3 &x, const vec3 &x0, const vec3 &urayt,
+    bool stepTo, bool &topRefl, bool &botRefl, bool &flipDiag)
+{
+    vec3 d     = x  - bd.xmid; // vector from top / bottom center to ray end
+    vec3 d0    = x0 - bd.xmid; // vector from top / bottom center to ray origin
+    vec3 tri_n = vec3(-(bd.lSeg.y.max - bd.lSeg.y.min), bd.lSeg.x.max - bd.lSeg.x.min, RL(0.0));
+    tri_n /= glm::length(tri_n);
+    
+    if(!stepTo) h = REAL_MAX;
+    if(CheckDiagCrossing(tri_n, d, bd.tridiag_pos)){
+        real hnew = -glm::dot(d0, tri_n) / glm::dot(urayt, tri_n);
+        if(hnew < RL(0.0)){
+            BASSERT(hnew > RL(-1e-3) || STD::abs(glm::dot(urayt, tri_n)) < RL(1e-3));
+            h = RL(0.0);
+        }else{
+            BASSERT(hnew < h);
+            h = hnew;
+        }
+        #ifdef STEP_DEBUGGING
+        GlobalLog("Tri diag crossing h = %g, dot(n, d0) = %g, dot(n, d) = %g\n", h, 
+            glm::dot(tri_n, d0), glm::dot(tri_n, d));
+        #endif
+        if(stepTo){
+            x = x0 + h * urayt;
+            flipDiag = true;
+            topRefl = botRefl = false;
+        }
+    }else{
+        if(stepTo){
+            flipDiag = false;
+        }
+    }
+}
+
+/**
  * calculate a reduced step size, h, that lands on any points where the environment changes
  * 
  * x0, urayt: ray coordinate and tangent
- * iSegz0, iSegr0: SSP layer the ray is in
+ * iSeg0: SSP layer the ray is in
  * Topx, Topn, Botx, Botn: Top, bottom coordinate and normal
  * h: reduced step size
  */
-HOST_DEVICE inline void ReduceStep2D(const vec2 &x0, const vec2 &urayt,
-    int32_t iSegz0, int32_t iSegr0, const vec2 &Topx, const vec2 &Topn,
-    const vec2 &Botx, const vec2 &Botn, const vec2 &rTopSeg, const vec2 &rBotSeg,
-    const BeamStructure *Beam, const SSPStructure *ssp, 
+template<bool O3D> HOST_DEVICE inline void ReduceStep(
+    const VEC23<O3D> &x0, const VEC23<O3D> &urayt,
+    const SSPSegState &iSeg0, const BdryState<O3D> &bds,
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const SSPStructure *ssp, 
     real &h, int32_t &iSmallStepCtr)
 {
-    vec2 x, d, d0, rSeg;
-    real h1, h2, h3, h4;
+    VEC23<O3D> x;
+    real hInt, hBoxxr, hBoxyz, hBoxz_, hTop, hBot, hxSeg, hySeg, hTopDiag, hBotDiag;
+    bool dummy;
     
-    // Detect interface or boundary crossing and reduce step, if necessary, to land on that crossing.
+    #ifdef STEP_DEBUGGING
+    GlobalLog("ReduceStep%s\n", O3D ? "3D" : "2D");
+    #endif
+    
+    // Detect SSP interface or boundary crossing and reduce step, if necessary, to land on that crossing.
     // Keep in mind possibility that user put source right on an interface
     // and that multiple events can occur (crossing interface, top, and bottom in a single step).
 
     x = x0 + h * urayt; // make a trial step
 
-    // interface crossing in depth
-    h1 = REAL_MAX;
-    if(STD::abs(urayt.y) > REAL_EPSILON){
-        if(       ssp->z[iSegz0]     >  x.y){
-            h1 = (ssp->z[iSegz0]     - x0.y) / urayt.y;
-            // GlobalLog("Shallower bound SSP Z %g > z %g; h1 = %g\n", ssp->z[iSegz0], x.y, h1);
-        }else if( ssp->z[iSegz0 + 1] <  x.y){
-            h1 = (ssp->z[iSegz0 + 1] - x0.y) / urayt.y;
-            // GlobalLog("Deeper bound SSP Z %g < z %g; h1 = %g\n", ssp->z[iSegz0+1], x.y, h1);
-        }
-    }
-    
-    // top crossing
-    h2 = REAL_MAX;
-    d = x - Topx; // vector from top to ray
-    if(glm::dot(Topn, d) >= RL(0.0)){
-        d0 = x0 - Topx; // vector from top node to ray origin
-        h2 = -glm::dot(d0, Topn) / glm::dot(urayt, Topn);
-    }
-    
-    // bottom crossing
-    h3 = REAL_MAX;
-    d = x - Botx; // vector from bottom to ray
-    if(glm::dot(Botn, d) >= RL(0.0)){
-        d0 = x0 - Botx; // vector from bottom node to ray origin
-        h3 = -glm::dot(d0, Botn) / glm::dot(urayt, Botn);
-    }
-    
-    // top or bottom segment crossing in range
-    rSeg.x = bhc::max(rTopSeg.x, rBotSeg.x);
-    rSeg.y = bhc::min(rTopSeg.y, rBotSeg.y);
-    
-    if(ssp->Type == 'Q'){
-        rSeg.x = bhc::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
-        rSeg.y = bhc::min(rSeg.y, ssp->Seg.r[iSegr0+1]);
-    }
-    
-    h4 = REAL_MAX;
-    if(STD::abs(urayt.x) > REAL_EPSILON){
-        if(x.x < rSeg.x){
-            h4 = -(x0.x - rSeg.x) / urayt.x;
-            // GlobalLog("Closer bound SSP R %g > r %g; h4 = %g\n", rSeg.x, x.x, h4);
-        }else if(x.x > rSeg.y){
-            h4 = -(x0.x - rSeg.y) / urayt.x;
-            // GlobalLog("Farther bound SSP R %g < r %g; h4 = %g; rTopSeg up %g; rBotSeg up %g; ssp r up %g\n",
-            //     rSeg.y, x.x, h4, rTopSeg.y, rBotSeg.y,
-            //     ssp->Type == 'Q' ? ssp->Seg.r[iSegr0+1] : INFINITY);
-        }
-    }
-    
-    //GlobalLog("ReduceStep2D h h1 h2 h3 h4 %g %g %g %g %g\n", h, h1, h2, h3, h4);
-    // take limit set by shortest distance to a crossing
-    h = bhc::min(h, bhc::min(h1, bhc::min(h2, bhc::min(h3, h4))));
-    /*
-    if(h == h1){
-        GlobalLog("Step %g due to Z SSP crossing\n", h);
-    }else if(h == h2){
-        GlobalLog("Step %g due to top crossing\n", h);
-    }else if(h == h3){
-        GlobalLog("Step %g due to bottom crossing\n", h);
-    }else if(h == h4){
-        GlobalLog("Step %g due to R SSP crossing\n", h);
+    DepthInterfaceCrossing<O3D>(hInt, x, x0, urayt, iSeg0, ssp, false);
+    BeamBoxCrossing<O3D, 0>(hBoxxr, x, x0, urayt, Beam, xs, false);
+    BeamBoxCrossing<O3D, 1>(hBoxyz, x, x0, urayt, Beam, xs, false);
+    if constexpr(O3D){
+        BeamBoxCrossing<O3D, 2>(hBoxz_, x, x0, urayt, Beam, xs, false);
     }else{
-        GlobalLog("Step %g (unchanged)\n", h);
+        hBoxz_ = REAL_MAX;
     }
-    */
+    TopBotCrossing<O3D>(hTop, bds.top, x, x0, urayt, false, dummy);
+    TopBotCrossing<O3D>(hBot, bds.bot, x, x0, urayt, false, dummy);
     
+    if constexpr(O3D){
+        TopBotSegCrossing<O3D>(hxSeg, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
+            x, x0, urayt, 'H', ssp, false, dummy, dummy, false);
+        TopBotSegCrossing<O3D>(hySeg, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
+            x, x0, urayt, 'H', ssp, false, dummy, dummy, true);
+        TriDiagCrossing(hTopDiag, bds.top, x, x0, urayt, false, dummy, dummy, dummy);
+        TriDiagCrossing(hBotDiag, bds.bot, x, x0, urayt, false, dummy, dummy, dummy);
+    }else{
+        TopBotSegCrossing<O3D>(hxSeg, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
+            x, x0, urayt, 'Q', ssp, false, dummy, dummy, false);
+        hySeg = hTopDiag = hBotDiag = REAL_MAX;
+    }
+    
+    // take limit set by shortest distance to a crossing
+    h = bhc::min(bhc::min(bhc::min(h, hInt), bhc::min(
+        bhc::min(bhc::min(hBoxxr, hBoxyz), hBoxz_), bhc::min(hTop, hBot))),
+        bhc::min(bhc::min(hxSeg, hySeg), bhc::min(hTopDiag, hBotDiag)));
+    
+    if(h < RL(-1e-4)){
+        GlobalLog("ReduceStep error: negative h %f\n", h);
+        bail();
+    }
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
         h = INFINITESIMAL_STEP_SIZE * Beam->deltas; // make sure we make some motion
         ++iSmallStepCtr; // keep a count of the number of sequential small steps
-        // GlobalLog("Small step forced to %g\n", h);
+        #ifdef STEP_DEBUGGING
+        GlobalLog("Small step forced to %g\n", h);
+        #endif
     }else{
         iSmallStepCtr = 0;
     }
 }
 
-HOST_DEVICE inline void StepToBdry2D(const vec2 &x0, vec2 &x2, const vec2 &urayt,
-    real &h, bool &topRefl, bool &botRefl,
-    int32_t iSegz0, int32_t iSegr0, const vec2 &Topx, const vec2 &Topn,
-    const vec2 &Botx, const vec2 &Botn, const vec2 &rTopSeg, const vec2 &rBotSeg,
-    const BeamStructure *Beam, const SSPStructure *ssp)
+template<bool O3D> HOST_DEVICE inline void StepToBdry(
+    const VEC23<O3D> &x0, VEC23<O3D> &x2, const VEC23<O3D> &urayt,
+    real &h, bool &topRefl, bool &botRefl, bool &flipTopDiag, bool &flipBotDiag,
+    const SSPSegState &iSeg0, const BdryState<O3D> &bds,
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const SSPStructure *ssp)
 {
-    vec2 d, d0, rSeg;
-    
+    #ifdef STEP_DEBUGGING
+    GlobalLog("StepToBdry\n");
+    #endif
     // Original step due to maximum step size
     h = Beam->deltas;
     x2 = x0 + h * urayt;
     
-    // interface crossing in depth
-    if(STD::abs(urayt.y) > REAL_EPSILON){
-        if(      ssp->z[iSegz0]     > x2.y){
-            h = (ssp->z[iSegz0]     - x0.y) / urayt.y;
-            x2.x = x0.x + h * urayt.x;
-            x2.y = ssp->z[iSegz0];
-            // GlobalLog("StepToBdry2D upper depth h %g to (%g,%g)\n", h, x2.x, x2.y);
-        }else if(ssp->z[iSegz0 + 1] < x2.y){
-            h = (ssp->z[iSegz0 + 1] - x0.y) / urayt.y;
-            x2.x = x0.x + h * urayt.x;
-            x2.y = ssp->z[iSegz0 + 1];
-            // GlobalLog("StepToBdry2D lower depth h %g to (%g,%g)\n", h, x2.x, x2.y);
-        }
+    DepthInterfaceCrossing<O3D>(h, x2, x0, urayt, iSeg0, ssp, true);
+    BeamBoxCrossing<O3D, 0>(h, x2, x0, urayt, Beam, xs, true);
+    BeamBoxCrossing<O3D, 1>(h, x2, x0, urayt, Beam, xs, true);
+    if constexpr(O3D){
+        BeamBoxCrossing<O3D, 2>(h, x2, x0, urayt, Beam, xs, true);
     }
+    TopBotCrossing<O3D>(h, bds.top, x2, x0, urayt, true, topRefl);
+    TopBotCrossing<O3D>(h, bds.bot, x2, x0, urayt, true, botRefl);
+    if(botRefl) topRefl = false;
     
-    // top crossing
-    d = x2 - Topx; // vector from top to ray
-    // Originally, this value had to be > a small positive number, meaning the
-    // new step really had to be outside the boundary, not just to the boundary.
-    // Also, this is not missing a normalization factor, Topn is normalized so
-    // this is actually the distance above the top in meters.
-    if(glm::dot(Topn, d) > -INFINITESIMAL_STEP_SIZE){
-        d0 = x0 - Topx; // vector from top node to ray origin
-        h = -glm::dot(d0, Topn) / glm::dot(urayt, Topn);
-        x2 = x0 + h * urayt;
-        // Snap to exact top depth value if it's flat
-        if(STD::abs(Topn.x) < REAL_EPSILON){
-            x2.y = Topx.y;
-        }
-        // GlobalLog("StepToBdry2D top crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
-        topRefl = true;
+    if constexpr(O3D){
+        TopBotSegCrossing<O3D>(h, bds.top.lSeg.x, bds.bot.lSeg.x, ssp->Seg.x, iSeg0.x,
+            x2, x0, urayt, 'H', ssp, true, topRefl, botRefl, false);
+        TopBotSegCrossing<O3D>(h, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y,
+            x2, x0, urayt, 'H', ssp, true, topRefl, botRefl, true);
+        TriDiagCrossing(h, bds.top, x2, x0, urayt, true, topRefl, botRefl, flipTopDiag);
+        TriDiagCrossing(h, bds.bot, x2, x0, urayt, true, topRefl, botRefl, flipBotDiag);
     }else{
-        topRefl = false;
-    }
-    
-    // bottom crossing
-    d = x2 - Botx; // vector from bottom to ray
-    // See comment above for top case.
-    if(glm::dot(Botn, d) > -INFINITESIMAL_STEP_SIZE){
-        d0 = x0 - Botx; // vector from bottom node to ray origin
-        h = -glm::dot(d0, Botn) / glm::dot(urayt, Botn);
-        x2 = x0 + h * urayt;
-        // Snap to exact bottom depth value if it's flat
-        if(STD::abs(Botn.x) < REAL_EPSILON){
-            x2.y = Botx.y;
-        }
-        // GlobalLog("StepToBdry2D bottom crossing h %g to (%g,%g)\n", h, x2.x, x2.y);
-        botRefl = true;
-        // Should not ever be able to cross both, but in case it does, make sure
-        // only the crossing we exactly landed on is active
-        topRefl = false;
-    }else{
-        botRefl = false;
-    }
-    
-    // top or bottom segment crossing in range
-    rSeg.x = bhc::max(rTopSeg.x, rBotSeg.x); // lower range bound (not an x value)
-    rSeg.y = bhc::min(rTopSeg.y, rBotSeg.y); // upper range bound (not a y value)
-    
-    if(ssp->Type == 'Q'){
-        rSeg.x = bhc::max(rSeg.x, ssp->Seg.r[iSegr0  ]);
-        rSeg.y = bhc::min(rSeg.y, ssp->Seg.r[iSegr0+1]);
-    }
-    
-    if(STD::abs(urayt.x) > REAL_EPSILON){
-        if(x2.x < rSeg.x){
-            h = -(x0.x - rSeg.x) / urayt.x;
-            x2.x = rSeg.x;
-            x2.y = x0.y + h * urayt.y;
-            // GlobalLog("StepToBdry2D lower range h %g to (%g,%g)\n", h, x2.x, x2.y);
-            topRefl = false;
-            botRefl = false;
-        }else if(x2.x > rSeg.y){
-            h = -(x0.x - rSeg.y) / urayt.x;
-            x2.x = rSeg.y;
-            x2.y = x0.y + h * urayt.y;
-            // GlobalLog("StepToBdry2D upper range h %g to (%g,%g)\n", h, x2.x, x2.y);
-            topRefl = false;
-            botRefl = false;
-        }
+        TopBotSegCrossing<O3D>(h, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r,
+            x2, x0, urayt, 'Q', ssp, true, topRefl, botRefl, false);
     }
     
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas){ // is it taking an infinitesimal step?
         h = INFINITESIMAL_STEP_SIZE * Beam->deltas; // make sure we make some motion
         x2 = x0 + h * urayt;
-        // GlobalLog("StepToBdry2D small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
+        #ifdef STEP_DEBUGGING
+        GlobalLog("StepToBdry small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
+        #endif
         // Recheck reflection conditions
-        d = x2 - Topx; // vector from top to ray
-        if(glm::dot(Topn, d) > REAL_EPSILON){
+        VEC23<O3D> d;
+        d = x2 - bds.top.x; // vector from top to ray
+        if(glm::dot(bds.top.n, d) > REAL_EPSILON){
             topRefl = true;
+            flipTopDiag = false;
+            flipBotDiag = false;
         }else{
             topRefl = false;
         }
-        d = x2 - Botx; // vector from bottom to ray
-        if(glm::dot(Botn, d) > REAL_EPSILON){
+        d = x2 - bds.bot.x; // vector from bottom to ray
+        if(glm::dot(bds.bot.n, d) > REAL_EPSILON){
             botRefl = true;
             topRefl = false;
+            flipTopDiag = false;
+            flipBotDiag = false;
         }else{
             botRefl = false;
         }
+    }else{
+        #ifdef STEP_DEBUGGING
+        GlobalLog("StepToBdry normal h %20.17g to (%20.17g,%20.17g)\n", h, x2.x, x2.y);
+        #endif
+    }
+}
+
+template<bool R3D> HOST_DEVICE inline void Get_c_partials(
+    const rayPt<R3D> &ray, const SSPOutputs<R3D> &o,
+    StepPartials<R3D> &part)
+{
+    if constexpr(R3D){
+        vec3 e1, e2;
+        RayNormal(ray.t, ray.phi, o.ccpx.real(), e1, e2);
+        
+        part.cnn = o.cxx * SQ(e1.x) + o.cyy * SQ(e1.y) + o.czz * SQ(e1.z)
+            + FL(2.0) * o.cxy * e1.x * e1.y
+            + FL(2.0) * o.cxz * e1.x * e1.z
+            + FL(2.0) * o.cyz * e1.y * e1.z;
+        
+        part.cmn = o.cxx * e1.x * e2.x + o.cyy * e1.y * e2.y + o.czz * e1.z * e2.z
+            + o.cxy * (e1.x * e2.y + e2.x * e1.y)
+            + o.cxz * (e1.x * e2.z + e2.x * e1.z)
+            + o.cyz * (e1.y * e2.z + e2.y * e1.z);
+        
+        part.cmm = o.cxx * SQ(e2.x) + o.cyy * SQ(e2.y) + o.czz * SQ(e2.z)
+            + FL(2.0) * o.cxy * e2.x * e2.y
+            + FL(2.0) * o.cxz * e2.x * e2.z
+            + FL(2.0) * o.cyz * e2.y * e2.z;
+    }else{
+        part.cnn_csq = o.crr * SQ(ray.t.y) 
+                    - FL(2.0) * o.crz * ray.t.x * ray.t.y 
+                    + o.czz * SQ(ray.t.x);
+    }
+}
+
+template<bool R3D> HOST_DEVICE inline rayPtExtras<R3D> ComputeDeltaPQ(
+    const rayPt<R3D> &ray, const SSPOutputs<R3D> &o,
+    const StepPartials<R3D> &part)
+{
+    rayPtExtras<R3D> pq;
+    if constexpr(R3D){
+        pq.phi = (FL(1.0) / o.ccpx.real()) * ray.t.z *
+            (ray.t.y * o.gradc.x - ray.t.x * o.gradc.y) /
+            (SQ(ray.t.x) + SQ(ray.t.y));
+        
+        mat2x2 c_mat(part.cnn, part.cmn, part.cmn, part.cmm);
+        c_mat *= -RL(1.0) / SQ(o.ccpx.real());
+        
+        // LP: Want to separately multiply _tilde and _hat by c_mat. If they
+        // were column vectors, we could just multiply the matrix like normal,
+        // but they are row vectors. P^T = C * Q^T --> P = Q * C^T
+        pq.p = ray.q * glm::transpose(c_mat);
+    }else{
+        pq.p = -part.cnn_csq * ray.q;
+    }
+    pq.q = o.ccpx.real() * ray.p;
+    return pq;
+}
+
+template<bool R3D> HOST_DEVICE inline void UpdateRayPQ(
+    rayPt<R3D> &ray1, const rayPt<R3D> &ray0, real h, const rayPtExtras<R3D> &pq)
+{
+    if constexpr(R3D){
+        ray1.phi     = ray0.phi     + h * pq.phi;
+    }
+    ray1.p = ray0.p + h * pq.p;
+    ray1.q = ray0.q + h * pq.q;
+}
+
+/**
+ * LP: Set DMat to zeros to get non-reflect version.
+*/
+template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
+    rayPt<true> &ray, const mat2x2 &DMat, real Tg, real Th,
+    real cn1jump, real cn2jump, real csjump, 
+    const vec3 &rayn1, const vec3 &rayn2, const vec3 &e1, const vec3 &e2)
+{
+    real rm = Tg / Th; // this is tan( alpha ) where alpha is the angle of incidence
+    
+    // Note that Tg, Th need to be multiplied by c to normalize tangent; hence, csq below
+    // added the copysign in r2 to make ati and bty have a symmetric effect on the beam
+    // not clear why that's needed
+    
+    mat2x2 rmat; // originally R1, R2, R3
+    real csq = SQ(ray.c);
+    rmat[0][0] = FL(2.0) / csq   * DMat[0][0] / Th + rm * (FL(2.0) * cn1jump - rm * csjump) / csq;
+    rmat[0][1] = FL(2.0) / ray.c * DMat[1][0] * STD::copysign(RL(1.0), -Th)  + rm * cn2jump / csq;
+    rmat[1][0] = rmat[0][1];
+    rmat[1][1] = FL(2.0)         * DMat[1][1] * Th;
+    // PrintMatrix(rmat, "rmat");
+    
+    if constexpr(REFLECTVERSION){
+        rmat[1][0] = -rmat[1][0]; // LP: only first row, second column is negative
+        //rmat[1][1] = -rmat[1][1]; // mbp: this one good [LP: The equivalent of this is commented out with this comment]
+    }else{
+        rmat = -rmat; // LP: all terms are negative
+    }
+    
+    // z-component of unit tangent is sin( theta ); we want cos( theta )
+    //rmat[0][0] *= (FL(1.0) - SQ(ray.c * ray.t.z))
+    
+    if(REFLECTVERSION && rmat[0][0] == RL(0.0) && rmat[0][1] == RL(0.0) && rmat[1][1] == RL(0.0)){
+        // LP: There is no curvature change, but rotating p forward and back
+        // can change it slightly due to floating-point imprecision, leading to
+        // long-term divergence.
+    }else{
+        
+        // *** curvature correction ***
+        
+        /*
+        LP: Arrays in Fortran are stored as A[row][col] where the leftmost index
+        (row) is the small increment to adjacent memory. Arrays in C are stored
+        as A[row][col] where the rightmost index (col) is the small increment to
+        adjacent memory. Arrays in OpenGL and therefore GLM are stored as
+        A[col][row] where the rightmost index (row) is the small increment to
+        adjacent memory. For bellhopcxx/bellhopcuda, we don't care how the data
+        is stored for proper matrices like this, but the indexing has to be
+        swapped compared to the Fortran.
+        */
+        mat2x2 RotMat;
+        RotMat[0][0] = glm::dot(rayn1, e1);
+        RotMat[1][0] = glm::dot(rayn1, e2);
+        RotMat[0][1] = -RotMat[1][0]; // mbp: same as glm::dot(rayn2, e1)
+        RotMat[1][1] = glm::dot(rayn2, e2);
+        
+        // rotate p-q values in e1, e2 system, onto rayn1, rayn2 system
+        // LP: _tilde and _hat are the first and second ROWS of p / q.
+        
+        mat2x2 p_in = RotMat * ray.p;
+        mat2x2 q_in = RotMat * ray.q;
+        
+        // here's the actual curvature change
+        
+        mat2x2 p_out = p_in + rmat * q_in;
+        
+        // rotate p back to e1, e2 system, q does not change
+        // Note RotMat^(-1) = RotMat^T
+        
+        ray.p = glm::transpose(RotMat) * p_out;
+    }
+    
+    if constexpr(REFLECTVERSION){
+        // Logic below fixes a bug when the |dot product| is infinitesimally greater than 1 (then ACos is complex)
+        real d;
+        d = glm::dot(rayn1, e1);
+        // d = rayn1.y * e1.y;
+        // d = STD::fma(rayn1.x, e1.x, d);
+        // d = STD::fma(rayn1.z, e1.z, d);
+        ray.phi += FL(2.0) * STD::acos(bhc::max(bhc::min(d, RL(1.0)), RL(-1.0))); // What happens to torsion?
+        // GlobalLog("dot %17.12g phi %17.12g\n",
+        //     glm::dot(rayn1, e1), ray.phi);
+    }
+}
+
+HOST_DEVICE inline void CalcTangent_Normals(const rayPt<true> &ray, real c, const vec3 &nBdry,
+    vec3 &rayt, vec3 &rayn1, vec3 &rayn2, real rayn2sign)
+{
+    rayt  = c * ray.t;                           // unit tangent to ray
+    rayn2 = rayn2sign * glm::cross(rayt, nBdry); // ray tangent x boundary normal gives refl. plane normal
+    rayn2 /= glm::length(rayn2);                 // unit normal
+    rayn1 = -glm::cross(rayt, rayn2);            // ray tangent x refl. plane normal is first ray normal
+}
+
+/**
+ * correct p-q due to jumps in the gradient of the sound speed
+ */
+template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
+    rayPt<R3D> &ray, const VEC23<R3D> &gradcjump,
+    const SSPSegState &iSeg, const SSPSegState &iSeg0)
+{
+    if constexpr(R3D){
+        vec3 nBdry(RL(0.0), RL(0.0), RL(0.0));
+        // what if we cross iSeg.x, iSeg.y, or iSeg.z at the same time?
+        if(iSeg.z != iSeg0.z){
+            nBdry.z = -STD::copysign(RL(1.0), ray.t.z); // inward normal to layer
+        }else if(iSeg.x != iSeg0.x){
+            nBdry.x = -STD::copysign(RL(1.0), ray.t.x); // inward normal to x-segment
+        }else{
+            nBdry.y = -STD::copysign(RL(1.0), ray.t.y); // inward normal to y-segment
+        }
+        
+        real Th    = glm::dot(ray.t, nBdry); // component of ray tangent, normal to boundary
+        vec3 tBdry = ray.t - Th * nBdry;     // tangent, along the boundary, in the reflection plane
+        tBdry     /= glm::length(tBdry);     // unit boundary tangent
+        real Tg    = glm::dot(ray.t, tBdry); // component of ray tangent, along the boundary
+
+        vec3 rayt, rayn1, rayn2;
+        CalcTangent_Normals(ray, ray.c, nBdry, rayt, rayn1, rayn2, RL(1.0));
+        
+        vec3 e1, e2;
+        RayNormal_unit(rayt, ray.phi, e1, e2);
+        
+        // normal and tangential derivatives of the sound speed
+        real cn1jump = glm::dot(gradcjump, rayn1);
+        real cn2jump = glm::dot(gradcjump, rayn2);
+        real csjump  = glm::dot(gradcjump, rayt);
+        
+        // GlobalLog("cn1 cn2 cs jumps %g %g %g\n", cn1jump, cn2jump, csjump);
+        
+        CurvatureCorrection3D<false>(ray, mat2x2(RL(0.0)), Tg, Th, 
+            cn1jump, cn2jump, csjump, rayn1, rayn2, e1, e2);
+    }else{
+        // LP: Nx2D only:
+        // mbp: this needs modifying like the full 3D version to handle jumps in the x-y direction
+        vec2 ray2n = vec2(-ray.t.y, ray.t.x); // ray normal
+        
+        real cnjump = glm::dot(gradcjump, ray2n);
+        real csjump = glm::dot(gradcjump, ray.t);
+        
+        real rm, rn;
+        if(iSeg.z != iSeg0.z){       // crossing in depth
+            rm =  ray.t.x / ray.t.y; // this is tan( alpha ) where alpha is the angle of incidence
+        }else{                       // crossing in range
+            // LP: This case is excluded for Nx2D by the if condition under
+            // which this is called.
+            rm = -ray.t.y / ray.t.x; // this is tan( alpha ) where alpha is the angle of incidence
+        }                            // LP: The case where it crosses in depth and range simultaneously is not handled.
+        
+        rn = rm * (FL(2.0) * cnjump - rm * csjump) / ray.c;
+        ray.p = ray.p - ray.q * rn;
     }
 }
 
 /**
  * Does a single step along the ray
  */
-HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2, 
-    const vec2 &Topx, const vec2 &Topn, const vec2 &Botx, const vec2 &Botn,
-    const vec2 &rTopSeg, const vec2 &rBotSeg, const real &freq,
-    const BeamStructure *Beam, const SSPStructure *ssp,
-    int32_t &iSegz, int32_t &iSegr, int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl)
+template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
+    rayPt<R3D> ray0, rayPt<R3D> &ray2, const BdryState<O3D> &bds,
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const Origin<O3D, R3D> &org,
+    const SSPStructure *ssp, SSPSegState &iSeg, int32_t &iSmallStepCtr,
+    bool &topRefl, bool &botRefl, bool &flipTopDiag, bool &flipBotDiag)
 {
-    ray2DPt ray1;
-    int32_t iSegz0, iSegr0;
-    vec2 gradc0, gradc1, gradc2, urayt0, urayt1, ray2n, gradcjump;
-    cpx ccpx0, ccpx1, ccpx2;
-    real crr0, crz0, czz0, csq0, cnn0_csq0;
-    real crr1, crz1, czz1, csq1, cnn1_csq1;
-    real crr2, crz2, czz2;
-    real h, halfh, rm, rn, cnjump, csjump, w0, w1, rho;
+    rayPt<R3D> ray1;
+    SSPOutputs<R3D> o0, o1, o2;
+    StepPartials<R3D> part0, part1;
+    rayPtExtras<R3D> pq0, pq1;
+    VEC23<R3D> urayt0, urayt1;
+    real csq0, csq1, h, w0, w1, hw0, hw1;
     
+    #ifdef STEP_DEBUGGING
     // GlobalLog("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n", 
     //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y, ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
-    // GlobalLog("iSegz iSegr %d %d\n", iSegz, iSegr);
-    
-    // if(ray0.x.x > 420.0){
+    // GlobalLog("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
+    if constexpr(R3D){
+        GlobalLog("\nray0 x t (%20.17f,%20.17f,%20.17f) (%20.17e,%20.17e,%20.17e)\n",
+            ray0.x.x, ray0.x.y, ray0.x.z, ray0.t.x, ray0.t.y, ray0.t.z);
+        PrintMatrix(ray0.p, "ray0.p");
+        PrintMatrix(ray0.q, "ray0.q");
+        GlobalLog("iSegx iSegy iSegz %d %d %d\n", iSeg.x + 1, iSeg.y + 1, iSeg.z + 1);
+    }else{
+        GlobalLog("\nray0 x t (%20.17f,%20.17f) (%20.17e,%20.17e)\n",
+            ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y);
+        GlobalLog("iSegr iSegz %d %d\n", iSeg.r + 1, iSeg.z + 1);
+    }
+    // if(ray0.x.x > RL(10.0)){
     //     GlobalLog("Enough\n");
     //     bail();
     // }
+    #endif
     
     // The numerical integrator used here is a version of the polygon (a.k.a. midpoint, leapfrog, or Box method), and similar
     // to the Heun (second order Runge-Kutta method).
@@ -276,124 +634,78 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
 
     // *** Phase 1 (an Euler step)
 
-    EvaluateSSP(ray0.x, ray0.t, ccpx0, gradc0, crr0, crz0, czz0, rho, freq, ssp, iSegz, iSegr);
-    // GlobalLog("iSegz iSegr %d %d\n", iSegz, iSegr);
+    EvaluateSSP<O3D, R3D>(ray0.x, ray0.t, o0, org, ssp, iSeg);
+    // GlobalLog("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
+    Get_c_partials<R3D>(ray0, o0, part0);
+    pq0 = ComputeDeltaPQ<R3D>(ray0, o0, part0);
     
-    // GlobalLog("ccpx0: (%g,%g) gradc0: (%g,%g) crr0 %g crz0 %g czz0 %g, rho %g\n", 
-    //    ccpx0.real(), ccpx0.imag(), gradc0.x, gradc0.y, crr0, crz0, czz0, rho);
+    SSPSegState iSeg0 = iSeg; // make note of current layer
     
-    /*
-    if(STD::abs(ccpx0) > DEBUG_LARGEVAL){
-        GlobalLog("ccpx0 invalid: (%g,%g)\n", ccpx0.real(), ccpx0.imag());
-        bail();
-    }
-    */
-    
-    csq0      = SQ(ccpx0.real());
-    cnn0_csq0 = crr0 * SQ(ray0.t.y) - FL(2.0) * crz0 * ray0.t.x * ray0.t.y + czz0 * SQ(ray0.t.x);
-    iSegz0    = iSegz; // make note of current layer
-    iSegr0    = iSegr;
-    
-    h = Beam->deltas;       // initially set the step h, to the basic one, deltas
-    urayt0 = ccpx0.real() * ray0.t; // unit tangent
+    csq0   = SQ(o0.ccpx.real());
+    urayt0 = o0.ccpx.real() * ray0.t; // unit tangent
+    h      = Beam->deltas; // initially set the step h, to the basic one, deltas
     
     // GlobalLog("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0.x, urayt0, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
-        Beam, ssp, h, iSmallStepCtr);
+    VEC23<O3D> x_o = RayToOceanX(ray0.x, org);
+    VEC23<O3D> t_o = RayToOceanT(urayt0, org);
+    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, h, iSmallStepCtr);
     // GlobalLog("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
-    halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
+    real halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
     
     ray1.x = ray0.x + halfh * urayt0;
-    ray1.t = ray0.t - halfh * gradc0 / csq0;
-    ray1.p = ray0.p - halfh * cnn0_csq0    * ray0.q;
-    ray1.q = ray0.q + halfh * ccpx0.real() * ray0.p;
+    ray1.t = ray0.t - halfh * o0.gradc / csq0;
+    UpdateRayPQ<R3D>(ray1, ray0, halfh, pq0);
     
     // GlobalLog("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)\n", 
-    //   ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
-    
-    /*
-    if(STD::abs(ray1.x.x) > DEBUG_LARGEVAL || STD::abs(ray1.x.y) > DEBUG_LARGEVAL){
-        GlobalLog("ray1.x invalid\n");
-        bail();
-    }
-    if(STD::abs(ray1.t.x) > DEBUG_LARGEVAL || STD::abs(ray1.t.y) > DEBUG_LARGEVAL){
-        GlobalLog("ray1.t invalid\n");
-        bail();
-    }
-    if(STD::abs(ray1.p.x) > DEBUG_LARGEVAL || STD::abs(ray1.p.y) > DEBUG_LARGEVAL){
-        GlobalLog("ray1.p invalid\n");
-        bail();
-    }
-    if(STD::abs(ray1.q.x) > DEBUG_LARGEVAL || STD::abs(ray1.q.y) > DEBUG_LARGEVAL){
-        GlobalLog("ray1.q invalid\n");
-        bail();
-    }
-    */
+    //     ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x, ray1.q.y);
     
     // *** Phase 2
     
-    EvaluateSSP(ray1.x, ray1.t, ccpx1, gradc1, crr1, crz1, czz1, rho, freq, ssp, iSegz, iSegr);
-    
-    // GlobalLog("ccpx1: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
-    
-    /*
-    if(STD::abs(ccpx1) > DEBUG_LARGEVAL){
-        GlobalLog("ccpx1 invalid: ray1.x (%g,%g) iSegz %d iSegr %d => ccpx1 (%g,%g)\n", 
-            ray1.x.x, ray1.x.y, iSegz, iSegr, ccpx1.real(), ccpx1.imag());
-        bail();
-    }
-    */
-    csq1      = SQ(ccpx1.real());
-    cnn1_csq1 = crr1 * SQ(ray1.t.y) - FL(2.0) * crz1 * ray1.t.x * ray1.t.y + czz1 * SQ(ray1.t.x);
+    EvaluateSSP<O3D, R3D>(ray1.x, ray1.t, o1, org, ssp, iSeg);
+    Get_c_partials<R3D>(ray1, o1, part1);
+    pq1 = ComputeDeltaPQ<R3D>(ray1, o1, part1);
     
     // The Munk test case with a horizontally launched ray caused problems.
     // The ray vertexes on an interface and can ping-pong around that interface.
     // Have to be careful in that case about big changes to the stepsize (that invalidate the leap-frog scheme) in phase II.
     // A modified Heun or Box method could also work.
 
-    urayt1 = ccpx1.real() * ray1.t; // unit tangent
+    csq1      = SQ(o1.ccpx.real());
+    urayt1 = o1.ccpx.real() * ray1.t; // unit tangent
     
     // GlobalLog("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
     
     // reduce h to land on boundary
-    ReduceStep2D(ray0.x, urayt1, iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg,
-        Beam, ssp, h, iSmallStepCtr);
+    t_o = RayToOceanT(urayt1, org);
+    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, h, iSmallStepCtr);
     
     // use blend of f' based on proportion of a full step used.
     w1  = h / (RL(2.0) * halfh);
     w0  = RL(1.0) - w1;
     // GlobalLog("w1 %20.17f w0 %20.17f\n", w1, w0);
-    vec2 urayt2   =  w0 * urayt0                + w1 * urayt1;
-    vec2 unitdt   = -w0 * gradc0 / csq0         - w1 * gradc1 / csq1;
-    vec2 unitdp   = -w0 * cnn0_csq0    * ray0.q - w1 * cnn1_csq1    * ray1.q;
-    vec2 unitdq   =  w0 * ccpx0.real() * ray0.p + w1 * ccpx1.real() * ray1.p;
-    cpx  unitdtau =  w0 / ccpx0                 + w1 / ccpx1;
-    
+    VEC23<R3D> urayt2 =  w0 * urayt0 + w1 * urayt1;
     // Take the blended ray tangent (urayt2) and find the minimum step size (h)
     // to put this on a boundary, and ensure that the resulting position
     // (ray2.x) gets put precisely on the boundary.
-    StepToBdry2D(ray0.x, ray2.x, urayt2, h, topRefl, botRefl,
-        iSegz0, iSegr0, Topx, Topn, Botx, Botn, rTopSeg, rBotSeg, Beam, ssp);
-    ray2.t   = ray0.t   + h * unitdt;
-    ray2.p   = ray0.p   + h * unitdp;
-    ray2.q   = ray0.q   + h * unitdq;
-    ray2.tau = ray0.tau + h * unitdtau;
+    VEC23<O3D> x2_o;
+    t_o = RayToOceanT(urayt2, org);
+    StepToBdry<O3D>(x_o, x2_o, t_o, h, topRefl, botRefl, flipTopDiag, flipBotDiag,
+        iSeg0, bds, Beam, xs, ssp);
+    ray2.x = OceanToRayX(x2_o, org, urayt2);
     
-    /*
-    GlobalLog("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
-        ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
-        ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
+    // Update other variables with this new h
+    hw0 = h * w0;
+    hw1 = h * w1;
+    ray2.t   = ray0.t   - hw0 * o0.gradc / csq0         - hw1 * o1.gradc / csq1;
+    ray2.tau = ray0.tau + hw0 / o0.ccpx                 + hw1 / o1.ccpx;
+    UpdateRayPQ<R3D>(ray2, ray0, hw0, pq0);
+    UpdateRayPQ<R3D>(ray2, ray2, hw1, pq1); // Not a typo, accumulating into 2
     
-    if(STD::abs(ray2.x.x) > DEBUG_LARGEVAL || STD::abs(ray2.x.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2.t.x) > DEBUG_LARGEVAL || STD::abs(ray2.t.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2.p.x) > DEBUG_LARGEVAL || STD::abs(ray2.p.y) > DEBUG_LARGEVAL
-    || STD::abs(ray2.q.x) > DEBUG_LARGEVAL || STD::abs(ray2.q.y) > DEBUG_LARGEVAL){
-        GlobalLog("ray2 invalid\n");
-        bail();
-    }
-    */
+    // GlobalLog("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n", 
+    //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y, 
+    //     ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
     
     ray2.Amp       = ray0.Amp;
     ray2.Phase     = ray0.Phase;
@@ -402,32 +714,19 @@ HOST_DEVICE inline void Step2D(ray2DPt ray0, ray2DPt &ray2,
     
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP(ray2.x, ray2.t, ccpx2, gradc2, crr2, crz2, czz2, rho, freq, ssp, iSegz, iSegr);
-    //GlobalLog("ccpx2: (%g,%g)\n", ccpx2.real(), ccpx2.imag());
-    /*
-    if(STD::abs(ccpx2) > DEBUG_LARGEVAL){
-        GlobalLog("ccpx2 invalid: (%g,%g)\n", ccpx1.real(), ccpx1.imag());
-        bail();
-    }
-    */
-    ray2.c = ccpx2.real();
+    EvaluateSSP<O3D, R3D>(ray2.x, ray2.t, o2, org, ssp, iSeg);
+    ray2.c = o2.ccpx.real();
     
-    if(iSegz != iSegz0 || iSegr != iSegr0){
-        gradcjump = gradc2 - gradc0;
-        ray2n = vec2(-ray2.t.y, ray2.t.x); // ray normal
-        
-        cnjump = glm::dot(gradcjump, ray2n);
-        csjump = glm::dot(gradcjump, ray2.t);
-        
-        if(iSegz != iSegz0){             // crossing in depth
-            rm =  ray2.t.x / ray2.t.y; // this is tan( alpha ) where alpha is the angle of incidence
-        }else{                           // crossing in range
-            rm = -ray2.t.y / ray2.t.x; // this is tan( alpha ) where alpha is the angle of incidence
-        }                                // LP: The case where it crosses in depth and range simultaneously is not handled.
-        
-        rn = rm * (FL(2.0) * cnjump - rm * csjump) / ccpx2.real();
-        ray2.p = ray2.p - ray2.q * rn;
+    if(iSeg.z != iSeg0.z || (!R3D && !O3D && iSeg.r != iSeg0.r) || 
+            (R3D && (iSeg.x != iSeg0.x || iSeg.y != iSeg0.y))){
+        VEC23<R3D> gradcjump = o2.gradc - o0.gradc;
+        CurvatureCorrection<R3D>(ray2, gradcjump, iSeg, iSeg0);
     }
+    // if constexpr(R3D){
+    //     PrintMatrix(ray2.p, "ray2.p");
+    //     PrintMatrix(ray2.q, "ray2.q");
+    // }
+    
 }
 
 }

@@ -28,12 +28,10 @@ namespace bhc {
 inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, PrintFileEmu &PRTFile,
     FreqInfo *freqinfo)
 {
-    freqinfo->Nfreq = 1;
-    
     if(BroadbandOption == 'B'){
         LIST(ENVFile); ENVFile.Read(freqinfo->Nfreq);
         PRTFile << "__________________________________________________________________________\n\n\n";
-        PRTFile << "Number of frequencies = " << freqinfo->Nfreq << "\n";
+        PRTFile << "   Number of frequencies = " << freqinfo->Nfreq << "\n";
         if(freqinfo->Nfreq <= 0){
             GlobalLog("Number of frequencies must be positive\n");
             std::abort();
@@ -43,7 +41,8 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, PrintFileEmu &PR
     checkallocate(freqinfo->freqVec, bhc::max(3, freqinfo->Nfreq));
     
     if(BroadbandOption == 'B'){
-        PRTFile << "Frequencies (Hz)\n";
+        PRTFile << "   Frequencies (Hz)\n";
+        freqinfo->freqVec[1] = FL(-999.9);
         freqinfo->freqVec[2] = FL(-999.9);
         LIST(ENVFile); ENVFile.Read(freqinfo->freqVec, freqinfo->Nfreq);
         SubTab(freqinfo->freqVec, freqinfo->Nfreq);
@@ -63,7 +62,7 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
 {
     PRTFile << "\n__________________________________________________________________________\n\n";
     LIST(ENVFile); ENVFile.Read(Nx);
-    PRTFile << "Number of " << Description << " = " << Nx << "\n";
+    PRTFile << "   Number of " << Description << " = " << Nx << "\n";
     
     if(Nx <= 0){
         GlobalLog("ReadVector: Number of %s must be positive\n", Description.c_str());
@@ -72,13 +71,13 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
     
     checkallocate(x, bhc::max(3, Nx));
     
-    PRTFile << Description << " (" << Units << ")\n";
+    PRTFile << "   " << Description << " (" << Units << ")\n";
     x[2] = FL(-999.9);
     LIST(ENVFile); ENVFile.Read(x, Nx);
     
     SubTab(x, Nx);
     Sort(x, Nx);
-    EchoVector(x, Nx, PRTFile);
+    EchoVector(x, Nx, PRTFile, 10, "   ");
     
     PRTFile << "\n";
     
@@ -94,12 +93,12 @@ template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::strin
  * 
  * ThreeD: flag indicating whether this is a 3D run
  */
-inline void ReadSxSy(bool ThreeD, LDIFile &ENVFile, PrintFileEmu &PRTFile,
+template<bool O3D> inline void ReadSxSy(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
-    if(ThreeD){
-        ReadVector(Pos->NSx, Pos->Sx, "source   x-coordinates, Sx", "km", ENVFile, PRTFile);
-        ReadVector(Pos->NSy, Pos->Sy, "source   y-coordinates, Sy", "km", ENVFile, PRTFile);
+    if constexpr(O3D){
+        ReadVector(Pos->NSx, Pos->Sx, "Source   x-coordinates, Sx", "km", ENVFile, PRTFile);
+        ReadVector(Pos->NSy, Pos->Sy, "Source   y-coordinates, Sy", "km", ENVFile, PRTFile);
     }else{
         checkallocate(Pos->Sx, 1);
         checkallocate(Pos->Sy, 1);
@@ -118,8 +117,8 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, PrintFileEmu &PRTFi
 {
     //bool monotonic; //LP: monotonic is a function, this is a name clash
     
-    ReadVector(Pos->NSz, Pos->Sz, "Source   depths, Sz", "m", ENVFile, PRTFile);
-    ReadVector(Pos->NRz, Pos->Rz, "Receiver depths, Rz", "m", ENVFile, PRTFile);
+    ReadVector(Pos->NSz, Pos->Sz, "Source   z-coordinates, Sz", "m", ENVFile, PRTFile);
+    ReadVector(Pos->NRz, Pos->Rz, "Receiver z-coordinates, Rz", "m", ENVFile, PRTFile);
     
     checkallocate(Pos->ws, Pos->NSz);
     checkallocate(Pos->iSz, Pos->NSz);
@@ -171,7 +170,7 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, PrintFileEmu &PRTFi
 inline void ReadRcvrRanges(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
-    ReadVector(Pos->NRr, Pos->Rr, "Receiver ranges, Rr", "km", ENVFile, PRTFile);
+    ReadVector(Pos->NRr, Pos->Rr, "Receiver r-coordinates, Rr", "km", ENVFile, PRTFile);
     
     // calculate range spacing
     Pos->Delta_r = FL(0.0);
@@ -186,7 +185,8 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, PrintFileEmu &PRTFile,
 inline void ReadRcvrBearings(LDIFile &ENVFile, PrintFileEmu &PRTFile,
     Position *Pos)
 {
-    ReadVector(Pos->Ntheta, Pos->theta, "receiver bearings, theta", "degrees", ENVFile, PRTFile);
+    ReadVector(Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile, PRTFile);
+    checkallocate<vec2>(Pos->t_rcvr, Pos->Ntheta);
     
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);
     

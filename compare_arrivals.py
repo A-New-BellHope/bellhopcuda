@@ -25,11 +25,6 @@ if sys.version_info.major < 3:
 import struct
 import difflib
 
-if len(sys.argv) != 2:
-    print('Usage: python3 compare_arrivals.py MunkB_Arr')
-    print('No path, no .arr')
-    sys.exit(1)
-
 def compare_asc_files(cxxf, forf):
     l = 0
     cxxmorelines = 0
@@ -144,13 +139,18 @@ def compare_bin_files(cxxf, forf):
         sys.exit(1)
     print('Binary arrival results matched')
 
-print('\nComparing arrivals results for {}'.format(sys.argv[1]))
-cxx1file = 'test/cxx1/{}.arr'.format(sys.argv[1])
-cxxmultifile = 'test/cxxmulti/{}.arr'.format(sys.argv[1])
-cudafile = 'test/cuda/{}.arr'.format(sys.argv[1])
-forfile = 'test/FORTRAN/{}.arr'.format(sys.argv[1])
+if len(sys.argv) not in {2, 3}:
+    print('Usage: python3 compare_arrivals.py MunkB_Arr [cxx1/cxxmulti/cuda]')
+    print('No paths, no .arr')
+    sys.exit(1)
 
-with open(forfile, 'rb') as forf:
+arrfil = sys.argv[1]
+if len(sys.argv) == 3:
+    comparisons = [sys.argv[2]]
+else:
+    comparisons = ['cxx1', 'cxxmulti', 'cuda']
+
+with open('test/FORTRAN/{}.arr'.format(arrfil), 'rb') as forf:
     if forf.read(4) == b'\x04\x00\x00\x00':
         compare_func = compare_bin_files
         open_flag = 'rb'
@@ -158,16 +158,12 @@ with open(forfile, 'rb') as forf:
         compare_func = compare_asc_files
         open_flag = 'r'
 
-with open(cxx1file, open_flag) as cxxf, open(forfile, open_flag) as forf:
-    print('bellhopcxx single-threaded:')
-    compare_func(cxxf, forf)
-
-'''
-with open(cxxmultifile, open_flag) as cxxf, open(forfile, open_flag) as forf:
-    print('bellhopcxx multi-threaded:')
-    compare_func(cxxf, forf)
-
-with open(cudafile, open_flag) as cxxf, open(forfile, open_flag) as forf:
-    print('bellhopcuda:')
-    compare_func(cxxf, forf)
-'''
+for c in comparisons:
+    with open('test/FORTRAN/{}.arr'.format(arrfil), open_flag) as forf:
+        cxxfile = 'test/{}/{}.arr'.format(c, arrfil)
+        try:
+            with open(cxxfile, open_flag) as cxxf:
+                print('Arrivals comparison FORTRAN vs. {}:'.format(c))
+                compare_func(cxxf, forf)
+        except FileNotFoundError:
+            print('{} not found, skipping {}'.format(cxxfile, c))

@@ -17,12 +17,15 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #include "arrivals.hpp"
+#include "runtype.hpp"
 
 namespace bhc {
 
-void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
-    const FreqInfo *freqinfo, const BeamStructure *Beam, std::string FileRoot, bool ThreeD)
+template<bool O3D, bool R3D> void FinalizeArrivalsMode(
+    const ArrInfo *arrinfo, const Position *Pos,
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, std::string FileRoot)
 {
+    // LP: originally most of OpenOutputFiles
     bool isAscii;
     LDOFile AARRFile;
     UnformattedOFile BARRFile;
@@ -31,11 +34,11 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         isAscii = true;
         
         AARRFile.open(FileRoot + ".arr");
-        AARRFile << (ThreeD ? "3D" : "2D") << '\n';
+        AARRFile << (O3D ? "3D" : "2D") << '\n';
         AARRFile << freqinfo->freq0 << '\n';
         
         // write source locations
-        if(ThreeD){
+        if constexpr(O3D){
             AARRFile << Pos->NSx; AARRFile.write(Pos->Sx, Pos->NSx); AARRFile << '\n';
             AARRFile << Pos->NSy; AARRFile.write(Pos->Sy, Pos->NSy); AARRFile << '\n';
         }
@@ -44,7 +47,7 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         // write receiver locations
         AARRFile << Pos->NRz; AARRFile.write(Pos->Rz, Pos->NRz); AARRFile << '\n';
         AARRFile << Pos->NRr; AARRFile.write(Pos->Rr, Pos->NRr); AARRFile << '\n';
-        if(ThreeD){
+        if constexpr(O3D){
             AARRFile << Pos->Ntheta; AARRFile.write(Pos->theta, Pos->Ntheta); AARRFile << '\n';
         }
         break;
@@ -52,11 +55,11 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         isAscii = false;
         
         BARRFile.open(FileRoot + ".arr");
-        BARRFile.rec(); BARRFile.write((ThreeD ? "'3D'" : "'2D'"), 4);
+        BARRFile.rec(); BARRFile.write((O3D ? "'3D'" : "'2D'"), 4);
         BARRFile.rec(); BARRFile.write((float)freqinfo->freq0);
         
         // write source locations
-        if(ThreeD){
+        if constexpr(O3D){
             BARRFile.rec(); BARRFile.write(Pos->NSx); BARRFile.write(Pos->Sx, Pos->NSx);
             BARRFile.rec(); BARRFile.write(Pos->NSy); BARRFile.write(Pos->Sy, Pos->NSy);
         }
@@ -65,7 +68,7 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         // write receiver locations
         BARRFile.rec(); BARRFile.write(Pos->NRz); BARRFile.write(Pos->Rz, Pos->NRz);
         BARRFile.rec(); BARRFile.write(Pos->NRr); BARRFile.write(Pos->Rr, Pos->NRr);
-        if(ThreeD){
+        if constexpr(O3D){
             BARRFile.rec(); BARRFile.write(Pos->Ntheta); BARRFile.write(Pos->theta, Pos->Ntheta);
         }
         break;
@@ -74,67 +77,106 @@ void FinalizeArrivalsMode(const ArrInfo *arrinfo, const Position *Pos,
         bail();
         return;
     }
-    for(int32_t isrc = 0; isrc < Pos->NSz; ++isrc){
-        int32_t maxn = 0;
-        for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
-            for(int32_t ir=0; ir<Pos->NRr; ++ir){
-                int32_t base = (isrc * Pos->NRz_per_range + iz) * Pos->NRr + ir;
-                if(arrinfo->NArr[base] > maxn) maxn = arrinfo->NArr[base];
-            }
-        }
-        if(isAscii){
-            AARRFile << maxn << '\n';
-        }else{
-            BARRFile.rec(); BARRFile.write(maxn);
-        }
-        
-        for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
-            for(int32_t ir=0; ir<Pos->NRr; ++ir){
-                int32_t base = (isrc * Pos->NRz_per_range + iz) * Pos->NRr + ir;
-                real factor;
-                if(Beam->RunType[3] == 'X'){ // line source
-                    factor = FL(4.0) * STD::sqrt(REAL_PI);
-                }else{                       // point source
-                    if(Pos->Rr[ir] == FL(0.0)){
-                        factor = FL(1e5); // avoid /0 at origin
-                    }else{
-                        factor = FL(1.0) / STD::sqrt(Pos->Rr[ir]); // cyl. spreading
+    // LP: originally most of WriteArrivals[ASCII/Binary][3D]
+    for(int32_t isz = 0; isz < Pos->NSz; ++isz){
+        for(int32_t isx = 0; isx < Pos->NSx; ++isx){
+            for(int32_t isy = 0; isy < Pos->NSy; ++isy){
+                // LP: Maximum number of arrivals
+                int32_t maxn = 0;
+                for(int32_t itheta=0; itheta<Pos->Ntheta; ++itheta){
+                    for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
+                        for(int32_t ir=0; ir<Pos->NRr; ++ir){
+                            size_t base = GetFieldAddr(isx, isy, isz, itheta, iz, ir, Pos);
+                            if(arrinfo->NArr[base] > maxn) maxn = arrinfo->NArr[base];
+                        }
                     }
                 }
-                
-                int32_t narr = arrinfo->NArr[base];
                 if(isAscii){
-                    AARRFile << narr << '\n';
+                    AARRFile << maxn << '\n';
                 }else{
-                    BARRFile.rec(); BARRFile.write(narr);
+                    BARRFile.rec(); BARRFile.write(maxn);
                 }
                 
-                for(int32_t iArr=0; iArr<narr; ++iArr){
-                    Arrival *arr = &arrinfo->Arr[base * arrinfo->MaxNArr + iArr];
-                    if(isAscii){
-                        AARRFile << (float)factor * arr->a
-                                 << (float)RadDeg * arr->Phase
-                                 << arr->delay.real()
-                                 << arr->delay.imag()
-                                 << arr->SrcDeclAngle
-                                 << arr->RcvrDeclAngle
-                                 << arr->NTopBnc
-                                 << arr->NBotBnc
-                                 << '\n';
-                    }else{
-                        BARRFile.rec();
-                        BARRFile.write((float)(factor * arr->a)); // LP: not a typo; cast in different order
-                        BARRFile.write((float)(RadDeg * arr->Phase)); // compared to ascii version
-                        BARRFile.write(arr->delay);
-                        BARRFile.write(arr->SrcDeclAngle);
-                        BARRFile.write(arr->RcvrDeclAngle);
-                        BARRFile.write((float)arr->NTopBnc);
-                        BARRFile.write((float)arr->NBotBnc);
+                for(int32_t itheta=0; itheta<Pos->Ntheta; ++itheta){
+                    for(int32_t iz=0; iz<Pos->NRz_per_range; ++iz){
+                        for(int32_t ir=0; ir<Pos->NRr; ++ir){
+                            size_t base = GetFieldAddr(isx, isy, isz, itheta, iz, ir, Pos);
+                            float factor;
+                            if constexpr(R3D){
+                                factor = FL(1.0);
+                            }else{
+                                if(!O3D && IsLineSource(Beam)){
+                                    factor = FL(4.0) * STD::sqrt(REAL_PI);
+                                }else if(Pos->Rr[ir] == FL(0.0)){
+                                    factor = FL(1e5); // avoid /0 at origin
+                                }else{
+                                    factor = FL(1.0) / STD::sqrt(Pos->Rr[ir]); // cyl. spreading
+                                }
+                            }
+                            
+                            int32_t narr = arrinfo->NArr[base];
+                            if(isAscii){
+                                AARRFile << narr << '\n';
+                            }else{
+                                BARRFile.rec(); BARRFile.write(narr);
+                            }
+                            
+                            for(int32_t iArr=0; iArr<narr; ++iArr){
+                                Arrival *arr = &arrinfo->Arr[base * arrinfo->MaxNArr + iArr];
+                                // LP: Unnecessary inconsistent casting to float; see Fortran version readme.
+                                if(isAscii){
+                                    // You can compress the output file a lot by putting in an explicit format statement here ...
+                                    // However, you'll need to make sure you keep adequate precision
+                                    AARRFile << factor * arr->a;
+                                    if constexpr(O3D){
+                                        AARRFile << RadDeg * arr->Phase;
+                                    }else{
+                                        AARRFile << (float)RadDeg * arr->Phase;
+                                    }
+                                    AARRFile << arr->delay.real()
+                                             << arr->delay.imag()
+                                             << arr->SrcDeclAngle;
+                                    if constexpr(O3D) AARRFile << arr->SrcAzimAngle;
+                                    AARRFile << arr->RcvrDeclAngle;
+                                    if constexpr(O3D) AARRFile << arr->RcvrAzimAngle;
+                                    AARRFile << arr->NTopBnc
+                                             << arr->NBotBnc
+                                             << '\n';
+                                }else{
+                                    BARRFile.rec();
+                                    BARRFile.write(factor * arr->a);
+                                    BARRFile.write((float)(RadDeg * arr->Phase));
+                                    BARRFile.write(arr->delay);
+                                    BARRFile.write(arr->SrcDeclAngle);
+                                    if constexpr(O3D) BARRFile.write(arr->SrcAzimAngle);
+                                    BARRFile.write(arr->RcvrDeclAngle);
+                                    if constexpr(O3D) BARRFile.write(arr->RcvrAzimAngle);
+                                    BARRFile.write((float)arr->NTopBnc);
+                                    BARRFile.write((float)arr->NBotBnc);
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
+
+#if BHC_ENABLE_2D
+template void FinalizeArrivalsMode<false, false>(
+    const ArrInfo *arrinfo, const Position *Pos,
+    const FreqInfo *freqinfo, const BeamStructure<false> *Beam, std::string FileRoot);
+#endif
+#if BHC_ENABLE_NX2D
+template void FinalizeArrivalsMode<true, false>(
+    const ArrInfo *arrinfo, const Position *Pos,
+    const FreqInfo *freqinfo, const BeamStructure<true> *Beam, std::string FileRoot);
+#endif
+#if BHC_ENABLE_3D
+template void FinalizeArrivalsMode<true, true>(
+    const ArrInfo *arrinfo, const Position *Pos,
+    const FreqInfo *freqinfo, const BeamStructure<true> *Beam, std::string FileRoot);
+#endif
 
 }
