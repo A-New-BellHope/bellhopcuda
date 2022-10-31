@@ -24,20 +24,22 @@ __managed__ char gpu_log_buf[gpu_log_buf_size];
 __managed__ uint32_t gpu_log_buf_pos;
 uint32_t gpu_log_buf_pos_cpu;
 
-void CudaInitLog(){
-    gpu_log_buf_pos = 0;
+void CudaInitLog()
+{
+    gpu_log_buf_pos     = 0;
     gpu_log_buf_pos_cpu = 0;
 }
 
-void CudaPostKernelLog(){
-    uint32_t gpos = gpu_log_buf_pos & (gpu_log_buf_size - 1);
+void CudaPostKernelLog()
+{
+    uint32_t gpos  = gpu_log_buf_pos & (gpu_log_buf_size - 1);
     uint32_t &cpos = gpu_log_buf_pos_cpu; // rename to shorter name
-    uint32_t len = (gpos < cpos) ? (gpos + gpu_log_buf_size - cpos) : (gpos - cpos);
+    uint32_t len   = (gpos < cpos) ? (gpos + gpu_log_buf_size - cpos) : (gpos - cpos);
     if(len == 0) return;
-    char *buf = new char[len+1];
-    buf[len] = '\0';
+    char *buf = new char[len + 1];
+    buf[len]  = '\0';
     memcpy(&buf[0], &gpu_log_buf[cpos], std::min(len, gpu_log_buf_size - cpos));
-    if(cpos + len > gpu_log_buf_size){
+    if(cpos + len > gpu_log_buf_size) {
         memcpy(&buf[gpu_log_buf_size - cpos], &gpu_log_buf[0], gpos);
     }
     GlobalLogImpl(buf);
@@ -45,4 +47,4 @@ void CudaPostKernelLog(){
     cpos = gpos;
 }
 
-}
+} // namespace bhc

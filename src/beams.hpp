@@ -22,45 +22,50 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile,
-    BeamInfo *beaminfo)
+inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile, BeamInfo *beaminfo)
 {
-    if(beaminfo->SBPFlag == '*'){
+    if(beaminfo->SBPFlag == '*') {
         PRTFile << "\n______________________________\nUsing source beam pattern file\n";
-        
+
         LDIFile SBPFile(FileRoot, ".sbp");
-        if(!SBPFile.Good()){
+        if(!SBPFile.Good()) {
             PRTFile << "SBPFile = " << FileRoot << ".sbp\n";
             GlobalLog("BELLHOP-ReadPat: Unable to open source beampattern file\n");
             std::abort();
         }
-        
-        LIST(SBPFile); SBPFile.Read(beaminfo->NSBPPts);
+
+        LIST(SBPFile);
+        SBPFile.Read(beaminfo->NSBPPts);
         PRTFile << "Number of source beam pattern points " << beaminfo->NSBPPts << "\n";
-        
+
         checkallocate(beaminfo->SrcBmPat, beaminfo->NSBPPts * 2);
-        
+
         PRTFile << "\n Angle (degrees)  Power (dB)\n" << std::setprecision(3);
-        
-        for(int32_t i=0; i<beaminfo->NSBPPts; ++i){
-            LIST(SBPFile); SBPFile.Read(&beaminfo->SrcBmPat[2*i], 2);
-            PRTFile << beaminfo->SrcBmPat[2*i] << " " << beaminfo->SrcBmPat[2*i+1] << "\n";
+
+        for(int32_t i = 0; i < beaminfo->NSBPPts; ++i) {
+            LIST(SBPFile);
+            SBPFile.Read(&beaminfo->SrcBmPat[2 * i], 2);
+            PRTFile << beaminfo->SrcBmPat[2 * i] << " " << beaminfo->SrcBmPat[2 * i + 1]
+                    << "\n";
         }
-    }else{
+    } else {
         beaminfo->NSBPPts = 2;
-        checkallocate(beaminfo->SrcBmPat, 2*2);
-        beaminfo->SrcBmPat[0*2+0] = FL(-180.0); beaminfo->SrcBmPat[0*2+1] = FL(0.0);
-        beaminfo->SrcBmPat[1*2+0] = FL( 180.0); beaminfo->SrcBmPat[1*2+1] = FL(0.0);
+        checkallocate(beaminfo->SrcBmPat, 2 * 2);
+        beaminfo->SrcBmPat[0 * 2 + 0] = FL(-180.0);
+        beaminfo->SrcBmPat[0 * 2 + 1] = FL(0.0);
+        beaminfo->SrcBmPat[1 * 2 + 0] = FL(180.0);
+        beaminfo->SrcBmPat[1 * 2 + 1] = FL(0.0);
     }
-    
-    if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)){
+
+    if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)) {
         GlobalLog("BELLHOP-ReadPat: Source beam pattern angles are not monotonic\n");
         std::abort();
     }
-    
+
     // convert dB to linear scale
-    for(int32_t i=0; i<beaminfo->NSBPPts; ++i) beaminfo->SrcBmPat[i*2+1] = 
-        STD::pow(FL(10.0), beaminfo->SrcBmPat[i*2+1] / FL(20.0));
+    for(int32_t i = 0; i < beaminfo->NSBPPts; ++i)
+        beaminfo->SrcBmPat[i * 2 + 1]
+            = STD::pow(FL(10.0), beaminfo->SrcBmPat[i * 2 + 1] / FL(20.0));
 }
 
 template<bool O3D> inline HOST_DEVICE VEC23<O3D> BeamBoxCenter(const VEC23<O3D> &xs)
@@ -83,86 +88,103 @@ template<bool O3D, int DIM> inline HOST_DEVICE bool IsOutsideBeamBoxDim(
  * Limits for tracing beams
  */
 template<bool O3D> inline void ReadBeamInfo(
-    LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    BeamStructure<O3D> *Beam, const BdryType *Bdry)
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, BeamStructure<O3D> *Beam,
+    const BdryType *Bdry)
 {
-    if constexpr(O3D){
-        LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.x);
-        ENVFile.Read(Beam->Box.y); ENVFile.Read(Beam->Box.z);
+    if constexpr(O3D) {
+        LIST(ENVFile);
+        ENVFile.Read(Beam->deltas);
+        ENVFile.Read(Beam->Box.x);
+        ENVFile.Read(Beam->Box.y);
+        ENVFile.Read(Beam->Box.z);
         Beam->Box.x *= FL(1000.0); // convert km to m
         Beam->Box.y *= FL(1000.0); // convert km to m
-        
-        if(Beam->deltas == FL(0.0)) Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth) / FL(10.0); // Automatic step size selection
-    }else{
-        LIST(ENVFile); ENVFile.Read(Beam->deltas); ENVFile.Read(Beam->Box.y); ENVFile.Read(Beam->Box.x);
+
+        if(Beam->deltas == FL(0.0))
+            Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth)
+                / FL(10.0); // Automatic step size selection
+    } else {
+        LIST(ENVFile);
+        ENVFile.Read(Beam->deltas);
+        ENVFile.Read(Beam->Box.y);
+        ENVFile.Read(Beam->Box.x);
     }
-    
+
     PRTFile << std::setprecision(4);
-    PRTFile << "\n Step length,       deltas = " << std::setw(11) << Beam->deltas << " m\n\n";
-    if constexpr(O3D){
-        PRTFile << "Maximum ray x-range, Box.x  = " << std::setw(11) << Beam->Box.x << " m\n";
-        PRTFile << "Maximum ray y-range, Box.y  = " << std::setw(11) << Beam->Box.y << " m\n";
-        PRTFile << "Maximum ray z-range, Box.z  = " << std::setw(11) << Beam->Box.z << " m\n";
-    }else{
-        PRTFile << "Maximum ray depth, Box.y  = " << std::setw(11) << Beam->Box.y << " m\n";
-        PRTFile << "Maximum ray range, Box.x  = " << std::setw(11) << Beam->Box.x << "km\n";
-        
+    PRTFile << "\n Step length,       deltas = " << std::setw(11) << Beam->deltas
+            << " m\n\n";
+    if constexpr(O3D) {
+        PRTFile << "Maximum ray x-range, Box.x  = " << std::setw(11) << Beam->Box.x
+                << " m\n";
+        PRTFile << "Maximum ray y-range, Box.y  = " << std::setw(11) << Beam->Box.y
+                << " m\n";
+        PRTFile << "Maximum ray z-range, Box.z  = " << std::setw(11) << Beam->Box.z
+                << " m\n";
+    } else {
+        PRTFile << "Maximum ray depth, Box.y  = " << std::setw(11) << Beam->Box.y
+                << " m\n";
+        PRTFile << "Maximum ray range, Box.x  = " << std::setw(11) << Beam->Box.x
+                << "km\n";
+
         Beam->Box.x *= FL(1000.0); // convert km to m
     }
-    
+
     // *** Beam characteristics ***
-    
+
     Beam->Type[3] = Beam->RunType[6]; // selects beam shift option
-    
-    if(Beam->Type[3] == 'S'){
+
+    if(Beam->Type[3] == 'S') {
         PRTFile << "Beam shift in effect\n";
-    }else{
+    } else {
         PRTFile << "No beam shift in effect\n";
     }
-    
-    if(!IsRayRun(Beam)){ // no worry about the beam type if this is a ray trace run
-        
+
+    if(!IsRayRun(Beam)) { // no worry about the beam type if this is a ray trace run
+
         // Curvature change can cause overflow in grazing case
         // Suppress by setting BeamType( 3 : 3 ) = 'Z'
-        
+
         Beam->Type[0] = Beam->RunType[1];
-        if(IsGeometricInfl(Beam) || IsSGBInfl(Beam)){
+        if(IsGeometricInfl(Beam) || IsSGBInfl(Beam)) {
             NULLSTATEMENT;
-        }else if(IsCervenyInfl(Beam)){
-            LIST(ENVFile); ENVFile.Read(&Beam->Type[1], 2); ENVFile.Read(Beam->epsMultiplier); ENVFile.Read(Beam->rLoop);
+        } else if(IsCervenyInfl(Beam)) {
+            LIST(ENVFile);
+            ENVFile.Read(&Beam->Type[1], 2);
+            ENVFile.Read(Beam->epsMultiplier);
+            ENVFile.Read(Beam->rLoop);
             PRTFile << "\n\nType of beam = " << Beam->Type[0] << "\n";
-            switch(Beam->Type[2]){
-            case 'D':
-                PRTFile << "Curvature doubling invoked\n"; break;
-            case 'Z':
-                PRTFile << "Curvature zeroing invoked\n"; break;
-            case 'S':
-                PRTFile << "Standard curvature condition\n"; break;
+            switch(Beam->Type[2]) {
+            case 'D': PRTFile << "Curvature doubling invoked\n"; break;
+            case 'Z': PRTFile << "Curvature zeroing invoked\n"; break;
+            case 'S': PRTFile << "Standard curvature condition\n"; break;
             default:
                 GlobalLog("ReadEnvironment: Unknown curvature condition\n");
                 std::abort();
             }
-            
+
             PRTFile << "Epsilon multiplier " << Beam->epsMultiplier << "\n";
             PRTFile << "Range for choosing beam width " << Beam->rLoop << "\n";
-            
+
             // Images, windows
             // LP: These values are not initialized if not written in the file,
             // and Component is not always written in the test env files.
-            Beam->Nimage = 1;
+            Beam->Nimage      = 1;
             Beam->iBeamWindow = 4;
-            Beam->Component = 'P';
-            LIST(ENVFile); ENVFile.Read(Beam->Nimage); ENVFile.Read(Beam->iBeamWindow); ENVFile.Read(Beam->Component);
+            Beam->Component   = 'P';
+            LIST(ENVFile);
+            ENVFile.Read(Beam->Nimage);
+            ENVFile.Read(Beam->iBeamWindow);
+            ENVFile.Read(Beam->Component);
             PRTFile << "\nNumber of images, Nimage  = " << Beam->Nimage << "\n";
             PRTFile << "Beam windowing parameter  = " << Beam->iBeamWindow << "\n";
             PRTFile << "Component                 = " << Beam->Component << "\n";
-        }else{
+        } else {
             GlobalLog("ReadEnvironment: Unknown beam type (second letter of run type)\n");
             std::abort();
         }
-        
+
         PRTFile << "\n";
     }
 }
 
-}
+} // namespace bhc

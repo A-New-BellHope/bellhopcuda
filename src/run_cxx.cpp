@@ -36,22 +36,22 @@ template<bool O3D, bool R3D> void RayModeWorker(
 {
     rayPt<R3D> *localmem = nullptr;
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) localmem = new rayPt<R3D>[MaxN];
-    
-    try{
-        
-    while(true){
-        int32_t job = jobID++;
-        int32_t Nsteps = -1;
-        RayInitInfo rinit;
-        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
-        if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)) break;
-    }
-    
-    }catch(const std::exception &e){
+
+    try {
+        while(true) {
+            int32_t job    = jobID++;
+            int32_t Nsteps = -1;
+            RayInitInfo rinit;
+            if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
+            if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps))
+                break;
+        }
+
+    } catch(const std::exception &e) {
         std::lock_guard<std::mutex> lock(exceptionMutex);
         exceptionStr += std::string(e.what()) + "\n";
     }
-    
+
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) delete[] localmem;
 }
 
@@ -75,20 +75,19 @@ cpxf *uAllSources;
 template<bool O3D, bool R3D> void FieldModesWorker(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    try{
-    
-    while(true){
-        int32_t job = jobID++;
-        RayInitInfo rinit;
-        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
-        
-        MainFieldModes<O3D, R3D>(rinit, outputs.uAllSources,
-            params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
-            params.Angles, params.freqinfo, params.Beam, params.beaminfo,
-            outputs.eigen, outputs.arrinfo);
-    }
-    
-    }catch(const std::exception &e){
+    try {
+        while(true) {
+            int32_t job = jobID++;
+            RayInitInfo rinit;
+            if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
+
+            MainFieldModes<O3D, R3D>(
+                rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
+                params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
+                params.beaminfo, outputs.eigen, outputs.arrinfo);
+        }
+
+    } catch(const std::exception &e) {
         std::lock_guard<std::mutex> lock(exceptionMutex);
         exceptionStr += std::string(e.what()) + "\n";
     }
@@ -112,23 +111,25 @@ template<bool O3D, bool R3D> bool run_cxx(
 {
     if(!api_okay) return false;
     exceptionStr = "";
-    
-    try{
-    
-    InitSelectedMode<O3D, R3D>(params, outputs, singlethread);
-    std::vector<std::thread> threads;
-    uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
-    jobID = 0;
-    for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(
-        IsRayRun(params.Beam) ? RayModeWorker<O3D, R3D> : FieldModesWorker<O3D, R3D>,
-        std::ref(params), std::ref(outputs)));
-    for(uint32_t i=0; i<cores; ++i) threads[i].join();
-    
-    if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
-    
-    }catch(const std::exception &e){
-        api_okay = false;
-        PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
+
+    try {
+        InitSelectedMode<O3D, R3D>(params, outputs, singlethread);
+        std::vector<std::thread> threads;
+        uint32_t cores = singlethread ? 1u
+                                      : bhc::max(std::thread::hardware_concurrency(), 1u);
+        jobID          = 0;
+        for(uint32_t i = 0; i < cores; ++i)
+            threads.push_back(std::thread(
+                IsRayRun(params.Beam) ? RayModeWorker<O3D, R3D>
+                                      : FieldModesWorker<O3D, R3D>,
+                std::ref(params), std::ref(outputs)));
+        for(uint32_t i = 0; i < cores; ++i) threads[i].join();
+
+        if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
+
+    } catch(const std::exception &e) {
+        api_okay              = false;
+        PrintFileEmu &PRTFile = *(PrintFileEmu *)params.internal;
         PRTFile << "Exception caught:\n" << e.what() << "\n";
     }
 
@@ -137,7 +138,8 @@ template<bool O3D, bool R3D> bool run_cxx(
 
 #if BHC_ENABLE_2D
 template bool run_cxx<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
+    bool singlethread);
 #endif
 #if BHC_ENABLE_NX2D
 template bool run_cxx<true, false>(
@@ -158,7 +160,8 @@ template<bool O3D, bool R3D> bool run(
 
 #if BHC_ENABLE_2D
 template bool BHC_API run<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
+    bool singlethread);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API run<true, false>(
@@ -166,9 +169,9 @@ template bool BHC_API run<true, false>(
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API run<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
 #endif
 
 #endif
 
-}
+} // namespace bhc

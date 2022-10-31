@@ -37,12 +37,12 @@ using real = float;
 using real = double;
 #endif
 
-using vec2 = glm::vec<2, real, glm::defaultp>;
-using vec3 = glm::vec<3, real, glm::defaultp>;
-using int2 = glm::vec<2, int32_t, glm::defaultp>;
+using vec2   = glm::vec<2, real, glm::defaultp>;
+using vec3   = glm::vec<3, real, glm::defaultp>;
+using int2   = glm::vec<2, int32_t, glm::defaultp>;
 using mat2x2 = glm::mat<2, 2, real, glm::defaultp>;
 
-using cpx = STD::complex<real>;
+using cpx  = STD::complex<real>;
 using cpxf = STD::complex<float>;
 
-}
+} // namespace bhc

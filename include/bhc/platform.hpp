@@ -23,7 +23,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-//Select which standard library
+// Select which standard library
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifndef STD
@@ -32,7 +32,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-//Shared library setup
+// Shared library setup
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef _WIN32
@@ -40,7 +40,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #define BHC_API
 #elif defined(BHC_EXPORTS)
 #define BHC_API __declspec(dllexport)
-#else //Users of bellhopcxx / bellhopcuda
+#else // Users of bellhopcxx / bellhopcuda
 #define BHC_API __declspec(dllimport)
 #endif
 #else

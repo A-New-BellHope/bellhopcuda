@@ -18,7 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 
-#define _USE_MATH_DEFINES 1 //must be before anything which includes math.h
+#define _USE_MATH_DEFINES 1 // must be before anything which includes math.h
 #include <math.h>
 
 #define _BHC_INCLUDED_ 1
@@ -33,21 +33,21 @@ namespace bhc {
  * Main BELLHOP setup from an environment file. Call this to create and
  * initialize the params. You may modify the params after calling this and
  * before calling run().
- * 
- * FileRoot: Relative path to environment file, without the .env extension. E.g. 
+ *
+ * FileRoot: Relative path to environment file, without the .env extension. E.g.
  * path/to/MunkB_ray_rot (where path/to/MunkB_ray_rot.env and also path/to/
  * MunkB_ray_rot.ssp, path/to/MunkB_ray_rot.bty, etc. exist).
- * 
+ *
  * outputCallback: Callback called by setup/run code which will be called for
  * messages (e.g. debug output, error messages). If nullptr is passed, will
  * open a PRTFile (<FileRoot>.prt) and put the messages in there.
- * 
+ *
  * params, outputs: Just create uninitialized structs and pass them in to be
  * initialized.
- * 
+ *
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
- * 
+ *
  * O3D stands for "ocean 3D" and R3D stands for "ray(s) 3D".
  * O3D=false, R3D=false: 2D mode
  * O3D=true, R3D=false: Nx2D mode
@@ -69,20 +69,20 @@ extern template BHC_API bool setup<true, false>(
 extern template BHC_API bool setup<true, true>(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
-    
+
 /**
  * Runs the selected run type and places the results in the appropriate struct
  * within outputs.
- * 
- * An env file should usually be read directly first, by calling setup then 
- * run-finalize. But, before calling finalize, you may edit parameters and rerun 
+ *
+ * An env file should usually be read directly first, by calling setup then
+ * run-finalize. But, before calling finalize, you may edit parameters and rerun
  * with an expected pattern
  *     setup-run-change params-run-change params...-finalize.
  * TODO: Only a few parameters can be updated, notably sources and 1D SSP - JS, 8/25/2022.
- * 
+ *
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
- * 
+ *
  * Don't call this from multiple threads at the same time (with different
  * parameters or in different 2D / Nx2D / 3D modes); there is only one static
  * copy of the functionality for synchronizing the different threads launched by
@@ -94,13 +94,14 @@ template<bool O3D, bool R3D> bool run(
 
 /// 2D version, see template.
 extern template BHC_API bool run<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
+    bool singlethread);
 /// Nx2D or 2D-3D version, see template.
 extern template BHC_API bool run<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 /// 3D version, see template.
 extern template BHC_API bool run<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
 
 /**
  * Frees memory. You may call run() many times, you do not have to call setup
@@ -119,7 +120,7 @@ extern template BHC_API void finalize<true, false>(
 extern template BHC_API void finalize<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
-}
+} // namespace bhc
 
 #ifdef BHC_UNDEF_STD_AFTER
 #undef STD
