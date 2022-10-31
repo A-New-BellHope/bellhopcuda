@@ -22,6 +22,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+inline void TestReformatDeleteMe() { int i = 0; }
+
 inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile, BeamInfo *beaminfo)
 {
     if(beaminfo->SBPFlag == '*') {
