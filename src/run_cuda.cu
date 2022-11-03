@@ -23,16 +23,17 @@ namespace bhc {
 #define NUM_THREADS 256
 
 template<bool O3D, bool R3D> __global__ void __launch_bounds__(NUM_THREADS, 1)
-FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs)
+    FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs)
 {
-    for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; ; job += gridDim.x * blockDim.x){
+    for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x;;
+        job += gridDim.x * blockDim.x) {
         RayInitInfo rinit;
         if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
-        
-        MainFieldModes<O3D, R3D>(rinit, outputs.uAllSources,
-            params.Bdry, params.bdinfo, params.refl, params.ssp, params.Pos,
-            params.Angles, params.freqinfo, params.Beam, params.beaminfo, 
-            outputs.eigen, outputs.arrinfo);
+
+        MainFieldModes<O3D, R3D>(
+            rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
+            params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
+            params.beaminfo, outputs.eigen, outputs.arrinfo);
     }
 }
 
@@ -52,16 +53,17 @@ template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true
 int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
 void setupGPU()
 {
-    //Print info about all GPUs and which one is selected
+    // Print info about all GPUs and which one is selected
     int num_gpus;
     checkCudaErrors(cudaGetDeviceCount(&num_gpus));
     BASSERT(num_gpus >= 1);
     cudaDeviceProp cudaProperties;
-    for(int g=0; g<num_gpus; ++g){
+    for(int g = 0; g < num_gpus; ++g) {
         checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
-        if(g == m_gpu){
-            GlobalLog("CUDA device: %s / compute %d.%d\n",
-                cudaProperties.name, cudaProperties.major, cudaProperties.minor);
+        if(g == m_gpu) {
+            GlobalLog(
+                "CUDA device: %s / compute %d.%d\n", cudaProperties.name,
+                cudaProperties.major, cudaProperties.minor);
         }
         /*
         GlobalLog("%s", (g == m_gpu) ? "--> " : "    ");
@@ -77,10 +79,10 @@ void setupGPU()
             cudaProperties.multiProcessorCount);
         */
     }
-    
-    //Store properties about used GPU
+
+    // Store properties about used GPU
     checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, m_gpu));
-    d_warp = cudaProperties.warpSize;
+    d_warp       = cudaProperties.warpSize;
     d_maxthreads = cudaProperties.maxThreadsPerBlock;
     d_multiprocs = cudaProperties.multiProcessorCount;
     checkCudaErrors(cudaSetDevice(m_gpu));
@@ -90,19 +92,18 @@ template<bool O3D, bool R3D> bool run_cuda(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     if(!api_okay) return false;
-    
-    try{
-    
-    InitSelectedMode<O3D, R3D>(params, outputs, false);
-    FieldModesKernel<O3D, R3D><<<d_multiprocs,NUM_THREADS>>>(params, outputs);
-    syncAndCheckKernelErrors("FieldModesKernel");
-    
-    }catch(const std::exception &e){
-        api_okay = false;
-        PrintFileEmu &PRTFile = *(PrintFileEmu*)params.internal;
+
+    try {
+        InitSelectedMode<O3D, R3D>(params, outputs, false);
+        FieldModesKernel<O3D, R3D><<<d_multiprocs, NUM_THREADS>>>(params, outputs);
+        syncAndCheckKernelErrors("FieldModesKernel");
+
+    } catch(const std::exception &e) {
+        api_okay              = false;
+        PrintFileEmu &PRTFile = *(PrintFileEmu *)params.internal;
         PRTFile << "Exception caught:\n" << e.what() << "\n";
     }
-    
+
     return api_okay;
 }
 
@@ -122,19 +123,20 @@ template bool run_cuda<true, true>(
 template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
-    if(singlethread){
+    if(singlethread) {
         GlobalLog("Single threaded mode is nonsense on CUDA, ignoring\n");
     }
-    if(IsRayRun(params.Beam)){
+    if(IsRayRun(params.Beam)) {
         return run_cxx<O3D, R3D>(params, outputs, false);
-    }else{
+    } else {
         return run_cuda<O3D, R3D>(params, outputs);
     }
 }
 
 #if BHC_ENABLE_2D
 template bool BHC_API run<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
+    bool singlethread);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API run<true, false>(
@@ -142,8 +144,7 @@ template bool BHC_API run<true, false>(
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API run<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread); 
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
 #endif
 
-
-}
+} // namespace bhc

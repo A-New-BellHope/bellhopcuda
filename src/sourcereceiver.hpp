@@ -23,31 +23,35 @@ namespace bhc {
 
 /**
  * Optionally reads a vector of source frequencies for a broadband run
- * If the broadband option is not selected, then the input freq (a scalar) is stored in the frequency vector
+ * If the broadband option is not selected, then the input freq (a scalar) is stored in
+ * the frequency vector
  */
-inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    FreqInfo *freqinfo)
+inline void ReadfreqVec(
+    char BroadbandOption, LDIFile &ENVFile, PrintFileEmu &PRTFile, FreqInfo *freqinfo)
 {
-    if(BroadbandOption == 'B'){
-        LIST(ENVFile); ENVFile.Read(freqinfo->Nfreq);
-        PRTFile << "__________________________________________________________________________\n\n\n";
+    if(BroadbandOption == 'B') {
+        LIST(ENVFile);
+        ENVFile.Read(freqinfo->Nfreq);
+        PRTFile << "_____________________________________________________________________"
+                   "_____\n\n\n";
         PRTFile << "   Number of frequencies = " << freqinfo->Nfreq << "\n";
-        if(freqinfo->Nfreq <= 0){
+        if(freqinfo->Nfreq <= 0) {
             GlobalLog("Number of frequencies must be positive\n");
             std::abort();
         }
     }
-    
+
     checkallocate(freqinfo->freqVec, bhc::max(3, freqinfo->Nfreq));
-    
-    if(BroadbandOption == 'B'){
+
+    if(BroadbandOption == 'B') {
         PRTFile << "   Frequencies (Hz)\n";
         freqinfo->freqVec[1] = FL(-999.9);
         freqinfo->freqVec[2] = FL(-999.9);
-        LIST(ENVFile); ENVFile.Read(freqinfo->freqVec, freqinfo->Nfreq);
+        LIST(ENVFile);
+        ENVFile.Read(freqinfo->freqVec, freqinfo->Nfreq);
         SubTab(freqinfo->freqVec, freqinfo->Nfreq);
         EchoVector(freqinfo->freqVec, freqinfo->Nfreq, PRTFile);
-    }else{
+    } else {
         freqinfo->freqVec[0] = freqinfo->freq0;
     }
 }
@@ -57,49 +61,56 @@ inline void ReadfreqVec(char BroadbandOption, LDIFile &ENVFile, PrintFileEmu &PR
  * Description is something like 'receiver ranges'
  * Units       is something like 'km'
  */
-template<typename REAL> inline void ReadVector(int32_t &Nx, REAL *&x, std::string Description, 
-    std::string Units, LDIFile &ENVFile, PrintFileEmu &PRTFile)
+template<typename REAL> inline void ReadVector(
+    int32_t &Nx, REAL *&x, std::string Description, std::string Units, LDIFile &ENVFile,
+    PrintFileEmu &PRTFile)
 {
-    PRTFile << "\n__________________________________________________________________________\n\n";
-    LIST(ENVFile); ENVFile.Read(Nx);
+    PRTFile << "\n_______________________________________________________________________"
+               "___\n\n";
+    LIST(ENVFile);
+    ENVFile.Read(Nx);
     PRTFile << "   Number of " << Description << " = " << Nx << "\n";
-    
-    if(Nx <= 0){
+
+    if(Nx <= 0) {
         GlobalLog("ReadVector: Number of %s must be positive\n", Description.c_str());
         std::abort();
     }
-    
+
     checkallocate(x, bhc::max(3, Nx));
-    
+
     PRTFile << "   " << Description << " (" << Units << ")\n";
     x[2] = FL(-999.9);
-    LIST(ENVFile); ENVFile.Read(x, Nx);
-    
+    LIST(ENVFile);
+    ENVFile.Read(x, Nx);
+
     SubTab(x, Nx);
     Sort(x, Nx);
     EchoVector(x, Nx, PRTFile, 10, "   ");
-    
+
     PRTFile << "\n";
-    
+
     // Vectors in km should be converted to m for internal use
     trim(Units);
-    if(Units.length() >= 2){
-        if(Units.substr(0, 2) == "km") for(int32_t i=0; i<Nx; ++i) x[i] *= FL(1000.0);
+    if(Units.length() >= 2) {
+        if(Units.substr(0, 2) == "km")
+            for(int32_t i = 0; i < Nx; ++i) x[i] *= FL(1000.0);
     }
 }
 
 /**
  * Read source x-y coordinates
- * 
+ *
  * ThreeD: flag indicating whether this is a 3D run
  */
-template<bool O3D> inline void ReadSxSy(LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    Position *Pos)
+template<bool O3D> inline void ReadSxSy(
+    LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
 {
-    if constexpr(O3D){
-        ReadVector(Pos->NSx, Pos->Sx, "Source   x-coordinates, Sx", "km", ENVFile, PRTFile);
-        ReadVector(Pos->NSy, Pos->Sy, "Source   y-coordinates, Sy", "km", ENVFile, PRTFile);
-    }else{
+    if constexpr(O3D) {
+        ReadVector(
+            Pos->NSx, Pos->Sx, "Source   x-coordinates, Sx", "km", ENVFile, PRTFile);
+        ReadVector(
+            Pos->NSy, Pos->Sy, "Source   y-coordinates, Sy", "km", ENVFile, PRTFile);
+    } else {
         checkallocate(Pos->Sx, 1);
         checkallocate(Pos->Sy, 1);
         Pos->Sx[0] = FL(0.0);
@@ -109,52 +120,61 @@ template<bool O3D> inline void ReadSxSy(LDIFile &ENVFile, PrintFileEmu &PRTFile,
 
 /**
  * Reads source and receiver z-coordinates (depths)
- * zMin, zMax: limits for those depths; 
+ * zMin, zMax: limits for those depths;
  *     sources and receivers are shifted to be within those limits
  */
-inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    Position *Pos)
+inline void ReadSzRz(
+    real zMin, real zMax, LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
 {
-    //bool monotonic; //LP: monotonic is a function, this is a name clash
-    
+    // bool monotonic; //LP: monotonic is a function, this is a name clash
+
     ReadVector(Pos->NSz, Pos->Sz, "Source   z-coordinates, Sz", "m", ENVFile, PRTFile);
     ReadVector(Pos->NRz, Pos->Rz, "Receiver z-coordinates, Rz", "m", ENVFile, PRTFile);
-    
+
     checkallocate(Pos->ws, Pos->NSz);
     checkallocate(Pos->iSz, Pos->NSz);
     checkallocate(Pos->wr, Pos->NRz);
     checkallocate(Pos->iRz, Pos->NRz);
-    
+
     // *** Check for Sz/Rz in upper or lower halfspace ***
-    
+
     bool topbdry = false, botbdry = false;
-    for(int32_t i=0; i<Pos->NSz; ++i){
-        if(Pos->Sz[i] < zMin){
-            topbdry = true;
+    for(int32_t i = 0; i < Pos->NSz; ++i) {
+        if(Pos->Sz[i] < zMin) {
+            topbdry    = true;
             Pos->Sz[i] = zMin;
         }
-        if(Pos->Sz[i] > zMax){
-            botbdry = true;
+        if(Pos->Sz[i] > zMax) {
+            botbdry    = true;
             Pos->Sz[i] = zMax;
         }
     }
-    if(topbdry) PRTFile << "Warning in ReadSzRz : Source above or too near the top bdry has been moved down\n";
-    if(botbdry) PRTFile << "Warning in ReadSzRz : Source below or too near the bottom bdry has been moved up\n";
-    
-    topbdry = false; botbdry = false;
-    for(int32_t i=0; i<Pos->NRz; ++i){
-        if(Pos->Rz[i] < zMin){
-            topbdry = true;
+    if(topbdry)
+        PRTFile << "Warning in ReadSzRz : Source above or too near the top bdry has been "
+                   "moved down\n";
+    if(botbdry)
+        PRTFile << "Warning in ReadSzRz : Source below or too near the bottom bdry has "
+                   "been moved up\n";
+
+    topbdry = false;
+    botbdry = false;
+    for(int32_t i = 0; i < Pos->NRz; ++i) {
+        if(Pos->Rz[i] < zMin) {
+            topbdry    = true;
             Pos->Rz[i] = zMin;
         }
-        if(Pos->Rz[i] > zMax){
-            botbdry = true;
+        if(Pos->Rz[i] > zMax) {
+            botbdry    = true;
             Pos->Rz[i] = zMax;
         }
     }
-    if(topbdry) PRTFile << "Warning in ReadSzRz : Receiver above or too near the top bdry has been moved down\n";
-    if(botbdry) PRTFile << "Warning in ReadSzRz : Receiver below or too near the bottom bdry has been moved up\n";
-    
+    if(topbdry)
+        PRTFile << "Warning in ReadSzRz : Receiver above or too near the top bdry has "
+                   "been moved down\n";
+    if(botbdry)
+        PRTFile << "Warning in ReadSzRz : Receiver below or too near the bottom bdry has "
+                   "been moved up\n";
+
     /*
     if(!monotonic(Pos->sz, Pos->NSz)){
         GlobalLog("SzRzRMod: Source depths are not monotonically increasing\n");
@@ -167,37 +187,38 @@ inline void ReadSzRz(real zMin, real zMax, LDIFile &ENVFile, PrintFileEmu &PRTFi
     */
 }
 
-inline void ReadRcvrRanges(LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    Position *Pos)
+inline void ReadRcvrRanges(LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
 {
     ReadVector(Pos->NRr, Pos->Rr, "Receiver r-coordinates, Rr", "km", ENVFile, PRTFile);
-    
+
     // calculate range spacing
     Pos->Delta_r = FL(0.0);
-    if(Pos->NRr != 1) Pos->Delta_r = Pos->Rr[Pos->NRr-1] - Pos->Rr[Pos->NRr-2];
-    
-    if(!monotonic(Pos->Rr, Pos->NRr)){
+    if(Pos->NRr != 1) Pos->Delta_r = Pos->Rr[Pos->NRr - 1] - Pos->Rr[Pos->NRr - 2];
+
+    if(!monotonic(Pos->Rr, Pos->NRr)) {
         GlobalLog("ReadRcvrRanges: Receiver ranges are not monotonically increasing\n");
         std::abort();
     }
 }
 
-inline void ReadRcvrBearings(LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    Position *Pos)
+inline void ReadRcvrBearings(LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
 {
-    ReadVector(Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile, PRTFile);
+    ReadVector(
+        Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile, PRTFile);
     checkallocate<vec2>(Pos->t_rcvr, Pos->Ntheta);
-    
+
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);
-    
+
     // calculate angular spacing
     Pos->Delta_theta = FL(0.0);
-    if(Pos->Ntheta != 1) Pos->Delta_theta = Pos->theta[Pos->Ntheta-1] - Pos->theta[Pos->Ntheta-2];
-    
-    if(!monotonic(Pos->theta, Pos->Ntheta)){
-        GlobalLog("ReadRcvrBearings: Receiver bearings are not monotonically increasing\n");
+    if(Pos->Ntheta != 1)
+        Pos->Delta_theta = Pos->theta[Pos->Ntheta - 1] - Pos->theta[Pos->Ntheta - 2];
+
+    if(!monotonic(Pos->theta, Pos->Ntheta)) {
+        GlobalLog(
+            "ReadRcvrBearings: Receiver bearings are not monotonically increasing\n");
         std::abort();
     }
 }
 
-}
+} // namespace bhc

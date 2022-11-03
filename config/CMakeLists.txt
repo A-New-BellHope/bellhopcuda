@@ -15,6 +15,29 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
+# Ensure the clang-format git hook is installed.
+set(copy_hook 0)
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/.git/hooks/pre-commit")
+    message(WARNING "clang-format pre-commit hook not found, installing")
+    set(copy_hook 1)
+else()
+    file(MD5 "${PROJECT_SOURCE_DIR}/.git/hooks/pre-commit" precommit_md5)
+    file(MD5 "${PROJECT_SOURCE_DIR}/clang-format.hook" curhook_md5)
+    if(NOT precommit_md5 EQUAL curhook_md5)
+        message(WARNING "clang-format pre-commit hook is outdated or a different "
+        "pre-commit hook was installed, overwriting with current clang-format hook")
+        set(copy_hook 1)
+    endif()
+endif()
+if(copy_hook)
+    file(COPY "${PROJECT_SOURCE_DIR}/clang-format.hook"
+        DESTINATION "${PROJECT_SOURCE_DIR}/.git/hooks"
+    )
+    file(RENAME "${PROJECT_SOURCE_DIR}/.git/hooks/clang-format.hook"
+        "${PROJECT_SOURCE_DIR}/.git/hooks/pre-commit"
+    )
+endif()
+
 add_subdirectory(cxx)
 
 if(BHC_ENABLE_LIB)

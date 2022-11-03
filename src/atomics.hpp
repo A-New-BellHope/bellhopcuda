@@ -28,18 +28,18 @@ namespace bhc {
 // Pre-C++20 version of bit_cast
 // from https://en.cppreference.com/w/cpp/numeric/bit_cast
 
-template <class To, class From>
-typename std::enable_if_t<
-    sizeof(To) == sizeof(From) &&
-    std::is_trivially_copyable<From>::value &&
-    std::is_trivially_copyable<To>::value,
+template<class To, class From> typename std::enable_if_t<
+    sizeof(To) == sizeof(From) && std::is_trivially_copyable<From>::value
+        && std::is_trivially_copyable<To>::value,
     To>
 // constexpr support needs compiler magic
-bit_cast(const From& src) noexcept
+bit_cast(const From &src) noexcept
 {
-    static_assert(std::is_trivially_constructible<To>::value,
-        "This implementation additionally requires destination type to be trivially constructible");
- 
+    static_assert(
+        std::is_trivially_constructible<To>::value,
+        "This implementation additionally requires destination type to be trivially "
+        "constructible");
+
     To dst;
     std::memcpy(&dst, &src, sizeof(To));
     return dst;
@@ -64,73 +64,79 @@ inline int64_t Int64DoubleAdd(double v, int64_t i)
 
 HOST_DEVICE inline void AtomicAddReal(float *ptr, float v)
 {
-    #ifdef __CUDA_ARCH__
+#ifdef __CUDA_ARCH__
     // Floating-point atomic add is natively supported on the GPU.
     atomicAdd(ptr, v);
-    #else
+#else
     // Have to do compare-and-swap.
-    int32_t* intptr = (int32_t*)ptr;
+    int32_t *intptr = (int32_t *)ptr;
     int32_t curint;
-    #ifdef __GNUC__
-    #ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
+#ifdef __GNUC__
+#ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
     curint = *intptr;
-    #else
+#else
     __atomic_load(intptr, &curint, __ATOMIC_RELAXED);
-    #endif
-    while(!__atomic_compare_exchange_n(intptr, &curint, IntFloatAdd(v, curint), 
-        true, __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-    #elif defined(_MSC_VER)
+#endif
+    while(!__atomic_compare_exchange_n(
+        intptr, &curint, IntFloatAdd(v, curint), true, __ATOMIC_RELAXED,
+        __ATOMIC_RELAXED))
+        ;
+#elif defined(_MSC_VER)
     int32_t prevint;
-    #ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
+#ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
     curint = *intptr;
-    #else
-    curint = InterlockedOr((LONG*)intptr, 0); //MSVC does not have a pure atomic load.
-    #endif
-    do{
+#else
+    curint = InterlockedOr((LONG *)intptr, 0); // MSVC does not have a pure atomic load.
+#endif
+    do {
         prevint = curint;
-        curint = InterlockedCompareExchange((LONG*)intptr, (LONG)IntFloatAdd(v, curint), (LONG)curint);
-    }while(curint != prevint);
-    #else
-    #error "Unrecognized compiler for atomic intrinsics!"
-    #endif
-    #endif
+        curint  = InterlockedCompareExchange(
+            (LONG *)intptr, (LONG)IntFloatAdd(v, curint), (LONG)curint);
+    } while(curint != prevint);
+#else
+#error "Unrecognized compiler for atomic intrinsics!"
+#endif
+#endif
 }
 
 HOST_DEVICE inline void AtomicAddReal(double *ptr, double v)
 {
-    #ifdef __CUDA_ARCH__
+#ifdef __CUDA_ARCH__
     // Double-precision atomic add is natively supported on the GPU (compute >= 6.0).
     atomicAdd(ptr, v);
-    #else
+#else
     // Have to do compare-and-swap.
-    int64_t *intptr = (int64_t*)ptr;
+    int64_t *intptr = (int64_t *)ptr;
     int64_t curint;
-    #ifdef __GNUC__
-    #ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
+#ifdef __GNUC__
+#ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
     curint = *intptr;
-    #else
+#else
     __atomic_load(intptr, &curint, __ATOMIC_RELAXED);
-    #endif
-    while(!__atomic_compare_exchange_n(intptr, &curint, Int64DoubleAdd(v, curint),
-        true, __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-    #elif defined(_MSC_VER)
+#endif
+    while(!__atomic_compare_exchange_n(
+        intptr, &curint, Int64DoubleAdd(v, curint), true, __ATOMIC_RELAXED,
+        __ATOMIC_RELAXED))
+        ;
+#elif defined(_MSC_VER)
     int64_t prevint;
-    #ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
+#ifdef TECHNICALLY_UNSAFE_NONATOMIC_LOAD
     curint = *intptr;
-    #else
-    curint = InterlockedOr64(intptr, 0); //MSVC does not have a pure atomic load.
-    #endif
-    do{
+#else
+    curint = InterlockedOr64(intptr, 0);       // MSVC does not have a pure atomic load.
+#endif
+    do {
         prevint = curint;
-        curint = InterlockedCompareExchange64(intptr, Int64DoubleAdd(v, curint), curint);
-    }while(curint != prevint);
-    #else
-    #error "Unrecognized compiler for atomic intrinsics!"
-    #endif
-    #endif
+        curint  = InterlockedCompareExchange64(intptr, Int64DoubleAdd(v, curint), curint);
+    } while(curint != prevint);
+#else
+#error "Unrecognized compiler for atomic intrinsics!"
+#endif
+#endif
 }
 
-template<typename REAL> HOST_DEVICE inline void AtomicAddCpx(STD::complex<REAL> *ptr, cpx v)
+template<typename REAL> HOST_DEVICE inline void AtomicAddCpx(
+    STD::complex<REAL> *ptr, cpx v)
 {
     // This is the right way according to https://stackoverflow.com/questions/24229808/
     // getting-pointers-to-the-real-and-imaginary-parts-of-a-complex-vector-in-c
@@ -141,15 +147,15 @@ template<typename REAL> HOST_DEVICE inline void AtomicAddCpx(STD::complex<REAL> 
 
 template<typename INT> HOST_DEVICE inline INT AtomicFetchAdd(INT *ptr, INT val)
 {
-    #ifdef __CUDA_ARCH__
+#ifdef __CUDA_ARCH__
     return atomicAdd(ptr, val);
-    #elif defined(__GNUC__)
+#elif defined(__GNUC__)
     return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
-    #elif defined(_MSC_VER)
-    return InterlockedExchangeAdd((LONG*)ptr, (LONG)val);
-    #else
-    #error "Unrecognized compiler for atomic intrinsics!"
-    #endif
+#elif defined(_MSC_VER)
+    return InterlockedExchangeAdd((LONG *)ptr, (LONG)val);
+#else
+#error "Unrecognized compiler for atomic intrinsics!"
+#endif
 }
 
-}
+} // namespace bhc

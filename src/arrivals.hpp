@@ -26,16 +26,17 @@ namespace bhc {
  * Is this the second step of a pair (on the same ray)?
  * If so, we want to combine the arrivals to conserve space.
  * (test this by seeing if the arrival time is close to the previous one)
- * (also need that the phase is about the same to make sure surface and direct paths are not joined)
+ * (also need that the phase is about the same to make sure surface and direct paths are
+ * not joined)
  */
-template<bool R3D> HOST_DEVICE inline bool IsSecondStepOfPair(real omega, real Phase, cpx delay,
-    Arrival *baseArr, int32_t Nt)
+template<bool R3D> HOST_DEVICE inline bool IsSecondStepOfPair(
+    real omega, real Phase, cpx delay, Arrival *baseArr, int32_t Nt)
 {
     // arrivals with essentially the same phase are grouped into one
-    const float PhaseTol = /*R3D ? FL(0.5) :*/ FL(0.05); // LP: 0.5 for 2D removed by mbp in 2022 revisions.
-    return Nt >= 1 && 
-        omega * STD::abs(delay - Cpxf2Cpx(baseArr[Nt-1].delay)) < PhaseTol &&
-        STD::abs(baseArr[Nt-1].Phase - Phase) < PhaseTol;
+    const float PhaseTol = /*R3D ? FL(0.5) :*/ FL(0.05); // LP: 0.5 for 2D removed by mbp
+                                                         // in 2022 revisions.
+    return Nt >= 1 && omega * STD::abs(delay - Cpxf2Cpx(baseArr[Nt - 1].delay)) < PhaseTol
+        && STD::abs(baseArr[Nt - 1].Phase - Phase) < PhaseTol;
 }
 
 /**
@@ -43,113 +44,124 @@ template<bool R3D> HOST_DEVICE inline bool IsSecondStepOfPair(real omega, real P
  * Extra logic included to keep only the strongest arrivals.
  */
 template<bool R3D> HOST_DEVICE inline void AddArr(
-    int32_t itheta, int32_t id, int32_t ir,
-    real Amp, real omega, real Phase, cpx delay,
-    const RayInitInfo &rinit, real RcvrDeclAngle, real RcvrAzimAngle,
-    int32_t NumTopBnc, int32_t NumBotBnc, const ArrInfo *arrinfo, const Position *Pos)
+    int32_t itheta, int32_t id, int32_t ir, real Amp, real omega, real Phase, cpx delay,
+    const RayInitInfo &rinit, real RcvrDeclAngle, real RcvrAzimAngle, int32_t NumTopBnc,
+    int32_t NumBotBnc, const ArrInfo *arrinfo, const Position *Pos)
 {
-    size_t base = GetFieldAddr(rinit.isx, rinit.isy, rinit.isz, itheta, id, ir, Pos);
+    size_t base      = GetFieldAddr(rinit.isx, rinit.isy, rinit.isz, itheta, id, ir, Pos);
     Arrival *baseArr = &arrinfo->Arr[base * arrinfo->MaxNArr];
     int32_t *baseNArr = &arrinfo->NArr[base];
     int32_t Nt;
-    
-    if(arrinfo->singlethread){
+
+    if(arrinfo->singlethread) {
         // LP: BUG: This only checks the last arrival, whereas the first step of the
         // pair could have been placed in previous slots. See the Fortran version readme.
-    
+
         Nt = *baseNArr; // # of arrivals
-        
-        if(!IsSecondStepOfPair<R3D>(omega, Phase, delay, baseArr, Nt)){
+
+        if(!IsSecondStepOfPair<R3D>(omega, Phase, delay, baseArr, Nt)) {
             int32_t iArr;
-            if(Nt >= arrinfo->MaxNArr){ // space not available to add an arrival?
+            if(Nt >= arrinfo->MaxNArr) { // space not available to add an arrival?
                 // replace weakest arrival
-                iArr = -1;
+                iArr         = -1;
                 real weakest = Amp;
-                for(Nt=0; Nt<arrinfo->MaxNArr; ++Nt){
-                    if(baseArr[Nt].a < weakest){
+                for(Nt = 0; Nt < arrinfo->MaxNArr; ++Nt) {
+                    if(baseArr[Nt].a < weakest) {
                         weakest = baseArr[Nt].a;
-                        iArr = Nt;
+                        iArr    = Nt;
                     }
                 }
                 if(iArr < 0) return; // LP: current arrival is weaker than all stored
-            }else{
-                iArr = Nt;
+            } else {
+                iArr      = Nt;
                 *baseNArr = Nt + 1; // # of arrivals
             }
-            baseArr[iArr].a             = (float)Amp; // amplitude
-            baseArr[iArr].Phase         = (float)Phase; // phase
-            baseArr[iArr].delay         = Cpx2Cpxf(delay); // delay time
-            baseArr[iArr].SrcDeclAngle  = (float)rinit.SrcDeclAngle; // launch angle from source
-            baseArr[iArr].SrcAzimAngle  = (float)rinit.SrcAzimAngle; // launch angle from source
-            baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle; // angle ray reaches receiver
-            baseArr[iArr].RcvrAzimAngle = (float)RcvrAzimAngle; // angle ray reaches receiver
-            baseArr[iArr].NTopBnc       = NumTopBnc; // Number of top    bounces
-            baseArr[iArr].NBotBnc       = NumBotBnc; //   "       bottom
-        }else{ // not a new ray
+            baseArr[iArr].a            = (float)Amp;                // amplitude
+            baseArr[iArr].Phase        = (float)Phase;              // phase
+            baseArr[iArr].delay        = Cpx2Cpxf(delay);           // delay time
+            baseArr[iArr].SrcDeclAngle = (float)rinit.SrcDeclAngle; // launch angle from
+                                                                    // source
+            baseArr[iArr].SrcAzimAngle = (float)rinit.SrcAzimAngle; // launch angle from
+                                                                    // source
+            baseArr[iArr].RcvrDeclAngle = (float)RcvrDeclAngle;     // angle ray reaches
+                                                                    // receiver
+            baseArr[iArr].RcvrAzimAngle = (float)RcvrAzimAngle;     // angle ray reaches
+                                                                    // receiver
+            baseArr[iArr].NTopBnc = NumTopBnc; // Number of top    bounces
+            baseArr[iArr].NBotBnc = NumBotBnc; //   "       bottom
+        } else {                               // not a new ray
             // PhaseArr[<base> + Nt-1] = PhaseArr[<base> + Nt-1] // LP: ???
-            
-            // calculate weightings of old ray information vs. new, based on amplitude of the arrival
-            float AmpTot = baseArr[Nt-1].a + (float)Amp;
-            float w1 = baseArr[Nt-1].a / AmpTot;
-            float w2 = (float)Amp / AmpTot;
-            
-            baseArr[Nt-1].delay         = w1 * baseArr[Nt-1].delay         + w2 * Cpx2Cpxf(delay); // weighted sum
-            baseArr[Nt-1].a             = AmpTot;
-            baseArr[Nt-1].SrcDeclAngle  = w1 * baseArr[Nt-1].SrcDeclAngle  + w2 * (float)rinit.SrcDeclAngle;
-            baseArr[Nt-1].SrcAzimAngle  = w1 * baseArr[Nt-1].SrcAzimAngle  + w2 * (float)rinit.SrcAzimAngle;
-            baseArr[Nt-1].RcvrDeclAngle = w1 * baseArr[Nt-1].RcvrDeclAngle + w2 * (float)RcvrDeclAngle;
-            baseArr[Nt-1].RcvrAzimAngle = w1 * baseArr[Nt-1].RcvrAzimAngle + w2 * (float)RcvrAzimAngle;
+
+            // calculate weightings of old ray information vs. new, based on amplitude of
+            // the arrival
+            float AmpTot = baseArr[Nt - 1].a + (float)Amp;
+            float w1     = baseArr[Nt - 1].a / AmpTot;
+            float w2     = (float)Amp / AmpTot;
+
+            baseArr[Nt - 1].delay = w1 * baseArr[Nt - 1].delay
+                + w2 * Cpx2Cpxf(delay); // weighted sum
+            baseArr[Nt - 1].a            = AmpTot;
+            baseArr[Nt - 1].SrcDeclAngle = w1 * baseArr[Nt - 1].SrcDeclAngle
+                + w2 * (float)rinit.SrcDeclAngle;
+            baseArr[Nt - 1].SrcAzimAngle = w1 * baseArr[Nt - 1].SrcAzimAngle
+                + w2 * (float)rinit.SrcAzimAngle;
+            baseArr[Nt - 1].RcvrDeclAngle = w1 * baseArr[Nt - 1].RcvrDeclAngle
+                + w2 * (float)RcvrDeclAngle;
+            baseArr[Nt - 1].RcvrAzimAngle = w1 * baseArr[Nt - 1].RcvrAzimAngle
+                + w2 * (float)RcvrAzimAngle;
         }
-        
-    }else{
+
+    } else {
         // LP: For multithreading mode, some mutex scheme would be needed to
         // guarantee correct access to previously written data, which would
-        // destroy the performance on GPU. So just write the first 
+        // destroy the performance on GPU. So just write the first
         // arrinfo->MaxNArr arrivals and give up.
         Nt = AtomicFetchAdd(baseNArr, 1);
         if(Nt >= arrinfo->MaxNArr) return;
-        baseArr[Nt].a             = (float)Amp; // amplitude
-        baseArr[Nt].Phase         = (float)Phase; // phase
-        baseArr[Nt].delay         = Cpx2Cpxf(delay); // delay time
+        baseArr[Nt].a             = (float)Amp;                // amplitude
+        baseArr[Nt].Phase         = (float)Phase;              // phase
+        baseArr[Nt].delay         = Cpx2Cpxf(delay);           // delay time
         baseArr[Nt].SrcDeclAngle  = (float)rinit.SrcDeclAngle; // launch angle from source
         baseArr[Nt].SrcAzimAngle  = (float)rinit.SrcAzimAngle; // launch angle from source
         baseArr[Nt].RcvrDeclAngle = (float)RcvrDeclAngle; // angle ray reaches receiver
         baseArr[Nt].RcvrAzimAngle = (float)RcvrAzimAngle; // angle ray reaches receiver
-        baseArr[Nt].NTopBnc       = NumTopBnc; // Number of top    bounces
-        baseArr[Nt].NBotBnc       = NumBotBnc; //   "       bottom
+        baseArr[Nt].NTopBnc       = NumTopBnc;            // Number of top    bounces
+        baseArr[Nt].NBotBnc       = NumBotBnc;            //   "       bottom
     }
 }
 
-inline void InitArrivalsMode(ArrInfo *arrinfo, bool singlethread,
-    bool ThreeD, const Position *Pos, PrintFileEmu &PRTFile)
+inline void InitArrivalsMode(
+    ArrInfo *arrinfo, bool singlethread, bool ThreeD, const Position *Pos,
+    PrintFileEmu &PRTFile)
 {
     arrinfo->singlethread = singlethread;
-    size_t nReceivers = Pos->NRz_per_range * Pos->NRr;
+    size_t nReceivers     = Pos->NRz_per_range * Pos->NRr;
     if(ThreeD) nReceivers *= Pos->Ntheta;
-    const size_t ArrivalsStorage = ThreeD ? 400000000 : (singlethread ? 20000000 : 50000000);
-    const size_t MinNArr = 10;
+    const size_t ArrivalsStorage = ThreeD ? 400000000
+                                          : (singlethread ? 20000000 : 50000000);
+    const size_t MinNArr         = 10;
     arrinfo->MaxNArr = (int32_t)bhc::max(ArrivalsStorage / nReceivers, MinNArr);
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
     size_t nSources = Pos->NSz;
     if(ThreeD) nSources *= Pos->NSx * Pos->NSy;
     size_t nTotal = nSources * nReceivers;
-    checkallocate(arrinfo->Arr , nTotal * (size_t)arrinfo->MaxNArr);
+    checkallocate(arrinfo->Arr, nTotal * (size_t)arrinfo->MaxNArr);
     checkallocate(arrinfo->NArr, nTotal);
-    memset(arrinfo->Arr,  0, nTotal * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
+    memset(arrinfo->Arr, 0, nTotal * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
     memset(arrinfo->NArr, 0, nTotal * sizeof(int32_t));
 }
 
 template<bool O3D, bool R3D> void FinalizeArrivalsMode(
-    const ArrInfo *arrinfo, const Position *Pos,
-    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, std::string FileRoot);
+    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
+    const BeamStructure<O3D> *Beam, std::string FileRoot);
 extern template void FinalizeArrivalsMode<false, false>(
-    const ArrInfo *arrinfo, const Position *Pos,
-    const FreqInfo *freqinfo, const BeamStructure<false> *Beam, std::string FileRoot);
+    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
+    const BeamStructure<false> *Beam, std::string FileRoot);
 extern template void FinalizeArrivalsMode<true, false>(
-    const ArrInfo *arrinfo, const Position *Pos,
-    const FreqInfo *freqinfo, const BeamStructure<true> *Beam, std::string FileRoot);
+    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
+    const BeamStructure<true> *Beam, std::string FileRoot);
 extern template void FinalizeArrivalsMode<true, true>(
-    const ArrInfo *arrinfo, const Position *Pos,
-    const FreqInfo *freqinfo, const BeamStructure<true> *Beam, std::string FileRoot);
+    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
+    const BeamStructure<true> *Beam, std::string FileRoot);
 
-}
+} // namespace bhc

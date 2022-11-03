@@ -22,43 +22,43 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 HOST_DEVICE inline void RecordEigenHit(
-    int32_t itheta, int32_t ir, int32_t iz, 
-    int32_t is, const RayInitInfo &rinit, EigenInfo *eigen)
+    int32_t itheta, int32_t ir, int32_t iz, int32_t is, const RayInitInfo &rinit,
+    EigenInfo *eigen)
 {
     uint32_t mi = AtomicFetchAdd(&eigen->neigen, 1u);
     if(mi >= eigen->memsize) return;
     // GlobalLog("Eigenray hit %d ir %d iz %d isrc %d ialpha %d is %d\n",
     //     mi, ir, iz, isrc, ialpha, is);
-    eigen->hits[mi].is = is;
-    eigen->hits[mi].iz = iz;
-    eigen->hits[mi].ir = ir;
+    eigen->hits[mi].is     = is;
+    eigen->hits[mi].iz     = iz;
+    eigen->hits[mi].ir     = ir;
     eigen->hits[mi].itheta = itheta;
-    eigen->hits[mi].isx = rinit.isx;
-    eigen->hits[mi].isy = rinit.isy;
-    eigen->hits[mi].isz = rinit.isz;
+    eigen->hits[mi].isx    = rinit.isx;
+    eigen->hits[mi].isy    = rinit.isy;
+    eigen->hits[mi].isz    = rinit.isz;
     eigen->hits[mi].ialpha = rinit.ialpha;
-    eigen->hits[mi].ibeta = rinit.ibeta;
+    eigen->hits[mi].ibeta  = rinit.ibeta;
 }
 
 inline void InitEigenMode(EigenInfo *eigen)
 {
     constexpr uint32_t maxhits = 1000000u;
-    eigen->neigen = 0;
-    eigen->memsize = maxhits;
+    eigen->neigen              = 0;
+    eigen->memsize             = maxhits;
     checkallocate(eigen->hits, maxhits);
 }
 
 template<bool O3D, bool R3D> void FinalizeEigenMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
-    std::string FileRoot, bool singlethread);
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, std::string FileRoot,
+    bool singlethread);
 extern template void FinalizeEigenMode<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
     std::string FileRoot, bool singlethread);
 extern template void FinalizeEigenMode<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
     std::string FileRoot, bool singlethread);
 extern template void FinalizeEigenMode<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
-    std::string FileRoot, bool singlethread);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, std::string FileRoot,
+    bool singlethread);
 
-}
+} // namespace bhc

@@ -29,11 +29,12 @@ namespace bhc {
 #ifdef BHC_BUILD_CUDA
 // Must be power of 2 so overflows properly
 constexpr uint32_t gpu_log_buf_size_bits = 20;
-constexpr uint32_t gpu_log_buf_size = 1 << gpu_log_buf_size_bits;
+constexpr uint32_t gpu_log_buf_size      = 1 << gpu_log_buf_size_bits;
 extern __managed__ char gpu_log_buf[gpu_log_buf_size]; // Circular buffer
 extern __managed__ uint32_t gpu_log_buf_pos;
 
-__device__ inline int strlen_d(const char *d){
+__device__ inline int strlen_d(const char *d)
+{
     int ret = 0;
     while(d[ret]) ++ret;
     return ret;
@@ -43,10 +44,11 @@ __device__ inline int strlen_d(const char *d){
 
 extern void (*external_global_log)(const char *message);
 
-inline void GlobalLogImpl(const char *message){
-    if(external_global_log != nullptr){
+inline void GlobalLogImpl(const char *message)
+{
+    if(external_global_log != nullptr) {
         external_global_log(message);
-    }else{
+    } else {
         printf("%s", message);
     }
 }
@@ -57,17 +59,20 @@ inline void GlobalLogImpl(const char *message){
  * string, due to vsnprintf etc. not being available on the GPU and the
  * complexity of using a third-party library for this.
  */
-HOST_DEVICE inline void GlobalLog(const char *message, ...){
-    #ifdef __CUDA_ARCH__
-    uint32_t outlen = strlen_d(message);
+HOST_DEVICE inline void GlobalLog(const char *message, ...)
+{
+#ifdef __CUDA_ARCH__
+    uint32_t outlen   = strlen_d(message);
     uint32_t startpos = atomicAdd(&gpu_log_buf_pos, outlen) & (gpu_log_buf_size - 1);
-    memcpy(&gpu_log_buf[startpos], &message[0],
+    memcpy(
+        &gpu_log_buf[startpos], &message[0],
         ::min((uint32_t)outlen, (uint32_t)(gpu_log_buf_size - startpos)));
-    if(startpos + outlen > gpu_log_buf_size){
-        memcpy(&gpu_log_buf[0], &message[gpu_log_buf_size - startpos],
+    if(startpos + outlen > gpu_log_buf_size) {
+        memcpy(
+            &gpu_log_buf[0], &message[gpu_log_buf_size - startpos],
             startpos + outlen - gpu_log_buf_size);
     }
-    #else
+#else
     constexpr uint32_t maxbufsize = 1024;
     char buf[maxbufsize];
     va_list argp;
@@ -75,7 +80,7 @@ HOST_DEVICE inline void GlobalLog(const char *message, ...){
     vsnprintf(buf, maxbufsize, message, argp);
     va_end(argp);
     GlobalLogImpl(buf);
-    #endif
+#endif
 }
 
 #ifdef BHC_BUILD_CUDA
@@ -83,11 +88,12 @@ void CudaInitLog();
 void CudaPostKernelLog();
 #endif
 
-inline void InitLog(void (*outputCallback)(const char *message)){
+inline void InitLog(void (*outputCallback)(const char *message))
+{
     external_global_log = outputCallback;
-    #ifdef BHC_BUILD_CUDA
+#ifdef BHC_BUILD_CUDA
     CudaInitLog();
-    #endif
+#endif
 }
 
-}
+} // namespace bhc

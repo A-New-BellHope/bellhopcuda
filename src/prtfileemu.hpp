@@ -29,15 +29,15 @@ public:
     PrintFileEmu(const char *FileRoot, void (*outputCallback)(const char *message))
         : callback(nullptr)
     {
-        if(outputCallback == nullptr){
+        if(outputCallback == nullptr) {
             std::string s(FileRoot);
             ofs.open(s + ".prt");
-            if(!ofs.good()){
+            if(!ofs.good()) {
                 GlobalLog("Could not open print file: %s.prt\n", FileRoot);
                 bail();
             }
             ofs << std::unitbuf;
-        }else{
+        } else {
             callback = outputCallback;
         }
     }
@@ -45,25 +45,25 @@ public:
     {
         if(ofs.is_open()) ofs.close();
     }
-    
+
     template<typename T> PrintFileEmu &operator<<(const T &x)
     {
-        if(callback != nullptr){
+        if(callback != nullptr) {
             linebuf << x;
-            if (linebuf.str().length() > 0) {
+            if(linebuf.str().length() > 0) {
                 callback(linebuf.str().c_str());
                 linebuf.str("");
             }
-        }else if(ofs.good()){
+        } else if(ofs.good()) {
             ofs << x;
         }
         return *this;
     }
-    
+
 private:
     std::ofstream ofs;
     std::stringstream linebuf;
     void (*callback)(const char *message);
 };
 
-}
+} // namespace bhc

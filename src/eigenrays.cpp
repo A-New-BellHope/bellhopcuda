@@ -35,40 +35,42 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
 {
     rayPt<R3D> *localmem = nullptr;
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) localmem = new rayPt<R3D>[MaxN];
-    
-    try{
-    
-    while(true){
-        uint32_t job = jobID++;
-        if(job >= outputs.eigen->neigen) break;
-        if(job >= outputs.eigen->memsize){
-            GlobalLog("Had %d eigenrays but only %d fit in memory\n",
-                outputs.eigen->neigen, outputs.eigen->memsize);
-            break;
+
+    try {
+        while(true) {
+            uint32_t job = jobID++;
+            if(job >= outputs.eigen->neigen) break;
+            if(job >= outputs.eigen->memsize) {
+                GlobalLog(
+                    "Had %d eigenrays but only %d fit in memory\n", outputs.eigen->neigen,
+                    outputs.eigen->memsize);
+                break;
+            }
+            EigenHit *hit  = &outputs.eigen->hits[job];
+            int32_t Nsteps = hit->is;
+            RayInitInfo rinit;
+            rinit.isx    = hit->isx;
+            rinit.isy    = hit->isy;
+            rinit.isz    = hit->isz;
+            rinit.ialpha = hit->ialpha;
+            rinit.ibeta  = hit->ibeta;
+            if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)) {
+                GlobalLog("EigenModePostWorker RunRay failed\n");
+            }
+            if(Nsteps != hit->is + 2 && Nsteps != hit->is + 3) {
+                GlobalLog(
+                    "Eigenray isxyz (%d,%d,%d) ialpha/beta (%d,%d) "
+                    "hit rcvr on step %d but on retrace had %d steps\n",
+                    hit->isx, hit->isy, hit->isz, hit->ialpha, hit->ibeta, hit->is,
+                    Nsteps);
+            }
         }
-        EigenHit *hit = &outputs.eigen->hits[job];
-        int32_t Nsteps = hit->is;
-        RayInitInfo rinit;
-        rinit.isx = hit->isx;
-        rinit.isy = hit->isy;
-        rinit.isz = hit->isz;
-        rinit.ialpha = hit->ialpha;
-        rinit.ibeta = hit->ibeta;
-        if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)){
-            GlobalLog("EigenModePostWorker RunRay failed\n");
-        }
-        if(Nsteps != hit->is + 2 && Nsteps != hit->is + 3){
-            GlobalLog("Eigenray isxyz (%d,%d,%d) ialpha/beta (%d,%d) "
-                "hit rcvr on step %d but on retrace had %d steps\n",
-                hit->isx, hit->isy, hit->isz, hit->ialpha, hit->ibeta, hit->is, Nsteps);
-        }
-    }
-    
-    }catch(const std::exception &e){
+
+    } catch(const std::exception &e) {
         std::lock_guard<std::mutex> lock(exceptionMutex);
         exceptionStr += std::string(e.what()) + "\n";
     }
-    
+
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) delete[] localmem;
 }
 
@@ -86,39 +88,40 @@ template void EigenModePostWorker<true, true>(
 #endif
 
 template<bool O3D, bool R3D> void FinalizeEigenMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, 
-    std::string FileRoot, bool singlethread)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, std::string FileRoot,
+    bool singlethread)
 {
     InitRayMode<O3D, R3D>(outputs.rayinfo, params);
-    
+
     GlobalLog("%d eigenrays\n", (int)outputs.eigen->neigen);
     std::vector<std::thread> threads;
-    uint32_t cores = singlethread ? 1u : bhc::max(std::thread::hardware_concurrency(), 1u);
-    jobID = 0;
-    for(uint32_t i=0; i<cores; ++i) threads.push_back(std::thread(
-        EigenModePostWorker<O3D, R3D>,
-        std::ref(params), std::ref(outputs)));
-    for(uint32_t i=0; i<cores; ++i) threads[i].join();
-    
+    uint32_t cores = singlethread ? 1u
+                                  : bhc::max(std::thread::hardware_concurrency(), 1u);
+    jobID          = 0;
+    for(uint32_t i = 0; i < cores; ++i)
+        threads.push_back(std::thread(
+            EigenModePostWorker<O3D, R3D>, std::ref(params), std::ref(outputs)));
+    for(uint32_t i = 0; i < cores; ++i) threads[i].join();
+
     if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
-    
+
     FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
 }
 
 #if BHC_ENABLE_2D
 template void FinalizeEigenMode<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, 
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
     std::string FileRoot, bool singlethread);
 #endif
 #if BHC_ENABLE_NX2D
 template void FinalizeEigenMode<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, 
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
     std::string FileRoot, bool singlethread);
 #endif
 #if BHC_ENABLE_3D
 template void FinalizeEigenMode<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, 
-    std::string FileRoot, bool singlethread);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, std::string FileRoot,
+    bool singlethread);
 #endif
 
-}
+} // namespace bhc
