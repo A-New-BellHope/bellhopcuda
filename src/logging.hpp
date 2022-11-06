@@ -62,6 +62,7 @@ inline void GlobalLogImpl(const char *message)
 HOST_DEVICE inline void GlobalLog(const char *message, ...)
 {
 #ifdef __CUDA_ARCH__
+    /*
     uint32_t outlen   = strlen_d(message);
     uint32_t startpos = atomicAdd(&gpu_log_buf_pos, outlen) & (gpu_log_buf_size - 1);
     memcpy(
@@ -72,6 +73,7 @@ HOST_DEVICE inline void GlobalLog(const char *message, ...)
             &gpu_log_buf[0], &message[gpu_log_buf_size - startpos],
             startpos + outlen - gpu_log_buf_size);
     }
+    */
 #else
     constexpr uint32_t maxbufsize = 1024;
     char buf[maxbufsize];

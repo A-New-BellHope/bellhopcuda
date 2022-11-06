@@ -1,0 +1,7 @@
+- Get rid of GlobalLog, replace with flags
+- Get rid of bail, replace with checking atomic errored variable
+- SSP compile time selection
+- CMake flag for CUDA debug symbols (and C++?)
+- CMake flags for enable all run types, influence types, SSP types
+- CUDA building kernels in separate cu files for parallelism
+
