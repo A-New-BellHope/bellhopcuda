@@ -100,16 +100,17 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     } else {
         rinit.beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
     }
-    if constexpr(O3D && !R3D) {
-        org.xs      = xs;
-        org.tradial = vec2(STD::cos(rinit.beta), STD::sin(rinit.beta));
-    }
 
     iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
     VEC23<O3D> tinit;
     SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(
         rinit.isx, rinit.isy, rinit.isz, rinit.alpha, iSeg, Pos, ssp, xs, tinit);
     gradc = o.gradc;
+
+    if constexpr(O3D && !R3D) {
+        org.xs      = xs;
+        org.tradial = vec2(STD::cos(rinit.beta), STD::sin(rinit.beta));
+    }
 
     if constexpr(!O3D) {
         // Are there enough beams?

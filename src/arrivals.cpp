@@ -101,7 +101,6 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
     default:
         GlobalLog("FinalizeArrivalsMode called while not in arrivals mode\n");
         bail();
-        return;
     }
     // LP: originally most of WriteArrivals[ASCII/Binary][3D]
     for(int32_t isz = 0; isz < Pos->NSz; ++isz) {

@@ -76,16 +76,17 @@ void setupGPU()
     checkCudaErrors(cudaSetDevice(m_gpu));
 }
 
-inline template<typename RI, bool O3D, bool R3D> RunKernel(
+template<typename RI, bool O3D, bool R3D> inline void RunKernel(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
+    // LP: This should instantiate all 3 * 6 * 7 = 126 kernels.
     FieldModesKernel<RI, O3D, R3D><<<d_multiprocs, NUM_THREADS>>>(params, outputs);
 }
 
-inline template<char IT, bool O3D, bool R3D> RunSelectRunType(
+template<char IT, bool O3D, bool R3D> inline void RunSelectRunType(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    char rt = params.Beam.RunType[0];
+    char rt = params.Beam->RunType[0];
     if(rt == 'C') {
         RunKernel<RIType<'C', IT>, O3D, R3D>(params, outputs);
     } else if(rt == 'S') {
@@ -104,7 +105,7 @@ inline template<char IT, bool O3D, bool R3D> RunSelectRunType(
     }
 }
 
-inline template<bool O3D, bool R3D> RunSelectInflType(
+template<bool O3D, bool R3D> inline void RunSelectInflType(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     char it = params.Beam->Type[0];
@@ -137,7 +138,6 @@ template<bool O3D, bool R3D> bool run_cuda(
         InitSelectedMode<O3D, R3D>(params, outputs, false);
         RunSelectInflType<O3D, R3D>(params, outputs);
         syncAndCheckKernelErrors("FieldModesKernel");
-
     } catch(const std::exception &e) {
         api_okay              = false;
         PrintFileEmu &PRTFile = *(PrintFileEmu *)params.internal;

@@ -142,8 +142,8 @@ template<bool O3D, bool R3D> void FinalizeTLMode(
                          .uAllSources[GetFieldAddr(isx, isy, isz, 0, 0, 0, params.Pos)],
                     params.Pos->Ntheta, params.Pos->NRz_per_range, params.Pos->NRr,
                     params.freqinfo->freq0, params.Beam);
-                for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1) { // LP:
-                                                                                  // depth
+                // LP: depth
+                for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1) {
                     for(int32_t itheta = 0; itheta < params.Pos->Ntheta; ++itheta) {
                         // LP: This is in a different order from the field.
                         // Field: (largest) Z, X, Y, theta, depth, radius (smallest)
@@ -151,14 +151,13 @@ template<bool O3D, bool R3D> void FinalizeTLMode(
                         // (XYZ are source; theta depth radius are receiver)
                         // Also, for 3D, mbp iterates over theta inside depth, which does
                         // not match the order of writing to the file.
-                        size_t IRec = 10
-                            + ((((size_t)isx * (size_t)params.Pos->NSy + (size_t)isy)
-                                    * (size_t)params.Pos->Ntheta
-                                + (size_t)itheta)
-                                   * (size_t)params.Pos->NSz
-                               + (size_t)isz)
-                                * (size_t)params.Pos->NRz_per_range
-                            + (size_t)Irz1;
+                        // clang-format off
+                        size_t IRec = 10                     + ((((size_t)isx
+                            * (size_t)params.Pos->NSy           + (size_t)isy)
+                            * (size_t)params.Pos->Ntheta        + (size_t)itheta)
+                            * (size_t)params.Pos->NSz           + (size_t)isz)
+                            * (size_t)params.Pos->NRz_per_range + (size_t)Irz1;
+                        // clang-format on
                         SHDFile.rec(IRec);
                         for(int32_t r = 0; r < params.Pos->NRr; ++r) {
                             cpxf v = outputs.uAllSources[GetFieldAddr(

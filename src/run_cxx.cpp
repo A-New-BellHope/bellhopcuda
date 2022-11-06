@@ -72,21 +72,74 @@ template void RayModeWorker<true, true>(
 
 cpxf *uAllSources;
 
-template<bool O3D, bool R3D> void FieldModesWorker(
+// LP: Want this one to be where the different functions are instantiated, and
+// the functions below to be inlined.
+template<typename RI, bool O3D, bool R3D> CPU_NOINLINE void FieldModesWorkerInner(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    while(true) {
+        int32_t job = jobID++;
+        RayInitInfo rinit;
+        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
+
+        MainFieldModes<RI, O3D, R3D>(
+            rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
+            params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
+            params.beaminfo, outputs.eigen, outputs.arrinfo);
+    }
+}
+
+template<char IT, bool O3D, bool R3D> inline void RunSelectRunType(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    char rt = params.Beam->RunType[0];
+    if(rt == 'C') {
+        FieldModesWorkerInner<RIType<'C', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'S') {
+        FieldModesWorkerInner<RIType<'S', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'I') {
+        FieldModesWorkerInner<RIType<'I', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'E') {
+        FieldModesWorkerInner<RIType<'E', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'A') {
+        FieldModesWorkerInner<RIType<'A', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'a') {
+        FieldModesWorkerInner<RIType<'a', IT>, O3D, R3D>(params, outputs);
+    } else {
+        GlobalLog("Invalid RunType for FieldModesWorker %c!", rt);
+        bail();
+    }
+}
+
+template<bool O3D, bool R3D> inline void RunSelectInflType(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    char it = params.Beam->Type[0];
+    if(it == 'R') {
+        RunSelectRunType<'R', O3D, R3D>(params, outputs);
+    } else if(it == 'C') {
+        RunSelectRunType<'C', O3D, R3D>(params, outputs);
+    } else if(it == 'G' || it == '^' || it == ' ') {
+        RunSelectRunType<'G', O3D, R3D>(params, outputs);
+    } else if(it == 'g') {
+        RunSelectRunType<'g', O3D, R3D>(params, outputs);
+    } else if(it == 'B') {
+        RunSelectRunType<'B', O3D, R3D>(params, outputs);
+    } else if(it == 'b') {
+        RunSelectRunType<'b', O3D, R3D>(params, outputs);
+    } else if(it == 'S') {
+        RunSelectRunType<'S', O3D, R3D>(params, outputs);
+    } else {
+        GlobalLog("Invalid Beam type %c!", it);
+        bail();
+    }
+}
+
+template<bool O3D, bool R3D> CPU_NOINLINE void FieldModesWorker(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     try {
-        while(true) {
-            int32_t job = jobID++;
-            RayInitInfo rinit;
-            if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
-
-            MainFieldModes<O3D, R3D>(
-                rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
-                params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
-                params.beaminfo, outputs.eigen, outputs.arrinfo);
-        }
-
+        RunSelectInflType<O3D, R3D>(params, outputs);
     } catch(const std::exception &e) {
         std::lock_guard<std::mutex> lock(exceptionMutex);
         exceptionStr += std::string(e.what()) + "\n";

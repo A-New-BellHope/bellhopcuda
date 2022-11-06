@@ -22,13 +22,13 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 template<char RT> struct RunType {
-    constexpr bool IsRay() { return RT == 'R'; }
-    constexpr bool IsTL() { return RT == 'C' || RT == 'S' || RT == 'I'; }
-    constexpr bool IsEigenrays() { return RT == 'E'; }
-    constexpr bool IsArrivals() { return RT == 'A' || RT == 'a'; }
-    constexpr bool IsCoherent() { return RT == 'C'; }
-    constexpr bool IsSemiCoherent() { return RT == 'S'; }
-    constexpr bool IsIncoherent() { return RT == 'I'; }
+    static constexpr bool IsRay() { return RT == 'R'; }
+    static constexpr bool IsTL() { return RT == 'C' || RT == 'S' || RT == 'I'; }
+    static constexpr bool IsEigenrays() { return RT == 'E'; }
+    static constexpr bool IsArrivals() { return RT == 'A' || RT == 'a'; }
+    static constexpr bool IsCoherent() { return RT == 'C'; }
+    static constexpr bool IsSemiCoherent() { return RT == 'S'; }
+    static constexpr bool IsIncoherent() { return RT == 'I'; }
 
     static_assert(
         IsRay() || IsTL() || IsEigenrays() || IsArrivals(),
@@ -38,13 +38,13 @@ template<char RT> struct RunType {
 template<char IT> struct InflType {
     // ' ' and '^' are equivalent to 'G', but are handled in the template
     // selection, not here.
-    constexpr bool IsCerveny() { return IT == 'R' || IT == 'C'; }
-    constexpr bool IsGeometric() { return IsHatGeom() || IsGaussianGeom(); }
-    constexpr bool IsSGB() { return IT == 'S'; }
-    constexpr bool IsCartesian() { return IT == 'C' || IT == 'G' || IT == 'B'; }
-    constexpr bool IsRayCen() { return IT == 'R' || IT == 'g' || IT == 'b'; }
-    constexpr bool IsHatGeom() { return IT == 'G' || IT == 'g'; }
-    constexpr bool IsGaussianGeom() { return IT == 'B' || IT == 'b'; }
+    static constexpr bool IsCerveny() { return IT == 'R' || IT == 'C'; }
+    static constexpr bool IsGeometric() { return IsHatGeom() || IsGaussianGeom(); }
+    static constexpr bool IsSGB() { return IT == 'S'; }
+    static constexpr bool IsCartesian() { return IT == 'C' || IT == 'G' || IT == 'B'; }
+    static constexpr bool IsRayCen() { return IT == 'R' || IT == 'g' || IT == 'b'; }
+    static constexpr bool IsHatGeom() { return IT == 'G' || IT == 'g'; }
+    static constexpr bool IsGaussianGeom() { return IT == 'B' || IT == 'b'; }
 
     static_assert(
         IsCerveny() || IsGeometric() || IsSGB(),
@@ -171,10 +171,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline const char *GetBeamTypeTag(
             ? "Geometric beam, Gaussian-shaped, Ray coord."
             : "Geo Gaussian beams in ray-cent. coords. not implemented in BELLHOP (2D)";
     case 'S': return "Simple Gaussian beams";
-    default:
-        GlobalLog("Invalid Beam->Type[0] %c\n", Beam->Type[0]);
-        bail();
-        return "Error";
+    default: GlobalLog("Invalid Beam->Type[0] %c\n", Beam->Type[0]); bail();
     }
 }
 
@@ -215,10 +212,7 @@ template<bool O3D> HOST_DEVICE inline const char *GetBeamWidthTag(
     case 'M': return "Minimum width beams";
     case 'W': return "WKB beams";
     case 'C': return "Cerveny style beam";
-    default:
-        GlobalLog("Invalid Beam->Type[1] %c\n", Beam->Type[1]);
-        bail();
-        return "Error";
+    default: GlobalLog("Invalid Beam->Type[1] %c\n", Beam->Type[1]); bail();
     }
 }
 

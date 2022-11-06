@@ -239,7 +239,6 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     // const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;
     real ZMin, ZMax;
-    vec2 x;
     cpx ccpx;
     real Sigma, Depth;
     char PlotType[10];

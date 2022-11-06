@@ -133,7 +133,12 @@ inline const char *SOURCE_FILENAME(const char *file)
 #define BASSERT_STR(x) #x
 #define BASSERT_XSTR(x) BASSERT_STR(x)
 #ifdef __CUDA_ARCH__
-#define bail __trap
+[[noreturn]] __forceinline__ __device__ void dev_bail()
+{
+    __trap();
+    __builtin_unreachable();
+}
+#define bail() dev_bail()
 #define BASSERT(statement) \
     if(__builtin_expect(!(statement), 0)) { \
         GlobalLog("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
@@ -150,6 +155,12 @@ inline const char *SOURCE_FILENAME(const char *file)
             + " line " BASSERT_XSTR(__LINE__) "\n"); \
     } \
     REQUIRESEMICOLON
+#endif
+
+#ifdef _MSC_VER
+#define CPU_NOINLINE __declspec(noinline)
+#else
+#define CPU_NOINLINE __attribute__((noinline))
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
