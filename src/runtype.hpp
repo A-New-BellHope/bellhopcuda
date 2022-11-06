@@ -21,6 +21,41 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+template<char RT> struct RunType {
+    constexpr bool IsRay() { return RT == 'R'; }
+    constexpr bool IsTL() { return RT == 'C' || RT == 'S' || RT == 'I'; }
+    constexpr bool IsEigenrays() { return RT == 'E'; }
+    constexpr bool IsArrivals() { return RT == 'A' || RT == 'a'; }
+    constexpr bool IsCoherent() { return RT == 'C'; }
+    constexpr bool IsSemiCoherent() { return RT == 'S'; }
+    constexpr bool IsIncoherent() { return RT == 'I'; }
+
+    static_assert(
+        IsRay() || IsTL() || IsEigenrays() || IsArrivals(),
+        "RunType templated with invalid character!");
+};
+
+template<char IT> struct InflType {
+    // ' ' and '^' are equivalent to 'G', but are handled in the template
+    // selection, not here.
+    constexpr bool IsCerveny() { return IT == 'R' || IT == 'C'; }
+    constexpr bool IsGeometric() { return IsHatGeom() || IsGaussianGeom(); }
+    constexpr bool IsSGB() { return IT == 'S'; }
+    constexpr bool IsCartesian() { return IT == 'C' || IT == 'G' || IT == 'B'; }
+    constexpr bool IsRayCen() { return IT == 'R' || IT == 'g' || IT == 'b'; }
+    constexpr bool IsHatGeom() { return IT == 'G' || IT == 'g'; }
+    constexpr bool IsGaussianGeom() { return IT == 'B' || IT == 'b'; }
+
+    static_assert(
+        IsCerveny() || IsGeometric() || IsSGB(),
+        "InflType templated with invalid character!");
+};
+
+template<char RT, char IT> struct RIType {
+    using run  = RunType<RT>;
+    using infl = InflType<IT>;
+};
+
 template<bool O3D> HOST_DEVICE inline bool IsRayRun(const BeamStructure<O3D> *Beam)
 {
     char r = Beam->RunType[0];

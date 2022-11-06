@@ -41,7 +41,7 @@ template<bool O3D, bool R3D> int mainmain()
         bhc::FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
     } else if(IsTLRun(params.Beam)) {
         // TL mode
-        bhc::FinalizeTLMode(FileRoot, params, outputs);
+        bhc::FinalizeTLMode<O3D, R3D>(FileRoot, params, outputs);
     } else if(IsEigenraysRun(params.Beam)) {
         // Eigenrays mode
         bhc::FinalizeEigenMode<O3D, R3D>(params, outputs, FileRoot, singlethread);

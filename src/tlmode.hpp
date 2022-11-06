@@ -56,7 +56,7 @@ extern template void FinalizeTLMode<true, true>(
 /**
  * Main ray tracing function for TL, eigen, and arrivals runs.
  */
-template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
+template<typename RI, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
     RayInitInfo &rinit, cpxf *uAllSources, const BdryType *ConstBdry,
     const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl, const SSPStructure *ssp,
     const Position *Pos, const AnglesStructure *Angles, const FreqInfo *freqinfo,
@@ -79,7 +79,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
         return;
     }
 
-    Init_Influence<O3D, R3D>(
+    Init_Influence<RI, O3D, R3D>(
         inflray, point0, rinit, gradc, Pos, org, ssp, iSeg, Angles, freqinfo, Beam);
 
     int32_t iSmallStepCtr = 0;
@@ -90,7 +90,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
         int32_t dStep = RayUpdate<O3D, R3D>(
             point0, point1, point2, DistEndTop, DistEndBot, iSmallStepCtr, org, iSeg, bds,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
-        if(!Step_Influence<O3D, R3D>(
+        if(!Step_Influence<RI, O3D, R3D>(
                point0, point1, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg, Pos,
                Beam, eigen, arrinfo)) {
 #ifdef STEP_DEBUGGING
@@ -100,7 +100,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
         }
         ++is;
         if(dStep == 2) {
-            if(!Step_Influence<O3D, R3D>(
+            if(!Step_Influence<RI, O3D, R3D>(
                    point1, point2, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg,
                    Pos, Beam, eigen, arrinfo))
                 break;

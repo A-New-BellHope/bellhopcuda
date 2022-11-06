@@ -22,7 +22,8 @@ namespace bhc {
 
 #define NUM_THREADS 256
 
-template<bool O3D, bool R3D> __global__ void __launch_bounds__(NUM_THREADS, 1)
+template<typename RI, bool O3D, bool R3D> __global__ void __launch_bounds__(
+    NUM_THREADS, 1)
     FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x;;
@@ -30,25 +31,12 @@ template<bool O3D, bool R3D> __global__ void __launch_bounds__(NUM_THREADS, 1)
         RayInitInfo rinit;
         if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
 
-        MainFieldModes<O3D, R3D>(
+        MainFieldModes<RI, O3D, R3D>(
             rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
             params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
             params.beaminfo, outputs.eigen, outputs.arrinfo);
     }
 }
-
-#if BHC_ENABLE_2D
-template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<false, false>(
-    bhcParams<false, false> params, bhcOutputs<false, false> outputs);
-#endif
-#if BHC_ENABLE_NX2D
-template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true, false>(
-    bhcParams<true, false> params, bhcOutputs<true, false> outputs);
-#endif
-#if BHC_ENABLE_3D
-template __global__ void __launch_bounds__(NUM_THREADS, 1) FieldModesKernel<true, true>(
-    bhcParams<true, true> params, bhcOutputs<true, true> outputs);
-#endif
 
 int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
 void setupGPU()
@@ -88,6 +76,58 @@ void setupGPU()
     checkCudaErrors(cudaSetDevice(m_gpu));
 }
 
+inline template<typename RI, bool O3D, bool R3D> RunKernel(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    FieldModesKernel<RI, O3D, R3D><<<d_multiprocs, NUM_THREADS>>>(params, outputs);
+}
+
+inline template<char IT, bool O3D, bool R3D> RunSelectRunType(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    char rt = params.Beam.RunType[0];
+    if(rt == 'C') {
+        RunKernel<RIType<'C', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'S') {
+        RunKernel<RIType<'S', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'I') {
+        RunKernel<RIType<'I', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'E') {
+        RunKernel<RIType<'E', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'A') {
+        RunKernel<RIType<'A', IT>, O3D, R3D>(params, outputs);
+    } else if(rt == 'a') {
+        RunKernel<RIType<'a', IT>, O3D, R3D>(params, outputs);
+    } else {
+        GlobalLog("Invalid RunType for CUDA %c!", rt);
+        bail();
+    }
+}
+
+inline template<bool O3D, bool R3D> RunSelectInflType(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    char it = params.Beam->Type[0];
+    if(it == 'R') {
+        RunSelectRunType<'R', O3D, R3D>(params, outputs);
+    } else if(it == 'C') {
+        RunSelectRunType<'C', O3D, R3D>(params, outputs);
+    } else if(it == 'G' || it == '^' || it == ' ') {
+        RunSelectRunType<'G', O3D, R3D>(params, outputs);
+    } else if(it == 'g') {
+        RunSelectRunType<'g', O3D, R3D>(params, outputs);
+    } else if(it == 'B') {
+        RunSelectRunType<'B', O3D, R3D>(params, outputs);
+    } else if(it == 'b') {
+        RunSelectRunType<'b', O3D, R3D>(params, outputs);
+    } else if(it == 'S') {
+        RunSelectRunType<'S', O3D, R3D>(params, outputs);
+    } else {
+        GlobalLog("Invalid Beam type %c!", it);
+        bail();
+    }
+}
+
 template<bool O3D, bool R3D> bool run_cuda(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
@@ -95,7 +135,7 @@ template<bool O3D, bool R3D> bool run_cuda(
 
     try {
         InitSelectedMode<O3D, R3D>(params, outputs, false);
-        FieldModesKernel<O3D, R3D><<<d_multiprocs, NUM_THREADS>>>(params, outputs);
+        RunSelectInflType<O3D, R3D>(params, outputs);
         syncAndCheckKernelErrors("FieldModesKernel");
 
     } catch(const std::exception &e) {
