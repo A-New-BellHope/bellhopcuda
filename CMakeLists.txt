@@ -25,9 +25,9 @@ set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE} CACHE STRING "" FORCE) # Only 
 project(bellhoptoplevel LANGUAGES NONE)
 
 option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
-option(BHC_ENABLE_LIB "Build shared library version in addition to executable versions" ON)
+option(BHC_ENABLE_LIB  "Build shared library version in addition to executable versions" ON)
 option(BHC_3D_SEPARATE "Build separate executables for 2D/3D/Nx2D instead of selecting dimensionality with command line" OFF)
-option(USE_FLOAT "Perform all floating-point arithmetic as 32-bit" OFF)
+option(BHC_USE_FLOATS  "Perform all floating-point arithmetic as 32-bit" OFF)
 
 option(BHC_DIM_ENABLE_2D   "Enable 2D runs" ON)
 option(BHC_DIM_ENABLE_3D   "Enable 3D runs" ON)
@@ -51,6 +51,6 @@ option(BHC_SSP_ENABLE_CUBIC      "Enable cubic spline  1D SSP (ssp->Type == 'S')
 option(BHC_SSP_ENABLE_PCHIP      "Enable PCHIP         1D SSP (ssp->Type == 'P')" ON)
 option(BHC_SSP_ENABLE_QUAD       "Enable quadrilateral 2D SSP (ssp->Type == 'Q')" ON)
 option(BHC_SSP_ENABLE_HEXAHEDRAL "Enable hexahedral    3D SSP (ssp->Type == 'H')" ON)
-option(BHC_SSP_ENABLE_ANALYTIC   "Enable analytic      1D SSP (ssp->Type == 'A')" ON)
+option(BHC_SSP_ENABLE_ANALYTIC   "Enable analytic   2D/3D SSP (ssp->Type == 'A')" ON)
 
 add_subdirectory(config)

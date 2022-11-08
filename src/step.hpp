@@ -617,7 +617,7 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
 /**
  * Does a single step along the ray
  */
-template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     rayPt<R3D> ray0, rayPt<R3D> &ray2, const BdryState<O3D> &bds,
     const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const Origin<O3D, R3D> &org,
     const SSPStructure *ssp, SSPSegState &iSeg, int32_t &iSmallStepCtr, bool &topRefl,
@@ -662,7 +662,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
 
     // *** Phase 1 (an Euler step)
 
-    EvaluateSSP<O3D, R3D>(ray0.x, ray0.t, o0, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, R3D>(ray0.x, ray0.t, o0, org, ssp, iSeg);
     // GlobalLog("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
     Get_c_partials<R3D>(ray0, o0, part0);
     pq0 = ComputeDeltaPQ<R3D>(ray0, o0, part0);
@@ -693,7 +693,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
 
     // *** Phase 2
 
-    EvaluateSSP<O3D, R3D>(ray1.x, ray1.t, o1, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, R3D>(ray1.x, ray1.t, o1, org, ssp, iSeg);
     Get_c_partials<R3D>(ray1, o1, part1);
     pq1 = ComputeDeltaPQ<R3D>(ray1, o1, part1);
 
@@ -745,7 +745,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Step(
 
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP<O3D, R3D>(ray2.x, ray2.t, o2, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, R3D>(ray2.x, ray2.t, o2, org, ssp, iSeg);
     ray2.c = o2.ccpx.real();
 
     if(iSeg.z != iSeg0.z || (!R3D && !O3D && iSeg.r != iSeg0.r)

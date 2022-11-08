@@ -19,14 +19,23 @@ set(BHC_RUN_DATABASE "TL:C;EIGENRAYS:E;ARRIVALS:A")
 set(BHC_INFL_DATABASE "CERVENY_RAYCEN:R;CERVENY_CART:C;HAT_RAYCEN:g;HAT_CART:G;GAUSS_RAYCEN:b;GAUSS_CART:B;SGB:S")
 set(BHC_SSP_DATABASE "N2LINEAR:N;CLINEAR:C;CUBIC:S;PCHIP:P;QUAD:Q;HEXAHEDRAL:H;ANALYTIC:A")
 
-function(database_lookup DATABASE KEY VALUE_VAR)
-    foreach(pair IN LISTS DATABASE)
-        if(pair MATCHES "${KEY}:(.+)")
-            set(${VALUE_VAR} "${CMAKE_MATCH_1}" PARENT_SCOPE)
-            return()
+function(add_gen_template_defs_inner target_name type)
+    foreach(pair IN LISTS BHC_${type}_DATABASE)
+        if(pair MATCHES "(.+):(.+)")
+            set(NAME "${CMAKE_MATCH_1}")
+        else()
+            message(FATAL_ERROR "Internal error with template generation: ${type}")
+        endif()
+        if(${BHC_${type}_ENABLE_${NAME}})
+            target_compile_definitions(${target_name} PRIVATE BHC_${type}_ENABLE_${NAME}=1)
         endif()
     endforeach()
-    message(FATAL_ERROR "Internal error with template generation: could not find key ${KEY} in database!")
+endfunction()
+
+function(add_gen_template_defs target_name)
+    add_gen_template_defs_inner(${target_name} RUN)
+    add_gen_template_defs_inner(${target_name} INFL)
+    add_gen_template_defs_inner(${target_name} SSP)
 endfunction()
 
 function(gen_templates_inner EXTENSION SOURCE_LIST_INNER_VAR)
@@ -65,7 +74,7 @@ function(gen_templates_inner EXTENSION SOURCE_LIST_INNER_VAR)
                 set(OUT_FILENAME "field_${DIM_NAME}_${RUN_NAME}_${INFL_NAME}_${SSP_NAME}.${EXTENSION}")
                 set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/gen_templates/${OUT_FILENAME}")
                 configure_file(
-                    "${CMAKE_SOURCE_DIR}/src/runfieldmodesimpl.${EXTENSION}"
+                    "${CMAKE_SOURCE_DIR}/src/runfieldmodesimpl.${EXTENSION}.in"
                     "${OUT_FILE}"
                 )
                 list(APPEND SOURCE_LIST_INNER "${OUT_FILE}")

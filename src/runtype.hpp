@@ -23,12 +23,14 @@ namespace bhc {
 
 template<char RT> struct RunType {
     static constexpr bool IsRay() { return RT == 'R'; }
-    static constexpr bool IsTL() { return RT == 'C' || RT == 'S' || RT == 'I'; }
+    static constexpr bool IsTL() { return RT == 'C' /*|| RT == 'S' || RT == 'I'*/; }
     static constexpr bool IsEigenrays() { return RT == 'E'; }
     static constexpr bool IsArrivals() { return RT == 'A' || RT == 'a'; }
+    /*
     static constexpr bool IsCoherent() { return RT == 'C'; }
     static constexpr bool IsSemiCoherent() { return RT == 'S'; }
     static constexpr bool IsIncoherent() { return RT == 'I'; }
+    */
 
     static_assert(
         IsRay() || IsTL() || IsEigenrays() || IsArrivals(),
@@ -51,9 +53,31 @@ template<char IT> struct InflType {
         "InflType templated with invalid character!");
 };
 
-template<char RT, char IT> struct RIType {
+template<char ST> struct SSPType {
+    static constexpr bool IsN2Linear() { return ST == 'N'; }
+    static constexpr bool IsCLinear() { return ST == 'C'; }
+    static constexpr bool IsCubic() { return ST == 'S'; }
+    static constexpr bool IsPCHIP() { return ST == 'P'; }
+    static constexpr bool IsQuad() { return ST == 'Q'; }
+    static constexpr bool IsHexahedral() { return ST == 'H'; }
+    static constexpr bool IsAnalytic() { return ST == 'A'; }
+    static constexpr bool Is1D()
+    {
+        return IsN2Linear() || IsCLinear() || IsCubic() || IsPCHIP();
+    }
+    static constexpr bool Is2D() { return IsQuad(); }
+    static constexpr bool Is3D() { return IsHexahedral(); }
+    static constexpr bool IsAnyD() { return IsAnalytic(); }
+
+    static_assert(
+        Is1D() || Is2D() || Is3D() || IsAnyD(),
+        "SSPType templated with invalid character!");
+};
+
+template<char RT, char IT, char ST> struct CfgSel {
     using run  = RunType<RT>;
     using infl = InflType<IT>;
+    using ssp  = SSPType<ST>;
 };
 
 template<bool O3D> HOST_DEVICE inline bool IsRayRun(const BeamStructure<O3D> *Beam)

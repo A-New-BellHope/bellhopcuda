@@ -378,14 +378,14 @@ template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
     }
 }
 
-template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     const VEC23<R3D> &x, const VEC23<R3D> &t, SSPOutputs<R3D> &o,
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
 {
     VEC23<O3D> x_proc = RayToOceanX(x, org);
     VEC23<O3D> t_proc = RayToOceanT(t, org);
     SSPOutputs<O3D> o_proc;
-    if(ssp->Type == 'N' || ssp->Type == 'C' || ssp->Type == 'S') {
+    if constexpr(CFG::ssp.Is1D()) {
         vec2 x_rz, t_rz;
         SSPOutputs<false> o_rz;
         if constexpr(O3D) {
@@ -395,12 +395,18 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             x_rz = x_proc;
             t_rz = t_proc;
         }
-        if(ssp->Type == 'N') { // N2-linear profile option
+        if constexpr(CFG::ssp.IsN2Linear()) { // N2-linear profile option
             n2Linear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if(ssp->Type == 'C') { // C-linear profile option
+        } else if constexpr(CFG::ssp.IsCLinear()) { // C-linear profile option
             cLinear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if(ssp->Type == 'S') { // Cubic spline profile option
+        } else if constexpr(CFG::ssp.IsCubic()) { // Cubic spline profile option
             cCubic(x_rz, t_rz, o_rz, ssp, iSeg);
+        } else if constexpr(CFG::ssp.IsPCHIP()) { // monotone PCHIP ACS profile option
+            if constexpr(O3D) {
+                GlobalLog("EvaluateSSP: warning: PCHIP not supported in BELLHOP3D in "
+                          "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME "\n");
+            }
+            cPCHIP(x_rz, t_rz, o_rz, ssp, iSeg);
         }
         if constexpr(O3D) {
             o_proc.gradc = vec3(RL(0.0), RL(0.0), o_rz.gradc.y);
@@ -411,32 +417,28 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         } else {
             o_proc = o_rz;
         }
-    } else if(ssp->Type == 'P' || ssp->Type == 'Q') {
+    } else if constexpr(CFG::ssp.Is2D()) {
         if constexpr(O3D) {
-            // LP: TODO: I don't think there's any reason P (PCHIP) should not be
-            // supported, it's very similar to cubic.
-            GlobalLog(
-                "EvaluateSSP: '%c' profile not supported in 3D or Nx2D mode\n",
-                ssp->Type);
+            GlobalLog("EvaluateSSP: 2D profile not supported in 3D or Nx2D mode\n");
             bail();
         } else {
-            if(ssp->Type == 'P') { // monotone PCHIP ACS profile option
-                cPCHIP(x_proc, t_proc, o_proc, ssp, iSeg);
-            } else if(ssp->Type == 'Q') {
-                Quad(x_proc, t_proc, o_proc, ssp, iSeg);
+            if constexpr(CFG::ssp.IsQuad()) { Quad(x_proc, t_proc, o_proc, ssp, iSeg); }
+        }
+    } else if constexpr(CFG::ssp.Is3D()) {
+        if constexpr(!O3D) {
+            GlobalLog("EvaluateSSP: 3D profile not supported in 2D mode\n");
+            bail();
+        } else {
+            if constexpr(CFG::ssp.IsHexahedral()) {
+                Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
             }
         }
-    } else if(ssp->Type == 'H') {
-        if constexpr(O3D) {
-            Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
-        } else {
-            GlobalLog("EvaluateSSP: 'H' (Hexahedral) profile not supported in 2D mode\n");
-            bail();
+    } else if constexpr(CFG::ssp.IsAnyD()) {
+        if constexpr(CFG::ssp.IsAnalytic()) { // Analytic profile option
+            Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
         }
-    } else if(ssp->Type == 'A') { // Analytic profile option
-        Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
     } else {
-        GlobalLog("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
+        GlobalLog("EvaluateSSP: Invalid profile option\n");
         bail();
     }
     if constexpr(O3D && !R3D) {

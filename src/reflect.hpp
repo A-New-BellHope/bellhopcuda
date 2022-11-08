@@ -200,7 +200,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCur
  * rcurv: Boundary curvature
  * rtb: Reflection coefficient table
  */
-template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     const rayPt<R3D> &oldPoint, rayPt<R3D> &newPoint, const HSInfo &hs, bool isTop,
     VEC23<R3D> tBdry, const VEC23<O3D> &nBdry, const ReflCurvature<O3D> &rcurv, real freq,
     const ReflectionInfoTopBot &rtb, const BeamStructure<O3D> *Beam,
@@ -237,7 +237,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     // just to get c [LP: o.ccpx.real(); also, this comment is wrong, it is also using
     // o.gradc]
     SSPOutputs<R3D> o;
-    EvaluateSSP<O3D, R3D>(oldPoint.x, (O3D ? newPoint.t : oldPoint.t), o, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, R3D>(
+        oldPoint.x, (O3D ? newPoint.t : oldPoint.t), o, org, ssp, iSeg);
 
     newPoint.c   = o.ccpx.real();
     newPoint.tau = oldPoint.tau;

@@ -23,19 +23,19 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-using GENCFG = CfgSel<@BHCGENRUN @, @BHCGENINFL @, @BHCGENSSP @>;
+using GENCFG = CfgSel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@>;
 
-template void FieldModesWorker<GENCFG, @BHCGENO3D @, @BHCGENR3D @>(
-    bhcParams<@BHCGENO3D @, @BHCGENR3D @> &params,
-    bhcOutputs<@BHCGENO3D @, @BHCGENR3D @> &outputs)
+template void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+    bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
+    bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs)
 {
     try {
         while(true) {
             int32_t job = sharedJobID++;
             RayInitInfo rinit;
-            if(!GetJobIndices<@BHCGENO3D @>(rinit, job, params.Pos, params.Angles)) break;
+            if(!GetJobIndices<@BHCGENO3D@>(rinit, job, params.Pos, params.Angles)) break;
 
-            MainFieldModes<GENCFG, @BHCGENO3D @, @BHCGENR3D @>(
+            MainFieldModes<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
                 rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
                 params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
                 params.beaminfo, outputs.eigen, outputs.arrinfo);
@@ -46,14 +46,14 @@ template void FieldModesWorker<GENCFG, @BHCGENO3D @, @BHCGENR3D @>(
     }
 }
 
-template void RunFieldModesImpl<GENCFG, @BHCGENO3D @, @BHCGENR3D @>(
-    bhcParams<@BHCGENO3D @, @BHCGENR3D @> &params,
-    bhcOutputs<@BHCGENO3D @, @BHCGENR3D @> &outputs, uint32_t cores)
+template void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+    bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
+    bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs, uint32_t cores)
 {
     std::vector<std::thread> threads;
     for(uint32_t i = 0; i < cores; ++i)
         threads.push_back(std::thread(
-            FieldModesWorker<@BHCGENO3D @, @BHCGENR3D @>, std::ref(params),
+            FieldModesWorker<@BHCGENO3D@, @BHCGENR3D@>, std::ref(params),
             std::ref(outputs)));
     for(uint32_t i = 0; i < cores; ++i) threads[i].join();
 }

@@ -56,7 +56,7 @@ extern template void FinalizeTLMode<true, true>(
 /**
  * Main ray tracing function for TL, eigen, and arrivals runs.
  */
-template<typename RI, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
     RayInitInfo &rinit, cpxf *uAllSources, const BdryType *ConstBdry,
     const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl, const SSPStructure *ssp,
     const Position *Pos, const AnglesStructure *Angles, const FreqInfo *freqinfo,
@@ -73,13 +73,13 @@ template<typename RI, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes
     rayPt<R3D> point0, point1, point2;
     InfluenceRayInfo<R3D> inflray;
 
-    if(!RayInit<O3D, R3D>(
+    if(!RayInit<CFG, O3D, R3D>(
            rinit, xs, point0, gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
            ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) {
         return;
     }
 
-    Init_Influence<RI, O3D, R3D>(
+    Init_Influence<CFG, O3D, R3D>(
         inflray, point0, rinit, gradc, Pos, org, ssp, iSeg, Angles, freqinfo, Beam);
 
     int32_t iSmallStepCtr = 0;
@@ -87,10 +87,10 @@ template<typename RI, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes
     int32_t Nsteps        = 0; // not actually needed in TL mode, debugging only
 
     for(int32_t istep = 0; istep < MaxN - 1; ++istep) {
-        int32_t dStep = RayUpdate<O3D, R3D>(
+        int32_t dStep = RayUpdate<CFG, O3D, R3D>(
             point0, point1, point2, DistEndTop, DistEndBot, iSmallStepCtr, org, iSeg, bds,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
-        if(!Step_Influence<RI, O3D, R3D>(
+        if(!Step_Influence<CFG, O3D, R3D>(
                point0, point1, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg, Pos,
                Beam, eigen, arrinfo)) {
 #ifdef STEP_DEBUGGING
@@ -100,7 +100,7 @@ template<typename RI, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes
         }
         ++is;
         if(dStep == 2) {
-            if(!Step_Influence<RI, O3D, R3D>(
+            if(!Step_Influence<CFG, O3D, R3D>(
                    point1, point2, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg,
                    Pos, Beam, eigen, arrinfo))
                 break;
