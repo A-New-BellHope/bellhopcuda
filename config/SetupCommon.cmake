@@ -40,6 +40,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
 
 find_package(Threads)
 
+include(GenTemplates.cmake)
+
 function(bellhop_setup_target target_name)
     if(USE_FLOAT)
         target_compile_definitions(${target_name} PUBLIC BHC_USE_FLOATS=1)
@@ -49,20 +51,33 @@ function(bellhop_setup_target target_name)
     target_link_libraries(${target_name} Threads::Threads)
 endfunction()
 
-function(bellhop_create_executable target_name sources defs incs)
-    add_executable(${target_name} ${sources})
-    target_compile_definitions(${target_name} PUBLIC BHC_CMDLINE=1 ${defs})
+function(bellhop_create_executable target_name iscuda dimmode sources defs incs)
+    if(iscuda)
+        set(gen_extension "cu")
+    else()
+        set(gen_extension "cpp")
+    endif()
+    gen_templates(${gen_extension} ${dimmode} gen_sources)
+    add_executable(${target_name} ${sources} ${gen_sources})
+    target_compile_definitions(${target_name} PUBLIC
+        BHC_CMDLINE=1 BHC_DIMMODE=${dimmode} ${defs}
+    )
     target_include_directories(${target_name} PRIVATE ${incs})
     bellhop_setup_target(${target_name})
 endfunction()
 
-function(bellhop_create_executables type_name sources defs incs)
-    if(BHC_3D_SEPARATE)
-        bellhop_create_executable(bellhop${type_name}2d   "${sources}" "BHC_DIMMODE=2;${defs}" "${incs}")
-        bellhop_create_executable(bellhop${type_name}nx2d "${sources}" "BHC_DIMMODE=3;${defs}" "${incs}")
-        bellhop_create_executable(bellhop${type_name}3d   "${sources}" "BHC_DIMMODE=4;${defs}" "${incs}")
+function(bellhop_create_executables iscuda sources defs incs)
+    if(iscuda)
+        set(type_name "cuda")
     else()
-        bellhop_create_executable(bellhop${type_name}     "${sources}" "BHC_DIMMODE=0;${defs}" "${incs}")
+        set(type_name "cxx")
+    endif()
+    if(BHC_3D_SEPARATE)
+        bellhop_create_executable(bellhop${type_name}2d   ${iscuda} 2 "${sources}" "${defs}" "${incs}")
+        bellhop_create_executable(bellhop${type_name}3d   ${iscuda} 3 "${sources}" "${defs}" "${incs}")
+        bellhop_create_executable(bellhop${type_name}nx2d ${iscuda} 4 "${sources}" "${defs}" "${incs}")
+    else()
+        bellhop_create_executable(bellhop${type_name}     ${iscuda} 0 "${sources}" "${defs}" "${incs}")
     endif()
 endfunction()
 
@@ -112,7 +127,7 @@ set(COMMON_SOURCE
     readenv.cpp
     readenv.hpp
     reflect.hpp
-    run_cxx.cpp
+    run.cpp
     run.hpp
     setup.cpp
     sourcereceiver.hpp

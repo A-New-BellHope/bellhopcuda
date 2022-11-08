@@ -20,7 +20,8 @@ project(bellhopcxxlib LANGUAGES CXX)
 
 include(../SetupCommon.cmake)
 
-add_library(bellhopcxxlib SHARED ${COMMON_SOURCE}
+gen_templates(cpp 0 gen_sources)
+add_library(bellhopcxxlib SHARED ${COMMON_SOURCE} ${gen_sources}
     #no additional source files
 )
 #LP: If this is being used in a parent CMake project, just
@@ -31,5 +32,5 @@ add_library(bellhopcxxlib SHARED ${COMMON_SOURCE}
 #include(GenerateExportHeader)
 #generate_export_header(bellhopcxxlib)
 
-target_compile_definitions(bellhopcxxlib PUBLIC BHC_EXPORTS=1)
+target_compile_definitions(bellhopcxxlib PUBLIC BHC_EXPORTS=1 BHC_DIMMODE=0)
 bellhop_setup_target(bellhopcxxlib)

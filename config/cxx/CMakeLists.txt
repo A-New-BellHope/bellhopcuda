@@ -24,4 +24,4 @@ set(ALL_SOURCES ${COMMON_INCLUDES} ${COMMON_SOURCE}
     ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
 )
 
-bellhop_create_executables(cxx "${ALL_SOURCES}" "" "")
+bellhop_create_executables(0 "${ALL_SOURCES}" "" "")

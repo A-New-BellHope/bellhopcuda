@@ -24,7 +24,18 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "arrivals.hpp"
 #include "ssp.hpp"
 
+#include <atomic>
+#include <mutex>
+
 namespace bhc {
+
+extern std::atomic<int32_t> sharedJobID;
+extern std::mutex exceptionMutex;
+extern std::string exceptionStr;
+
+#ifdef BHC_BUILD_CUDA
+extern int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
+#endif
 
 template<bool O3D, bool R3D> inline void InitSelectedMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
@@ -57,14 +68,74 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     }
 }
 
-template<bool O3D, bool R3D> bool run_cxx(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
-extern template bool run_cxx<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    bool singlethread);
-extern template bool run_cxx<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
-extern template bool run_cxx<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+template<typename CFG, bool O3D, bool R3D> void FieldModesWorker(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+
+template<typename CFG, bool O3D, bool R3D> void RunFieldModesImpl(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores);
+
+template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores)
+{
+    char st = params.ssp->Type;
+    if(st == 'N') {
+        RunFieldModesImpl<CfgSel<RT, IT, 'N'>, O3D, R3D>(params, outputs, cores);
+    } else if(st == 'C') {
+        RunFieldModesImpl<CfgSel<RT, IT, 'C'>, O3D, R3D>(params, outputs, cores);
+    } else if(st == 'S') {
+        RunFieldModesImpl<CfgSel<RT, IT, 'S'>, O3D, R3D>(params, outputs, cores);
+    } else if(st == 'P') {
+        RunFieldModesImpl<CfgSel<RT, IT, 'P'>, O3D, R3D>(params, outputs, cores);
+    } else if(st == 'Q') {
+        RunFieldModesImpl<CfgSel<RT, IT, 'Q'>, O3D, R3D>(params, outputs, cores);
+    } else if(st == 'H') {
+        RunFieldModesImpl<CfgSel<RT, IT, 'H'>, O3D, R3D>(params, outputs, cores);
+    } else if(st == 'A') {
+        RunFieldModesImpl<CfgSel<RT, IT, 'A'>, O3D, R3D>(params, outputs, cores);
+    } else {
+        GlobalLog("Invalid ssp->Type %c for field modes!", st);
+        bail();
+    }
+}
+
+template<char IT, bool O3D, bool R3D> inline void RunFieldModesSelRun(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores)
+{
+    char rt = params.Beam->RunType[0];
+    if(rt == 'C' || rt == 'S' || rt == 'I') {
+        RunFieldModesSelSSP<'C', IT, O3D, R3D>(params, outputs, cores);
+    } else if(rt == 'E') {
+        RunFieldModesSelSSP<'E', IT, O3D, R3D>(params, outputs, cores);
+    } else if(rt == 'A' || rt == 'a') {
+        RunFieldModesSelSSP<'A', IT, O3D, R3D>(params, outputs, cores);
+    } else {
+        GlobalLog("Invalid RunType %c for field modes!", rt);
+        bail();
+    }
+}
+
+template<bool O3D, bool R3D> inline void RunFieldModesSelInfl(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores)
+{
+    char it = params.Beam->Type[0];
+    if(it == 'R') {
+        RunFieldModesSelRun<'R', O3D, R3D>(params, outputs, cores);
+    } else if(it == 'C') {
+        RunFieldModesSelRun<'C', O3D, R3D>(params, outputs, cores);
+    } else if(it == 'G' || it == '^' || it == ' ') {
+        RunFieldModesSelRun<'G', O3D, R3D>(params, outputs, cores);
+    } else if(it == 'g') {
+        RunFieldModesSelRun<'g', O3D, R3D>(params, outputs, cores);
+    } else if(it == 'B') {
+        RunFieldModesSelRun<'B', O3D, R3D>(params, outputs, cores);
+    } else if(it == 'b') {
+        RunFieldModesSelRun<'b', O3D, R3D>(params, outputs, cores);
+    } else if(it == 'S') {
+        RunFieldModesSelRun<'S', O3D, R3D>(params, outputs, cores);
+    } else {
+        GlobalLog("Invalid Beam type %c for field modes!", it);
+        bail();
+    }
+}
 
 } // namespace bhc

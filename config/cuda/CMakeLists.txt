@@ -25,10 +25,9 @@ set(ALL_SOURCES ${COMMON_INCLUDES} ${COMMON_SOURCE}
     ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
     ${CMAKE_SOURCE_DIR}/src/UtilsCUDA.cuh
     ${CMAKE_SOURCE_DIR}/src/logging.cu
-    ${CMAKE_SOURCE_DIR}/src/run_cuda.cu
 )
 
-bellhop_create_executables(cuda "${ALL_SOURCES}"
+bellhop_create_executables(1 "${ALL_SOURCES}"
     "BHC_BUILD_CUDA=1"
     "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
 )

@@ -27,7 +27,43 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 #ifdef BHC_BUILD_CUDA
-void setupGPU();
+int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
+void setupGPU()
+{
+    // Print info about all GPUs and which one is selected
+    int num_gpus;
+    checkCudaErrors(cudaGetDeviceCount(&num_gpus));
+    BASSERT(num_gpus >= 1);
+    cudaDeviceProp cudaProperties;
+    for(int g = 0; g < num_gpus; ++g) {
+        checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
+        if(g == m_gpu) {
+            GlobalLog(
+                "CUDA device: %s / compute %d.%d\n", cudaProperties.name,
+                cudaProperties.major, cudaProperties.minor);
+        }
+        /*
+        GlobalLog("%s", (g == m_gpu) ? "--> " : "    ");
+        GlobalLog("GPU %d: %s, compute SM %d.%d\n",
+            g, cudaProperties.name, cudaProperties.major, cudaProperties.minor);
+        GlobalLog("      --Global/shared/constant memory: %lli, %d, %d\n",
+            cudaProperties.totalGlobalMem,
+            cudaProperties.sharedMemPerBlock,
+            cudaProperties.totalConstMem);
+        GlobalLog("      --Warp/threads/SMPs: %d, %d, %d\n" ,
+            cudaProperties.warpSize,
+            cudaProperties.maxThreadsPerBlock,
+            cudaProperties.multiProcessorCount);
+        */
+    }
+
+    // Store properties about used GPU
+    checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, m_gpu));
+    d_warp       = cudaProperties.warpSize;
+    d_maxthreads = cudaProperties.maxThreadsPerBlock;
+    d_multiprocs = cudaProperties.multiProcessorCount;
+    checkCudaErrors(cudaSetDevice(m_gpu));
+}
 #endif
 
 bool api_okay = false;
