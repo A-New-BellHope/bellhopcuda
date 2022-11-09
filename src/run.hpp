@@ -34,7 +34,7 @@ extern std::mutex exceptionMutex;
 extern std::string exceptionStr;
 
 #ifdef BHC_BUILD_CUDA
-extern int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
+extern int m_gpu, d_warp, d_maxthreads, d_multiprocs;
 #endif
 
 template<bool O3D, bool R3D> inline void InitSelectedMode(

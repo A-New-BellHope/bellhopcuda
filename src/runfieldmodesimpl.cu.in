@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "run.hpp"
+#include "@CMAKE_SOURCE_DIR@/src/run.hpp"
 
 namespace bhc {
 
@@ -28,7 +28,7 @@ using GENCFG = CfgSel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@>;
 template<typename CFG, bool O3D, bool R3D> __global__ void LAUNCH_BOUNDS
 FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs);
 
-template __global__ void LAUNCH_BOUNDS
+template<> __global__ void LAUNCH_BOUNDS
 FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     bhcParams<@BHCGENO3D@, @BHCGENR3D@> params,
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> outputs)
@@ -45,7 +45,7 @@ FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     }
 }
 
-template void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs, uint32_t cores)
 {

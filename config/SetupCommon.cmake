@@ -40,7 +40,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
 
 find_package(Threads)
 
-include(GenTemplates.cmake)
+include(${CMAKE_SOURCE_DIR}/config/GenTemplates.cmake)
 
 function(bellhop_setup_target target_name)
     if(BHC_USE_FLOATS)

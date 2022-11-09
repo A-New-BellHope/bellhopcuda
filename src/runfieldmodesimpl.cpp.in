@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "run.hpp"
+#include "@CMAKE_SOURCE_DIR@/src/run.hpp"
 
 #include <thread>
 #include <vector>
@@ -25,7 +25,7 @@ namespace bhc {
 
 using GENCFG = CfgSel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@>;
 
-template void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs)
 {
@@ -46,14 +46,14 @@ template void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     }
 }
 
-template void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs, uint32_t cores)
 {
     std::vector<std::thread> threads;
     for(uint32_t i = 0; i < cores; ++i)
         threads.push_back(std::thread(
-            FieldModesWorker<@BHCGENO3D@, @BHCGENR3D@>, std::ref(params),
+            FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>, std::ref(params),
             std::ref(outputs)));
     for(uint32_t i = 0; i < cores; ++i) threads[i].join();
 }

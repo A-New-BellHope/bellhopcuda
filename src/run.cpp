@@ -23,6 +23,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+std::atomic<int32_t> sharedJobID;
+std::mutex exceptionMutex;
+std::string exceptionStr;
+
 template<bool O3D, bool R3D> void RayModeWorker(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
@@ -60,7 +64,7 @@ template void RayModeWorker<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
-template<bool O3D, bool R3D> inline bool RunRayMode(
+template<bool O3D, bool R3D> inline void RunRayMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores)
 {
     std::vector<std::thread> threads;

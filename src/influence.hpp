@@ -870,7 +870,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
     int32_t ir, int32_t iz, int32_t is, const rayPt<R3D> &point0,
     const rayPt<R3D> &point1, real RcvrDeclAngle, real RcvrAzimAngle,
     const InfluenceRayInfo<R3D> &inflray, cpxf *uAllSources, const Position *Pos,
-    EigenInfo *eigen, const ArrInfo *arrinfo)
+    const BeamStructure<O3D> *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     static_assert(
         CFG::infl::IsGeometric(), "InfluenceGeoCore templated with non-geometric type!");
@@ -1007,8 +1007,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool
 Step_InfluenceGeoRayCen(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1, InfluenceRayInfo<R3D> &inflray,
-    int32_t is, cpxf *uAllSources, const Position *Pos, EigenInfo *eigen,
-    const ArrInfo *arrinfo)
+    int32_t is, cpxf *uAllSources, const Position *Pos, const BeamStructure<O3D> *Beam,
+    EigenInfo *eigen, const ArrInfo *arrinfo)
 {
     real phaseq = QScalar(point0.q);
     IncPhaseIfCaustic<R3D>(inflray, phaseq, true);
@@ -1162,7 +1162,7 @@ Step_InfluenceGeoRayCen(
                 }
                 InfluenceGeoCore<CFG, O3D, R3D>(
                     s, n1, n2, dq, dtau, itheta, ir, iz, is, point0, point1,
-                    RcvrDeclAngle, RcvrAzimAngle, inflray, uAllSources, Pos, eigen,
+                    RcvrDeclAngle, RcvrAzimAngle, inflray, uAllSources, Pos, Beam, eigen,
                     arrinfo);
             }
         } while(R3D);
@@ -1357,8 +1357,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                     }
                     InfluenceGeoCore<CFG, O3D, R3D>(
                         s, n1, n2, dq, dtau, itheta, inflray.ir, iz, is, point0, point1,
-                        RcvrDeclAngle, RcvrAzimAngle, inflray, uAllSources, Pos, eigen,
-                        arrinfo);
+                        RcvrDeclAngle, RcvrAzimAngle, inflray, uAllSources, Pos, Beam,
+                        eigen, arrinfo);
                 }
             } while(R3D);
         }
@@ -1521,7 +1521,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                           ", but not in BELLHOP\n");
             }
             return Step_InfluenceGeoRayCen<CFG, O3D, R3D>(
-                point0, point1, inflray, is, uAllSources, Pos, eigen, arrinfo);
+                point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
         }
     } else {
         GlobalLog("Invalid Run Type\n");

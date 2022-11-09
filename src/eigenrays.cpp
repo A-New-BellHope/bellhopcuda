@@ -18,17 +18,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #include "eigenrays.hpp"
 #include "raymode.hpp"
+#include "run.hpp"
 
-#include <atomic>
-#include <mutex>
 #include <thread>
 #include <vector>
 
 namespace bhc {
-
-static std::atomic<uint32_t> jobID;
-static std::mutex exceptionMutex;
-static std::string exceptionStr;
 
 template<bool O3D, bool R3D> void EigenModePostWorker(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
@@ -38,7 +33,7 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
 
     try {
         while(true) {
-            uint32_t job = jobID++;
+            uint32_t job = sharedJobID++;
             if(job >= outputs.eigen->neigen) break;
             if(job >= outputs.eigen->memsize) {
                 GlobalLog(
@@ -97,7 +92,7 @@ template<bool O3D, bool R3D> void FinalizeEigenMode(
     std::vector<std::thread> threads;
     uint32_t cores = singlethread ? 1u
                                   : bhc::max(std::thread::hardware_concurrency(), 1u);
-    jobID          = 0;
+    sharedJobID    = 0;
     for(uint32_t i = 0; i < cores; ++i)
         threads.push_back(std::thread(
             EigenModePostWorker<O3D, R3D>, std::ref(params), std::ref(outputs)));

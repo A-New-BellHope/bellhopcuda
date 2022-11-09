@@ -122,8 +122,33 @@ template<bool O3D, bool R3D> void FinalizeTLMode(
                 SSPSegState iSeg;
                 iSeg.r = iSeg.x = iSeg.y = iSeg.z = 0;
                 VEC23<O3D> xs, tinit;
-                SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(
-                    isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                SSPOutputs<O3D> o;
+                char st = params.ssp->Type;
+                if(st == 'N') {
+                    o = RayStartNominalSSP<CfgSel<'C', 'G', 'N'>, O3D>(
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                } else if(st == 'C') {
+                    o = RayStartNominalSSP<CfgSel<'C', 'G', 'C'>, O3D>(
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                } else if(st == 'S') {
+                    o = RayStartNominalSSP<CfgSel<'C', 'G', 'S'>, O3D>(
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                } else if(st == 'P') {
+                    o = RayStartNominalSSP<CfgSel<'C', 'G', 'P'>, O3D>(
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                } else if(st == 'Q') {
+                    o = RayStartNominalSSP<CfgSel<'C', 'G', 'Q'>, O3D>(
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                } else if(st == 'H') {
+                    o = RayStartNominalSSP<CfgSel<'C', 'G', 'H'>, O3D>(
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                } else if(st == 'A') {
+                    o = RayStartNominalSSP<CfgSel<'C', 'G', 'A'>, O3D>(
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                } else {
+                    GlobalLog("Invalid ssp->Type %c!", st);
+                    bail();
+                }
                 cpx epsilon1, epsilon2;
                 if constexpr(R3D) {
                     epsilon1 = PickEpsilon<O3D, R3D>(

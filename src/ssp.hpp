@@ -385,7 +385,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     VEC23<O3D> x_proc = RayToOceanX(x, org);
     VEC23<O3D> t_proc = RayToOceanT(t, org);
     SSPOutputs<O3D> o_proc;
-    if constexpr(CFG::ssp.Is1D()) {
+    if constexpr(CFG::ssp::Is1D()) {
         vec2 x_rz, t_rz;
         SSPOutputs<false> o_rz;
         if constexpr(O3D) {
@@ -395,13 +395,13 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             x_rz = x_proc;
             t_rz = t_proc;
         }
-        if constexpr(CFG::ssp.IsN2Linear()) { // N2-linear profile option
+        if constexpr(CFG::ssp::IsN2Linear()) { // N2-linear profile option
             n2Linear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if constexpr(CFG::ssp.IsCLinear()) { // C-linear profile option
+        } else if constexpr(CFG::ssp::IsCLinear()) { // C-linear profile option
             cLinear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if constexpr(CFG::ssp.IsCubic()) { // Cubic spline profile option
+        } else if constexpr(CFG::ssp::IsCubic()) { // Cubic spline profile option
             cCubic(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if constexpr(CFG::ssp.IsPCHIP()) { // monotone PCHIP ACS profile option
+        } else if constexpr(CFG::ssp::IsPCHIP()) { // monotone PCHIP ACS profile option
             if constexpr(O3D) {
                 GlobalLog("EvaluateSSP: warning: PCHIP not supported in BELLHOP3D in "
                           "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME "\n");
@@ -417,24 +417,24 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         } else {
             o_proc = o_rz;
         }
-    } else if constexpr(CFG::ssp.Is2D()) {
+    } else if constexpr(CFG::ssp::Is2D()) {
         if constexpr(O3D) {
             GlobalLog("EvaluateSSP: 2D profile not supported in 3D or Nx2D mode\n");
             bail();
         } else {
-            if constexpr(CFG::ssp.IsQuad()) { Quad(x_proc, t_proc, o_proc, ssp, iSeg); }
+            if constexpr(CFG::ssp::IsQuad()) { Quad(x_proc, t_proc, o_proc, ssp, iSeg); }
         }
-    } else if constexpr(CFG::ssp.Is3D()) {
+    } else if constexpr(CFG::ssp::Is3D()) {
         if constexpr(!O3D) {
             GlobalLog("EvaluateSSP: 3D profile not supported in 2D mode\n");
             bail();
         } else {
-            if constexpr(CFG::ssp.IsHexahedral()) {
+            if constexpr(CFG::ssp::IsHexahedral()) {
                 Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
             }
         }
-    } else if constexpr(CFG::ssp.IsAnyD()) {
-        if constexpr(CFG::ssp.IsAnalytic()) { // Analytic profile option
+    } else if constexpr(CFG::ssp::IsAnyD()) {
+        if constexpr(CFG::ssp::IsAnalytic()) { // Analytic profile option
             Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
         }
     } else {
