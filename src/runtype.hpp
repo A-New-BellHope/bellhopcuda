@@ -25,7 +25,7 @@ template<char RT> struct RunType {
     static constexpr bool IsRay() { return RT == 'R'; }
     static constexpr bool IsTL() { return RT == 'C' /*|| RT == 'S' || RT == 'I'*/; }
     static constexpr bool IsEigenrays() { return RT == 'E'; }
-    static constexpr bool IsArrivals() { return RT == 'A' || RT == 'a'; }
+    static constexpr bool IsArrivals() { return RT == 'A' /*|| RT == 'a'*/; }
     /*
     static constexpr bool IsCoherent() { return RT == 'C'; }
     static constexpr bool IsSemiCoherent() { return RT == 'S'; }

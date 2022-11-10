@@ -16,3 +16,7 @@ test/FORTRAN/
 
 .DS_Store
 
+gen_*_pass.txt
+gen_*_fail.txt
+test/in/gen_*
+

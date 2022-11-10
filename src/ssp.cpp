@@ -290,8 +290,8 @@ void ReadSSP(
         ssp->alphaI[iz] = RecycledHS.alphaI;
 
         // Did we read the last point?
-        if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON) { // LP: FLT_EPSILON is
-                                                                     // not a typo
+        // LP: FLT_EPSILON is not a typo
+        if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON) {
             ssp->Nz = ssp->NPts;
             if(ssp->NPts == 1) {
                 GlobalLog("ReadSSP: The SSP must have at least 2 points\n");
