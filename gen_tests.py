@@ -75,7 +75,7 @@ def gen_field_test(dim, rt, it, st):
     env_name = 'gen_' + '_'.join(subnames)
     print(env_name)
     with open('test/in/' + env_name + '.env', 'w') as envfil:
-        envfil.write('\'Generated profile, ' + ', '.join(subnames) + '\' ! TITLE\n')
+        envfil.write('\'Gen: ' + ', '.join(subnames) + '\' ! TITLE\n')
         envfil.write('50.0       ! FREQ (Hz)\n')
         envfil.write('1          ! NMEDIA\n')
         envfil.write('\'' + st + 'VW - \'   ! SSP (' + ssp_types[st] 
@@ -112,6 +112,9 @@ def gen_field_test(dim, rt, it, st):
             envfil.write('1000.0 5500.0 101.0 ! deltas, box depth, box range\n')
         else:
             envfil.write('1000.0 101.0 101.0 5500.0 ! deltas, box X, box Y, box depth\n')
+        if it in {'R', 'C'}:
+            envfil.write('\'MS\' 1.0 100.0 0, ! \'Width Curvature\' epsMultiplier rLoop ISINGL (ignored)\n')
+            envfil.write('1 4 \'P\' ! Nimage iBeamWindow Component\n')
     if st in {'Q', 'H'}:
         with open('test/in/' + env_name + '.ssp', 'w') as sspfil:
             if st == 'Q':

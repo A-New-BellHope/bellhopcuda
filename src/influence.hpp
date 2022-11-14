@@ -481,6 +481,54 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
 // Init_Influence
 ////////////////////////////////////////////////////////////////////////////////
 
+template<bool O3D, bool R3D> inline void PreRun_Influence(const BeamStructure<O3D> *Beam)
+{
+    if(IsCervenyInfl(Beam)) {
+        if constexpr(R3D) {
+            // LP: The Influence3D (Cerveny) function is commented out; was
+            // obviously implemented at some point.
+            GlobalLog(
+                IsCartesianInfl(Beam) ? "Run Type 'C' not supported at this time\n"
+                                      : "Invalid Run Type\n");
+            bail();
+        } else if constexpr(O3D) {
+            if(IsCartesianInfl(Beam)) {
+#ifdef BHC_LIMIT_FEATURES
+                GlobalLog("Nx2D Cerveny Cartesian is not supported by BELLHOP3D "
+                          "but can be supported by " BHC_PROGRAMNAME " if you turn off "
+                          "BHC_LIMIT_FEATURES\n");
+                bail();
+#else
+                GlobalLog("Warning: Nx2D Cerveny Cartesian is not supported by "
+                          "BELLHOP3D, but is supported by " BHC_PROGRAMNAME "\n");
+#endif
+            }
+        }
+    } else if(IsSGBInfl(Beam)) {
+        if constexpr(R3D) {
+            GlobalLog("Invalid Run Type\n");
+            bail();
+        }
+    } else if(IsGeometricInfl(Beam)) {
+        if constexpr(!R3D) {
+            if(IsRayCenInfl(Beam) && IsGaussianGeomInfl(Beam)) {
+#ifdef BHC_LIMIT_FEATURES
+                GlobalLog("2D Gaussian RayCen is not supported by BELLHOP "
+                          "but can be supported by " BHC_PROGRAMNAME " if you turn off "
+                          "BHC_LIMIT_FEATURES\n");
+                bail();
+#else
+                GlobalLog("Warning: 2D Gaussian RayCen is not supported by "
+                          "BELLHOP, but is supported by " BHC_PROGRAMNAME "\n");
+#endif
+            }
+        }
+    } else {
+        GlobalLog("Invalid Run Type\n");
+        bail();
+    }
+}
+
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     InfluenceRayInfo<R3D> &inflray, const rayPt<R3D> &point0, RayInitInfo &rinit,
     vec2 gradc, const Position *Pos, const Origin<O3D, R3D> &org, const SSPStructure *ssp,
@@ -1479,21 +1527,12 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
         IGNORE_UNUSED(ssp);
     }
 
+    // See PreRun_Influence, make sure these remain in sync.
     if constexpr(CFG::infl::IsCerveny()) {
         if constexpr(R3D) {
-            // LP: The Influence3D function is commented out; was obviously implemented at
-            // some point.
-            GlobalLog(
-                CFG::infl::IsCartesian() ? "Run Type 'C' not supported at this time\n"
-                                         : "Invalid Run Type\n");
+            GlobalLog("Internal error with infl template system");
             bail();
         } else {
-            if constexpr(CFG::infl::IsCartesian() && O3D) {
-                // LP: In BELLHOP3D, this codepath is fully implemented except
-                // that this error is thrown first.
-                GlobalLog("Run Type 'C' not supported at this time\n");
-                bail();
-            }
             if constexpr(CFG::infl::IsRayCen()) {
                 return Step_InfluenceCervenyRayCen<CFG, O3D>(
                     point0, point1, inflray, is, uAllSources, Bdry, Pos, Beam);
@@ -1505,7 +1544,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
         }
     } else if constexpr(CFG::infl::IsSGB()) {
         if constexpr(R3D) {
-            GlobalLog("Invalid Run Type\n");
+            GlobalLog("Internal error with infl template system");
             bail();
         } else {
             return Step_InfluenceSGB<CFG, O3D>(
@@ -1516,16 +1555,11 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
             return Step_InfluenceGeoCart<CFG, O3D, R3D>(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
         } else {
-            if constexpr(!R3D && CFG::infl::IsGaussianGeom()) {
-                GlobalLog("Warning, 2D Gaussian RayCen is supported in " BHC_PROGRAMNAME
-                          ", but not in BELLHOP\n");
-            }
             return Step_InfluenceGeoRayCen<CFG, O3D, R3D>(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);
         }
     } else {
-        GlobalLog("Invalid Run Type\n");
-        bail();
+        static_assert(!sizeof(CFG), "Invalid template in Step_Influence");
     }
 }
 

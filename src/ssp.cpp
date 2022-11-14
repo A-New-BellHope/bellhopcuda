@@ -202,12 +202,16 @@ void InitHexahedral(SSPStructure *ssp)
  */
 void UpdateSSP(
     real freq, const real &fT, SSPStructure *ssp, PrintFileEmu &PRTFile,
-    const AttenInfo *atten)
+    const AttenInfo *atten, bool o3d)
 {
     if(!ssp->dirty) return;
     ssp->dirty = false;
 
     if(ssp->Type == 'H') {
+        if(!o3d) {
+            GlobalLog("UpdateSSP: 3D profile not supported in 2D mode\n");
+            bail();
+        }
         // LP: ssp->c and ssp->cz are not well-defined in hexahedral mode, and
         // if the number of depths is changed (ssp->Nz vs. ssp->NPts), computing
         // them may read uninitialized data.
@@ -222,7 +226,7 @@ void UpdateSSP(
             if(iz > 0) {
                 if(ssp->z[iz] <= ssp->z[iz - 1]) {
                     GlobalLog(
-                        "ReadSSP: The depths in the SSP must be monotone increasing "
+                        "UpdateSSP: The depths in the SSP must be monotone increasing "
                         "(%d)\n",
                         ssp->z[iz]);
                     std::abort();
@@ -245,15 +249,32 @@ void UpdateSSP(
         case 'C': // C-linear profile option
             // nothing to do
             break;
-        case 'P': // monotone PCHIP ACS profile option
-            InitcPCHIP(ssp);
-            break;
         case 'S': // Cubic spline profile option
             InitcCubic(ssp);
             break;
-        case 'Q': InitQuad(ssp); break;
+        case 'P': // monotone PCHIP ACS profile option
+            if(o3d) {
+#ifdef BHC_LIMIT_FEATURES
+                GlobalLog("UpdateSSP: PCHIP is not supported in BELLHOP3D in "
+                          "3D or Nx2D mode, but can be supported in " BHC_PROGRAMNAME
+                          "if you turn off BHC_LIMIT_FEATURES\n");
+                bail();
+#else
+                GlobalLog("UpdateSSP: warning: PCHIP not supported in BELLHOP3D in "
+                          "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME "\n");
+#endif
+            }
+            InitcPCHIP(ssp);
+            break;
+        case 'Q':
+            if(o3d) {
+                GlobalLog("UpdateSSP: 2D profile not supported in 3D or Nx2D mode\n");
+                bail();
+            }
+            InitQuad(ssp);
+            break;
         default:
-            GlobalLog("InitializeSSP: Invalid profile option %c\n", ssp->Type);
+            GlobalLog("UpdateSSP: Invalid profile option %c\n", ssp->Type);
             std::abort();
         }
     }

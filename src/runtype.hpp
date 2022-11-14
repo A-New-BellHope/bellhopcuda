@@ -56,14 +56,14 @@ template<char IT> struct InflType {
 template<char ST> struct SSPType {
     static constexpr bool IsN2Linear() { return ST == 'N'; }
     static constexpr bool IsCLinear() { return ST == 'C'; }
-    static constexpr bool IsCubic() { return ST == 'S'; }
-    static constexpr bool IsPCHIP() { return ST == 'P'; }
+    static constexpr bool IsCCubic() { return ST == 'S'; }
+    static constexpr bool IsCPCHIP() { return ST == 'P'; }
     static constexpr bool IsQuad() { return ST == 'Q'; }
     static constexpr bool IsHexahedral() { return ST == 'H'; }
     static constexpr bool IsAnalytic() { return ST == 'A'; }
     static constexpr bool Is1D()
     {
-        return IsN2Linear() || IsCLinear() || IsCubic() || IsPCHIP();
+        return IsN2Linear() || IsCLinear() || IsCCubic() || IsCPCHIP();
     }
     static constexpr bool Is2D() { return IsQuad(); }
     static constexpr bool Is3D() { return IsHexahedral(); }

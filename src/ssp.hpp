@@ -399,13 +399,9 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             n2Linear(x_rz, t_rz, o_rz, ssp, iSeg);
         } else if constexpr(CFG::ssp::IsCLinear()) { // C-linear profile option
             cLinear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if constexpr(CFG::ssp::IsCubic()) { // Cubic spline profile option
+        } else if constexpr(CFG::ssp::IsCCubic()) { // Cubic spline profile option
             cCubic(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if constexpr(CFG::ssp::IsPCHIP()) { // monotone PCHIP ACS profile option
-            if constexpr(O3D) {
-                GlobalLog("EvaluateSSP: warning: PCHIP not supported in BELLHOP3D in "
-                          "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME "\n");
-            }
+        } else if constexpr(CFG::ssp::IsCPCHIP()) { // monotone PCHIP ACS profile option
             cPCHIP(x_rz, t_rz, o_rz, ssp, iSeg);
         }
         if constexpr(O3D) {
@@ -419,14 +415,15 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         }
     } else if constexpr(CFG::ssp::Is2D()) {
         if constexpr(O3D) {
-            GlobalLog("EvaluateSSP: 2D profile not supported in 3D or Nx2D mode\n");
+            // Should already have been checked in InitializeSSP
+            GlobalLog("Internal error with SSP template system");
             bail();
         } else {
             if constexpr(CFG::ssp::IsQuad()) { Quad(x_proc, t_proc, o_proc, ssp, iSeg); }
         }
     } else if constexpr(CFG::ssp::Is3D()) {
         if constexpr(!O3D) {
-            GlobalLog("EvaluateSSP: 3D profile not supported in 2D mode\n");
+            GlobalLog("Internal error with SSP template system");
             bail();
         } else {
             if constexpr(CFG::ssp::IsHexahedral()) {
@@ -438,8 +435,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
         }
     } else {
-        GlobalLog("EvaluateSSP: Invalid profile option\n");
-        bail();
+        static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");
     }
     if constexpr(O3D && !R3D) {
         o.gradc.x
@@ -461,7 +457,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
 
 void UpdateSSP(
     real freq, const real &fT, SSPStructure *ssp, PrintFileEmu &PRTFile,
-    const AttenInfo *atten);
+    const AttenInfo *atten, bool o3d);
 
 void InitializeSSP(
     real Depth, LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot,

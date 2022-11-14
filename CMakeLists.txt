@@ -27,6 +27,7 @@ project(bellhoptoplevel LANGUAGES NONE)
 option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
 option(BHC_ENABLE_LIB  "Build shared library version in addition to executable versions" ON)
 option(BHC_3D_SEPARATE "Build separate executables for 2D/3D/Nx2D instead of selecting dimensionality with command line" OFF)
+option(BHC_LIMIT_FEATURES "Limit bellhopcxx/bellhopcuda to only features supported by BELLHOP/BELLHOP3D" OFF)
 option(BHC_USE_FLOATS  "Perform all floating-point arithmetic as 32-bit" OFF)
 
 option(BHC_DIM_ENABLE_2D   "Enable 2D runs" ON)

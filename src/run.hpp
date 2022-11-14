@@ -42,7 +42,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
 {
     // this is always called from run_* so update intermediate params
     PrintFileEmu &PRTFile = *(PrintFileEmu *)params.internal;
-    bhc::UpdateSSP(params.freqinfo->freq0, params.fT, params.ssp, PRTFile, params.atten);
+    UpdateSSP(params.freqinfo->freq0, params.fT, params.ssp, PRTFile, params.atten, O3D);
 
     // Common
     int32_t ns = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;
@@ -66,6 +66,8 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
         GlobalLog("Invalid RunType %c\n", params.Beam->RunType[0]);
         std::abort();
     }
+
+    if(!IsRayRun(params.Beam)) { PreRun_Influence<O3D, R3D>(params.Beam); }
 }
 
 template<typename CFG, bool O3D, bool R3D> void FieldModesWorker(
