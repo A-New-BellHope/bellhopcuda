@@ -98,14 +98,20 @@ def gen_field_test(dim, rt, it, st):
         envfil.write('0.0 5000.0 /  ! RD(1:NRD) (m)\n')
         envfil.write('51            ! NR\n')
         envfil.write('0.0  100.0 /  ! R(1:NR ) (km)\n')
+        if dim != 2:
+            envfil.write('10            ! Ntheta (number of bearings)\n')
+            envfil.write('0.0  360.0 /  ! bearing angles (degrees)\n')
         envfil.write('\'' + rt + it + ' RR' + ('3' if dim == 3 else '2') 
             + '\'      ! RunType, infl/beam type, ignored, point source, rectilinear grid, dim\n')
         envfil.write('21            ! NBEAMS\n')
         envfil.write('-51.2 51.2 /  ! ALPHA1, 2 (degrees)\n')
+        if dim != 2:
+            envfil.write('7             ! Nbeta\n')
+            envfil.write('0.0 360.0 /   ! beta1, beta2 (degrees) bearing angle fan\n')
         if dim == 2:
-            envfil.write('100.0 5500.0 101.0 ! deltas, box depth, box range\n')
+            envfil.write('1000.0 5500.0 101.0 ! deltas, box depth, box range\n')
         else:
-            envfil.write('100.0 101.0 101.0 5500.0 ! deltas, box X, box Y, box depth\n')
+            envfil.write('1000.0 101.0 101.0 5500.0 ! deltas, box X, box Y, box depth\n')
     if st in {'Q', 'H'}:
         with open('test/in/' + env_name + '.ssp', 'w') as sspfil:
             if st == 'Q':
