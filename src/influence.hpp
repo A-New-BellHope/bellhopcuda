@@ -504,6 +504,10 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(const BeamStructure<O3
 #endif
             }
         }
+        if(!IsTLRun(Beam)) {
+            GlobalLog("Cerveny influence does not support eigenrays or arrivals\n");
+            bail();
+        }
     } else if(IsSGBInfl(Beam)) {
         if constexpr(R3D) {
             GlobalLog("Invalid Run Type\n");
@@ -536,11 +540,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
     const BeamStructure<O3D> *Beam)
 {
     if constexpr(R3D) IGNORE_UNUSED(ssp);
-
-    if constexpr(CFG::infl::IsCerveny() && !CFG::run::IsTL()) {
-        GlobalLog("Cerveny influence does not support eigenrays or arrivals\n");
-        bail();
-    }
 
     inflray.init  = rinit;
     inflray.freq0 = freqinfo->freq0;
@@ -644,17 +643,11 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
         }
     }
 
-    if constexpr(CFG::infl::IsCerveny() && CFG::infl::IsCartesian()) {
-        // LP: For Cerveny cart
-        if constexpr(R3D) {
-            GlobalLog("Run Type 'C' not supported at this time\n");
-            bail();
-        } else {
-            // LP: Partially supported in Nx2D (O3D but not R3D)
-            cpx eps0, pB0, qB0;
-            Compute_eps_pB_qB<O3D>(eps0, pB0, qB0, point0, inflray, Beam);
-            inflray.gamma = Compute_gamma<CFG, O3D>(point0, pB0, qB0, org, ssp, iSeg);
-        }
+    if constexpr(CFG::infl::IsCerveny() && CFG::infl::IsCartesian() && !R3D) {
+        // LP: Partially supported in Nx2D (O3D but not R3D)
+        cpx eps0, pB0, qB0;
+        Compute_eps_pB_qB<O3D>(eps0, pB0, qB0, point0, inflray, Beam);
+        inflray.gamma = Compute_gamma<CFG, O3D>(point0, pB0, qB0, org, ssp, iSeg);
     } else {
         // LP: not used
         inflray.gamma = RL(0.0);

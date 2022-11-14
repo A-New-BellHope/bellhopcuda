@@ -67,7 +67,7 @@ check_fail () {
     if [[ $i != $desiredresult ]]; then
         echo "$3: $2 $failedmsg"
         if [[ $ignore != "1" ]]; then
-            exit
+            exit 1
         fi
     fi
 }

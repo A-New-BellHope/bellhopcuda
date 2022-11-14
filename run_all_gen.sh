@@ -24,12 +24,14 @@ run_kind() {
     ./run_tests.sh $kind gen_${kind}_pass
 }
 
+run_kind eigen
+run_kind arr
+
+
 run_kind tl
+run_kind tl3d
 
 run_kind ray
 run_kind ray3d
-run_kind tl3d
-run_kind eigen
 run_kind eigen3d
-run_kind arr
 run_kind arr3d
