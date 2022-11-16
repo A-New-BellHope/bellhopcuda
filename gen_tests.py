@@ -94,13 +94,22 @@ def gen_field_test(dim, rt, it, st):
             envfil.write('-20.0 20.0  / ! SY(1:NSY) (km)\n')
         envfil.write('2             ! NSD\n')
         envfil.write('347.0 682.0 / ! SD(1:NSD) (m)\n')
-        envfil.write('51            ! NRD\n')
-        envfil.write('0.0 5000.0 /  ! RD(1:NRD) (m)\n')
-        envfil.write('51            ! NR\n')
-        envfil.write('0.0  100.0 /  ! R(1:NR ) (km)\n')
-        if dim != 2:
-            envfil.write('10            ! Ntheta (number of bearings)\n')
-            envfil.write('0.0  360.0 /  ! bearing angles (degrees)\n')
+        if rt in {'E', 'A', 'a'}:
+            envfil.write('2               ! NRD\n')
+            envfil.write('1135.8 1145.8 / ! RD(1:NRD) (m)\n')
+            envfil.write('2               ! NR\n')
+            envfil.write('37.2  37.21 /   ! R(1:NR ) (km)\n')
+            if dim != 2:
+                envfil.write('2             ! Ntheta (number of bearings)\n')
+                envfil.write('43.2  43.9 /  ! bearing angles (degrees)\n')
+        else:
+            envfil.write('51            ! NRD\n')
+            envfil.write('0.0 5000.0 /  ! RD(1:NRD) (m)\n')
+            envfil.write('51            ! NR\n')
+            envfil.write('0.0  100.0 /  ! R(1:NR ) (km)\n')
+            if dim != 2:
+                envfil.write('10            ! Ntheta (number of bearings)\n')
+                envfil.write('0.0  360.0 /  ! bearing angles (degrees)\n')
         envfil.write('\'' + rt + it + ' RR' + ('3' if dim == 3 else '2') 
             + '\'      ! RunType, infl/beam type, ignored, point source, rectilinear grid, dim\n')
         envfil.write('21            ! NBEAMS\n')

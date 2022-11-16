@@ -48,18 +48,19 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     int32_t iSmallStepCtr = 0;
     int32_t is            = 0; // index for a step along the ray
 
-    for(int32_t istep = 0; istep < MaxN - 1; ++istep) {
-        is += RayUpdate<CFG, O3D, R3D>(
+    while(true) {
+        int32_t dStep = RayUpdate<CFG, O3D, R3D>(
             ray[is], ray[is + 1], ray[is + 2], DistEndTop, DistEndBot, iSmallStepCtr, org,
             iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
+        if(Nsteps >= 0 && is >= Nsteps) {
+            Nsteps = is + 2;
+            break;
+        }
+        is += dStep;
         if(RayTerminate<O3D, R3D>(
                ray[is], Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
                DistEndBot, org, bdinfo, Beam))
             break;
-        if(Nsteps >= 0 && is > Nsteps) {
-            Nsteps = is + 1;
-            break;
-        }
     }
 }
 
@@ -126,19 +127,19 @@ template<bool O3D, bool R3D> void WriteRay(
     for(int32_t is = 0; is < n2; ++is) { RAYFile << RayToOceanX(ray[is].x, org) << '\n'; }
 }
 
+/**
+ * neigen is 0 when not in eigenrays mode (i.e. in ray trace mode).
+ */
 template<bool O3D, bool R3D> inline void InitRayMode(
-    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params)
+    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, uint32_t neigen)
 {
-    rayinfo->NRays     = GetNumJobs<O3D>(params.Pos, params.Angles);
+    rayinfo->NRays     = neigen > 0 ? neigen : GetNumJobs<O3D>(params.Pos, params.Angles);
     rayinfo->MaxPoints = bhc::min((uint32_t)MaxN * (uint32_t)rayinfo->NRays, 100000000u);
     rayinfo->NPoints   = 0;
     checkallocate(rayinfo->raymem, rayinfo->MaxPoints);
     checkallocate(rayinfo->results, rayinfo->NRays);
-    memset(rayinfo->results, 0, rayinfo->NRays * sizeof(RayResult<O3D, R3D>)); // Clear
-                                                                               // because
-                                                                               // will
-                                                                               // check
-                                                                               // pointers
+    // Clear because will check pointers
+    memset(rayinfo->results, 0, rayinfo->NRays * sizeof(RayResult<O3D, R3D>));
 }
 
 template<bool O3D, bool R3D> inline void FinalizeRayMode(
@@ -163,6 +164,7 @@ template<bool O3D, bool R3D> inline bool RunRay(
     RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, rayPt<R3D> *localmem,
     int32_t job, RayInitInfo &rinit, int32_t &Nsteps)
 {
+    BASSERT(job < rayinfo->NRays);
     rayPt<R3D> *ray;
     if(IsRayCopyMode<O3D, R3D>(rayinfo)) {
         ray = localmem;

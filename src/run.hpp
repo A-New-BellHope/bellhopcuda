@@ -53,7 +53,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
 
     // Mode specific
     if(IsRayRun(params.Beam)) {
-        InitRayMode<O3D, R3D>(outputs.rayinfo, params);
+        InitRayMode<O3D, R3D>(outputs.rayinfo, params, 0);
     } else if(IsTLRun(params.Beam)) {
         InitTLMode(outputs.uAllSources, params.Pos);
     } else if(IsEigenraysRun(params.Beam)) {

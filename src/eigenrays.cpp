@@ -52,13 +52,6 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
             if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)) {
                 GlobalLog("EigenModePostWorker RunRay failed\n");
             }
-            if(Nsteps != hit->is + 2 && Nsteps != hit->is + 3) {
-                GlobalLog(
-                    "Eigenray isxyz (%d,%d,%d) ialpha/beta (%d,%d) "
-                    "hit rcvr on step %d but on retrace had %d steps\n",
-                    hit->isx, hit->isy, hit->isz, hit->ialpha, hit->ibeta, hit->is,
-                    Nsteps);
-            }
         }
 
     } catch(const std::exception &e) {
@@ -86,7 +79,7 @@ template<bool O3D, bool R3D> void FinalizeEigenMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, std::string FileRoot,
     bool singlethread)
 {
-    InitRayMode<O3D, R3D>(outputs.rayinfo, params);
+    InitRayMode<O3D, R3D>(outputs.rayinfo, params, outputs.eigen->neigen);
 
     GlobalLog("%d eigenrays\n", (int)outputs.eigen->neigen);
     std::vector<std::thread> threads;

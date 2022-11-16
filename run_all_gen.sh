@@ -20,8 +20,8 @@ set -e
 
 run_kind() {
     kind=$1
-    ./run_tests.sh $kind gen_${kind}_fail shouldfail
     ./run_tests.sh $kind gen_${kind}_pass
+    ./run_tests.sh $kind gen_${kind}_fail shouldfail
 }
 
 run_kind eigen
