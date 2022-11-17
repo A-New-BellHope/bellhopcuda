@@ -1194,7 +1194,11 @@ Step_InfluenceGeoRayCen(
 
             // *** Compute contributions to bracketed receivers ***
 
-            for(int32_t ir = bhc::min(irA, irB) + 1; ir <= bhc::max(irA, irB); ++ir) {
+            // Was previously the below, but changed to always step from A to B
+            // like BELLHOP/BELLHOP3D to match the order of eigenrays and arrivals
+            // int32_t ir = bhc::min(irA, irB) + 1; ir <= bhc::max(irA, irB); ++ir
+            int32_t notii = (irB <= irA) ? 0 : 1; // LP: not a typo
+            for(int32_t ir = irA + notii; ir != irB + notii; ir += (notii << 1) - 1) {
                 real s  = (Pos->Rr[ir] - rA) / (rB - rA); // LP: called w in 2D
                 real n1 = STD::abs(nA + s * (nB - nA));   // normal distance to ray
                 real n2 = DEBUG_LARGEVAL; // LP: n1, n2 were called n, m in 3D

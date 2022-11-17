@@ -43,8 +43,8 @@ template<bool O3D> HOST_DEVICE inline bool GetJobIndices(
     RayInitInfo &rinit, int32_t job, const Position *Pos, const AnglesStructure *Angles)
 {
     if(Angles->alpha.iSingle >= 1) {
-        rinit.ialpha = Angles->alpha.iSingle - 1; // iSingle is 1-indexed because how
-                                                  // defined in env file
+        // iSingle is 1-indexed because how defined in env file
+        rinit.ialpha = Angles->alpha.iSingle - 1;
     } else {
         rinit.ialpha = job % Angles->alpha.n;
         job /= Angles->alpha.n;
