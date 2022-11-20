@@ -105,7 +105,7 @@ compare_results () {
     if [[ $desiredresult == "1" ]]; then
         echo "Skipping results comparison because in shouldfail mode"
         return 0
-    elif [[ $runtype != "tl" && ( $dir == "cxxmulti" || $dir == "cuda" ) ]]; then
+    elif [[ $runtype == "arr" && ( $dir == "cxxmulti" || $dir == "cuda" ) ]]; then
         echo "Skipping $runtype results comparison for $dir"
         return 0
     fi

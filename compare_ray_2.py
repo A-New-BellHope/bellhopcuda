@@ -80,8 +80,8 @@ def load_rayfil(f):
                 n2, ray['NumTopBnc'], ray['NumBotBnc'] = int(t[0]), int(t[1]), int(t[2])
                 state = 9
             elif state == 9:
-                assert len(t) == 2
-                ray['data'].append((float(t[0]), float(t[1])))
+                assert len(t) in {2, 3}
+                ray['data'].append(tuple(float(x) for x in t))
                 n2 -= 1
             else:
                 raise RuntimeError
@@ -104,7 +104,8 @@ def compare_floats(cf, ff, cl, fl):
     return True
 
 def compare_points(cp, fp, cl, fl):
-    return all(compare_floats(cp[i], fp[i], cl, fl) for i in range(2))
+    assert len(cp) == len(fp)
+    return all(compare_floats(cf, ff, cl, fl) for cf, ff in zip(cp, fp))
 
 def compare_rays(cxxr, forr, exact):
     if any(cxxr[k] != forr[k] for k in {'NumTopBnc', 'NumBotBnc'}) or not compare_floats(
@@ -117,8 +118,9 @@ def compare_rays(cxxr, forr, exact):
     while True:
         cl, fl = cxxr['line'] + ci, forr['line'] + fi
         if (ci >= len(cd)) != (fi >= len(fd)):
-            print('cxx and for rays ended at different steps, lines {} and {}'.format(
-                cl, fl))
+            if not exact:
+                print('cxx and for rays ended at different steps, lines {} and {}'.format(
+                    cl, fl))
             return False
         if ci >= len(cd):
             return True
@@ -171,6 +173,7 @@ def compare_raydata(cxxd, ford):
         print('Ray files failed to match: no for ray found which matches '
             + 'cxx ray starting on line {}'.format(cxxr['line']))
         sys.exit(1)
+    print('Ray files matched')
 
 if len(sys.argv) not in {2, 3}:
     print('Usage: python3 compare_ray.py MunkB_ray [cxx1/cxxmulti/cuda]')

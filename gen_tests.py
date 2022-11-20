@@ -58,13 +58,15 @@ ssp_types = {
 }
 
 def should_work(dim, rt, it, st):
-    if st == 'Q' and dim != 2:
+    if st in {'P', 'Q'} and dim != 2:
         return False
     if st == 'H' and dim == 2:
         return False
     if it in {'R', 'C', 'S'} and dim == 3:
         return False
     if it == 'C' and dim == 4:
+        return False
+    if it == 'b' and dim == 2:
         return False
     if it in {'R', 'C'} and rt in {'E', 'A', 'a'}:
         return False
@@ -135,7 +137,7 @@ def gen_field_test(dim, rt, it, st):
                 for z in range(NPts):
                     sspfil.write(' '.join('{:.2f}'.format(gen_ssp(r, z)) for r in range(Nr)) + '\n')
             else:
-                Nx, Ny, Nz, xymin, xymax, zmax = 4, 6, 5, -100.0, 100.0, 5000.0
+                Nx, Ny, Nz, xymin, xymax, zmax = 4, 6, 5, -150.0, 150.0, 5000.0
                 def gen_ssp(x, y, z):
                     return 1500.0 + 50.0 * x / Nx - 50.0 * y / Ny + 50.0 * z / Nz
                 sspfil.write(str(Nx) + '\n')
