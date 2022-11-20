@@ -31,7 +31,7 @@ if [[ $1 == *3d ]]; then
     bhexec=bellhop3d.exe
 fi
 if [[ $runtype == "ray" || $runtype == "eigen" ]]; then
-    comparepy=compare_ray.py
+    comparepy=compare_ray_2.py
 elif [[ $runtype == "tl" ]]; then
     comparepy=compare_shdfil.py
 elif [[ $runtype == "arr" ]]; then
