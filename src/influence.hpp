@@ -461,6 +461,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
         if(IsCoherentRun(Beam)) {
             // coherent TL
             dfield = Cpx2Cpxf(cnst * w * STD::exp(-J * (omega * delay - phaseInt)));
+            // GlobalLog("%20.17f %20.17f\n", dfield.real(), dfield.imag());
             // omega * SQ(n) / (FL(2.0) * SQ(point1.c) * delay)))) // curvature correction
             // [LP: 2D only]
         } else {
@@ -607,9 +608,9 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
             inflray.lastValid  = false;
         } else {
             RayNormalRayCen<R3D>(point0, inflray.rayn1, inflray.rayn2);
-            inflray.x         = point0.x;
-            inflray.lastValid = STD::abs(DEP(inflray.rayn1)) >= RL(1e-6); // LP: Ignored
-                                                                          // in 3D
+            inflray.x = point0.x;
+            // LP: Ignored in 3D
+            inflray.lastValid = STD::abs(DEP(inflray.rayn1)) >= RL(1e-6);
         }
     } else {
         // LP: For Cartesian types
@@ -633,9 +634,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
         } else {
             r = point0.x.x;
         }
-        inflray.ir = BinarySearchGT(Pos->Rr, Pos->NRr, 1, 0, r); // find index of first
-                                                                 // receiver to the right
-                                                                 // of rA
+        // find index of first receiver to the right of rA
+        inflray.ir = BinarySearchGT(Pos->Rr, Pos->NRr, 1, 0, r);
         if constexpr(!R3D) {
             if(point0.t.x < RL(0.0) && inflray.ir > 0)
                 --inflray.ir; // if ray is left-traveling, get the first receiver to the
@@ -1035,6 +1035,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
             is, itheta, iz, ir, cnst, w, delay.real(), delay.imag(), phaseInt);
     }
 #endif
+    // GlobalLog("%d\n", iz);
 
     ApplyContribution<CFG, O3D, R3D>(
         uAllSources, cnst, w, inflray.omega, delay, phaseInt, RcvrDeclAngle,
@@ -1239,7 +1240,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
         // it doesn't use inflray.x at all.
         rA = glm::length(XYCOMP(point0.x) - XYCOMP(inflray.xs));
         rB = glm::length(XYCOMP(point1.x) - XYCOMP(inflray.xs));
-        if(IsDuplicatePoint<R3D>(rB, rA, false)) return true;
+        if(IsDuplicatePoint<R3D>(rB, rA, false)) {
+            // GlobalLog("Skipping is %d bc dupl point 1\n", is);
+            return true;
+        }
         // LP: This is silly logic, see comments in influence3D.f90
         if(is == 0) { inflray.ir = (rB > rA) ? 0 : Pos->NRr - 1; }
     } else {
@@ -1254,8 +1258,13 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
     real rlen       = glm::length(rayt);
     // if duplicate point in ray, skip to next step along the ray
     // LP: 2D: and don't update rA (inflray.x) for next time
-    if(IsSmallValue<R3D>(rlen, point1.x.x, false)) return true;
+    if(IsSmallValue<R3D>(rlen, point1.x.x, false)) {
+        // GlobalLog("Skipping is bc dupl point 2\n");
+        return true;
+    }
     rayt /= rlen;
+
+    // GlobalLog("is rA rB %d %20.17f %20.17f\n", is, rA, rB);
 
     // LP: Ray normals
     VEC23<R3D> rayn1, rayn2; // LP: e1, e2 in 3D; rayn, (none) in 2D
