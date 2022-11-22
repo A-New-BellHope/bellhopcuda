@@ -173,17 +173,18 @@ template<bool O3D, bool R3D> bool setup(
         params.Beam->epsMultiplier   = FL(1.0);
         memcpy(params.Beam->Type, "G S ", 4);
         // params.beaminfo: none
-        outputs.rayinfo->NPoints   = 0;
-        outputs.rayinfo->MaxPoints = 0;
-        outputs.rayinfo->NRays     = 0;
-        outputs.eigen->neigen      = 0;
-        outputs.eigen->memsize     = 0;
-        outputs.arrinfo->MaxNArr   = 1;
-        RecycledHS.alphaR          = FL(1500.0);
-        RecycledHS.betaR           = FL(0.0);
-        RecycledHS.alphaI          = FL(0.0);
-        RecycledHS.betaI           = FL(0.0);
-        RecycledHS.rho             = FL(1.0);
+        outputs.rayinfo->NPoints    = 0;
+        outputs.rayinfo->MaxPoints  = 0;
+        outputs.rayinfo->NRays      = 0;
+        outputs.eigen->neigen       = 0;
+        outputs.eigen->memsize      = 0;
+        outputs.arrinfo->MaxNArr    = 1;
+        outputs.arrinfo->ArrMemSize = (O3D ? 200000000 : 20000000) * sizeof(Arrival);
+        RecycledHS.alphaR           = FL(1500.0);
+        RecycledHS.betaR            = FL(0.0);
+        RecycledHS.alphaI           = FL(0.0);
+        RecycledHS.betaI            = FL(0.0);
+        RecycledHS.rho              = FL(1.0);
 
         if constexpr(!O3D && !R3D && Init_Inline) {
             // NPts, Sigma not used by BELLHOP

@@ -24,7 +24,7 @@ run_kind() {
     ./run_tests.sh $kind gen_${kind}_fail shouldfail
 }
 
-run_kind tl3d
+run_kind arr3d
 
 exit 0
 
@@ -34,9 +34,8 @@ run_kind eigen
 run_kind arr
 
 run_kind ray3d
+run_kind tl3d
 
 exit 0
 
-
 run_kind eigen3d
-run_kind arr3d

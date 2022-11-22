@@ -347,6 +347,7 @@ struct ArrInfo {
     Arrival *Arr;
     int32_t *NArr;
     int32_t MaxNArr;
+    size_t ArrMemSize;
     bool singlethread;
 };
 

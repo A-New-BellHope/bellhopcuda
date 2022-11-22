@@ -135,20 +135,18 @@ inline void InitArrivalsMode(
     PrintFileEmu &PRTFile)
 {
     arrinfo->singlethread = singlethread;
-    size_t nReceivers     = Pos->NRz_per_range * Pos->NRr;
-    if(ThreeD) nReceivers *= Pos->Ntheta;
-    const size_t ArrivalsStorage = ThreeD ? 400000000
-                                          : (singlethread ? 20000000 : 50000000);
-    const size_t MinNArr         = 10;
-    arrinfo->MaxNArr = (int32_t)bhc::max(ArrivalsStorage / nReceivers, MinNArr);
-    PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
-    size_t nSources = Pos->NSz;
-    if(ThreeD) nSources *= Pos->NSx * Pos->NSy;
-    size_t nTotal = nSources * nReceivers;
-    checkallocate(arrinfo->Arr, nTotal * (size_t)arrinfo->MaxNArr);
-    checkallocate(arrinfo->NArr, nTotal);
-    memset(arrinfo->Arr, 0, nTotal * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
-    memset(arrinfo->NArr, 0, nTotal * sizeof(int32_t));
+    size_t nSrcsRcvrs     = Pos->NRz_per_range * Pos->NRr * Pos->NSz;
+    if(ThreeD) nSrcsRcvrs *= Pos->Ntheta * Pos->NSx * Pos->NSy;
+    // LP: Having a minimum size is not great if the user specified a maximum
+    // amount of memory to use.
+    // const size_t MinNArr         = 10;
+    // arrinfo->MaxNArr = (int32_t)bhc::max(ArrivalsStorage / nReceivers, MinNArr);
+    arrinfo->MaxNArr = arrinfo->ArrMemSize / (nSrcsRcvrs * sizeof(Arrival));
+    PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << " )\n";
+    checkallocate(arrinfo->Arr, nSrcsRcvrs * (size_t)arrinfo->MaxNArr);
+    checkallocate(arrinfo->NArr, nSrcsRcvrs);
+    memset(arrinfo->Arr, 0, nSrcsRcvrs * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
+    memset(arrinfo->NArr, 0, nSrcsRcvrs * sizeof(int32_t));
 }
 
 template<bool O3D, bool R3D> void FinalizeArrivalsMode(

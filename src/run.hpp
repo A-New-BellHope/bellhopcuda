@@ -60,7 +60,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
         InitEigenMode(outputs.eigen);
     } else if(IsArrivalsRun(params.Beam)) {
         InitArrivalsMode(
-            outputs.arrinfo, singlethread, R3D, params.Pos,
+            outputs.arrinfo, singlethread, O3D, params.Pos,
             *(PrintFileEmu *)params.internal);
     } else {
         GlobalLog("Invalid RunType %c\n", params.Beam->RunType[0]);
