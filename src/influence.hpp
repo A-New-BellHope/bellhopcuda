@@ -482,7 +482,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
 // Init_Influence
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool O3D, bool R3D> inline void PreRun_Influence(const BeamStructure<O3D> *Beam)
+template<bool O3D, bool R3D> inline void PreRun_Influence(
+    const BeamStructure<O3D> *Beam, const Position *Pos)
 {
     if(IsCervenyInfl(Beam)) {
         if constexpr(R3D) {
@@ -531,6 +532,11 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(const BeamStructure<O3
     } else {
         GlobalLog("Invalid Run Type\n");
         bail();
+    }
+
+    for(int32_t i = 0; i < Pos->Ntheta; ++i) {
+        real theta     = DegRad * Pos->theta[i];
+        Pos->t_rcvr[i] = vec2(STD::cos(theta), STD::sin(theta));
     }
 }
 

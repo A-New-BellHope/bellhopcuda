@@ -67,7 +67,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
         std::abort();
     }
 
-    if(!IsRayRun(params.Beam)) { PreRun_Influence<O3D, R3D>(params.Beam); }
+    if(!IsRayRun(params.Beam)) { PreRun_Influence<O3D, R3D>(params.Beam, params.Pos); }
 }
 
 template<typename CFG, bool O3D, bool R3D> void FieldModesWorker(
