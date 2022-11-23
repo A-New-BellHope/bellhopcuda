@@ -24,19 +24,25 @@ if sys.version_info.major < 3:
 
 import struct
 import difflib
+from math import isfinite
 
 def compare_asc_files(cxxf, forf):
     l = 0
     cxxmorelines = 0
     errored = False
+    threed = None
+    datamode = False
+    maxline = False
+    countline = False
+    NSx, NSy, NSz, NRz, NRr, Ntheta = 1, 1, None, None, None, 1
     while True:
         l += 1
         cxxl = cxxf.readline()
         forl = forf.readline()
         if not cxxl and not forl:
             break
-        def fatalerror():
-            print('Parse error: line {}:'.format(l))
+        def fatalerror(msg = 'Parse error'):
+            print('{}: line {}:'.format(msg, l))
             print('FOR: ' + forls)
             print('CXX: ' + cxxls)
             sys.exit(1)
@@ -47,41 +53,113 @@ def compare_asc_files(cxxf, forf):
             nonlocal errored
             errored = True
         def findtype(t):
-            return 'str' if '\'' in t else 'float' if '.' in t else 'int'
+            if '\'' in t:
+                return 'str'
+            if any(x in t for x in {'.', 'nan', 'inf'}):
+                return 'float'
+            if all(x.isnumeric() or x == '-' for x in t):
+                return 'int'
+            fatalerror()
+        def compare_floats(cxxt, fort):
+            cf = float(cxxt)
+            ff = float(fort)
+            if not isfinite(cf) or not isfinite(ff):
+                fatalerror('Non-finite results')
+            if abs(cf - ff) < 1e-8: return True
+            if (ff == 0.0) != (cf == 0.0): return False
+            if ff == 0.0: return True
+            if abs((cf - ff) / ff) <= 1e-5: return True
+            return False
+        def compare_tokens(cxxtokens, fortokens):
+            for cxxt, fort in zip(cxxtokens, fortokens):
+                ty = findtype(fort)
+                if ty != findtype(cxxt): return False
+                if ty == 'str':
+                    if cxxt != fort: return False
+                elif ty == 'int':
+                    if int(cxxt) != int(fort): return False
+                else:
+                    return compare_floats(cxxt, fort)
+            return True
         cxxtokens = cxxl.split()
         fortokens = forl.split()
         cxxls = ' '.join(cxxtokens)
         forls = ' '.join(fortokens)
         if len(cxxtokens) != len(fortokens): fatalerror()
-        if len(cxxtokens) == 1 and l >= 7:
-            if cxxmorelines != 0:
-                print('Number of extra lines didn\'t match actual number')
-                sys.exit(1)
-            cxxmorelines = int(cxxtokens[0]) - int(fortokens[0])
-            if cxxmorelines != 0:
-                print('Line {}: FOR {} arrivals / CXX {} arrivals'.format(l, fortokens[0], cxxtokens[0]))
+        if l == 1:
+            if len(cxxtokens) != 1 or cxxtokens[0] != fortokens[0] or \
+                cxxtokens[0] not in {'\'2D\'', '\'3D\''}:
+                fatalerror()
+            threed = cxxtokens[0] == '\'3D\''
+        elif not datamode:
+            if not compare_tokens(cxxtokens, fortokens):
+                fatalerror()
+            if l == 2:
+                assert len(cxxtokens) == 1 and findtype(cxxtokens[0]) == 'float'
+            else:
+                assert len(cxxtokens) == 3 and tuple(map(findtype, cxxtokens)) == ('int', 'float', 'float')
+                i = int(cxxtokens[0])
+                if l == 3:
+                    if threed:
+                        NSx = i
+                    else:
+                        NSz = i
+                elif l == 4:
+                    if threed:
+                        NSy = i
+                    else:
+                        NRz = i
+                elif l == 5:
+                    if threed:
+                        NSz = i
+                    else:
+                        NRr = i
+                elif l == 6:
+                    assert threed
+                    NRz = i
+                elif l == 7:
+                    assert threed
+                    NRr = i
+                elif l == 8:
+                    assert threed
+                    Ntheta = i
+            if threed and l == 8 or not threed and l == 5:
+                datamode = True
+                maxline = True
+        elif maxline:
+            if len(cxxtokens) != 1 or findtype(cxxtokens[0]) != 'int' or findtype(fortokens[0]) != 'int':
+                fatalerror()
+            if int(cxxtokens[0]) != int(fortokens[0]):
+                print('Max arrivals: FOR {} CXX {}'.format(int(fortokens[0]), int(cxxtokens[0])))
+            sx, sy, sz, rz, rr, theta = 0, 0, 0, 0, 0, 0
+            maxline = False
+            countline = True
+        elif countline:
+            if len(cxxtokens) != 1 or findtype(cxxtokens[0]) != 'int' or findtype(fortokens[0]) != 'int':
+                fatalerror()
+            cxxarrcount, forarrcount = int(cxxtokens[0]), int(fortokens[0])
+            if cxxarrcount != forarrcount:
+                print('Line {}: FOR {} arrivals / CXX {} arrivals'.format(l, forarrcount, cxxarrcount))
+            countline = False
         else:
-            t = 0
-            for cxxt, fort in zip(cxxtokens, fortokens):
+            assert len(cxxtokens) == 10
+            for t in range(10):
+                cxxt = cxxtokens[t]
+                fort = fortokens[t]
                 ty = findtype(fort)
                 if ty != findtype(cxxt): fatalerror()
-                if ty == 'str':
-                    if cxxt != fort: fatalerror()
-                elif ty == 'int':
-                    if int(cxxt) != int(fort): fatalerror()
+                if t >= 8:
+                    assert ty == 'int'
+                    if int(cxxt) != int(fort):
+                        error()
                 else:
-                    cf = float(cxxt)
-                    ff = float(fort)
-                    if ff == 0.0:
-                        if cf != 0.0:
-                            error()
-                            break
+                    assert ty == 'float'
+                    if compare_floats(cxxt, fort):
                         continue
-                    if abs((cf - ff) / ff) <= 1e-5: continue
                     if t != 0:
                         error()
                         break
-                    if cxxmorelines > 0:
+                    if cxxarrcount > forarrcount:
                         cxxnextl = cxxf.readline()
                         cxxtokens = cxxnextl.split()
                         cxxnextls = ' '.join(cxxtokens)
@@ -92,8 +170,8 @@ def compare_asc_files(cxxf, forf):
                         print('FOR line ' + forls)
                         print('CXX line ' + cxxls)
                         print('CXX line ' + cxxnextls + '\n')
-                        cxxmorelines -= 1
-                    elif cxxmorelines < 0:
+                        cxxarrcount -= 1
+                    elif cxxarrcount < forarrcount:
                         fornextl = forf.readline()
                         fortokens = fornextl.split()
                         fornextls = ' '.join(fortokens)
@@ -104,12 +182,36 @@ def compare_asc_files(cxxf, forf):
                         print('CXX line ' + cxxls)
                         print('FOR line ' + forls)
                         print('FOR line ' + fornextls + '\n')
-                        cxxmorelines += 1
+                        forarrcount -= 1
                         l += 1
                     else:
                         error()
-                    break
-                t += 1
+                        break
+            if (cxxarrcount == 0) != (forarrcount == 0):
+                error()
+            if cxxarrcount == 0 or forarrcount == 0:
+                countline = True
+                rr += 1
+                if rr == NRr:
+                    rr = 0
+                    rz += 1
+                    if rz == NRz:
+                        rz = 0
+                        theta += 1
+                        if theta == Ntheta:
+                            theta = 0
+                            sy += 1
+                            if sy == NSy:
+                                sy = 0
+                                sx += 1
+                                if sx == NSx:
+                                    sx = 0
+                                    sz += 1
+                                    if sz == NSz:
+                                        maxline = True
+    if not maxline:
+        print('Ran out of lines at end of file')
+        sys.exit(1)
     if errored:
         print('Error(s) detected in ASCII arrivals results')
         sys.exit(1)
