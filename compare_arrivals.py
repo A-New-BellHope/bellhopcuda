@@ -34,6 +34,7 @@ def compare_asc_files(cxxf, forf):
     datamode = False
     maxline = False
     countline = False
+    endoffile = False
     NSx, NSy, NSz, NRz, NRr, Ntheta = 1, 1, None, None, None, 1
     while True:
         l += 1
@@ -86,6 +87,7 @@ def compare_asc_files(cxxf, forf):
         cxxls = ' '.join(cxxtokens)
         forls = ' '.join(fortokens)
         if len(cxxtokens) != len(fortokens): fatalerror()
+        nextrcvr = False
         if l == 1:
             if len(cxxtokens) != 1 or cxxtokens[0] != fortokens[0] or \
                 cxxtokens[0] not in {'\'2D\'', '\'3D\''}:
@@ -138,11 +140,16 @@ def compare_asc_files(cxxf, forf):
             if len(cxxtokens) != 1 or findtype(cxxtokens[0]) != 'int' or findtype(fortokens[0]) != 'int':
                 fatalerror()
             cxxarrcount, forarrcount = int(cxxtokens[0]), int(fortokens[0])
-            if cxxarrcount != forarrcount:
-                print('Line {}: FOR {} arrivals / CXX {} arrivals'.format(l, forarrcount, cxxarrcount))
-            countline = False
+            if (cxxarrcount == 0) != (forarrcount == 0):
+                fatalerror('One file has no arrivals at this rcvr')
+            if cxxarrcount == 0:
+                nextrcvr = True
+            else:
+                if cxxarrcount != forarrcount:
+                    print('Line {}: FOR {} arrivals / CXX {} arrivals'.format(l, forarrcount, cxxarrcount))
+                countline = False
         else:
-            assert len(cxxtokens) == 10
+            if len(cxxtokens) != 10: fatalerror()
             for t in range(10):
                 cxxt = cxxtokens[t]
                 fort = fortokens[t]
@@ -187,9 +194,13 @@ def compare_asc_files(cxxf, forf):
                     else:
                         error()
                         break
+            cxxarrcount -= 1
+            forarrcount -= 1
+            nextrcvr = True
+        if nextrcvr:
             if (cxxarrcount == 0) != (forarrcount == 0):
-                error()
-            if cxxarrcount == 0 or forarrcount == 0:
+                fatalerror()
+            if cxxarrcount == 0:
                 countline = True
                 rr += 1
                 if rr == NRr:
@@ -200,6 +211,7 @@ def compare_asc_files(cxxf, forf):
                         theta += 1
                         if theta == Ntheta:
                             theta = 0
+                            maxline = True
                             sy += 1
                             if sy == NSy:
                                 sy = 0
@@ -208,7 +220,7 @@ def compare_asc_files(cxxf, forf):
                                     sx = 0
                                     sz += 1
                                     if sz == NSz:
-                                        maxline = True
+                                        endoffile = True
     if not maxline:
         print('Ran out of lines at end of file')
         sys.exit(1)
