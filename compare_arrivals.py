@@ -46,7 +46,7 @@ def compare_asc_files(cxxf, forf):
             print('{}: line {}:'.format(msg, l))
             print('FOR: ' + forls)
             print('CXX: ' + cxxls)
-            sys.exit(1)
+            raise RuntimeError
         def error():
             print('Results failed to match: line {}:'.format(l))
             print('FOR: ' + forls)
@@ -149,13 +149,14 @@ def compare_asc_files(cxxf, forf):
                     print('Line {}: FOR {} arrivals / CXX {} arrivals'.format(l, forarrcount, cxxarrcount))
                 countline = False
         else:
-            if len(cxxtokens) != 10: fatalerror()
-            for t in range(10):
+            ntok = 10 if threed else 8
+            if len(cxxtokens) != ntok: fatalerror()
+            for t in range(ntok):
                 cxxt = cxxtokens[t]
                 fort = fortokens[t]
                 ty = findtype(fort)
                 if ty != findtype(cxxt): fatalerror()
-                if t >= 8:
+                if t >= ntok - 2:
                     assert ty == 'int'
                     if int(cxxt) != int(fort):
                         error()
