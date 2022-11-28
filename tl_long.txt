@@ -1,7 +1,5 @@
-//Geom hat ray-centered, no match
+//Geom hat ray-centered, match
 aetB_TL
-//Geom Gaussian cart, no match
-aetB
 //Geom hat cart, match
 //MunkB_Coh_lotsofwork
 //MunkB_Coh_lotsofwork2 
