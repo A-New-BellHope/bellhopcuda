@@ -531,8 +531,10 @@ template<typename T> inline T *allocate(size_t n = 1)
 #else
     ret = new T[n];
 #endif
+#ifdef BHC_DEBUG
     // Debugging: Fill memory with garbage data to help detect uninitialized vars
     memset(ret, 0xFE, n * sizeof(T));
+#endif
     return ret;
 }
 

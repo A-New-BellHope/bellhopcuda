@@ -171,7 +171,9 @@ template<bool O3D, bool R3D> inline bool RunRay(
     } else {
         ray = &rayinfo->raymem[job * MaxN];
     }
+#ifdef BHC_DEBUG
     memset(ray, 0xFE, MaxN * sizeof(rayPt<R3D>)); // Set to garbage values for debugging
+#endif
 
     Origin<O3D, R3D> org;
     char st = params.ssp->Type;

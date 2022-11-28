@@ -27,6 +27,46 @@ import difflib
 from math import isfinite
 
 def compare_asc_files(cxxf, forf):
+    def fatalerror(msg = 'Parse error'):
+        print('{}: line {}:'.format(msg, l))
+        print('FOR: ' + forls)
+        print('CXX: ' + cxxls)
+        raise RuntimeError
+    def error():
+        print('Results failed to match: line {}:'.format(l))
+        print('FOR: ' + forls)
+        print('CXX: ' + cxxls + '\n')
+        nonlocal errored
+        errored = True
+    def findtype(t):
+        if '\'' in t:
+            return 'str'
+        if any(x in t for x in {'.', 'nan', 'inf'}):
+            return 'float'
+        if all(x.isnumeric() or x == '-' for x in t):
+            return 'int'
+        fatalerror()
+    def compare_floats(cxxt, fort):
+        cf = float(cxxt)
+        ff = float(fort)
+        if not isfinite(cf) or not isfinite(ff):
+            fatalerror('Non-finite results')
+        if abs(cf - ff) < 1e-8: return True
+        if (ff == 0.0) != (cf == 0.0): return False
+        if ff == 0.0: return True
+        if abs((cf - ff) / ff) <= 1e-5: return True
+        return False
+    def compare_tokens(cxxtokens, fortokens):
+        for cxxt, fort in zip(cxxtokens, fortokens):
+            ty = findtype(fort)
+            if ty != findtype(cxxt): return False
+            if ty == 'str':
+                if cxxt != fort: return False
+            elif ty == 'int':
+                if int(cxxt) != int(fort): return False
+            else:
+                return compare_floats(cxxt, fort)
+        return True
     l = 0
     cxxmorelines = 0
     errored = False
@@ -42,46 +82,8 @@ def compare_asc_files(cxxf, forf):
         forl = forf.readline()
         if not cxxl and not forl:
             break
-        def fatalerror(msg = 'Parse error'):
-            print('{}: line {}:'.format(msg, l))
-            print('FOR: ' + forls)
-            print('CXX: ' + cxxls)
-            raise RuntimeError
-        def error():
-            print('Results failed to match: line {}:'.format(l))
-            print('FOR: ' + forls)
-            print('CXX: ' + cxxls + '\n')
-            nonlocal errored
-            errored = True
-        def findtype(t):
-            if '\'' in t:
-                return 'str'
-            if any(x in t for x in {'.', 'nan', 'inf'}):
-                return 'float'
-            if all(x.isnumeric() or x == '-' for x in t):
-                return 'int'
-            fatalerror()
-        def compare_floats(cxxt, fort):
-            cf = float(cxxt)
-            ff = float(fort)
-            if not isfinite(cf) or not isfinite(ff):
-                fatalerror('Non-finite results')
-            if abs(cf - ff) < 1e-8: return True
-            if (ff == 0.0) != (cf == 0.0): return False
-            if ff == 0.0: return True
-            if abs((cf - ff) / ff) <= 1e-5: return True
-            return False
-        def compare_tokens(cxxtokens, fortokens):
-            for cxxt, fort in zip(cxxtokens, fortokens):
-                ty = findtype(fort)
-                if ty != findtype(cxxt): return False
-                if ty == 'str':
-                    if cxxt != fort: return False
-                elif ty == 'int':
-                    if int(cxxt) != int(fort): return False
-                else:
-                    return compare_floats(cxxt, fort)
-            return True
+        if endoffile:
+            fatalerror('Extra lines at end of file')
         cxxtokens = cxxl.split()
         fortokens = forl.split()
         cxxls = ' '.join(cxxtokens)
@@ -99,8 +101,10 @@ def compare_asc_files(cxxf, forf):
             if l == 2:
                 assert len(cxxtokens) == 1 and findtype(cxxtokens[0]) == 'float'
             else:
-                assert len(cxxtokens) == 3 and tuple(map(findtype, cxxtokens)) == ('int', 'float', 'float')
+                assert len(cxxtokens) >= 2 and findtype(cxxtokens[0]) == 'int'
+                assert all(findtype(t) == 'float' for t in cxxtokens[1:])
                 i = int(cxxtokens[0])
+                assert i + 1 == len(cxxtokens)
                 if l == 3:
                     if threed:
                         NSx = i
@@ -167,6 +171,8 @@ def compare_asc_files(cxxf, forf):
                     if t != 0:
                         error()
                         break
+                    cf = float(cxxt)
+                    ff = float(fort)
                     if cxxarrcount > forarrcount:
                         cxxnextl = cxxf.readline()
                         cxxtokens = cxxnextl.split()
@@ -222,9 +228,12 @@ def compare_asc_files(cxxf, forf):
                                     sz += 1
                                     if sz == NSz:
                                         endoffile = True
-    if not maxline:
-        print('Ran out of lines at end of file')
-        sys.exit(1)
+    if not endoffile:
+        if not threed and NSz == 1 and NRr == NRz and rr == 0 and rz == 1:
+            print('Assuming this is an irregular grid')
+        else:
+            print(f'Ran out of lines at end of file, source {sx} {sy} {sz} rcvr th_r_z {theta} {rr} {rz}')
+            sys.exit(1)
     if errored:
         print('Error(s) detected in ASCII arrivals results')
         sys.exit(1)
