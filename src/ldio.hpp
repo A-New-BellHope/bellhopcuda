@@ -72,8 +72,7 @@ public:
     if(f.eof() && !isafterslash) Error("End of file"); \
     std::string s = GetNextItem(); \
     if(s == nullitem) return; \
-    do { \
-    } while(false)
+    REQUIRESEMICOLON
 
     void Read(std::string &v)
     {
@@ -168,7 +167,13 @@ private:
     void IgnoreRestOfLine()
     {
         if(_debug) GlobalLog("-- ignoring rest of line\n");
-        while(!f.eof() && f.peek() != '\n') f.get();
+        f.peek();
+        if(f.eof()) Error("End of file");
+        while(true) {
+            int c = f.peek();
+            if(f.eof() || c == '\n') break;
+            f.get();
+        }
         if(!f.eof()) f.get(); // get the \n
         ++line;
         isafternewline = true;
@@ -185,8 +190,9 @@ private:
             return nullitem;
         }
         // Whitespace before start of item
-        while(!f.eof()) {
+        while(true) {
             int c = f.peek();
+            if(f.eof()) break;
             if(!isspace(c)) break;
             f.get();
             if(c == '\n') {
@@ -211,8 +217,10 @@ private:
         }
         lastitem      = "";
         int quotemode = 0;
-        while(!f.eof()) {
-            int c          = f.get();
+        while(true) {
+            int c = f.peek();
+            if(f.eof()) break;
+            f.get();
             isafternewline = false;
             if(quotemode == 1) {
                 if(c == '"') {
@@ -295,8 +303,9 @@ private:
         }
         // Whitespace and comma after item
         bool hadcomma = false;
-        while(!f.eof()) {
+        while(true) {
             int c = f.peek();
+            if(f.eof()) break;
             if(isspace(c)) {
                 f.get();
                 if(c != '\n') {
