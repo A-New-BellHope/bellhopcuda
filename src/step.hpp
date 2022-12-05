@@ -310,7 +310,7 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
 
     if(h < RL(-1e-4)) {
         GlobalLog("ReduceStep error: negative h %f\n", h);
-        bail();
+        // bail();
     }
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas) { // is it taking an infinitesimal
                                                      // step?
