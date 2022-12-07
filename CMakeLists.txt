@@ -18,7 +18,8 @@
 cmake_minimum_required(VERSION 3.9)
 
 option(BHC_DEBUG "Enable debugging features" OFF)
-if(BHC_DEBUG)
+option(BHC_PROF  "Enable profiling features" OFF)
+if(BHC_DEBUG OR BHC_PROF)
     set(BUILD_TYPE_INTERNAL RelWithDebInfo) # don't use Debug
 else()
     set(BUILD_TYPE_INTERNAL Release)

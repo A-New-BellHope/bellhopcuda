@@ -529,7 +529,7 @@ template<typename T> inline T *allocate(size_t n = 1)
 #ifdef BHC_BUILD_CUDA
     checkCudaErrors(cudaMallocManaged(&ret, n * sizeof(T)));
 #else
-    ret = new T[n];
+    ret = (T *)malloc(n * sizeof(T));
 #endif
 #ifdef BHC_DEBUG
     // Debugging: Fill memory with garbage data to help detect uninitialized vars
@@ -543,7 +543,7 @@ template<typename T> inline void deallocate(T *&ptr)
 #ifdef BHC_BUILD_CUDA
     checkCudaErrors(cudaFree(ptr));
 #else
-    delete[] ptr;
+    free(ptr);
 #endif
     ptr = nullptr;
 }
