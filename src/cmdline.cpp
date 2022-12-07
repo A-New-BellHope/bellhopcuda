@@ -34,8 +34,9 @@ template<bool O3D, bool R3D> int mainmain()
     bhc::Stopwatch sw;
     sw.tick();
     if(!bhc::run<O3D, R3D>(params, outputs, singlethread)) return 1;
-    sw.tock();
+    sw.tock("Run");
 
+    sw.tick();
     if(IsRayRun(params.Beam)) {
         // Ray mode
         bhc::FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
@@ -53,6 +54,7 @@ template<bool O3D, bool R3D> int mainmain()
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         std::abort();
     }
+    sw.tock("FinalizeXMode");
 
     bhc::finalize<O3D, R3D>(params, outputs);
     return 0;

@@ -67,6 +67,7 @@ template void RayModeWorker<true, true>(
 template<bool O3D, bool R3D> inline void RunRayMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores)
 {
+    GlobalLog("%d threads\n", cores);
     std::vector<std::thread> threads;
     for(uint32_t i = 0; i < cores; ++i)
         threads.push_back(

@@ -854,13 +854,13 @@ class Stopwatch {
 public:
     Stopwatch() {}
     inline void tick() { tstart = std::chrono::high_resolution_clock::now(); }
-    inline void tock()
+    inline void tock(const char *label)
     {
         using namespace std::chrono;
         high_resolution_clock::time_point tend = high_resolution_clock::now();
         double dt = (duration_cast<duration<double>>(tend - tstart)).count();
         dt *= 1000.0;
-        GlobalLog("%f ms\n", dt);
+        GlobalLog("%s: %f ms\n", label, dt);
     }
 
 private:

@@ -1,7 +1,31 @@
 - Get rid of GlobalLog, replace with flags
 - Get rid of bail, replace with checking atomic errored variable
-- SSP compile time selection
-- CMake flag for CUDA debug symbols (and C++?)
-- CMake flags for enable all run types, influence types, SSP types
-- CUDA building kernels in separate cu files for parallelism
+
+Rays experiments:
+
+-- ray_long
+Long rays b/c short max step
+Long rays b/c complex bottom
+Long rays b/c complex SSP
+
+-- ray_numrays
+Increasingly many rays
+
+
+TL experiments:
+
+-- tl_numrays
+
+-- tl_numsources
+
+-- tl_numreceivers
+
+
+Eigen experiments:
+
+-- eigen_numrays_nohits
+
+-- eigen_numrays_withhits
+
+
 
