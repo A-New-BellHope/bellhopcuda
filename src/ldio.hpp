@@ -57,7 +57,7 @@ public:
 #define LIST_WARNLINE(ldif) ldif.List(__FILE__, __LINE__, true)
     void List(const char *file, int fline, bool warnline = false)
     {
-        codefile     = SOURCE_FILENAME(file);
+        codefile     = file; // SOURCE_FILENAME(file);
         codeline     = fline;
         isafterslash = false;
         if(!isafternewline) { IgnoreRestOfLine(); }

@@ -114,21 +114,23 @@ extern bool api_okay;
 /**
  * Returns a pointer to only the last portion of the source filename.
  */
+/*
 inline const char *SOURCE_FILENAME(const char *file)
 {
-    static const char *const tag = "/bellhopcuda/";
-    static const int taglen      = 13;
-    const char *x                = file;
-    for(; *x; ++x) {
-        int i = 0;
-        for(; i < taglen && x[i]; ++i) {
-            if(x[i] != tag[i]) break;
-        }
-        if(i == taglen) break;
-    }
-    if(*x) return x + taglen;
-    return file;
+   static const char *const tag = "/bellhopcuda/";
+   static const int taglen      = 13;
+   const char *x                = file;
+   for(; *x; ++x) {
+       int i = 0;
+       for(; i < taglen && x[i]; ++i) {
+           if(x[i] != tag[i]) break;
+       }
+       if(i == taglen) break;
+   }
+   if(*x) return x + taglen;
+   return file;
 }
+*/
 
 #define BASSERT_STR(x) #x
 #define BASSERT_XSTR(x) BASSERT_STR(x)
@@ -149,12 +151,11 @@ inline const char *SOURCE_FILENAME(const char *file)
 #define bail() throw std::runtime_error("bhc::bail()")
 #define BASSERT(statement) \
     if(!(statement)) { \
-        throw std::runtime_error( \
-            "Assertion \"" #statement "\" failed in " \
-            + std::string(SOURCE_FILENAME(__FILE__)) \
-            + " line " BASSERT_XSTR(__LINE__) "\n"); \
+        throw std::runtime_error("Assertion \"" #statement \
+                                 "\" failed line " BASSERT_XSTR(__LINE__) "!\n"); \
     } \
     REQUIRESEMICOLON
+//+ std::string(SOURCE_FILENAME(__FILE__))
 #endif
 
 #ifdef _MSC_VER
@@ -865,6 +866,48 @@ public:
 
 private:
     std::chrono::high_resolution_clock::time_point tstart;
+};
+
+template<int N> class MultiStopwatch {
+public:
+    MultiStopwatch()
+    {
+        for(int i = 0; i < N; ++i) {
+            counts[i]       = 0;
+            accumulators[i] = 0.0;
+            maxes[i]        = 0.0;
+            mins[i]         = 1e100;
+        }
+    }
+    inline void tick(int i) { tstart[i] = std::chrono::high_resolution_clock::now(); }
+    inline void tock(int i)
+    {
+        using namespace std::chrono;
+        high_resolution_clock::time_point tend = high_resolution_clock::now();
+        double dt = (duration_cast<duration<double>>(tend - tstart[i])).count();
+        dt *= 1000.0;
+        accumulators[i] += dt;
+        if(maxes[i] < dt) maxes[i] = dt;
+        if(mins[i] > dt) mins[i] = dt;
+        ++counts[i];
+    }
+    inline void print(const char *label, const char *names[N])
+    {
+        std::stringstream ss;
+        ss << label << ": " << std::setw(5);
+        for(int i = 0; i < N; ++i) {
+            ss << names[i] << " = (" << counts[i] << "/" << mins[i] << "/"
+               << accumulators[i] << "/" << maxes[i] << ") ms, ";
+        }
+        GlobalLog("%s\n", ss.str().c_str());
+    }
+
+private:
+    std::chrono::high_resolution_clock::time_point tstart[N];
+    int counts[N];
+    double accumulators[N];
+    double maxes[N];
+    double mins[N];
 };
 
 HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)

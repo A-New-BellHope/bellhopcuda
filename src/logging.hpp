@@ -53,6 +53,7 @@ inline void GlobalLogImpl(const char *message)
     }
 }
 
+#if 0
 /**
  * Replacement for printf which can be redirected in Unreal (including on GPU).
  * TODO does not actually print the formatted contents on GPU, just the format
@@ -84,6 +85,9 @@ HOST_DEVICE inline void GlobalLog(const char *message, ...)
     GlobalLogImpl(buf);
 #endif
 }
+#endif
+
+#define GlobalLog printf
 
 #ifdef BHC_BUILD_CUDA
 void CudaInitLog();

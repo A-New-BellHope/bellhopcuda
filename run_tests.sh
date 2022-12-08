@@ -19,7 +19,7 @@
 #set -x
 
 if [[ -z $1 || -z $2 ]]; then
-    echo "Usage: ./run_tests.sh (ray/tl/eigen/arr)(3d) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore]"
+    echo "Usage: ./run_tests.sh (ray/tl/eigen/arr)(3d) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore/nocompare]"
     exit 1
 fi
 
@@ -48,6 +48,10 @@ fi
 ignore=0
 if [[ $3 == "ignore" || $4 == "ignore" ]]; then
     ignore=1
+fi
+nocompare=0
+if [[ $3 == "nocompare" || $4 == "nocompare" ]]; then
+    nocompare=1
 fi
 
 desiredresult=0
@@ -104,6 +108,9 @@ compare_results () {
     envfil=$3
     if [[ $desiredresult == "1" ]]; then
         echo "Skipping results comparison because in shouldfail mode"
+        return 0
+    elif [[ $nocompare == "1" ]]; then
+        echo "Not comparing results because 'nocompare' specified"
         return 0
     elif [[ $runtype == "arr" && ( $dir == "cxxmulti" || $dir == "cuda" ) ]]; then
         echo "Skipping $runtype results comparison for $dir"

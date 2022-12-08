@@ -68,7 +68,9 @@ template void RayModeWorker<true, true>(
 template<bool O3D, bool R3D> inline void RunRayMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores)
 {
-    GlobalLog("%d threads\n", cores);
+    GlobalLog(
+        "%d threads, copy mode %s\n", cores,
+        IsRayCopyMode<O3D, R3D>(outputs.rayinfo) ? "true" : "false");
     std::vector<std::thread> threads;
     for(uint32_t i = 0; i < cores; ++i)
         threads.push_back(
@@ -93,7 +95,10 @@ template<bool O3D, bool R3D> bool run(
     if(singlethread || cores < 1u) cores = 1u;
 
     try {
+        Stopwatch sw;
+        sw.tick();
         InitSelectedMode<O3D, R3D>(params, outputs, singlethread);
+        sw.tock("InitSelectedMode");
         if(IsRayRun(params.Beam)) {
             RunRayMode(params, outputs, cores);
         } else {
