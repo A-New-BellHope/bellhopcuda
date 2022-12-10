@@ -145,6 +145,8 @@ set(COMMON_SOURCE
     ssp.cpp
     ssp.hpp
     step.hpp
+    timing.cpp
+    timing.hpp
     tlmode.cpp
     tlmode.hpp
     trace.hpp

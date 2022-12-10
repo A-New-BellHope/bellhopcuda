@@ -18,7 +18,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #include "run.hpp"
 
-#include <thread>
 #include <vector>
 
 namespace bhc {
@@ -30,6 +29,8 @@ std::string exceptionStr;
 template<bool O3D, bool R3D> void RayModeWorker(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
+    SetupThread();
+
     rayPt<R3D> *localmem = nullptr;
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo))
         localmem = (rayPt<R3D> *)malloc(MaxN * sizeof(rayPt<R3D>));
@@ -82,17 +83,9 @@ template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
 {
     if(!api_okay) return false;
-    exceptionStr = "";
-    sharedJobID  = 0;
-
-#ifdef BHC_BUILD_CUDA
-    if(singlethread) {
-        GlobalLog("Single threaded mode is nonsense on CUDA, ignoring");
-        singlethread = false;
-    }
-#endif
-    uint32_t cores = std::thread::hardware_concurrency();
-    if(singlethread || cores < 1u) cores = 1u;
+    exceptionStr   = "";
+    sharedJobID    = 0;
+    uint32_t cores = GetNumCores(singlethread);
 
     try {
         Stopwatch sw;

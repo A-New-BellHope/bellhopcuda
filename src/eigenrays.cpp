@@ -20,7 +20,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "raymode.hpp"
 #include "run.hpp"
 
-#include <thread>
 #include <vector>
 
 namespace bhc {
@@ -28,6 +27,8 @@ namespace bhc {
 template<bool O3D, bool R3D> void EigenModePostWorker(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
+    SetupThread();
+
     rayPt<R3D> *localmem = nullptr;
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo))
         localmem = (rayPt<R3D> *)malloc(MaxN * sizeof(rayPt<R3D>));
@@ -84,9 +85,8 @@ template<bool O3D, bool R3D> void FinalizeEigenMode(
 
     GlobalLog("%d eigenrays\n", (int)outputs.eigen->neigen);
     std::vector<std::thread> threads;
-    uint32_t cores = singlethread ? 1u
-                                  : bhc::max(std::thread::hardware_concurrency(), 1u);
     sharedJobID    = 0;
+    uint32_t cores = GetNumCores(singlethread);
     for(uint32_t i = 0; i < cores; ++i)
         threads.push_back(std::thread(
             EigenModePostWorker<O3D, R3D>, std::ref(params), std::ref(outputs)));

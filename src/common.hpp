@@ -511,6 +511,7 @@ static inline std::string trim_copy(std::string s)
 #include "bino.hpp"
 #include "prtfileemu.hpp"
 #include "atomics.hpp"
+#include "timing.hpp"
 
 #ifdef BHC_BUILD_CUDA
 #include "UtilsCUDA.cuh"
@@ -733,6 +734,13 @@ template<typename REAL> inline void EchoVector(
     */
 }
 
+HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
+{
+    GlobalLog(
+        "%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n", label, m[0][0], m[1][0],
+        m[0][1], m[1][1]);
+}
+
 /**
  * If x[2] == -999.9 then subtabulation is performed
  * i.e., a vector is generated with Nx points in [x[0], x[1]]
@@ -845,76 +853,6 @@ HOST_DEVICE inline void RayNormal(const vec3 &t, real phi, real c, vec3 &e1, vec
 HOST_DEVICE inline void RayNormal_unit(const vec3 &t, real phi, vec3 &e1, vec3 &e2)
 {
     RayNormalImpl(t, phi, true, RL(1.0), e1, e2);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Timing
-////////////////////////////////////////////////////////////////////////////////
-
-class Stopwatch {
-public:
-    Stopwatch() {}
-    inline void tick() { tstart = std::chrono::high_resolution_clock::now(); }
-    inline void tock(const char *label)
-    {
-        using namespace std::chrono;
-        high_resolution_clock::time_point tend = high_resolution_clock::now();
-        double dt = (duration_cast<duration<double>>(tend - tstart)).count();
-        dt *= 1000.0;
-        GlobalLog("%s: %f ms\n", label, dt);
-    }
-
-private:
-    std::chrono::high_resolution_clock::time_point tstart;
-};
-
-template<int N> class MultiStopwatch {
-public:
-    MultiStopwatch()
-    {
-        for(int i = 0; i < N; ++i) {
-            counts[i]       = 0;
-            accumulators[i] = 0.0;
-            maxes[i]        = 0.0;
-            mins[i]         = 1e100;
-        }
-    }
-    inline void tick(int i) { tstart[i] = std::chrono::high_resolution_clock::now(); }
-    inline void tock(int i)
-    {
-        using namespace std::chrono;
-        high_resolution_clock::time_point tend = high_resolution_clock::now();
-        double dt = (duration_cast<duration<double>>(tend - tstart[i])).count();
-        dt *= 1000.0;
-        accumulators[i] += dt;
-        if(maxes[i] < dt) maxes[i] = dt;
-        if(mins[i] > dt) mins[i] = dt;
-        ++counts[i];
-    }
-    inline void print(const char *label, const char *names[N])
-    {
-        std::stringstream ss;
-        ss << label << ": " << std::setw(5);
-        for(int i = 0; i < N; ++i) {
-            ss << names[i] << " = (" << counts[i] << "/" << mins[i] << "/"
-               << accumulators[i] << "/" << maxes[i] << ") ms, ";
-        }
-        GlobalLog("%s\n", ss.str().c_str());
-    }
-
-private:
-    std::chrono::high_resolution_clock::time_point tstart[N];
-    int counts[N];
-    double accumulators[N];
-    double maxes[N];
-    double mins[N];
-};
-
-HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
-{
-    GlobalLog(
-        "%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n", label, m[0][0], m[1][0],
-        m[0][1], m[1][1]);
 }
 
 } // namespace bhc

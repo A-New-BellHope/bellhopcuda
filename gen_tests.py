@@ -220,6 +220,8 @@ def gen_perf_tests():
         env_name_base = 'genperf_ray' + dims[dim] + '_numrays'
         with open(env_name_base + '.txt', 'w') as txt:
             for Nalpha in [0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000]:
+                if dim == 3 and Nalpha > 1024:
+                    break
                 title = 'Increasing num rays ' + str(Nalpha)
                 env_name = env_name_base + '_' + str(Nalpha)
                 txt.write(env_name + '\n')
