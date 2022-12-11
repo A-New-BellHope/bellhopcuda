@@ -80,12 +80,20 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
         envfil.write('1          ! NMEDIA\n')
         envfil.write('\'' + st + 'VW - \'   ! SSP (' + ssp_types[st] 
             + '), top bc (vacuum), atten units, add vol atten, altimetry, dev mode\n')
-        assert p['ssp']['NPts'] == 3
         envfil.write('0  0.0 5000.0 ! NPts (ignored), Sigma (ignored), bot depth\n')
         if st != 'A':
-            envfil.write('   0.0 1547.0 /\n')
-            envfil.write('1234.5 1500.0 /\n')
-            envfil.write('5000.0 1560.0 /\n')
+            if p['ssp']['NPts'] == 3:
+                envfil.write('   0.0 1547.0 /\n')
+                envfil.write('1234.5 1500.0 /\n')
+                envfil.write('5000.0 1560.0 /\n')
+            else:
+                assert p['ssp']['NPts'] > 3
+                for d in range(p['ssp']['NPts']):
+                    z = 5000.0 * d / (p['ssp']['NPts'] - 1)
+                    c = max(
+                        1547.0 - 47.0 * z / 1234.5,
+                        1500.0 + (z - 1234.5) / (5000.0 - 1234.5) * 60.0)
+                    envfil.write('{:6.1f} {:6.1f} /\n'.format(z, c))
         envfil.write('\'R-    \' 0.0  ! bot bc (rigid), bathymetry, 4 spaces; Sigma (printed but ignored)\n')
         if dim != 2:
             envfil.write(f"{p['NSx']}            ! NSX\n")
@@ -215,7 +223,7 @@ def gen_coverage_tests():
             for rt in ['A', 'a']:
                 gen_all_it_st_combos(passtxt, failtxt, dim, rt)
 
-def gen_perf_tests():
+def gen_perf_ray_tests():
     for dim in {2, 3}:
         env_name_base = 'genperf_ray' + dims[dim] + '_numrays'
         with open(env_name_base + '.txt', 'w') as txt:
@@ -229,6 +237,114 @@ def gen_perf_tests():
                 p = get_default_p(rt)
                 p['Nalpha'] = Nalpha
                 write_env_etc(dim, rt, it, st, p, env_name, title)
+    #
+    for dim in {2, 3}:
+        env_name_base = 'genperf_ray' + dims[dim] + '_long'
+        Nalpha = 1000
+        Nbeta = 1
+        with open(env_name_base + '.txt', 'w') as txt:
+            title = 'Long rays bc short max step'
+            env_name = env_name_base + '_smallstep'
+            txt.write(env_name + '\n')
+            rt, it, st = 'R', 'G', 'C'
+            p = get_default_p(rt)
+            p['Nalpha'], p['Nbeta'] = Nalpha, Nbeta
+            p['deltas'] = (5.0 if dim == 2 else 20.0)
+            write_env_etc(dim, rt, it, st, p, env_name, title)
+            #
+            title = 'Long rays bc complex SSP'
+            env_name = env_name_base + '_bigssp'
+            txt.write(env_name + '\n')
+            rt, it, st = 'R', 'G', ('Q' if dim == 2 else 'H')
+            p = get_default_p(rt)
+            p['Nalpha'], p['Nbeta'] = Nalpha, Nbeta
+            p['ssp']['NPts'] = 200
+            p['ssp']['Nr'] = 200
+            p['ssp']['Nx'] = 200
+            p['ssp']['Ny'] = 200
+            p['ssp']['Nz'] = 200
+            write_env_etc(dim, rt, it, st, p, env_name, title)
+
+def gen_perf_tl_tests():
+    for dim in {2, 3}:
+        env_name_base = 'genperf_tl' + dims[dim] + '_numrays'
+        with open(env_name_base + '.txt', 'w') as txt:
+            for Nalpha in [0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000, 0x40000, 0x100000, 0x400000]:
+                title = 'Increasing num rays ' + str(Nalpha)
+                env_name = env_name_base + '_' + str(Nalpha)
+                txt.write(env_name + '\n')
+                rt, it, st = 'C', 'G', 'C'
+                p = get_default_p(rt)
+                p['NSx'] = p['NSy'] = p['NSz'] = 1
+                p['Sx'] = p['Sy'] = [0.0]
+                p['Sz'] = [823.4]
+                p['NRz'] = p['NRr'] = 101
+                p['Ntheta'] = 101
+                p['theta'] = [0.0, 5.0]
+                p['Nalpha'] = Nalpha
+                p['alpha'] = [-20.1, 20.1]
+                p['Nbeta'] = 1
+                p['beta'] = [2.3]
+                write_env_etc(dim, rt, it, st, p, env_name, title)
+    #
+    for dim in {2, 3}:
+        env_name_base = 'genperf_tl' + dims[dim] + '_numsources'
+        with open(env_name_base + '.txt', 'w') as txt:
+            for NS in range(1, 11):
+                if dim == 3 and NS > 4:
+                    break
+                title = 'Increasing num sources '
+                if dim == 2:
+                    nsources = NS * NS
+                    title += str(nsources)
+                else:
+                    title += str(NS) + 'x' + str(NS) + 'x' + str(NS)
+                env_name = env_name_base + '_' + str(NS)
+                txt.write(env_name + '\n')
+                rt, it, st = 'C', 'G', 'C'
+                p = get_default_p(rt)
+                if dim == 2:
+                    p['NSx'] = p['NSy'] = 1
+                    p['NSz'] = nsources
+                else:
+                    p['NSx'] = p['NSy'] = p['NSz'] = NS
+                p['Sz'] = [102.3, 4871.8]
+                p['NRz'] = p['NRr'] = 101
+                p['Ntheta'] = 101
+                p['theta'] = [0.0, 5.0]
+                p['Nalpha'] = 5000
+                p['Nbeta'] = 1
+                p['beta'] = [2.3]
+                write_env_etc(dim, rt, it, st, p, env_name, title)
+    #
+    for Nalpha in [300, 20000]:
+        for dim in {2, 3}:
+            env_name_base = 'genperf_tl' + dims[dim] + '_numreceivers'
+            env_name_base += 'fewrays' if Nalpha == 300 else 'manyrays'
+            with open(env_name_base + '.txt', 'w') as txt:
+                for NR in [10, 30, 100, 300, 1000, 3000, 10000]:
+                    if dim == 3 and NR > 300:
+                        break
+                    if dim == 2 and Nalpha == 20000 and NR == 10000:
+                        break
+                    title = 'Increasing num receivers with few rays, ' + str(NR) + 'x' + str(NR)
+                    if dim == 3: title += 'x' + str(NR)
+                    env_name = env_name_base + '_' + str(NR)
+                    txt.write(env_name + '\n')
+                    rt, it, st = 'C', 'G', 'C'
+                    p = get_default_p(rt)
+                    p['NSx'] = p['NSy'] = p['NSz'] = 1
+                    p['Sx'] = p['Sy'] = [0.0]
+                    p['Sz'] = [823.4]
+                    p['NRz'] = p['NRr'] = p['Ntheta'] = NR
+                    p['theta'] = [0.0, 30.0]
+                    p['Nalpha'] = Nalpha
+                    p['Nbeta'] = 1
+                    p['beta'] = [14.2]
+                    write_env_etc(dim, rt, it, st, p, env_name, title)
+    
+                
 
 # gen_coverage_tests()
-gen_perf_tests()
+# gen_perf_ray_tests()
+gen_perf_tl_tests()
