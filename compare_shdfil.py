@@ -88,6 +88,11 @@ def compare_files(cxxf, forf):
             reclen, rcvrgridsz, irre, filesz, len(cxxdata)))
         print('Invalid file size')
         sys.exit(1)
+
+    # pos data should be exact and in the same place
+    start = 4*9*reclen
+    Pos = [x[0] for x in struct.iter_unpack('f', fordata[start:start+4*NRr])]
+    assert Pos == [x[0] for x in struct.iter_unpack('f', cxxdata[start:start+4*NRr])]
     
     errors = 0
     maxerrors = 100
