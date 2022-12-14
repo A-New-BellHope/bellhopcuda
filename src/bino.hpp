@@ -53,7 +53,7 @@ public:
     void open(const std::string &path, size_t LRecl)
     {
         recl = LRecl;
-        ostr.open(path);
+        ostr.open(path, std::ios::binary);
     }
 
     bool good() { return ostr.good() && ostr.is_open(); }
@@ -127,7 +127,7 @@ public:
         }
     }
 
-    void open(const std::string &path) { ostr.open(path); }
+    void open(const std::string &path) { ostr.open(path, std::ios::binary); }
 
     bool good() { return ostr.good() && ostr.is_open(); }
 
