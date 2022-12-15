@@ -342,9 +342,50 @@ def gen_perf_tl_tests():
                     p['Nbeta'] = 1
                     p['beta'] = [14.2]
                     write_env_etc(dim, rt, it, st, p, env_name, title)
-    
+
+def gen_perf_arr_tests():
+    for hits in [False, True]:
+        for bigfield in [False, True]:
+            for dim in [2, 3]:
+                env_name_base = 'genperf_arr' + dims[dim]
+                env_name_base += '_hits' if hits else '_nohits'
+                env_name_base += '_big' if bigfield else '_small'
+                with open(env_name_base + '.txt', 'w') as txt:
+                    for Nalpha in [0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000, 0x40000, 0x100000, 0x400000]:
+                        title = 'Arrivals, '
+                        title += 'hits, ' if hits else 'no hits, '
+                        title += 'big field, ' if bigfield else 'small field, '
+                        title += str(Nalpha) + ' rays'
+                        env_name = env_name_base + '_' + str(Nalpha)
+                        txt.write(env_name + '\n')
+                        rt, it, st = 'A', 'G', 'C'
+                        p = get_default_p(rt)
+                        p['NSx'] = p['NSy'] = p['NSz'] = 1
+                        p['Sx'] = p['Sy'] = [0.0]
+                        p['Sz'] = [823.4]
+                        if bigfield:
+                            p['Rz'] = [2000.0, 3000.0]
+                            p['Rr'] = [31.2, 32.2]
+                            p['theta'] = [38.1, 42.1]
+                            # p['NRz'] = p['NRr'] = 3000 if dim == 2 else 100
+                            # p['Ntheta'] = 1 if dim == 2 else 100
+                            p['NRz'] = p['NRr'] = 300 if dim == 2 else 50
+                            p['Ntheta'] = 1 if dim == 2 else 50
+                        else:
+                            p['Rz'] = [1135.8, 1145.8]
+                            p['Rr'] = [37.2, 37.21]
+                            p['theta'] = [43.2, 43.9]
+                            p['NRz'] = p['NRr'] = 100 if dim == 2 else 20
+                            p['Ntheta'] = 1 if dim == 2 else 20
+                        Nbeta = 8 if dim == 3 else 1
+                        p['Nalpha'] = Nalpha // Nbeta
+                        p['Nbeta'] = Nbeta
+                        p['alpha'] = [150.0, 170.0] if dim == 2 and not hits else [-51.2, 51.2]
+                        p['beta'] = [30.0, 50.0] if hits else [182.3, 185.8]
+                        write_env_etc(dim, rt, it, st, p, env_name, title)
                 
 
 # gen_coverage_tests()
 # gen_perf_ray_tests()
-gen_perf_tl_tests()
+# gen_perf_tl_tests()
+gen_perf_arr_tests()

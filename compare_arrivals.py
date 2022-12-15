@@ -76,6 +76,7 @@ def compare_asc_files(cxxf, forf):
     countline = False
     endoffile = False
     NSx, NSy, NSz, NRz, NRr, Ntheta = 1, 1, None, None, None, 1
+    sx, sy, sz, rz, rr, theta = 0, 0, 0, 0, 0, 0
     while True:
         l += 1
         cxxl = cxxf.readline()
@@ -137,7 +138,6 @@ def compare_asc_files(cxxf, forf):
                 fatalerror()
             if int(cxxtokens[0]) != int(fortokens[0]):
                 print('Max arrivals: FOR {} CXX {}'.format(int(fortokens[0]), int(cxxtokens[0])))
-            sx, sy, sz, rz, rr, theta = 0, 0, 0, 0, 0, 0
             maxline = False
             countline = True
         elif countline:
@@ -233,7 +233,7 @@ def compare_asc_files(cxxf, forf):
             print('Assuming this is an irregular grid')
         else:
             print(f'Ran out of lines at end of file, source {sx} {sy} {sz} rcvr th_r_z {theta} {rr} {rz}')
-            sys.exit(1)
+            errored = True
     if errored:
         print('Error(s) detected in ASCII arrivals results')
         sys.exit(1)
