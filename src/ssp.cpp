@@ -207,9 +207,13 @@ void UpdateSSP(
     if(!ssp->dirty) return;
     ssp->dirty = false;
 
-    if(ssp->Type == 'H') {
+    if(Is3DSSP(ssp)) {
         if(!o3d) {
             GlobalLog("UpdateSSP: 3D profile not supported in 2D mode\n");
+            bail();
+        }
+        if(!IsHexahedralSSP(ssp)) {
+            GlobalLog("Internal error with SSP type\n");
             bail();
         }
         // LP: ssp->c and ssp->cz are not well-defined in hexahedral mode, and
@@ -242,17 +246,13 @@ void UpdateSSP(
         ssp->cz[ssp->NPts - 1] = cpx(FL(5.5555555e30), FL(-3.3333333e29)); // LP:
                                                                            // debugging
 
-        switch(ssp->Type) {
-        case 'N': // N2-linear profile option
+        if(IsN2LinearSSP(ssp)) {
             Initn2Linear(ssp);
-            break;
-        case 'C': // C-linear profile option
-            // nothing to do
-            break;
-        case 'S': // Cubic spline profile option
+        } else if(IsCLinearSSP(ssp)) {
+            (void)0; // nothing to do
+        } else if(IsCCubicSSP(ssp)) {
             InitcCubic(ssp);
-            break;
-        case 'P': // monotone PCHIP ACS profile option
+        } else if(IsCPCHIPSSP(ssp)) {
             if(o3d) {
 #ifdef BHC_LIMIT_FEATURES
                 GlobalLog("UpdateSSP: PCHIP is not supported in BELLHOP3D in "
@@ -265,15 +265,13 @@ void UpdateSSP(
 #endif
             }
             InitcPCHIP(ssp);
-            break;
-        case 'Q':
+        } else if(IsQuadSSP(ssp)) {
             if(o3d) {
                 GlobalLog("UpdateSSP: 2D profile not supported in 3D or Nx2D mode\n");
                 bail();
             }
             InitQuad(ssp);
-            break;
-        default:
+        } else {
             GlobalLog("UpdateSSP: Invalid profile option %c\n", ssp->Type);
             std::abort();
         }
@@ -319,11 +317,9 @@ void ReadSSP(
                 std::abort();
             }
 
-            if(ssp->Type == 'Q') {
-                // read in extra SSP data for 2D
+            if(IsQuadSSP(ssp)) {
                 ReadQuad(PRTFile, ssp, FileRoot);
-            } else if(ssp->Type == 'H') {
-                // read in extra SSP data for 3D
+            } else if(IsHexahedralSSP(ssp)) {
                 ReadHexahedral(PRTFile, ssp, FileRoot);
             }
 
@@ -342,7 +338,7 @@ void InitializeSSP(
     real Depth, LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot,
     SSPStructure *ssp, HSInfo &RecycledHS)
 {
-    if(ssp->Type == 'A') {
+    if(IsAnalyticSSP(ssp)) {
         // nothing to do for analytic
         return;
     }

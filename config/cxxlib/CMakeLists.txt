@@ -20,9 +20,8 @@ project(bellhopcxxlib LANGUAGES CXX)
 
 include(../SetupCommon.cmake)
 
-gen_templates(cpp 0 gen_sources)
-add_library(bellhopcxxlib SHARED ${COMMON_SOURCE} ${gen_sources}
-    #no additional source files
+add_library(bellhopcxxlib SHARED ${COMMON_SOURCE}
+    ${CMAKE_SOURCE_DIR}/src/runfieldmodes.cpp
 )
 #LP: If this is being used in a parent CMake project, just
 #target_link_libraries(parentproject bellhopcxxlib) should work and get the

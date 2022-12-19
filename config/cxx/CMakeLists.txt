@@ -22,6 +22,7 @@ include(../SetupCommon.cmake)
 
 set(ALL_SOURCES ${COMMON_INCLUDES} ${COMMON_SOURCE} 
     ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
+    ${CMAKE_SOURCE_DIR}/src/runfieldmodes.cpp
 )
 
 bellhop_create_executables(0 "${ALL_SOURCES}" "" "")

@@ -21,65 +21,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-template<char RT> struct RunType {
-    static constexpr bool IsRay() { return RT == 'R'; }
-    static constexpr bool IsTL() { return RT == 'C' /*|| RT == 'S' || RT == 'I'*/; }
-    static constexpr bool IsEigenrays() { return RT == 'E'; }
-    static constexpr bool IsArrivals() { return RT == 'A' /*|| RT == 'a'*/; }
-    /*
-    static constexpr bool IsCoherent() { return RT == 'C'; }
-    static constexpr bool IsSemiCoherent() { return RT == 'S'; }
-    static constexpr bool IsIncoherent() { return RT == 'I'; }
-    */
-
-    static_assert(
-        IsRay() || IsTL() || IsEigenrays() || IsArrivals(),
-        "RunType templated with invalid character!");
-};
-
-template<char IT> struct InflType {
-    // ' ' and '^' are equivalent to 'G', but are handled in the template
-    // selection, not here.
-    static constexpr bool IsCerveny() { return IT == 'R' || IT == 'C'; }
-    static constexpr bool IsGeometric() { return IsHatGeom() || IsGaussianGeom(); }
-    static constexpr bool IsSGB() { return IT == 'S'; }
-    static constexpr bool IsCartesian() { return IT == 'C' || IT == 'G' || IT == 'B'; }
-    static constexpr bool IsRayCen() { return IT == 'R' || IT == 'g' || IT == 'b'; }
-    static constexpr bool IsHatGeom() { return IT == 'G' || IT == 'g'; }
-    static constexpr bool IsGaussianGeom() { return IT == 'B' || IT == 'b'; }
-
-    static_assert(
-        IsCerveny() || IsGeometric() || IsSGB(),
-        "InflType templated with invalid character!");
-};
-
-template<char ST> struct SSPType {
-    static constexpr bool IsN2Linear() { return ST == 'N'; }
-    static constexpr bool IsCLinear() { return ST == 'C'; }
-    static constexpr bool IsCCubic() { return ST == 'S'; }
-    static constexpr bool IsCPCHIP() { return ST == 'P'; }
-    static constexpr bool IsQuad() { return ST == 'Q'; }
-    static constexpr bool IsHexahedral() { return ST == 'H'; }
-    static constexpr bool IsAnalytic() { return ST == 'A'; }
-    static constexpr bool Is1D()
-    {
-        return IsN2Linear() || IsCLinear() || IsCCubic() || IsCPCHIP();
-    }
-    static constexpr bool Is2D() { return IsQuad(); }
-    static constexpr bool Is3D() { return IsHexahedral(); }
-    static constexpr bool IsAnyD() { return IsAnalytic(); }
-
-    static_assert(
-        Is1D() || Is2D() || Is3D() || IsAnyD(),
-        "SSPType templated with invalid character!");
-};
-
-template<char RT, char IT, char ST> struct CfgSel {
-    using run  = RunType<RT>;
-    using infl = InflType<IT>;
-    using ssp  = SSPType<ST>;
-};
-
 template<bool O3D> HOST_DEVICE inline bool IsRayRun(const BeamStructure<O3D> *Beam)
 {
     char r = Beam->RunType[0];
@@ -262,6 +203,62 @@ template<bool O3D> HOST_DEVICE inline bool IsLineSource(const BeamStructure<O3D>
 template<bool O3D> HOST_DEVICE inline bool IsIrregularGrid(const BeamStructure<O3D> *Beam)
 {
     return Beam->RunType[4] == 'I';
+}
+
+// ssp->Type:
+//   'N': 1D   N2-linear profile option
+//   'C': 1D   C-linear profile option
+//   'S': 1D   Cubic spline profile option
+//   'P': 1D   monotone PCHIP ACS profile option
+//   'Q': 2D   Bilinear quadrilateral interpolation of SSP data in 2D
+//   'H': 3D   Trilinear hexahedral interpolation of SSP data in 3D
+//   'A': AnyD Analytic profile option
+
+HOST_DEVICE inline bool IsN2LinearSSP(const SSPStructure *ssp)
+{
+    return ssp->Type == 'N';
+}
+
+HOST_DEVICE inline bool IsCLinearSSP(const SSPStructure *ssp) { return ssp->Type == 'C'; }
+
+HOST_DEVICE inline bool IsCCubicSSP(const SSPStructure *ssp) { return ssp->Type == 'S'; }
+
+HOST_DEVICE inline bool IsCPCHIPSSP(const SSPStructure *ssp) { return ssp->Type == 'P'; }
+
+HOST_DEVICE inline bool IsQuadSSP(const SSPStructure *ssp) { return ssp->Type == 'Q'; }
+
+HOST_DEVICE inline bool IsHexahedralSSP(const SSPStructure *ssp)
+{
+    return ssp->Type == 'H';
+}
+
+HOST_DEVICE inline bool IsAnalyticSSP(const SSPStructure *ssp)
+{
+    return ssp->Type == 'A';
+}
+
+HOST_DEVICE inline bool Is1DSSP(const SSPStructure *ssp)
+{
+    char t = ssp->Type;
+    return t == 'N' || t == 'C' || t == 'S' || t == 'P';
+}
+
+HOST_DEVICE inline bool Is2DSSP(const SSPStructure *ssp)
+{
+    char t = ssp->Type;
+    return t == 'Q';
+}
+
+HOST_DEVICE inline bool Is3DSSP(const SSPStructure *ssp)
+{
+    char t = ssp->Type;
+    return t == 'H';
+}
+
+HOST_DEVICE inline bool IsAnyDSSP(const SSPStructure *ssp)
+{
+    char t = ssp->Type;
+    return t == 'A';
 }
 
 } // namespace bhc

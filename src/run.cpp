@@ -95,7 +95,7 @@ template<bool O3D, bool R3D> bool run(
         if(IsRayRun(params.Beam)) {
             RunRayMode(params, outputs, cores);
         } else {
-            RunFieldModesSelInfl(params, outputs, cores);
+            RunFieldModesImpl(params, outputs, cores);
         }
         if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
     } catch(const std::exception &e) {

@@ -25,6 +25,7 @@ set(ALL_SOURCES ${COMMON_INCLUDES} ${COMMON_SOURCE}
     ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
     ${CMAKE_SOURCE_DIR}/src/UtilsCUDA.cuh
     ${CMAKE_SOURCE_DIR}/src/logging.cu
+    ${CMAKE_SOURCE_DIR}/src/runfieldmodes.cu
 )
 
 bellhop_create_executables(1 "${ALL_SOURCES}"

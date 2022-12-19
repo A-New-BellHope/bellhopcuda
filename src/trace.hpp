@@ -46,7 +46,7 @@ template<bool R3D> HOST_DEVICE inline void Distances(
 /**
  * LP: Not a typo that this is templated on O3D only
  */
-template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
+template<bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
     int32_t isx, int32_t isy, int32_t isz, real alpha, SSPSegState &iSeg,
     const Position *Pos, const SSPStructure *ssp, VEC23<O3D> &xs, VEC23<O3D> &tinit)
 {
@@ -60,7 +60,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNomi
     }
     SSPOutputs<O3D> o;
     // LP: Not a typo that this is templated on O3D only
-    EvaluateSSP<CFG, O3D, O3D>(xs, tinit, o, Origin<O3D, O3D>(), ssp, iSeg);
+    EvaluateSSP<O3D, O3D>(xs, tinit, o, Origin<O3D, O3D>(), ssp, iSeg);
     return o;
 }
 
@@ -71,7 +71,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNomi
  *
  * DistBegTop etc.: Distances from ray beginning, end to top and bottom
  */
-template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
+template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     RayInitInfo &rinit, VEC23<O3D> &xs, rayPt<R3D> &point0, VEC23<O3D> &gradc,
     real &DistBegTop, real &DistBegBot, Origin<O3D, R3D> &org, SSPSegState &iSeg,
     BdryState<O3D> &bds, BdryType &Bdry, const BdryType *ConstBdry,
@@ -103,7 +103,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
 
     iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
     VEC23<O3D> tinit;
-    SSPOutputs<O3D> o = RayStartNominalSSP<CFG, O3D>(
+    SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(
         rinit.isx, rinit.isy, rinit.isz, rinit.alpha, iSeg, Pos, ssp, xs, tinit);
     gradc = o.gradc;
 
@@ -234,7 +234,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
  * LP: Pulled out contents of ray update loop. Returns the number of ray steps
  * taken (i.e. normally 1, or 2 if reflected).
  */
-template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
+template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
     const rayPt<R3D> &point0, rayPt<R3D> &point1, rayPt<R3D> &point2, real &DistEndTop,
     real &DistEndBot, int32_t &iSmallStepCtr, const Origin<O3D, R3D> &org,
     SSPSegState &iSeg, BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo,
@@ -243,7 +243,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
 {
     int32_t numRaySteps = 1;
     bool topRefl, botRefl, flipTopDiag, flipBotDiag;
-    Step<CFG, O3D, R3D>(
+    Step<O3D, R3D>(
         point0, point1, bds, Beam, xs, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl,
         flipTopDiag, flipBotDiag);
     /*
@@ -333,7 +333,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
             rcurv.kappa = bd0->kappa;
         }
 
-        Reflect<CFG, O3D, R3D>(
+        Reflect<O3D, R3D>(
             point1, point2, hs, topRefl, tInt, nInt, rcurv, freqinfo->freq0, refltb, Beam,
             org, ssp, iSeg);
         // Incrementing bounce count moved to Reflect

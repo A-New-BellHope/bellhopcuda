@@ -18,6 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "runtype.hpp"
 #include "curves.hpp"
 
 namespace bhc {
@@ -378,14 +379,14 @@ template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
     }
 }
 
-template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
+template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     const VEC23<R3D> &x, const VEC23<R3D> &t, SSPOutputs<R3D> &o,
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
 {
     VEC23<O3D> x_proc = RayToOceanX(x, org);
     VEC23<O3D> t_proc = RayToOceanT(t, org);
     SSPOutputs<O3D> o_proc;
-    if constexpr(CFG::ssp::Is1D()) {
+    if(Is1DSSP(ssp)) {
         vec2 x_rz, t_rz;
         SSPOutputs<false> o_rz;
         if constexpr(O3D) {
@@ -395,14 +396,17 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             x_rz = x_proc;
             t_rz = t_proc;
         }
-        if constexpr(CFG::ssp::IsN2Linear()) { // N2-linear profile option
+        if(IsN2LinearSSP(ssp)) {
             n2Linear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if constexpr(CFG::ssp::IsCLinear()) { // C-linear profile option
+        } else if(IsCLinearSSP(ssp)) {
             cLinear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if constexpr(CFG::ssp::IsCCubic()) { // Cubic spline profile option
+        } else if(IsCCubicSSP(ssp)) {
             cCubic(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if constexpr(CFG::ssp::IsCPCHIP()) { // monotone PCHIP ACS profile option
+        } else if(IsCPCHIPSSP(ssp)) {
             cPCHIP(x_rz, t_rz, o_rz, ssp, iSeg);
+        } else {
+            GlobalLog("Internal error with SSP type");
+            bail();
         }
         if constexpr(O3D) {
             o_proc.gradc = vec3(RL(0.0), RL(0.0), o_rz.gradc.y);
@@ -413,29 +417,41 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         } else {
             o_proc = o_rz;
         }
-    } else if constexpr(CFG::ssp::Is2D()) {
+    } else if(Is2DSSP(ssp)) {
         if constexpr(O3D) {
             // Should already have been checked in InitializeSSP
-            GlobalLog("Internal error with SSP template system");
+            GlobalLog("Internal error with SSP type");
             bail();
         } else {
-            if constexpr(CFG::ssp::IsQuad()) { Quad(x_proc, t_proc, o_proc, ssp, iSeg); }
-        }
-    } else if constexpr(CFG::ssp::Is3D()) {
-        if constexpr(!O3D) {
-            GlobalLog("Internal error with SSP template system");
-            bail();
-        } else {
-            if constexpr(CFG::ssp::IsHexahedral()) {
-                Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
+            if(IsQuadSSP(ssp)) {
+                Quad(x_proc, t_proc, o_proc, ssp, iSeg);
+            } else {
+                GlobalLog("Internal error with SSP type");
+                bail();
             }
         }
-    } else if constexpr(CFG::ssp::IsAnyD()) {
-        if constexpr(CFG::ssp::IsAnalytic()) { // Analytic profile option
+    } else if(Is3DSSP(ssp)) {
+        if constexpr(!O3D) {
+            GlobalLog("Internal error with SSP type");
+            bail();
+        } else {
+            if(IsHexahedralSSP(ssp)) {
+                Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
+            } else {
+                GlobalLog("Internal error with SSP type");
+                bail();
+            }
+        }
+    } else if(IsAnyDSSP(ssp)) {
+        if(IsAnalyticSSP(ssp)) {
             Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
+        } else {
+            GlobalLog("Internal error with SSP type");
+            bail();
         }
     } else {
-        static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");
+        GlobalLog("Internal error with SSP type");
+        bail();
     }
     if constexpr(O3D && !R3D) {
         o.gradc.x

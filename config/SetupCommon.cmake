@@ -40,8 +40,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
 
 find_package(Threads)
 
-include(${CMAKE_SOURCE_DIR}/config/GenTemplates.cmake)
-
 function(bellhop_setup_target target_name)
     if(BHC_USE_FLOATS)
         target_compile_definitions(${target_name} PUBLIC BHC_USE_FLOATS=1)
@@ -56,20 +54,13 @@ function(bellhop_setup_target target_name)
         target_compile_options(${target_name} PUBLIC -pg)
         target_link_options(${target_name} PUBLIC -pg)
     endif()
-    add_gen_template_defs(${target_name})
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/include")
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
     target_link_libraries(${target_name} Threads::Threads)
 endfunction()
 
 function(bellhop_create_executable target_name iscuda dimmode sources defs incs)
-    if(iscuda)
-        set(gen_extension "cu")
-    else()
-        set(gen_extension "cpp")
-    endif()
-    gen_templates(${gen_extension} ${dimmode} gen_sources)
-    add_executable(${target_name} ${sources} ${gen_sources})
+    add_executable(${target_name} ${sources})
     target_compile_definitions(${target_name} PUBLIC
         BHC_CMDLINE=1 BHC_DIMMODE=${dimmode} ${defs}
     )

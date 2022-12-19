@@ -16,44 +16,47 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "@CMAKE_SOURCE_DIR@/src/run.hpp"
+#include "run.hpp"
 
 namespace bhc {
 
 #define NUM_THREADS 256
 #define LAUNCH_BOUNDS __launch_bounds__(NUM_THREADS, 1)
 
-using GENCFG = CfgSel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@>;
-
-template<typename CFG, bool O3D, bool R3D> __global__ void LAUNCH_BOUNDS
-FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs);
-
-template<> __global__ void LAUNCH_BOUNDS
-FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
-    bhcParams<@BHCGENO3D@, @BHCGENR3D@> params,
-    bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> outputs)
+template<bool O3D, bool R3D> __global__ void LAUNCH_BOUNDS
+FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs)
 {
     for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; true;
         job += gridDim.x * blockDim.x) {
         RayInitInfo rinit;
-        if(!GetJobIndices<@BHCGENO3D@>(rinit, job, params.Pos, params.Angles)) break;
+        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
 
-        MainFieldModes<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+        MainFieldModes<O3D, R3D>(
             rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
             params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
             params.beaminfo, outputs.eigen, outputs.arrinfo);
     }
 }
 
-template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
-    bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
-    bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs, uint32_t cores)
+template<bool O3D, bool R3D> void RunFieldModesImpl(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores)
 {
     IGNORE_UNUSED(cores);
-    FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>
-        <<<d_multiprocs, NUM_THREADS>>>(params, outputs);
-    syncAndCheckKernelErrors("FieldModesKernel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@, "
-                             "@BHCGENO3D@, @BHCGENR3D@>");
+    FieldModesKernel<O3D, R3D><<<d_multiprocs, NUM_THREADS>>>(params, outputs);
+    syncAndCheckKernelErrors("FieldModesKernel");
 }
+
+#if BHC_ENABLE_2D
+template void RunFieldModesImpl<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs, uint32_t cores);
+#endif
+#if BHC_ENABLE_NX2D
+template void RunFieldModesImpl<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, uint32_t cores);
+#endif
+#if BHC_ENABLE_3D
+template void RunFieldModesImpl<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, uint32_t cores);
+#endif
 
 } // namespace bhc

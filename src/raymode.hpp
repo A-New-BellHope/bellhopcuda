@@ -26,7 +26,7 @@ namespace bhc {
 /**
  * Main ray tracing function for ray path output mode.
  */
-template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
+template<bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     RayInitInfo &rinit, rayPt<R3D> *ray, int32_t &Nsteps, Origin<O3D, R3D> &org,
     const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
@@ -38,7 +38,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     BdryState<O3D> bds;
     BdryType Bdry;
 
-    if(!RayInit<CFG, O3D, R3D>(
+    if(!RayInit<O3D, R3D>(
            rinit, xs, ray[0], gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
            ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) {
         Nsteps = 1;
@@ -49,7 +49,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     int32_t is            = 0; // index for a step along the ray
 
     while(true) {
-        int32_t dStep = RayUpdate<CFG, O3D, R3D>(
+        int32_t dStep = RayUpdate<O3D, R3D>(
             ray[is], ray[is + 1], ray[is + 2], DistEndTop, DistEndBot, iSmallStepCtr, org,
             iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
         if(Nsteps >= 0 && is >= Nsteps) {
@@ -176,39 +176,9 @@ template<bool O3D, bool R3D> inline bool RunRay(
 #endif
 
     Origin<O3D, R3D> org;
-    char st = params.ssp->Type;
-    if(st == 'N') {
-        MainRayMode<CfgSel<'R', 'G', 'N'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
-    } else if(st == 'C') {
-        MainRayMode<CfgSel<'R', 'G', 'C'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
-    } else if(st == 'S') {
-        MainRayMode<CfgSel<'R', 'G', 'S'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
-    } else if(st == 'P') {
-        MainRayMode<CfgSel<'R', 'G', 'P'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
-    } else if(st == 'Q') {
-        MainRayMode<CfgSel<'R', 'G', 'Q'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
-    } else if(st == 'H') {
-        MainRayMode<CfgSel<'R', 'G', 'H'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
-    } else if(st == 'A') {
-        MainRayMode<CfgSel<'R', 'G', 'A'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
-    } else {
-        GlobalLog("Invalid ssp->Type %c!", st);
-        bail();
-    }
+    MainRayMode<O3D, R3D>(
+        rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
+        params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
 
     bool ret = true;
     if(IsRayCopyMode<O3D, R3D>(rayinfo)) {
