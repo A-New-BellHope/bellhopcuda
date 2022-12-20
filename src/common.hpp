@@ -19,24 +19,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 ////////////////////////////////////////////////////////////////////////////////
-// Build configuration
-////////////////////////////////////////////////////////////////////////////////
-
-// BHC_DIMMODE is undefined or 0 for "all enabled, set on command line"
-#define BHC_ENABLE_2D (!(BHC_DIMMODE == 3 || BHC_DIMMODE == 4))
-#define BHC_ENABLE_3D (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 4))
-#define BHC_ENABLE_NX2D (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 3))
-#if BHC_DIMMODE == 2
-#define BHC_DIMNAME "2d"
-#elif BHC_DIMMODE == 3
-#define BHC_DIMNAME "3d"
-#elif BHC_DIMMODE == 4
-#define BHC_DIMNAME "nx2d"
-#else
-#define BHC_DIMNAME
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
 // General headers
 ////////////////////////////////////////////////////////////////////////////////
 

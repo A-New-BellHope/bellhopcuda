@@ -1,31 +1,7 @@
 - Get rid of GlobalLog, replace with flags
 - Get rid of bail, replace with checking atomic errored variable
 
-Rays experiments:
-
--- ray_long
-Long rays b/c short max step
-Long rays b/c complex bottom
-Long rays b/c complex SSP
-
--- ray_numrays
-Increasingly many rays
-
-
-TL experiments:
-
--- tl_numrays
-
--- tl_numsources
-
--- tl_numreceivers
-
-
-Eigen experiments:
-
--- eigen_numrays_nohits
-
--- eigen_numrays_withhits
-
-
+- Latest GPU only, warning if different architectures
+- Executable made from library version
+- Combine Gaussian and hat
 

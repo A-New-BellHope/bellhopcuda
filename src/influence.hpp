@@ -516,7 +516,7 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(
             bail();
         }
     } else if(IsGeometricInfl(Beam)) {
-        if constexpr(!R3D) {
+        if constexpr(!O3D) {
             if(IsRayCenInfl(Beam) && IsGaussianGeomInfl(Beam)) {
 #ifdef BHC_LIMIT_FEATURES
                 GlobalLog("2D Gaussian RayCen is not supported by BELLHOP "

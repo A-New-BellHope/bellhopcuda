@@ -32,5 +32,4 @@ add_library(bellhopcxxlib SHARED ${COMMON_SOURCE} ${gen_sources}
 #include(GenerateExportHeader)
 #generate_export_header(bellhopcxxlib)
 
-target_compile_definitions(bellhopcxxlib PUBLIC BHC_EXPORTS=1 BHC_DIMMODE=0)
-bellhop_setup_target(bellhopcxxlib)
+bellhop_setup_target(bellhopcxxlib 0)
