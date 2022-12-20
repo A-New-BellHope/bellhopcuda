@@ -101,7 +101,7 @@ void WriteHeader(
 /**
  * LP: Write TL results
  */
-template<bool O3D, bool R3D> void FinalizeTLMode(
+template<bool O3D, bool R3D> void WriteOutTL(
     std::string FileRoot, const bhcParams<O3D, R3D> &params,
     bhcOutputs<O3D, R3D> &outputs)
 {
@@ -194,22 +194,20 @@ template<bool O3D, bool R3D> void FinalizeTLMode(
             }
         }
     }
-
-    deallocate(outputs.uAllSources);
 }
 
 #if BHC_ENABLE_2D
-template void FinalizeTLMode<false, false>(
+template void WriteOutTL<false, false>(
     std::string FileRoot, const bhcParams<false, false> &params,
     bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
-template void FinalizeTLMode<true, false>(
+template void WriteOutTL<true, false>(
     std::string FileRoot, const bhcParams<true, false> &params,
     bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
-template void FinalizeTLMode<true, true>(
+template void WriteOutTL<true, true>(
     std::string FileRoot, const bhcParams<true, true> &params,
     bhcOutputs<true, true> &outputs);
 #endif

@@ -63,11 +63,11 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
 #define STD cuda::std
-#define BHC_PROGRAMNAME "bellhopcuda" BHC_DIMNAME
+#define BHC_PROGRAMNAME "bellhopcuda"
 #else
 #define HOST_DEVICE
 #define STD std
-#define BHC_PROGRAMNAME "bellhopcxx" BHC_DIMNAME
+#define BHC_PROGRAMNAME "bellhopcxx"
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////

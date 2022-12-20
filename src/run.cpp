@@ -67,35 +67,35 @@ template void RayModeWorker<true, true>(
 #endif
 
 template<bool O3D, bool R3D> inline void RunRayMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t cores)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t nthreads)
 {
+    uint32_t nthreads = GetNumThreads(params.maxThreads);
     GlobalLog(
-        "%d threads, copy mode %s\n", cores,
+        "%d threads, copy mode %s\n", nthreads,
         IsRayCopyMode<O3D, R3D>(outputs.rayinfo) ? "true" : "false");
     std::vector<std::thread> threads;
-    for(uint32_t i = 0; i < cores; ++i)
+    for(uint32_t i = 0; i < nthreads; ++i)
         threads.push_back(
             std::thread(RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs)));
-    for(uint32_t i = 0; i < cores; ++i) threads[i].join();
+    for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
 }
 
 template<bool O3D, bool R3D> bool run(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     if(!api_okay) return false;
-    exceptionStr   = "";
-    sharedJobID    = 0;
-    uint32_t cores = GetNumCores(singlethread);
+    exceptionStr = "";
+    sharedJobID  = 0;
 
     try {
         Stopwatch sw;
         sw.tick();
-        InitSelectedMode<O3D, R3D>(params, outputs, singlethread);
+        InitSelectedMode<O3D, R3D>(params, outputs);
         sw.tock("InitSelectedMode");
         if(IsRayRun(params.Beam)) {
-            RunRayMode(params, outputs, cores);
+            RunRayMode(params, outputs);
         } else {
-            RunFieldModesSelInfl(params, outputs, cores);
+            RunFieldModesSelInfl(params, outputs);
         }
         if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
     } catch(const std::exception &e) {
@@ -108,17 +108,55 @@ template<bool O3D, bool R3D> bool run(
 }
 
 #if BHC_ENABLE_2D
-template bool BHC_API run<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    bool singlethread);
+template bool BHC_API
+run<false, false>(bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
-template bool BHC_API run<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+template bool BHC_API
+run<true, false>(bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
-template bool BHC_API run<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+template bool BHC_API
+run<true, true>(bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+template<bool O3D, bool R3D> bool writeout(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    if(!api_okay) return false;
+
+    if(IsRayRun(params.Beam)) {
+        // Ray mode
+        bhc::WriteOutRays<O3D, R3D>(outputs.rayinfo, FileRoot, params);
+    } else if(IsTLRun(params.Beam)) {
+        // TL mode
+        bhc::WriteOutTL<O3D, R3D>(FileRoot, params, outputs);
+    } else if(IsEigenraysRun(params.Beam)) {
+        // Eigenrays mode
+        bhc::WriteOutEigenrays<O3D, R3D>(params, outputs, FileRoot);
+    } else if(IsArrivalsRun(params.Beam)) {
+        // Arrivals mode
+        bhc::WriteOutArrivals<O3D, R3D>(
+            outputs.arrinfo, params.Pos, params.freqinfo, params.Beam, FileRoot);
+    } else {
+        std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
+        api_okay = false;
+    }
+
+    return api_okay;
+}
+
+#if BHC_ENABLE_2D
+template BHC_API bool writeout<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#if BHC_ENABLE_NX2D
+#endif
+template BHC_API bool writeout<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#if BHC_ENABLE_3D
+#endif
+template BHC_API bool writeout<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 } // namespace bhc

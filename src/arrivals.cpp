@@ -21,7 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-template<bool O3D, bool R3D> void FinalizeArrivalsMode(
+template<bool O3D, bool R3D> void WriteOutArrivals(
     const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
     const BeamStructure<O3D> *Beam, std::string FileRoot)
 {
@@ -195,17 +195,17 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
 }
 
 #if BHC_ENABLE_2D
-template void FinalizeArrivalsMode<false, false>(
+template void WriteOutArrivals<false, false>(
     const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
     const BeamStructure<false> *Beam, std::string FileRoot);
 #endif
 #if BHC_ENABLE_NX2D
-template void FinalizeArrivalsMode<true, false>(
+template void WriteOutArrivals<true, false>(
     const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
     const BeamStructure<true> *Beam, std::string FileRoot);
 #endif
 #if BHC_ENABLE_3D
-template void FinalizeArrivalsMode<true, true>(
+template void WriteOutArrivals<true, true>(
     const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
     const BeamStructure<true> *Beam, std::string FileRoot);
 #endif

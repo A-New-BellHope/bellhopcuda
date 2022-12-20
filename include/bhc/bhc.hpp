@@ -43,7 +43,7 @@ namespace bhc {
  * open a PRTFile (<FileRoot>.prt) and put the messages in there.
  *
  * params, outputs: Just create uninitialized structs and pass them in to be
- * initialized.
+ * initialized. You may modify params after setup.
  *
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
@@ -87,21 +87,48 @@ extern template BHC_API bool setup<true, true>(
  * parameters or in different 2D / Nx2D / 3D modes); there is only one static
  * copy of the functionality for synchronizing the different threads launched by
  * these functions, so this will not work correctly from multiple calls
- * simultaneously. Don't do this even if singlethread is set.
+ * simultaneously.
  */
 template<bool O3D, bool R3D> bool run(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, bool singlethread);
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
 extern template BHC_API bool run<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    bool singlethread);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 /// Nx2D or 2D-3D version, see template.
 extern template BHC_API bool run<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
 extern template BHC_API bool run<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, bool singlethread);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+
+/**
+ * Write results for the past run to BELLHOP-formatted files, i.e. a ray file,
+ * a shade file, or an arrivals file. If you only want to use the results in
+ * memory, there is no need to call this.
+ *
+ * Note that the writeout process modifies the data for most runs:
+ * - eigenrays: During run(), only information about which rays hit the
+ *   receiver is stored, not the full ray trajectories. During writeout(), those
+ *   rays are traced again and written.
+ * - rays and eigenrays: Compresses the ray data (discards some points)
+ * - TL: scales the field in various ways
+ *
+ * run() must have been called previously. Don't forget to call finalize()
+ * when you're done.
+ */
+template<bool O3D, bool R3D> bool writeout(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+
+/// 2D version, see template.
+extern template BHC_API bool writeout<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+/// Nx2D or 2D-3D version, see template.
+extern template BHC_API bool writeout<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+/// 3D version, see template.
+extern template BHC_API bool writeout<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 /**
  * Frees memory. You may call run() many times, you do not have to call setup

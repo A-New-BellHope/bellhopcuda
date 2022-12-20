@@ -30,20 +30,15 @@ namespace bhc {
 
 void SetupThread();
 
-inline uint32_t GetNumCores(bool &singlethread)
+inline uint32_t GetNumThreads(int32_t maxThreads)
 {
-#ifdef BHC_BUILD_CUDA
-    if(singlethread) {
-        GlobalLog("Single threaded mode is nonsense on CUDA, ignoring");
-        singlethread = false;
-    }
-#endif
-    uint32_t cores = std::thread::hardware_concurrency();
-    if(singlethread || cores < 1u) cores = 1u;
+    if(maxThreads >= 1) return maxThreads;
+    maxThreads = std::thread::hardware_concurrency();
+    if(maxThreads < 1) maxThreads = 1;
 #ifdef BHC_USE_HIGH_PRIORITY_THREADS
-    if(cores > 1) --cores; // Leave one core unused to avoid locking up system
+    if(maxThreads > 1) --maxThreads; // Leave one core unused to avoid locking up system
 #endif
-    return cores;
+    return maxThreads;
 }
 
 class Stopwatch {

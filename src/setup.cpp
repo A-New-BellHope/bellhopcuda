@@ -137,7 +137,8 @@ template<bool O3D, bool R3D> bool setup(
         outputs.arrinfo->NArr       = nullptr;
 
         // Fill in default / "constructor" data
-        params.fT = RL(1.0e20);
+        params.maxThreads = -1;
+        params.fT         = RL(1.0e20);
         // Bdry: none
         if constexpr(O3D) {
             params.bdinfo->top.NPts.x = 2;

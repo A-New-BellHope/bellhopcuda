@@ -53,7 +53,7 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
     int32_t *baseNArr = &arrinfo->NArr[base];
     int32_t Nt;
 
-    if(arrinfo->singlethread) {
+    if(arrinfo->AllowMerging) {
         // LP: BUG: This only checks the last arrival, whereas the first step of the
         // pair could have been placed in previous slots. See the Fortran version readme.
 
@@ -131,10 +131,10 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
 }
 
 inline void InitArrivalsMode(
-    ArrInfo *arrinfo, bool singlethread, bool ThreeD, const Position *Pos,
+    ArrInfo *arrinfo, int32_t maxThreads, bool ThreeD, const Position *Pos,
     PrintFileEmu &PRTFile)
 {
-    arrinfo->singlethread = singlethread;
+    arrinfo->AllowMerging = maxThreads == 1;
     size_t nSrcsRcvrs     = Pos->NRz_per_range * Pos->NRr * Pos->NSz;
     if(ThreeD) nSrcsRcvrs *= Pos->Ntheta * Pos->NSx * Pos->NSy;
     // LP: Having a minimum size is not great if the user specified a maximum
@@ -149,16 +149,16 @@ inline void InitArrivalsMode(
     memset(arrinfo->NArr, 0, nSrcsRcvrs * sizeof(int32_t));
 }
 
-template<bool O3D, bool R3D> void FinalizeArrivalsMode(
+template<bool O3D, bool R3D> void WriteOutArrivals(
     const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
     const BeamStructure<O3D> *Beam, std::string FileRoot);
-extern template void FinalizeArrivalsMode<false, false>(
+extern template void WriteOutArrivals<false, false>(
     const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
     const BeamStructure<false> *Beam, std::string FileRoot);
-extern template void FinalizeArrivalsMode<true, false>(
+extern template void WriteOutArrivals<true, false>(
     const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
     const BeamStructure<true> *Beam, std::string FileRoot);
-extern template void FinalizeArrivalsMode<true, true>(
+extern template void WriteOutArrivals<true, true>(
     const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
     const BeamStructure<true> *Beam, std::string FileRoot);
 

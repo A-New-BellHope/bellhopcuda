@@ -48,17 +48,15 @@ inline void InitEigenMode(EigenInfo *eigen)
     checkallocate(eigen->hits, maxhits);
 }
 
-template<bool O3D, bool R3D> void FinalizeEigenMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, std::string FileRoot,
-    bool singlethread);
-extern template void FinalizeEigenMode<false, false>(
+template<bool O3D, bool R3D> void WriteOutEigenrays(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, std::string FileRoot);
+extern template void WriteOutEigenrays<false, false>(
     bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    std::string FileRoot, bool singlethread);
-extern template void FinalizeEigenMode<true, false>(
+    std::string FileRoot);
+extern template void WriteOutEigenrays<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
-    std::string FileRoot, bool singlethread);
-extern template void FinalizeEigenMode<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, std::string FileRoot,
-    bool singlethread);
+    std::string FileRoot);
+extern template void WriteOutEigenrays<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, std::string FileRoot);
 
 } // namespace bhc

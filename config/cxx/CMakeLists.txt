@@ -20,8 +20,4 @@ project(bellhopcxx LANGUAGES CXX)
 
 include(../SetupCommon.cmake)
 
-set(ALL_SOURCES ${COMMON_INCLUDES} ${COMMON_SOURCE} 
-    ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
-)
-
-bellhop_create_executables(0 "${ALL_SOURCES}" "" "")
+bhc_add_libs_exes(cxx cpp "" "" "")

@@ -35,16 +35,16 @@ inline void InitTLMode(cpxf *&uAllSources, const Position *Pos)
     memset(uAllSources, 0, n * sizeof(cpxf));
 }
 
-template<bool O3D, bool R3D> void FinalizeTLMode(
+template<bool O3D, bool R3D> void WriteOutTL(
     std::string FileRoot, const bhcParams<O3D, R3D> &params,
     bhcOutputs<O3D, R3D> &outputs);
-extern template void FinalizeTLMode<false, false>(
+extern template void WriteOutTL<false, false>(
     std::string FileRoot, const bhcParams<false, false> &params,
     bhcOutputs<false, false> &outputs);
-extern template void FinalizeTLMode<true, false>(
+extern template void WriteOutTL<true, false>(
     std::string FileRoot, const bhcParams<true, false> &params,
     bhcOutputs<true, false> &outputs);
-extern template void FinalizeTLMode<true, true>(
+extern template void WriteOutTL<true, true>(
     std::string FileRoot, const bhcParams<true, true> &params,
     bhcOutputs<true, true> &outputs);
 

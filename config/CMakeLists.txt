@@ -40,10 +40,6 @@ endif()
 
 add_subdirectory(cxx)
 
-if(BHC_ENABLE_LIB)
-    add_subdirectory(cxxlib)
-endif()
-
 if(BHC_ENABLE_CUDA AND NOT(APPLE OR DEFINED ENV{BHC_NO_CUDA}))
     add_subdirectory(cuda)
 endif()

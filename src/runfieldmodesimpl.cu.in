@@ -47,9 +47,8 @@ FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
 
 template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
-    bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs, uint32_t cores)
+    bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs)
 {
-    IGNORE_UNUSED(cores);
     FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>
         <<<d_multiprocs, NUM_THREADS>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@, "

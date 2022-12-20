@@ -142,7 +142,7 @@ template<bool O3D, bool R3D> inline void InitRayMode(
     memset(rayinfo->results, 0, rayinfo->NRays * sizeof(RayResult<O3D, R3D>));
 }
 
-template<bool O3D, bool R3D> inline void FinalizeRayMode(
+template<bool O3D, bool R3D> inline void WriteOutRays(
     RayInfo<O3D, R3D> *rayinfo, std::string FileRoot, const bhcParams<O3D, R3D> &params)
 {
     LDOFile RAYFile;

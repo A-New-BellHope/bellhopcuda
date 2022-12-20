@@ -4,3 +4,5 @@
 - Executable made from library version
 - Combine Gaussian and hat
 
+- Get rid of all global / static variables to allow several instances
+
