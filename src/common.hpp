@@ -36,6 +36,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cstdio>
 #include <iomanip>
 #include <cctype>
+#include <cinttypes>
 #include <cstring>
 #include <string>
 #include <locale>

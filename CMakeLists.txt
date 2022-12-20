@@ -30,6 +30,8 @@ set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE} CACHE STRING "" FORCE) # Only 
 project(bellhoptoplevel LANGUAGES NONE)
 
 option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
+option(CUDA_ALL_ARCHES "Build CUDA device code for all GPUs in system, not just newest one" OFF)
+
 option(BHC_ENABLE_LIB  "Build shared library version in addition to executable versions" ON)
 option(BHC_3D_SEPARATE "Build separate executables for 2D/3D/Nx2D instead of selecting dimensionality with command line" OFF)
 option(BHC_LIMIT_FEATURES "Limit bellhopcxx/bellhopcuda to only features supported by BELLHOP/BELLHOP3D" OFF)

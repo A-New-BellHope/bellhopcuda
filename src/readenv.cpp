@@ -328,8 +328,9 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     case ' ': break;
     default:
         GlobalLog(
-            "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt == '%c'\n",
-            Bdry->Bot.hs.Opt);
+            "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt[1] == "
+            "'%c'\n",
+            Bdry->Bot.hs.Opt[1]);
         std::abort();
     }
 

@@ -73,8 +73,9 @@ public:
     {
         if(bytesWrittenThisRecord + bytes > recl) {
             GlobalLog(
-                "%s:%d: DirectOFile overflow, %lli bytes already written, rec size %lli, "
-                "tried to write %lli more\n",
+                "%s:%d: DirectOFile overflow, %" PRIuMAX
+                " bytes already written, rec size %" PRIuMAX ", tried to write %" PRIuMAX
+                " more\n",
                 file, fline, bytesWrittenThisRecord, recl, bytes);
             std::abort();
         }

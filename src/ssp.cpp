@@ -227,7 +227,7 @@ void UpdateSSP(
                 if(ssp->z[iz] <= ssp->z[iz - 1]) {
                     GlobalLog(
                         "UpdateSSP: The depths in the SSP must be monotone increasing "
-                        "(%d)\n",
+                        "(%f)\n",
                         ssp->z[iz]);
                     std::abort();
                 }

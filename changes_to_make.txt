@@ -1,7 +1,6 @@
 - Get rid of GlobalLog, replace with flags
 - Get rid of bail, replace with checking atomic errored variable
 
-- Latest GPU only, warning if different architectures
 - Executable made from library version
 - Combine Gaussian and hat
 

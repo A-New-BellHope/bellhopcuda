@@ -113,7 +113,6 @@ template bool BHC_API run<false, false>(
     bool singlethread);
 #endif
 #if BHC_ENABLE_NX2D
-#error "Nx2D is enabled!"
 template bool BHC_API run<true, false>(
     bhcParams<true, false> &params, bhcOutputs<true, false> &outputs, bool singlethread);
 #endif
