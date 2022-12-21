@@ -25,7 +25,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 template<bool O3D, bool R3D> void EigenModePostWorker(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     SetupThread();
 
@@ -66,19 +66,19 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
 
 #if BHC_ENABLE_2D
 template void EigenModePostWorker<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void EigenModePostWorker<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void EigenModePostWorker<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> void WriteOutEigenrays(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, std::string FileRoot)
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     InitRayMode<O3D, R3D>(outputs.rayinfo, params, outputs.eigen->neigen);
 
@@ -88,27 +88,25 @@ template<bool O3D, bool R3D> void WriteOutEigenrays(
     uint32_t nthreads = GetNumThreads(params.maxThreads);
     for(uint32_t i = 0; i < nthreads; ++i)
         threads.push_back(std::thread(
-            EigenModePostWorker<O3D, R3D>, std::ref(params), std::ref(outputs)));
+            EigenModePostWorker<O3D, R3D>, std::cref(params), std::ref(outputs)));
     for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
 
     if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
 
-    WriteOutRays<O3D, R3D>(outputs.rayinfo, FileRoot, params);
+    WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
 }
 
 #if BHC_ENABLE_2D
 template void WriteOutEigenrays<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    std::string FileRoot);
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void WriteOutEigenrays<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
-    std::string FileRoot);
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void WriteOutEigenrays<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, std::string FileRoot);
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 } // namespace bhc

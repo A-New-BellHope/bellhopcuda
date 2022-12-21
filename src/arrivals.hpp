@@ -150,16 +150,16 @@ inline void InitArrivalsMode(
 }
 
 template<bool O3D, bool R3D> void WriteOutArrivals(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, std::string FileRoot);
+    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam,
+    std::string FileRoot, const ArrInfo *arrinfo);
 extern template void WriteOutArrivals<false, false>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<false> *Beam, std::string FileRoot);
+    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<false> *Beam,
+    std::string FileRoot, const ArrInfo *arrinfo);
 extern template void WriteOutArrivals<true, false>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<true> *Beam, std::string FileRoot);
+    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<true> *Beam,
+    std::string FileRoot, const ArrInfo *arrinfo);
 extern template void WriteOutArrivals<true, true>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<true> *Beam, std::string FileRoot);
+    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<true> *Beam,
+    std::string FileRoot, const ArrInfo *arrinfo);
 
 } // namespace bhc

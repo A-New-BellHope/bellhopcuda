@@ -49,14 +49,12 @@ inline void InitEigenMode(EigenInfo *eigen)
 }
 
 template<bool O3D, bool R3D> void WriteOutEigenrays(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, std::string FileRoot);
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
 extern template void WriteOutEigenrays<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    std::string FileRoot);
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 extern template void WriteOutEigenrays<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
-    std::string FileRoot);
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 extern template void WriteOutEigenrays<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, std::string FileRoot);
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 } // namespace bhc

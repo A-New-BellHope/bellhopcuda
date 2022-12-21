@@ -98,8 +98,8 @@ set(common_source
     trace.hpp
 )
 
-prependlist(COMMON_INCLUDES "${CMAKE_SOURCE_DIR}/include/bhc/" ${COMMON_INCLUDES})
-prependlist(COMMON_SOURCE "${CMAKE_SOURCE_DIR}/src/" ${COMMON_SOURCE})
+prependlist(common_includes "${CMAKE_SOURCE_DIR}/include/bhc/" ${common_includes})
+prependlist(common_source "${CMAKE_SOURCE_DIR}/src/" ${common_source})
 
 if(NOT BHC_DIM_ENABLE_2D AND NOT BHC_DIM_ENABLE_3D AND NOT BHC_DIM_ENABLE_NX2D)
     message(FATAL_ERROR "2D, 3D, and Nx2D dim modes all disabled, nothing to build!")
@@ -140,6 +140,7 @@ function(bhc_add_libs_exes type_name gen_extension addl_sources addl_includes ad
     add_library(${objlibname} OBJECT
         ${common_includes}
         ${common_source}
+        ${gen_sources}
         ${addl_sources}
     )
     bhc_setup_target(${objlibname})
@@ -173,14 +174,14 @@ function(bhc_add_libs_exes type_name gen_extension addl_sources addl_includes ad
     bhc_setup_target(${exename}lib)
     add_library(${exename}static SHARED $<TARGET_OBJECTS:${objlibname}>)
     bhc_setup_target(${exename}static)
-    bhc_create_executable(${exename} ${dim_enables} BHC_DIM_ONLY=0)
+    bhc_create_executable(${exename} "${dim_enables} BHC_DIM_ONLY=0")
     if(BHC_DIM_ENABLE_2D)
-        bhc_create_executable(${exename}2d   BHC_ENABLE_2D=1   BHC_DIM_ONLY=2)
+        bhc_create_executable(${exename}2d   "BHC_ENABLE_2D=1   BHC_DIM_ONLY=2")
     endif()
     if(BHC_DIM_ENABLE_3D)
-        bhc_create_executable(${exename}3d   BHC_ENABLE_3D=1   BHC_DIM_ONLY=3)
+        bhc_create_executable(${exename}3d   "BHC_ENABLE_3D=1   BHC_DIM_ONLY=3")
     endif()
     if(BHC_DIM_ENABLE_NX2D)
-        bhc_create_executable(${exename}nx2d BHC_ENABLE_NX2D=1 BHC_DIM_ONLY=4)
+        bhc_create_executable(${exename}nx2d "BHC_ENABLE_NX2D=1 BHC_DIM_ONLY=4")
     endif()
 endfunction()

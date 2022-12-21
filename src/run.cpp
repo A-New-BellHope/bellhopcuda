@@ -67,7 +67,7 @@ template void RayModeWorker<true, true>(
 #endif
 
 template<bool O3D, bool R3D> inline void RunRayMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, uint32_t nthreads)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     uint32_t nthreads = GetNumThreads(params.maxThreads);
     GlobalLog(
@@ -100,7 +100,7 @@ template<bool O3D, bool R3D> bool run(
         if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
     } catch(const std::exception &e) {
         api_okay              = false;
-        PrintFileEmu &PRTFile = *(PrintFileEmu *)params.internal;
+        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "Exception caught:\n" << e.what() << "\n";
     }
 
@@ -127,17 +127,18 @@ template<bool O3D, bool R3D> bool writeout(
 
     if(IsRayRun(params.Beam)) {
         // Ray mode
-        bhc::WriteOutRays<O3D, R3D>(outputs.rayinfo, FileRoot, params);
+        bhc::WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
     } else if(IsTLRun(params.Beam)) {
         // TL mode
-        bhc::WriteOutTL<O3D, R3D>(FileRoot, params, outputs);
+        bhc::WriteOutTL<O3D, R3D>(params, outputs);
     } else if(IsEigenraysRun(params.Beam)) {
         // Eigenrays mode
-        bhc::WriteOutEigenrays<O3D, R3D>(params, outputs, FileRoot);
+        bhc::WriteOutEigenrays<O3D, R3D>(params, outputs);
     } else if(IsArrivalsRun(params.Beam)) {
         // Arrivals mode
         bhc::WriteOutArrivals<O3D, R3D>(
-            outputs.arrinfo, params.Pos, params.freqinfo, params.Beam, FileRoot);
+            params.Pos, params.freqinfo, params.Beam, GetInternal(params)->FileRoot,
+            outputs.arrinfo);
     } else {
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         api_okay = false;

@@ -22,8 +22,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 template<bool O3D, bool R3D> void WriteOutArrivals(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, std::string FileRoot)
+    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam,
+    std::string FileRoot, const ArrInfo *arrinfo)
 {
     // LP: originally most of OpenOutputFiles
     bool isAscii;
@@ -196,18 +196,18 @@ template<bool O3D, bool R3D> void WriteOutArrivals(
 
 #if BHC_ENABLE_2D
 template void WriteOutArrivals<false, false>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<false> *Beam, std::string FileRoot);
+    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<false> *Beam,
+    std::string FileRoot, const ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_NX2D
 template void WriteOutArrivals<true, false>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<true> *Beam, std::string FileRoot);
+    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<true> *Beam,
+    std::string FileRoot, const ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_3D
 template void WriteOutArrivals<true, true>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<true> *Beam, std::string FileRoot);
+    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<true> *Beam,
+    std::string FileRoot, const ArrInfo *arrinfo);
 #endif
 
 } // namespace bhc

@@ -504,6 +504,21 @@ static inline std::string trim_copy(std::string s)
 
 namespace bhc {
 
+struct bhcInternal {
+    PrintFileEmu PRTFile;
+    std::string FileRoot;
+
+    bhcInternal(const char *FileRoot_, void (*outputCallback)(const char *message))
+        : PRTFile(FileRoot_, outputCallback), FileRoot(FileRoot_)
+    {}
+};
+
+template<bool O3D, bool R3D> inline bhcInternal *GetInternal(
+    const bhcParams<O3D, R3D> &params)
+{
+    return reinterpret_cast<bhcInternal *>(params.internal);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // CUDA memory
 ////////////////////////////////////////////////////////////////////////////////

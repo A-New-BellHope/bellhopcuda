@@ -143,10 +143,10 @@ template<bool O3D, bool R3D> inline void InitRayMode(
 }
 
 template<bool O3D, bool R3D> inline void WriteOutRays(
-    RayInfo<O3D, R3D> *rayinfo, std::string FileRoot, const bhcParams<O3D, R3D> &params)
+    const bhcParams<O3D, R3D> &params, RayInfo<O3D, R3D> *rayinfo)
 {
     LDOFile RAYFile;
-    OpenRAYFile<O3D, R3D>(RAYFile, FileRoot, params);
+    OpenRAYFile<O3D, R3D>(RAYFile, GetInternal(params)->FileRoot, params);
     for(int r = 0; r < rayinfo->NRays; ++r) {
         RayResult<O3D, R3D> *res = &rayinfo->results[r];
         if(res->ray == nullptr) continue;

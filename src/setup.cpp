@@ -76,8 +76,8 @@ template<bool O3D, bool R3D> bool setup(
 {
     api_okay = true;
     InitLog(outputCallback);
-    params.internal       = new PrintFileEmu(FileRoot, outputCallback);
-    PrintFileEmu &PRTFile = *(PrintFileEmu *)params.internal;
+    params.internal       = new bhcInternal(FileRoot, outputCallback);
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
     try {
 #ifdef BHC_BUILD_CUDA
@@ -388,8 +388,7 @@ template<bool O3D, bool R3D> void finalize(
     // IMPORTANT--if changes are made here, make the same changes in setup
     // (i.e. setting the pointers to nullptr initially)
 
-    PrintFileEmu *PRTFile = (PrintFileEmu *)params.internal;
-    delete PRTFile;
+    delete GetInternal(params);
 
 #ifdef BHC_BUILD_CUDA
     if(!api_okay) return; // Memory was deallocated when the device was reset

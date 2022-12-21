@@ -36,17 +36,13 @@ inline void InitTLMode(cpxf *&uAllSources, const Position *Pos)
 }
 
 template<bool O3D, bool R3D> void WriteOutTL(
-    std::string FileRoot, const bhcParams<O3D, R3D> &params,
-    bhcOutputs<O3D, R3D> &outputs);
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
 extern template void WriteOutTL<false, false>(
-    std::string FileRoot, const bhcParams<false, false> &params,
-    bhcOutputs<false, false> &outputs);
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 extern template void WriteOutTL<true, false>(
-    std::string FileRoot, const bhcParams<true, false> &params,
-    bhcOutputs<true, false> &outputs);
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 extern template void WriteOutTL<true, true>(
-    std::string FileRoot, const bhcParams<true, true> &params,
-    bhcOutputs<true, true> &outputs);
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 /**
  * Main ray tracing function for TL, eigen, and arrivals runs.

@@ -102,8 +102,7 @@ void WriteHeader(
  * LP: Write TL results
  */
 template<bool O3D, bool R3D> void WriteOutTL(
-    std::string FileRoot, const bhcParams<O3D, R3D> &params,
-    bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     real atten = FL(0.0);
     std::string PlotType;
@@ -113,8 +112,8 @@ template<bool O3D, bool R3D> void WriteOutTL(
     // input
     PlotType = IsIrregularGrid(params.Beam) ? "irregular " : "rectilin  ";
     WriteHeader(
-        SHDFile, FileRoot + ".shd", params.Title, atten, PlotType, params.Pos,
-        params.freqinfo);
+        SHDFile, GetInternal(params)->FileRoot + ".shd", params.Title, atten, PlotType,
+        params.Pos, params.freqinfo);
 
     for(int32_t isz = 0; isz < params.Pos->NSz; ++isz) {
         for(int32_t isx = 0; isx < params.Pos->NSx; ++isx) {
@@ -198,18 +197,15 @@ template<bool O3D, bool R3D> void WriteOutTL(
 
 #if BHC_ENABLE_2D
 template void WriteOutTL<false, false>(
-    std::string FileRoot, const bhcParams<false, false> &params,
-    bhcOutputs<false, false> &outputs);
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void WriteOutTL<true, false>(
-    std::string FileRoot, const bhcParams<true, false> &params,
-    bhcOutputs<true, false> &outputs);
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void WriteOutTL<true, true>(
-    std::string FileRoot, const bhcParams<true, true> &params,
-    bhcOutputs<true, true> &outputs);
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 } // namespace bhc
