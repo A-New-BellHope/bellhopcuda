@@ -62,6 +62,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
     Origin<O3D, R3D> org;
 
     rayPt<R3D> point0, point1, point2;
+    point2.c = NAN; // Silence incorrect g++ warning about maybe uninitialized;
+    // it is always set when dStep is 2, and not used otherwise
     InfluenceRayInfo<R3D> inflray;
 
     if(!RayInit<CFG, O3D, R3D>(
