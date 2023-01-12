@@ -16,7 +16,7 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
 set(BHC_RUN_DATABASE "TL:C;EIGENRAYS:E;ARRIVALS:A")
-set(BHC_INFL_DATABASE "CERVENY_RAYCEN:R;CERVENY_CART:C;HAT_RAYCEN:g;HAT_CART:G;GAUSS_RAYCEN:b;GAUSS_CART:B;SGB:S")
+set(BHC_INFL_DATABASE "CERVENY_RAYCEN:R;CERVENY_CART:C;GEOM_RAYCEN:g;GEOM_CART:G;SGB:S")
 set(BHC_SSP_DATABASE "N2LINEAR:N;CLINEAR:C;CUBIC:S;PCHIP:P;QUAD:Q;HEXAHEDRAL:H;ANALYTIC:A")
 
 function(add_gen_template_defs_inner target_name type)
@@ -54,8 +54,8 @@ function(is_config_valid out_var_name)
             set(res 0)
         elseif(BHCGENINFL MATCHES "C" AND BHCGENO3D STREQUAL "true")
             set(res 0)
-        elseif(BHCGENINFL MATCHES "b" AND BHCGENO3D STREQUAL "false")
-            set(res 0)
+        # elseif(BHCGENINFL MATCHES "b" AND BHCGENO3D STREQUAL "false")
+            # set(res 0)
         endif()
     endif()
     set(${out_var_name} ${res} PARENT_SCOPE)

@@ -41,12 +41,18 @@ template<char IT> struct InflType {
     // ' ' and '^' are equivalent to 'G', but are handled in the template
     // selection, not here.
     static constexpr bool IsCerveny() { return IT == 'R' || IT == 'C'; }
-    static constexpr bool IsGeometric() { return IsHatGeom() || IsGaussianGeom(); }
+    static constexpr bool IsGeometric() { return IT == 'G' || IT == 'g'; }
+    // return IsHatGeom() || IsGaussianGeom();
     static constexpr bool IsSGB() { return IT == 'S'; }
-    static constexpr bool IsCartesian() { return IT == 'C' || IT == 'G' || IT == 'B'; }
-    static constexpr bool IsRayCen() { return IT == 'R' || IT == 'g' || IT == 'b'; }
+    static constexpr bool IsCartesian()
+    {
+        return IT == 'C' || IT == 'G' /*|| IT == 'B'*/;
+    }
+    static constexpr bool IsRayCen() { return IT == 'R' || IT == 'g' /*|| IT == 'b'*/; }
+    /*
     static constexpr bool IsHatGeom() { return IT == 'G' || IT == 'g'; }
     static constexpr bool IsGaussianGeom() { return IT == 'B' || IT == 'b'; }
+    */
 
     static_assert(
         IsCerveny() || IsGeometric() || IsSGB(),

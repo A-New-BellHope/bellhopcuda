@@ -83,9 +83,9 @@ HOST_DEVICE inline int32_t RToIR(real r, const Position *Pos)
 
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void AdjustSigma(
     real &sigma, const rayPt<R3D> &point0, const rayPt<R3D> &point1,
-    const InfluenceRayInfo<R3D> &inflray)
+    const InfluenceRayInfo<R3D> &inflray, const BeamStructure<O3D> *Beam)
 {
-    if constexpr(!CFG::infl::IsGaussianGeom()) return;
+    if(!IsGaussianGeomInfl(Beam)) return;
     real lambda = point0.c / inflray.freq0; // local wavelength
     // min pi * lambda, unless near
     sigma = bhc::max(
@@ -468,7 +468,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
             // incoherent/semicoherent TL
             real v = cnst * STD::exp((omega * delay).imag());
             v      = SQ(v) * w;
-            if constexpr(CFG::infl::IsGaussianGeom()) {
+            if(IsGaussianGeomInfl(Beam)) {
                 // Gaussian beam
                 v *= GaussScaleFactor<R3D>();
             }
@@ -547,6 +547,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
     const BeamStructure<O3D> *Beam)
 {
     if constexpr(R3D) IGNORE_UNUSED(ssp);
+    bool isGaussian = IsGaussianGeomInfl(Beam);
 
     inflray.init  = rinit;
     inflray.freq0 = freqinfo->freq0;
@@ -561,7 +562,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
     inflray.Dbeta  = Angles->beta.d;
 
     const real BeamWindow = RL(4.0); // LP: Integer (!) in 2D
-    inflray.BeamWindow    = CFG::infl::IsGaussianGeom() ? BeamWindow : RL(1.0);
+    inflray.BeamWindow    = isGaussian ? BeamWindow : RL(1.0);
     inflray.iBeamWindow2  = SQ(Beam->iBeamWindow);
 
     // LP: Did not have the abs for SGB, but it has been added.
@@ -571,9 +572,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
     } else {
         if(IsLineSource(Beam)) inflray.Ratio1 = RL(1.0);
     }
-    if constexpr(CFG::infl::IsGaussianGeom()) {
-        inflray.Ratio1 /= GaussScaleFactor<R3D>();
-    }
+    if(isGaussian) { inflray.Ratio1 /= GaussScaleFactor<R3D>(); }
 
     if constexpr(CFG::infl::IsCerveny()) {
         inflray.epsilon1 = PickEpsilon<O3D, R3D>(
@@ -921,6 +920,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
 {
     static_assert(
         CFG::infl::IsGeometric(), "InfluenceGeoCore templated with non-geometric type!");
+    bool isGaussian = IsGaussianGeomInfl(Beam);
 
     V2M2<R3D> qInterp = point0.q + s * dq; // interpolated amplitude
     if constexpr(R3D) {
@@ -977,16 +977,12 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
         }
 #endif
 
-        if constexpr(CFG::infl::IsGaussianGeom()) {
-            beamCoordDist = n1prime + n2prime;
-        } else {
-            beamCoordDist = bhc::max(n1prime, n2prime);
-        }
-        sigma = FL(1.0);
+        beamCoordDist = isGaussian ? n1prime + n2prime : bhc::max(n1prime, n2prime);
+        sigma         = FL(1.0);
     } else {
-        sigma = sigma_orig = STD::abs(qFinal * inflray.rcp_q0); // LP: called RadiusMax or
-                                                                // l in non-Gaussian
-        AdjustSigma<CFG, O3D, R3D>(sigma, point0, point1, inflray);
+        // LP: called RadiusMax or l in non-Gaussian
+        sigma = sigma_orig = STD::abs(qFinal * inflray.rcp_q0);
+        AdjustSigma<CFG, O3D, R3D>(sigma, point0, point1, inflray, Beam);
 
         beamCoordDist = n1prime = n1;
         IGNORE_UNUSED(n2);
@@ -1005,7 +1001,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
         (!R3D && beamCoordDist == inflray.BeamWindow * sigma))
        // LP: The "outside of beam window" condition is commented out in 3D Gaussian
        // raycen.
-       && !(R3D && CFG::infl::IsRayCen() && CFG::infl::IsGaussianGeom())) {
+       && !(R3D && CFG::infl::IsRayCen() && isGaussian)) {
         // receiver is outside the beam
         return;
     }
@@ -1016,22 +1012,21 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
     real cnst = inflray.Ratio1 * cfactor * point1.Amp / STD::sqrt(STD::abs(qFinal));
     real w;
     if constexpr(R3D) {
-        if constexpr(CFG::infl::IsGaussianGeom()) {
+        if(isGaussian) {
             w = STD::exp(FL(-0.5) * (SQ(n1prime) + SQ(n2prime)));
         } else {
             w = (FL(1.0) - n1prime) * (FL(1.0) - n2prime);
         }
     } else {
-        if constexpr(CFG::infl::IsGaussianGeom()) {
-            w = STD::exp(FL(-0.5) * SQ(n1prime / sigma))
-                * (sigma_orig / sigma); // Gaussian
-                                        // decay
+        if(isGaussian) {
+            // Gaussian decay
+            w = STD::exp(FL(-0.5) * SQ(n1prime / sigma)) * (sigma_orig / sigma);
         } else {
             w = (sigma - n1prime) / sigma; // hat function: 1 on center, 0 on edge
         }
     }
-    real phaseInt = FinalPhase<R3D>(
-        (!R3D && CFG::infl::IsGaussianGeom() ? point1 : point0), inflray, qFinal);
+    real phaseInt
+        = FinalPhase<R3D>((!R3D && isGaussian ? point1 : point0), inflray, qFinal);
 
 #ifdef INFL_DEBUGGING_IR
     if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
@@ -1082,7 +1077,7 @@ Step_InfluenceGeoRayCen(
 
     // LP: In 3D hat, non-constant threshold (same as all others) commented out
     // in favor of constant one.
-    if(IsDuplicatePoint(point0, point1, R3D && CFG::infl::IsHatGeom())) {
+    if(IsDuplicatePoint(point0, point1, R3D && IsHatGeomInfl(Beam))) {
         inflray.lastValid = true;
         inflray.x         = point1.x;
         inflray.rayn1     = rayn1;
@@ -1147,7 +1142,7 @@ Step_InfluenceGeoRayCen(
 #endif
                     continue;
                 }
-                if constexpr(CFG::infl::IsGaussianGeom()) {
+                if(IsGaussianGeomInfl(Beam)) {
                     // Possible contribution if max possible beamwidth > min possible
                     // distance to receiver
                     real MaxRadius_m = inflray.BeamWindow
@@ -1310,7 +1305,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
         real sigma, RadiusMax;
         sigma = bhc::max(STD::abs(point0.q.x), STD::abs(point1.q.x)) * inflray.rcp_q0
             / STD::abs(rayt.x); // beam radius projected onto vertical line
-        AdjustSigma<CFG, O3D, R3D>(sigma, point0, point1, inflray);
+        AdjustSigma<CFG, O3D, R3D>(sigma, point0, point1, inflray, Beam);
         RadiusMax = inflray.BeamWindow * sigma; // LP: 1 * sigma for non-Gaussian
         // depth limits of beam
         // LP: For rays shot at exactly 60 degrees, they will hit this edge case.
@@ -1349,7 +1344,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                     real m_prime = STD::abs(
                         glm::dot(XYCOMP(x_rcvr) - XYCOMP(x_ray), vec2(-rayt.y, rayt.x)));
                     // LP: Commented out in Gaussian
-                    if(CFG::infl::IsHatGeom() && m_prime > inflray.BeamWindow * L_diag) {
+                    if(IsHatGeomInfl(Beam) && m_prime > inflray.BeamWindow * L_diag) {
                         // GlobalLog("Skip theta b/c m_prime %g > L_diag %g\n", m_prime,
                         // L_diag);
                         continue;

@@ -33,3 +33,7 @@ run_kind ray3d
 run_kind tl3d
 run_kind eigen3d
 run_kind arr3d
+
+echo "================"
+echo "Done with script"
+echo "================"

@@ -242,46 +242,29 @@ template<bool O3D, bool R3D> inline void RunFieldModesSelInfl(
                   "was not enabled at compile time!");
         bail();
 #endif
-    } else if(it == 'G' || it == '^' || it == ' ') {
-#ifdef BHC_INFL_ENABLE_HAT_CART
+    } else if(it == 'G' || it == '^' || it == ' ' || it == 'B') {
+#ifdef BHC_INFL_ENABLE_GEOM_CART
         RunFieldModesSelRun<'G', O3D, R3D>(params, outputs);
 #else
-        GlobalLog("Hat Cartesian influence (Beam->Type[0] == 'G', '^', or ' ') "
-                  "was not enabled at compile time!");
+        GlobalLog("Geometric Cartesian influence (Beam->Type[0] == 'G', '^', ' ' "
+                  "hat / 'B' Gaussian) was not enabled at compile time!");
         bail();
 #endif
-    } else if(it == 'g') {
-#ifdef BHC_INFL_ENABLE_HAT_RAYCEN
-        RunFieldModesSelRun<'g', O3D, R3D>(params, outputs);
-#else
-        GlobalLog("Hat ray-centered influence (Beam->Type[0] == 'g') "
-                  "was not enabled at compile time!");
-        bail();
-#endif
-    } else if(it == 'B') {
-#ifdef BHC_INFL_ENABLE_GAUSS_CART
-        RunFieldModesSelRun<'B', O3D, R3D>(params, outputs);
-#else
-        GlobalLog("Gaussian Cartesian influence (Beam->Type[0] == 'B') "
-                  "was not enabled at compile time!");
-        bail();
-#endif
-    } else if(it == 'b') {
-#ifdef BHC_INFL_ENABLE_GAUSS_RAYCEN
+    } else if(it == 'g' || it == 'b') {
+#ifdef BHC_INFL_ENABLE_GEOM_RAYCEN
 #ifdef BHC_LIMIT_FEATURES
-        if constexpr(O3D) {
-#endif
-            RunFieldModesSelRun<'b', O3D, R3D>(params, outputs);
-#ifdef BHC_LIMIT_FEATURES
-        } else {
-            GlobalLog("2D Gaussian RayCen (Beam->Type[0] == 'C') "
-                      "is not supported because BHC_LIMIT_FEATURES is enabled!");
-            bail();
+        if(it == 'b') {
+            if constexpr(!O3D) {
+                GlobalLog("2D Gaussian RayCen (Beam->Type[0] == 'b') "
+                          "is not supported because BHC_LIMIT_FEATURES is enabled!");
+                bail();
+            }
         }
 #endif
+        RunFieldModesSelRun<'g', O3D, R3D>(params, outputs);
 #else
-        GlobalLog("Gaussian ray-centered influence (Beam->Type[0] == 'b') "
-                  "was not enabled at compile time!");
+        GlobalLog("Geometric ray-centered influence (Beam->Type[0] == 'g' hat / "
+                  "'b' Gaussian) was not enabled at compile time!");
         bail();
 #endif
     } else if(it == 'S') {

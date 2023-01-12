@@ -43,13 +43,11 @@ option(BHC_RUN_ENABLE_TL        "Enable TL runs        (Beam->RunType[0] == 'C' 
 option(BHC_RUN_ENABLE_EIGENRAYS "Enable eigenrays runs (Beam->RunType[0] == 'E')"               ON)
 option(BHC_RUN_ENABLE_ARRIVALS  "Enable arrivals runs  (Beam->RunType[0] == 'A' or 'a')"        ON)
 
-option(BHC_INFL_ENABLE_CERVENY_RAYCEN "Enable Cerveny  ray-centered influence (Beam->Type[0] == 'R')" ON)
-option(BHC_INFL_ENABLE_CERVENY_CART   "Enable Cerveny  Cartesian    influence (Beam->Type[0] == 'C')" ON)
-option(BHC_INFL_ENABLE_HAT_RAYCEN     "Enable hat      ray-centered influence (Beam->Type[0] == 'g')" ON)
-option(BHC_INFL_ENABLE_HAT_CART       "Enable hat      Cartesian    influence (Beam->Type[0] == 'G')" ON)
-option(BHC_INFL_ENABLE_GAUSS_RAYCEN   "Enable Gaussian ray-centered influence (Beam->Type[0] == 'b')" ON)
-option(BHC_INFL_ENABLE_GAUSS_CART     "Enable Gaussian Cartesian    influence (Beam->Type[0] == 'B')" ON)
-option(BHC_INFL_ENABLE_SGB            "Enable simple Gaussian beams influence (Beam->Type[0] == 'S')" ON)
+option(BHC_INFL_ENABLE_CERVENY_RAYCEN "Enable Cerveny     ray-centered influence (Beam->Type[0] == 'R')" ON)
+option(BHC_INFL_ENABLE_CERVENY_CART   "Enable Cerveny     Cartesian    influence (Beam->Type[0] == 'C')" ON)
+option(BHC_INFL_ENABLE_GEOM_RAYCEN    "Enable geometrical ray-centered influence (Beam->Type[0] == 'g' hat, 'b' Gaussian)" ON)
+option(BHC_INFL_ENABLE_GEOM_CART      "Enable geometrical Cartesian    influence (Beam->Type[0] == 'G' hat, 'B' Gaussian)" ON)
+option(BHC_INFL_ENABLE_SGB            "Enable simple Gaussian beams    influence (Beam->Type[0] == 'S')" ON)
 
 option(BHC_SSP_ENABLE_N2LINEAR   "Enable N2-linear     1D SSP (ssp->Type == 'N')" ON)
 option(BHC_SSP_ENABLE_CLINEAR    "Enable C-linear      1D SSP (ssp->Type == 'C')" ON)
