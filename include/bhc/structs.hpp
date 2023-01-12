@@ -444,8 +444,8 @@ template<bool R3D> struct InfluenceRayInfo {
 ////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> struct bhcParams {
-    /// Initialized to -1 meaning "one thread per logical core"; can set to 1
-    /// or some other value.
+    /// Initialized to -1 meaning "one thread per logical core"; after setup
+    /// (but before run), can set to 1 or some other value.
     int32_t maxThreads;
     char Title[80]; // Size determined by WriteHeader for TL
     real fT;

@@ -470,7 +470,7 @@ inline void __syncAndCheckKernelErrors(
         errtype = 1;
     }
     if(err == cudaSuccess) {
-        bhc::CudaPostKernelLog();
+        // bhc::CudaPostKernelLog();
         return;
     }
     cudaDeviceReset();

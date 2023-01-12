@@ -35,7 +35,7 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
 
     try {
         while(true) {
-            uint32_t job = sharedJobID++;
+            uint32_t job = GetInternal(params)->sharedJobID++;
             if(job >= outputs.eigen->neigen) break;
             if(job >= outputs.eigen->memsize) {
                 GlobalLog(
@@ -57,8 +57,8 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
         }
 
     } catch(const std::exception &e) {
-        std::lock_guard<std::mutex> lock(exceptionMutex);
-        exceptionStr += std::string(e.what()) + "\n";
+        std::lock_guard<std::mutex> lock(GetInternal(params)->exceptionMutex);
+        GetInternal(params)->exceptionStr += std::string(e.what()) + "\n";
     }
 
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) free(localmem);
@@ -84,14 +84,17 @@ template<bool O3D, bool R3D> void WriteOutEigenrays(
 
     GlobalLog("%d eigenrays\n", (int)outputs.eigen->neigen);
     std::vector<std::thread> threads;
-    sharedJobID       = 0;
-    uint32_t nthreads = GetNumThreads(params.maxThreads);
+    GetInternal(params)->exceptionStr = "";
+    GetInternal(params)->sharedJobID  = 0;
+    uint32_t nthreads                 = GetNumThreads(params.maxThreads);
     for(uint32_t i = 0; i < nthreads; ++i)
         threads.push_back(std::thread(
             EigenModePostWorker<O3D, R3D>, std::cref(params), std::ref(outputs)));
     for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
 
-    if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
+    if(!GetInternal(params)->exceptionStr.empty()) {
+        throw std::runtime_error(GetInternal(params)->exceptionStr);
+    }
 
     WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
 }

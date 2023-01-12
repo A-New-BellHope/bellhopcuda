@@ -44,6 +44,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 //#include <cfenv>
 #include <chrono>
 #include <exception>
+#include <atomic>
+#include <mutex>
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -81,8 +83,6 @@ namespace bhc {
 ////////////////////////////////////////////////////////////////////////////////
 // Assertions and debug
 ////////////////////////////////////////////////////////////////////////////////
-
-extern bool api_okay;
 
 #define NULLSTATEMENT ((void)0)
 #define REQUIRESEMICOLON \
@@ -488,8 +488,10 @@ static inline std::string trim_copy(std::string s)
 
 } // namespace bhc
 
+// TODO
+#define GlobalLog printf
+
 #define _BHC_INCLUDING_COMPONENTS_ 1
-#include "logging.hpp"
 #include "ldio.hpp"
 #include "bino.hpp"
 #include "prtfileemu.hpp"
@@ -505,11 +507,20 @@ static inline std::string trim_copy(std::string s)
 namespace bhc {
 
 struct bhcInternal {
+    bool api_okay;
     PrintFileEmu PRTFile;
     std::string FileRoot;
+    void (*outputCallback)(const char *message);
+    std::atomic<int32_t> sharedJobID;
+    std::mutex exceptionMutex;
+    std::string exceptionStr;
+    int m_gpu;
+    /* int d_warp, d_maxthreads; */
+    int d_multiprocs;
 
-    bhcInternal(const char *FileRoot_, void (*outputCallback)(const char *message))
-        : PRTFile(FileRoot_, outputCallback), FileRoot(FileRoot_)
+    bhcInternal(const char *FileRoot_, void (*outputCallback_)(const char *message))
+        : api_okay(true), PRTFile(FileRoot_, outputCallback_), FileRoot(FileRoot_),
+          outputCallback(outputCallback_), m_gpu(0)
     {}
 };
 

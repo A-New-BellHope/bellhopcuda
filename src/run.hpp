@@ -29,14 +29,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-extern std::atomic<int32_t> sharedJobID;
-extern std::mutex exceptionMutex;
-extern std::string exceptionStr;
-
-#ifdef BHC_BUILD_CUDA
-extern int m_gpu, d_warp, d_maxthreads, d_multiprocs;
-#endif
-
 template<bool O3D, bool R3D> inline void InitSelectedMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {

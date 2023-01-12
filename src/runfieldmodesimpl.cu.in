@@ -50,7 +50,7 @@ template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs)
 {
     FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>
-        <<<d_multiprocs, NUM_THREADS>>>(params, outputs);
+        <<<GetInternal(params)->d_multiprocs, NUM_THREADS>>>(params, outputs);
     syncAndCheckKernelErrors("FieldModesKernel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@, "
                              "@BHCGENO3D@, @BHCGENR3D@>");
 }

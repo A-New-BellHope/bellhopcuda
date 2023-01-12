@@ -22,10 +22,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-std::atomic<int32_t> sharedJobID;
-std::mutex exceptionMutex;
-std::string exceptionStr;
-
 template<bool O3D, bool R3D> void RayModeWorker(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
@@ -37,7 +33,7 @@ template<bool O3D, bool R3D> void RayModeWorker(
 
     try {
         while(true) {
-            int32_t job    = sharedJobID++;
+            int32_t job    = GetInternal(params)->sharedJobID++;
             int32_t Nsteps = -1;
             RayInitInfo rinit;
             if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
@@ -46,8 +42,8 @@ template<bool O3D, bool R3D> void RayModeWorker(
         }
 
     } catch(const std::exception &e) {
-        std::lock_guard<std::mutex> lock(exceptionMutex);
-        exceptionStr += std::string(e.what()) + "\n";
+        std::lock_guard<std::mutex> lock(GetInternal(params)->exceptionMutex);
+        GetInternal(params)->exceptionStr += std::string(e.what()) + "\n";
     }
 
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) free(localmem);
@@ -83,9 +79,9 @@ template<bool O3D, bool R3D> inline void RunRayMode(
 template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    if(!api_okay) return false;
-    exceptionStr = "";
-    sharedJobID  = 0;
+    if(!GetInternal(params)->api_okay) return false;
+    GetInternal(params)->exceptionStr = "";
+    GetInternal(params)->sharedJobID  = 0;
 
     try {
         Stopwatch sw;
@@ -95,16 +91,21 @@ template<bool O3D, bool R3D> bool run(
         if(IsRayRun(params.Beam)) {
             RunRayMode(params, outputs);
         } else {
+#ifdef BHC_BUILD_CUDA
+            checkCudaErrors(cudaSetDevice(GetInternal(params)->m_gpu));
+#endif
             RunFieldModesSelInfl(params, outputs);
         }
-        if(!exceptionStr.empty()) throw std::runtime_error(exceptionStr);
+        if(!GetInternal(params)->exceptionStr.empty()) {
+            throw std::runtime_error(GetInternal(params)->exceptionStr);
+        }
     } catch(const std::exception &e) {
-        api_okay              = false;
-        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+        GetInternal(params)->api_okay = false;
+        PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
         PRTFile << "Exception caught:\n" << e.what() << "\n";
     }
 
-    return api_okay;
+    return GetInternal(params)->api_okay;
 }
 
 #if BHC_ENABLE_2D
@@ -123,7 +124,7 @@ run<true, true>(bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 template<bool O3D, bool R3D> bool writeout(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    if(!api_okay) return false;
+    if(!GetInternal(params)->api_okay) return false;
 
     if(IsRayRun(params.Beam)) {
         // Ray mode
@@ -141,10 +142,10 @@ template<bool O3D, bool R3D> bool writeout(
             outputs.arrinfo);
     } else {
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
-        api_okay = false;
+        GetInternal(params)->api_okay = false;
     }
 
-    return api_okay;
+    return GetInternal(params)->api_okay;
 }
 
 #if BHC_ENABLE_2D

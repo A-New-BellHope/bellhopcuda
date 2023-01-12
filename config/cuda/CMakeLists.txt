@@ -23,7 +23,6 @@ include(SetupCUDA.cmake)
 
 set(addl_sources
     ${CMAKE_SOURCE_DIR}/src/UtilsCUDA.cuh
-    ${CMAKE_SOURCE_DIR}/src/logging.cu
 )
 
 bhc_add_libs_exes(cuda cu "${addl_sources}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "BHC_BUILD_CUDA=1")

@@ -31,7 +31,7 @@ template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
 {
     try {
         while(true) {
-            int32_t job = sharedJobID++;
+            int32_t job = GetInternal(params)->sharedJobID++;
             RayInitInfo rinit;
             if(!GetJobIndices<@BHCGENO3D@>(rinit, job, params.Pos, params.Angles)) break;
 
@@ -41,8 +41,8 @@ template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
                 params.beaminfo, outputs.eigen, outputs.arrinfo);
         }
     } catch(const std::exception &e) {
-        std::lock_guard<std::mutex> lock(exceptionMutex);
-        exceptionStr += std::string(e.what()) + "\n";
+        std::lock_guard<std::mutex> lock(GetInternal(params)->exceptionMutex);
+        GetInternal(params)->exceptionStr += std::string(e.what()) + "\n";
     }
 }
 

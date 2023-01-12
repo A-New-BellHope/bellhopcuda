@@ -34,13 +34,23 @@ namespace bhc {
  * initialize the params. You may modify the params after calling this and
  * before calling run().
  *
+ * You may use "multiple instances" of bellhopcxx / bellhopcuda within the same
+ * process by calling this (and the other functions below) with different params
+ * and outputs; there are no global variables in the library.
+ *
  * FileRoot: Relative path to environment file, without the .env extension. E.g.
  * path/to/MunkB_ray_rot (where path/to/MunkB_ray_rot.env and also path/to/
  * MunkB_ray_rot.ssp, path/to/MunkB_ray_rot.bty, etc. exist).
  *
  * outputCallback: Callback called by setup/run code which will be called for
- * messages (e.g. debug output, error messages). If nullptr is passed, will
- * open a PRTFile (<FileRoot>.prt) and put the messages in there.
+ * messages (e.g. debug output, error messages). If nullptr is passed, it will
+ * open a PRTFile (<FileRoot>.prt) and put the messages in there. If you are
+ * using multiple instances (multiple calls to setup with different params),
+ * and you pass a callback function here, the callback must be thread-safe as it
+ * will get called from each of the instances at the same time. If you are using
+ * multiple instances and PRTFiles (nullptr here), each instance must use a
+ * different FileRoot or there will be issues with the multiple instances trying
+ * to write to the same PRTFile.
  *
  * params, outputs: Just create uninitialized structs and pass them in to be
  * initialized. You may modify params after setup.
@@ -82,12 +92,6 @@ extern template BHC_API bool setup<true, true>(
  *
  * returns: false on fatal errors, true otherwise. If a fatal error occurs,
  * must call finalize() and setup() again before continuing to use the library.
- *
- * Don't call this from multiple threads at the same time (with different
- * parameters or in different 2D / Nx2D / 3D modes); there is only one static
- * copy of the functionality for synchronizing the different threads launched by
- * these functions, so this will not work correctly from multiple calls
- * simultaneously.
  */
 template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
@@ -131,8 +135,8 @@ extern template BHC_API bool writeout<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 /**
- * Frees memory. You may call run() many times, you do not have to call setup
- * - run - finalize every time.
+ * Frees memory. You may call run() many times (with changed parameters), you do
+ * not have to call setup - run - finalize every time.
  */
 template<bool O3D, bool R3D> void finalize(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);

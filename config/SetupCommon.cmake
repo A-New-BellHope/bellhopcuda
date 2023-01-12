@@ -77,8 +77,6 @@ set(common_source
     influence.hpp
     jobs.hpp
     ldio.hpp
-    logging.cpp
-    logging.hpp
     prtfileemu.hpp
     raymode.hpp
     readenv.cpp

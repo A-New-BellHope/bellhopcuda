@@ -1,7 +1,2 @@
 - Get rid of GlobalLog, replace with flags
 - Get rid of bail, replace with checking atomic errored variable
-
-- Combine Gaussian and hat
-
-- Get rid of all global / static variables to allow several instances
-

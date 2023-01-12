@@ -27,8 +27,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 #ifdef BHC_BUILD_CUDA
-int m_gpu = 0, d_warp, d_maxthreads, d_multiprocs;
-void setupGPU()
+template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
 {
     // Print info about all GPUs and which one is selected
     int num_gpus;
@@ -37,13 +36,13 @@ void setupGPU()
     cudaDeviceProp cudaProperties;
     for(int g = 0; g < num_gpus; ++g) {
         checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
-        if(g == m_gpu) {
+        if(g == GetInternal(params)->m_gpu) {
             GlobalLog(
                 "CUDA device: %s / compute %d.%d\n", cudaProperties.name,
                 cudaProperties.major, cudaProperties.minor);
         }
         /*
-        GlobalLog("%s", (g == m_gpu) ? "--> " : "    ");
+        GlobalLog("%s", (g == GetInternal(params)->m_gpu) ? "--> " : "    ");
         GlobalLog("GPU %d: %s, compute SM %d.%d\n",
             g, cudaProperties.name, cudaProperties.major, cudaProperties.minor);
         GlobalLog("      --Global/shared/constant memory: %lli, %d, %d\n",
@@ -58,15 +57,15 @@ void setupGPU()
     }
 
     // Store properties about used GPU
-    checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, m_gpu));
-    d_warp       = cudaProperties.warpSize;
-    d_maxthreads = cudaProperties.maxThreadsPerBlock;
-    d_multiprocs = cudaProperties.multiProcessorCount;
-    checkCudaErrors(cudaSetDevice(m_gpu));
+    checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, GetInternal(params)->m_gpu));
+    /*
+    GetInternal(params)->d_warp       = cudaProperties.warpSize;
+    GetInternal(params)->d_maxthreads = cudaProperties.maxThreadsPerBlock;
+    */
+    GetInternal(params)->d_multiprocs = cudaProperties.multiProcessorCount;
+    checkCudaErrors(cudaSetDevice(GetInternal(params)->m_gpu));
 }
 #endif
-
-bool api_okay = false;
 
 constexpr bool Init_Inline = false;
 
@@ -74,14 +73,12 @@ template<bool O3D, bool R3D> bool setup(
     const char *FileRoot, void (*outputCallback)(const char *message),
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    api_okay = true;
-    InitLog(outputCallback);
     params.internal       = new bhcInternal(FileRoot, outputCallback);
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
     try {
 #ifdef BHC_BUILD_CUDA
-        setupGPU();
+        setupGPU(params);
 #endif
 
         // Allocate main structs
@@ -359,11 +356,11 @@ template<bool O3D, bool R3D> bool setup(
         PRTFile << "\n";
 
     } catch(const std::exception &e) {
-        api_okay = false;
+        GetInternal(params)->api_okay = false;
         PRTFile << e.what() << "\n";
     }
 
-    return api_okay;
+    return GetInternal(params)->api_okay;
 }
 
 #if BHC_ENABLE_2D
@@ -385,15 +382,15 @@ template bool BHC_API setup<true, true>(
 template<bool O3D, bool R3D> void finalize(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    // IMPORTANT--if changes are made here, make the same changes in setup
-    // (i.e. setting the pointers to nullptr initially)
-
+    if(params.internal == nullptr) return;
+#ifdef BHC_BUILD_CUDA
+    // Memory was deallocated when the device was reset
+    if(!GetInternal(params)->api_okay) return;
+#endif
     delete GetInternal(params);
 
-#ifdef BHC_BUILD_CUDA
-    if(!api_okay) return; // Memory was deallocated when the device was reset
-#endif
-    api_okay = false;
+    // IMPORTANT--if changes are made here, make the same changes in setup
+    // (i.e. setting the pointers to nullptr initially)
 
     checkdeallocate(params.bdinfo->top.bd);
     checkdeallocate(params.bdinfo->bot.bd);
