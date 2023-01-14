@@ -30,8 +30,7 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile, BeamInfo *beami
         LDIFile SBPFile(FileRoot, ".sbp");
         if(!SBPFile.Good()) {
             PRTFile << "SBPFile = " << FileRoot << ".sbp\n";
-            GlobalLog("BELLHOP-ReadPat: Unable to open source beampattern file\n");
-            std::abort();
+            EXTERR("BELLHOP-ReadPat: Unable to open source beampattern file");
         }
 
         LIST(SBPFile);
@@ -58,8 +57,7 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile, BeamInfo *beami
     }
 
     if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)) {
-        GlobalLog("BELLHOP-ReadPat: Source beam pattern angles are not monotonic\n");
-        std::abort();
+        EXTERR("BELLHOP-ReadPat: Source beam pattern angles are not monotonic");
     }
 
     // convert dB to linear scale
@@ -158,8 +156,8 @@ template<bool O3D> inline void ReadBeamInfo(
             case 'Z': PRTFile << "Curvature zeroing invoked\n"; break;
             case 'S': PRTFile << "Standard curvature condition\n"; break;
             default:
-                GlobalLog("ReadEnvironment: Unknown curvature condition\n");
-                std::abort();
+                EXTERR(
+                    "ReadEnvironment: Unknown curvature condition '%c'", Beam->Type[2]);
             }
 
             PRTFile << "Epsilon multiplier " << Beam->epsMultiplier << "\n";
@@ -179,8 +177,9 @@ template<bool O3D> inline void ReadBeamInfo(
             PRTFile << "Beam windowing parameter  = " << Beam->iBeamWindow << "\n";
             PRTFile << "Component                 = " << Beam->Component << "\n";
         } else {
-            GlobalLog("ReadEnvironment: Unknown beam type (second letter of run type)\n");
-            std::abort();
+            EXTERR(
+                "ReadEnvironment: Unknown beam type (second letter of run type == '%c')",
+                Beam->RunType[1]);
         }
 
         PRTFile << "\n";

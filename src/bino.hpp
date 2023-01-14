@@ -72,12 +72,12 @@ public:
     void checkAndIncrement(const char *file, int fline, size_t bytes)
     {
         if(bytesWrittenThisRecord + bytes > recl) {
-            GlobalLog(
+            ExternalError(
+                internal_todo,
                 "%s:%d: DirectOFile overflow, %" PRIuMAX
                 " bytes already written, rec size %" PRIuMAX ", tried to write %" PRIuMAX
-                " more\n",
+                " more",
                 file, fline, bytesWrittenThisRecord, recl, bytes);
-            std::abort();
         }
         bytesWrittenThisRecord += bytes;
         if(record == highestRecord) {
@@ -142,8 +142,7 @@ public:
     template<typename T> void write(T v)
     {
         if(recstart < 0) {
-            GlobalLog("Missing record in UnformattedOFile!\n");
-            bail();
+            ExternalError(internal_todo, "Missing record in UnformattedOFile!");
         }
         ostr.write((const char *)&v, sizeof(T));
         recl += (int32_t)sizeof(T);
@@ -152,8 +151,7 @@ public:
     template<typename T> void write(T *arr, size_t n)
     {
         if(recstart < 0) {
-            GlobalLog("Missing record in UnformattedOFile!\n");
-            bail();
+            ExternalError(internal_todo, "Missing record in UnformattedOFile!");
         }
         for(size_t i = 0; i < n; ++i) ostr.write((const char *)&arr[i], sizeof(T));
         recl += (int32_t)(n * sizeof(T));

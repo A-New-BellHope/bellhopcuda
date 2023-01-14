@@ -38,7 +38,11 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
 
     // Common
     int32_t ns = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;
-    BASSERT(ns >= 1);
+    if(ns <= 0) {
+        EXTERR(
+            "Invalid number of sources: %d x %d y %d z", params.Pos->NSx, params.Pos->NSy,
+            params.Pos->NSz);
+    }
 
     // irregular or rectilinear grid
     params.Pos->NRz_per_range = IsIrregularGrid(params.Beam) ? 1 : params.Pos->NRz;
@@ -53,8 +57,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     } else if(IsArrivalsRun(params.Beam)) {
         InitArrivalsMode(outputs.arrinfo, params.maxThreads, O3D, params.Pos, PRTFile);
     } else {
-        GlobalLog("Invalid RunType %c\n", params.Beam->RunType[0]);
-        std::abort();
+        EXTERR("Invalid RunType %c", params.Beam->RunType[0]);
     }
 
     if(!IsRayRun(params.Beam)) { PreRun_Influence<O3D, R3D>(params.Beam, params.Pos); }
@@ -74,22 +77,19 @@ template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(
 #ifdef BHC_SSP_ENABLE_N2LINEAR
         RunFieldModesImpl<CfgSel<RT, IT, 'N'>, O3D, R3D>(params, outputs);
 #else
-        GlobalLog("N2-linear SSP (ssp->Type == 'N') was not enabled at compile time!");
-        bail();
+        EXTERR("N2-linear SSP (ssp->Type == 'N') was not enabled at compile time!");
 #endif
     } else if(st == 'C') {
 #ifdef BHC_SSP_ENABLE_CLINEAR
         RunFieldModesImpl<CfgSel<RT, IT, 'C'>, O3D, R3D>(params, outputs);
 #else
-        GlobalLog("C-linear SSP (ssp->Type == 'C') was not enabled at compile time!");
-        bail();
+        EXTERR("C-linear SSP (ssp->Type == 'C') was not enabled at compile time!");
 #endif
     } else if(st == 'S') {
 #ifdef BHC_SSP_ENABLE_CUBIC
         RunFieldModesImpl<CfgSel<RT, IT, 'S'>, O3D, R3D>(params, outputs);
 #else
-        GlobalLog("Cubic spline SSP (ssp->Type == 'S') was not enabled at compile time!");
-        bail();
+        EXTERR("Cubic spline SSP (ssp->Type == 'S') was not enabled at compile time!");
 #endif
     } else if(st == 'P') {
 #ifdef BHC_SSP_ENABLE_PCHIP
@@ -99,49 +99,41 @@ template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(
             RunFieldModesImpl<CfgSel<RT, IT, 'P'>, O3D, R3D>(params, outputs);
 #ifdef BHC_LIMIT_FEATURES
         } else {
-            GlobalLog("Nx2D or 3D PCHIP SSP not supported"
-                      "because BHC_LIMIT_FEATURES enabled!");
-            bail();
+            EXTERR("Nx2D or 3D PCHIP SSP not supported"
+                   "because BHC_LIMIT_FEATURES enabled!");
         }
 #endif
 #else
-        GlobalLog("PCHIP SSP (ssp->Type == 'P') was not enabled at compile time!");
-        bail();
+        EXTERR("PCHIP SSP (ssp->Type == 'P') was not enabled at compile time!");
 #endif
     } else if(st == 'Q') {
 #ifdef BHC_SSP_ENABLE_QUAD
         if constexpr(!O3D) {
             RunFieldModesImpl<CfgSel<RT, IT, 'Q'>, O3D, R3D>(params, outputs);
         } else {
-            GlobalLog("Quad SSP not supported in Nx2D or 3D mode!");
-            bail();
+            EXTERR("Quad SSP not supported in Nx2D or 3D mode!");
         }
 #else
-        GlobalLog("Quad SSP (ssp->Type == 'Q') was not enabled at compile time!");
-        bail();
+        EXTERR("Quad SSP (ssp->Type == 'Q') was not enabled at compile time!");
 #endif
     } else if(st == 'H') {
 #ifdef BHC_SSP_ENABLE_HEXAHEDRAL
         if constexpr(O3D) {
             RunFieldModesImpl<CfgSel<RT, IT, 'H'>, O3D, R3D>(params, outputs);
         } else {
-            GlobalLog("Hexahedral SSP not supported in 2D mode!");
-            bail();
+            EXTERR("Hexahedral SSP not supported in 2D mode!");
         }
 #else
-        GlobalLog("Hexahedral SSP (ssp->Type == 'H') was not enabled at compile time!");
-        bail();
+        EXTERR("Hexahedral SSP (ssp->Type == 'H') was not enabled at compile time!");
 #endif
     } else if(st == 'A') {
 #ifdef BHC_SSP_ENABLE_ANALYTIC
         RunFieldModesImpl<CfgSel<RT, IT, 'A'>, O3D, R3D>(params, outputs);
 #else
-        GlobalLog("Analytic SSP (ssp->Type == 'A') was not enabled at compile time!");
-        bail();
+        EXTERR("Analytic SSP (ssp->Type == 'A') was not enabled at compile time!");
 #endif
     } else {
-        GlobalLog("Invalid ssp->Type %c!", st);
-        bail();
+        EXTERR("Invalid ssp->Type %c!", st);
     }
 }
 
@@ -153,42 +145,35 @@ template<char IT, bool O3D, bool R3D> inline void RunFieldModesSelRun(
 #ifdef BHC_RUN_ENABLE_TL
         RunFieldModesSelSSP<'C', IT, O3D, R3D>(params, outputs);
 #else
-        GlobalLog("Transmission loss runs (Beam->RunType[0] == 'C', 'S', or 'I') "
-                  "were not enabled at compile time!");
-        bail();
+        EXTERR("Transmission loss runs (Beam->RunType[0] == 'C', 'S', or 'I') "
+               "were not enabled at compile time!");
 #endif
     } else if(rt == 'E') {
 #ifdef BHC_RUN_ENABLE_EIGENRAYS
         if constexpr(InflType<IT>::IsCerveny()) {
-            GlobalLog("Cerveny influence does not support eigenrays!");
-            bail();
+            EXTERR("Cerveny influence does not support eigenrays!");
         } else {
             RunFieldModesSelSSP<'E', IT, O3D, R3D>(params, outputs);
         }
 #else
-        GlobalLog("Eigenrays runs (Beam->RunType[0] == 'E') "
-                  "were not enabled at compile time!");
-        bail();
+        EXTERR("Eigenrays runs (Beam->RunType[0] == 'E') "
+               "were not enabled at compile time!");
 #endif
     } else if(rt == 'A' || rt == 'a') {
 #ifdef BHC_RUN_ENABLE_ARRIVALS
         if constexpr(InflType<IT>::IsCerveny()) {
-            GlobalLog("Cerveny influence does not support arrivals!");
-            bail();
+            EXTERR("Cerveny influence does not support arrivals!");
         } else {
             RunFieldModesSelSSP<'A', IT, O3D, R3D>(params, outputs);
         }
 #else
-        GlobalLog("Arrivals runs (Beam->RunType[0] == 'A' or 'a') "
-                  "were not enabled at compile time!");
-        bail();
+        EXTERR("Arrivals runs (Beam->RunType[0] == 'A' or 'a') "
+               "were not enabled at compile time!");
 #endif
     } else if(rt == 'R') {
-        GlobalLog("Internal error, ray run 'R' is not a field mode!");
-        bail();
+        EXTERR("Internal error, ray run 'R' is not a field mode!");
     } else {
-        GlobalLog("Invalid Beam->RunType[0] %c!", rt);
-        bail();
+        EXTERR("Invalid Beam->RunType[0] %c!", rt);
     }
 }
 
@@ -201,14 +186,12 @@ template<bool O3D, bool R3D> inline void RunFieldModesSelInfl(
         if constexpr(!R3D) {
             RunFieldModesSelRun<'R', O3D, R3D>(params, outputs);
         } else {
-            GlobalLog("Cerveny ray-centered influence (Beam->Type[0] == 'R') "
-                      "is not supported in 3D mode!");
-            bail();
+            EXTERR("Cerveny ray-centered influence (Beam->Type[0] == 'R') "
+                   "is not supported in 3D mode!");
         }
 #else
-        GlobalLog("Cerveny ray-centered influence (Beam->Type[0] == 'R') "
-                  "was not enabled at compile time!");
-        bail();
+        EXTERR("Cerveny ray-centered influence (Beam->Type[0] == 'R') "
+               "was not enabled at compile time!");
 #endif
     } else if(it == 'C') {
 #ifdef BHC_INFL_ENABLE_CERVENY_CART
@@ -219,62 +202,54 @@ template<bool O3D, bool R3D> inline void RunFieldModesSelInfl(
                 RunFieldModesSelRun<'C', O3D, R3D>(params, outputs);
 #ifdef BHC_LIMIT_FEATURES
             } else {
-                GlobalLog("Nx2D Cerveny Cartesian influence (Beam->Type[0] == 'C') "
-                          "is not supported because BHC_LIMIT_FEATURES is enabled!");
-                bail();
+                EXTERR("Nx2D Cerveny Cartesian influence (Beam->Type[0] == 'C') "
+                       "is not supported because BHC_LIMIT_FEATURES is enabled!");
             }
 #endif
         } else {
-            GlobalLog("Cerveny Cartesian influence (Beam->Type[0] == 'C') "
-                      "is not supported in 3D mode!");
-            bail();
+            EXTERR("Cerveny Cartesian influence (Beam->Type[0] == 'C') "
+                   "is not supported in 3D mode!");
         }
 #else
-        GlobalLog("Cerveny Cartesian influence (Beam->Type[0] == 'C') "
-                  "was not enabled at compile time!");
-        bail();
+        EXTERR("Cerveny Cartesian influence (Beam->Type[0] == 'C') "
+               "was not enabled at compile time!");
 #endif
     } else if(it == 'G' || it == '^' || it == ' ' || it == 'B') {
 #ifdef BHC_INFL_ENABLE_GEOM_CART
         RunFieldModesSelRun<'G', O3D, R3D>(params, outputs);
 #else
-        GlobalLog("Geometric Cartesian influence (Beam->Type[0] == 'G', '^', ' ' "
-                  "hat / 'B' Gaussian) was not enabled at compile time!");
-        bail();
+        EXTERR("Geometric Cartesian influence (Beam->Type[0] == 'G', '^', ' ' "
+               "hat / 'B' Gaussian) was not enabled at compile time!");
 #endif
     } else if(it == 'g' || it == 'b') {
 #ifdef BHC_INFL_ENABLE_GEOM_RAYCEN
 #ifdef BHC_LIMIT_FEATURES
         if(it == 'b') {
             if constexpr(!O3D) {
-                GlobalLog("2D Gaussian RayCen (Beam->Type[0] == 'b') "
-                          "is not supported because BHC_LIMIT_FEATURES is enabled!");
-                bail();
+                EXTERR("2D Gaussian RayCen (Beam->Type[0] == 'b') "
+                       "is not supported because BHC_LIMIT_FEATURES is enabled!");
             }
         }
 #endif
         RunFieldModesSelRun<'g', O3D, R3D>(params, outputs);
 #else
-        GlobalLog("Geometric ray-centered influence (Beam->Type[0] == 'g' hat / "
-                  "'b' Gaussian) was not enabled at compile time!");
-        bail();
+        EXTERR("Geometric ray-centered influence (Beam->Type[0] == 'g' hat / "
+               "'b' Gaussian) was not enabled at compile time!");
 #endif
     } else if(it == 'S') {
 #ifdef BHC_INFL_ENABLE_SGB
         if constexpr(!R3D) {
             RunFieldModesSelRun<'S', O3D, R3D>(params, outputs);
         } else {
-            GlobalLog("Simple Gaussian beams influence (Beam->Type[0] == 'S') "
-                      "is not supported in 3D mode!");
+            EXTERR("Simple Gaussian beams influence (Beam->Type[0] == 'S') "
+                   "is not supported in 3D mode!");
         }
 #else
-        GlobalLog("Simple Gaussian beams influence (Beam->Type[0] == 'S') "
-                  "was not enabled at compile time!");
-        bail();
+        EXTERR("Simple Gaussian beams influence (Beam->Type[0] == 'S') "
+               "was not enabled at compile time!");
 #endif
     } else {
-        GlobalLog("Invalid Beam->Type[0] %c!", it);
-        bail();
+        EXTERR("Invalid Beam->Type[0] %c!", it);
     }
 }
 

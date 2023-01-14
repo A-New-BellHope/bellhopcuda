@@ -155,18 +155,20 @@ public:
 private:
     void PrintLoc()
     {
-        GlobalLog(
-            "%s:%d reading %s:%d: ", codefile.c_str(), codeline, _filename.c_str(), line);
+        ExternalWarning(
+            internal_todo, "%s:%d reading %s:%d: ", codefile.c_str(), codeline,
+            _filename.c_str(), line);
     }
     void Error(std::string msg)
     {
         PrintLoc();
-        GlobalLog("%s\nLast token is: \"%s\"\n", msg.c_str(), lastitem.c_str());
-        if(_abort_on_error) std::abort();
+        ExternalWarning(
+            internal_todo, "%s\nLast token is: \"%s\"\n", msg.c_str(), lastitem.c_str());
+        if(_abort_on_error) ExternalError(internal_todo, "LDIFile abort on error");
     }
     void IgnoreRestOfLine()
     {
-        if(_debug) GlobalLog("-- ignoring rest of line\n");
+        if(_debug) ExternalWarning(internal_todo, "-- ignoring rest of line\n");
         f.peek();
         if(f.eof()) Error("End of file");
         while(true) {
@@ -182,11 +184,14 @@ private:
     {
         if(lastitemcount > 0) {
             --lastitemcount;
-            if(_debug) GlobalLog("-- lastitemcount, returning %s\n", lastitem.c_str());
+            if(_debug)
+                ExternalWarning(
+                    internal_todo, "-- lastitemcount, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(isafterslash) {
-            if(_debug) GlobalLog("-- isafterslash, returning null\n");
+            if(_debug)
+                ExternalWarning(internal_todo, "-- isafterslash, returning null\n");
             return nullitem;
         }
         // Whitespace before start of item
@@ -206,13 +211,15 @@ private:
         if(f.peek() == ',') {
             f.get();
             isafternewline = false;
-            if(_debug) GlobalLog("-- empty comma, returning null\n");
+            if(_debug) ExternalWarning(internal_todo, "-- empty comma, returning null\n");
             return nullitem;
         }
         // Main item
         if(_warnline >= 0 && _warnline != line) {
             PrintLoc();
-            GlobalLog("Warning: input continues onto next line, likely mistake\n");
+            ExternalWarning(
+                internal_todo,
+                "Warning: input continues onto next line, likely mistake\n");
             _warnline = line;
         }
         lastitem      = "";
@@ -283,7 +290,9 @@ private:
         }
         if(quotemode > 0) Error("Quotes or parentheses not closed");
         if(f.eof()) {
-            if(_debug) GlobalLog("-- eof, returning %s\n", lastitem.c_str());
+            if(_debug)
+                ExternalWarning(
+                    internal_todo, "-- eof, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(quotemode < 0) {
@@ -294,11 +303,16 @@ private:
                     + std::string("' after end of quoted string"));
         }
         if(isafternewline) {
-            if(_debug) GlobalLog("-- isafternewline, returning %s\n", lastitem.c_str());
+            if(_debug)
+                ExternalWarning(
+                    internal_todo, "-- isafternewline, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(isafterslash) {
-            if(_debug) GlobalLog("-- new isafterslash, returning %s\n", lastitem.c_str());
+            if(_debug)
+                ExternalWarning(
+                    internal_todo, "-- new isafterslash, returning %s\n",
+                    lastitem.c_str());
             return lastitem;
         }
         // Whitespace and comma after item
@@ -329,7 +343,8 @@ private:
         }
         // Finally
         if(lastitemcount > 0) --lastitemcount;
-        if(_debug) GlobalLog("-- normal returning %s\n", lastitem.c_str());
+        if(_debug)
+            ExternalWarning(internal_todo, "-- normal returning %s\n", lastitem.c_str());
         return lastitem;
     }
 

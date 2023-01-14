@@ -52,7 +52,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
     const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl, const SSPStructure *ssp,
     const Position *Pos, const AnglesStructure *Angles, const FreqInfo *freqinfo,
     const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, EigenInfo *eigen,
-    const ArrInfo *arrinfo)
+    const ArrInfo *arrinfo, ErrState *errState)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     SSPSegState iSeg;
@@ -80,30 +80,27 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
     int32_t Nsteps        = 0; // not actually needed in TL mode, debugging only
 
     for(int32_t istep = 0; istep < MaxN - 1; ++istep) {
-        int32_t dStep = RayUpdate<CFG, O3D, R3D>(
+        bool twoSteps = RayUpdate<CFG, O3D, R3D>(
             point0, point1, point2, DistEndTop, DistEndBot, iSmallStepCtr, org, iSeg, bds,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
         if(!Step_Influence<CFG, O3D, R3D>(
                point0, point1, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg, Pos,
                Beam, eigen, arrinfo)) {
 #ifdef STEP_DEBUGGING
-            GlobalLog("Step_Influence terminated ray\n");
+            printf("Step_Influence terminated ray\n");
 #endif
             break;
         }
         ++is;
-        if(dStep == 2) {
+        if(twoSteps) {
             if(!Step_Influence<CFG, O3D, R3D>(
                    point1, point2, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg,
                    Pos, Beam, eigen, arrinfo))
                 break;
             point0 = point2;
             ++is;
-        } else if(dStep == 1) {
-            point0 = point1;
         } else {
-            GlobalLog("Invalid dStep: %d\n", dStep);
-            bail();
+            point0 = point1;
         }
         if(RayTerminate<O3D, R3D>(
                point0, Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
@@ -111,7 +108,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
             break;
     }
 
-    // GlobalLog("Nsteps %d\n", Nsteps);
+    // printf("Nsteps %d\n", Nsteps);
 }
 
 } // namespace bhc

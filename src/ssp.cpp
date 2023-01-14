@@ -143,14 +143,12 @@ void ReadHexahedral(PrintFileEmu &PRTFile, SSPStructure *ssp, std::string FileRo
     SSPFile.Read(ssp->Seg.z, ssp->Nz);
 
     if(ssp->Nx < 2 || ssp->Ny < 2 || ssp->Nz < 2) {
-        GlobalLog("ssp: Hexahedral: You must have at least two points in x, y, z "
-                  "directions in your 3D SSP field\n");
-        std::abort();
+        EXTERR("ssp: Hexahedral: You must have at least two points in x, y, z "
+               "directions in your 3D SSP field");
     }
 
     if(ssp->Nz >= MaxSSP) {
-        GlobalLog("ssp: Hexahedral: Number of SSP points in Z exceeds limit\n");
-        std::abort();
+        EXTERR("ssp: Hexahedral: Number of SSP points in Z exceeds limit");
     }
 
     checkallocate(ssp->cMat, ssp->Nx * ssp->Ny * ssp->Nz);
@@ -208,10 +206,7 @@ void UpdateSSP(
     ssp->dirty = false;
 
     if(ssp->Type == 'H') {
-        if(!o3d) {
-            GlobalLog("UpdateSSP: 3D profile not supported in 2D mode\n");
-            bail();
-        }
+        if(!o3d) { EXTERR("UpdateSSP: 3D profile not supported in 2D mode"); }
         // LP: ssp->c and ssp->cz are not well-defined in hexahedral mode, and
         // if the number of depths is changed (ssp->Nz vs. ssp->NPts), computing
         // them may read uninitialized data.
@@ -225,11 +220,10 @@ void UpdateSSP(
             // verify that the depths are monotone increasing
             if(iz > 0) {
                 if(ssp->z[iz] <= ssp->z[iz - 1]) {
-                    GlobalLog(
+                    EXTERR(
                         "UpdateSSP: The depths in the SSP must be monotone increasing "
-                        "(%f)\n",
+                        "(%f)",
                         ssp->z[iz]);
-                    std::abort();
                 }
             }
 
@@ -255,27 +249,21 @@ void UpdateSSP(
         case 'P': // monotone PCHIP ACS profile option
             if(o3d) {
 #ifdef BHC_LIMIT_FEATURES
-                GlobalLog("UpdateSSP: PCHIP is not supported in BELLHOP3D in "
-                          "3D or Nx2D mode, but can be supported in " BHC_PROGRAMNAME
-                          "if you turn off BHC_LIMIT_FEATURES\n");
-                bail();
+                EXTERR("UpdateSSP: PCHIP is not supported in BELLHOP3D in "
+                       "3D or Nx2D mode, but can be supported in " BHC_PROGRAMNAME
+                       "if you turn off BHC_LIMIT_FEATURES");
 #else
-                GlobalLog("UpdateSSP: warning: PCHIP not supported in BELLHOP3D in "
-                          "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME "\n");
+                EXTWARN("UpdateSSP: warning: PCHIP not supported in BELLHOP3D in "
+                        "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME);
 #endif
             }
             InitcPCHIP(ssp);
             break;
         case 'Q':
-            if(o3d) {
-                GlobalLog("UpdateSSP: 2D profile not supported in 3D or Nx2D mode\n");
-                bail();
-            }
+            if(o3d) { EXTERR("UpdateSSP: 2D profile not supported in 3D or Nx2D mode"); }
             InitQuad(ssp);
             break;
-        default:
-            GlobalLog("UpdateSSP: Invalid profile option %c\n", ssp->Type);
-            std::abort();
+        default: EXTERR("UpdateSSP: Invalid profile option %c", ssp->Type);
         }
     }
 }
@@ -314,10 +302,7 @@ void ReadSSP(
         // LP: FLT_EPSILON is not a typo
         if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON) {
             ssp->Nz = ssp->NPts;
-            if(ssp->NPts == 1) {
-                GlobalLog("ReadSSP: The SSP must have at least 2 points\n");
-                std::abort();
-            }
+            if(ssp->NPts == 1) { EXTERR("ReadSSP: The SSP must have at least 2 points"); }
 
             if(ssp->Type == 'Q') {
                 // read in extra SSP data for 2D
@@ -334,8 +319,7 @@ void ReadSSP(
     }
 
     // Fall through means too many points in the profile
-    GlobalLog("ReadSSP: Number of SSP points exceeds limit\n");
-    std::abort();
+    EXTERR("ReadSSP: Number of SSP points exceeds limit");
 }
 
 void InitializeSSP(

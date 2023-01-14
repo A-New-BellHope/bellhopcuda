@@ -49,14 +49,14 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     int32_t is            = 0; // index for a step along the ray
 
     while(true) {
-        int32_t dStep = RayUpdate<CFG, O3D, R3D>(
+        bool twoSteps = RayUpdate<CFG, O3D, R3D>(
             ray[is], ray[is + 1], ray[is + 2], DistEndTop, DistEndBot, iSmallStepCtr, org,
             iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
         if(Nsteps >= 0 && is >= Nsteps) {
             Nsteps = is + 2;
             break;
         }
-        is += dStep;
+        is += (twoSteps ? 2 : 1);
         if(RayTerminate<O3D, R3D>(
                ray[is], Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
                DistEndBot, org, bdinfo, Beam))
@@ -68,8 +68,7 @@ template<bool O3D, bool R3D> inline void OpenRAYFile(
     LDOFile &RAYFile, std::string FileRoot, const bhcParams<O3D, R3D> &params)
 {
     if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)) {
-        GlobalLog("OpenRAYFile not in ray trace or eigenrays mode\n");
-        std::abort();
+        EXTERR("OpenRAYFile not in ray trace or eigenrays mode");
     }
     RAYFile.open(FileRoot + ".ray");
     RAYFile << params.Title << '\n';
@@ -162,9 +161,12 @@ template<bool O3D, bool R3D> inline bool IsRayCopyMode(const RayInfo<O3D, R3D> *
 
 template<bool O3D, bool R3D> inline bool RunRay(
     RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, rayPt<R3D> *localmem,
-    int32_t job, RayInitInfo &rinit, int32_t &Nsteps)
+    int32_t job, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState)
 {
-    BASSERT(job < rayinfo->NRays);
+    if(job >= rayinfo->NRays) {
+        RunError(errState, BHC_ERR_JOBNUM);
+        return false;
+    }
     rayPt<R3D> *ray;
     if(IsRayCopyMode<O3D, R3D>(rayinfo)) {
         ray = localmem;
@@ -206,15 +208,14 @@ template<bool O3D, bool R3D> inline bool RunRay(
             rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
             params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
     } else {
-        GlobalLog("Invalid ssp->Type %c!", st);
-        bail();
+        RunError(errState, BHC_ERR_INVALID_SSP_TYPE);
     }
 
     bool ret = true;
     if(IsRayCopyMode<O3D, R3D>(rayinfo)) {
         uint32_t p = AtomicFetchAdd(&rayinfo->NPoints, (uint32_t)Nsteps);
         if(p + Nsteps > rayinfo->MaxPoints) {
-            GlobalLog("Ran out of memory for rays\n");
+            RunWarning(errState, BHC_WARN_RAYS_OUTOFMEMORY);
             rayinfo->results[job].ray = nullptr;
             ret                       = false;
         } else {

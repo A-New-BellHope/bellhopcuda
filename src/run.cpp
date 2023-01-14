@@ -23,7 +23,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 template<bool O3D, bool R3D> void RayModeWorker(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, ErrState *errState)
 {
     SetupThread();
 
@@ -37,8 +37,10 @@ template<bool O3D, bool R3D> void RayModeWorker(
             int32_t Nsteps = -1;
             RayInitInfo rinit;
             if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
-            if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps))
+            if(!RunRay<O3D, R3D>(
+                   outputs.rayinfo, params, localmem, job, rinit, Nsteps, errState)) {
                 break;
+            }
         }
 
     } catch(const std::exception &e) {
@@ -51,29 +53,35 @@ template<bool O3D, bool R3D> void RayModeWorker(
 
 #if BHC_ENABLE_2D
 template void RayModeWorker<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
+    ErrState *errState);
 #endif
 #if BHC_ENABLE_NX2D
 template void RayModeWorker<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
+    ErrState *errState);
 #endif
 #if BHC_ENABLE_3D
 template void RayModeWorker<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs,
+    ErrState *errState);
 #endif
 
 template<bool O3D, bool R3D> inline void RunRayMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
+    ErrState errState;
+    ResetErrState(&errState);
     uint32_t nthreads = GetNumThreads(params.maxThreads);
-    GlobalLog(
-        "%d threads, copy mode %s\n", nthreads,
+    EXTWARN(
+        "%d threads, copy mode %s", nthreads,
         IsRayCopyMode<O3D, R3D>(outputs.rayinfo) ? "true" : "false");
     std::vector<std::thread> threads;
     for(uint32_t i = 0; i < nthreads; ++i)
-        threads.push_back(
-            std::thread(RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs)));
+        threads.push_back(std::thread(
+            RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs), &errState));
     for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
+    CheckReportErrors(&errState);
 }
 
 template<bool O3D, bool R3D> bool run(

@@ -94,29 +94,7 @@ namespace bhc {
         (void)x; \
     } while(false)
 
-/**
- * Returns a pointer to only the last portion of the source filename.
- */
-/*
-inline const char *SOURCE_FILENAME(const char *file)
-{
-   static const char *const tag = "/bellhopcuda/";
-   static const int taglen      = 13;
-   const char *x                = file;
-   for(; *x; ++x) {
-       int i = 0;
-       for(; i < taglen && x[i]; ++i) {
-           if(x[i] != tag[i]) break;
-       }
-       if(i == taglen) break;
-   }
-   if(*x) return x + taglen;
-   return file;
-}
-*/
-
-#define BASSERT_STR(x) #x
-#define BASSERT_XSTR(x) BASSERT_STR(x)
+// bail() to be used for debugging only, not normal error reporting.
 #ifdef __CUDA_ARCH__
 [[noreturn]] __forceinline__ __device__ void dev_bail()
 {
@@ -124,21 +102,8 @@ inline const char *SOURCE_FILENAME(const char *file)
     __builtin_unreachable();
 }
 #define bail() dev_bail()
-#define BASSERT(statement) \
-    if(__builtin_expect(!(statement), 0)) { \
-        GlobalLog("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
-        __trap(); \
-    } \
-    REQUIRESEMICOLON
 #else
 #define bail() throw std::runtime_error("bhc::bail()")
-#define BASSERT(statement) \
-    if(!(statement)) { \
-        throw std::runtime_error("Assertion \"" #statement \
-                                 "\" failed line " BASSERT_XSTR(__LINE__) "!\n"); \
-    } \
-    REQUIRESEMICOLON
-//+ std::string(SOURCE_FILENAME(__FILE__))
 #endif
 
 #ifdef _MSC_VER
@@ -488,10 +453,8 @@ static inline std::string trim_copy(std::string s)
 
 } // namespace bhc
 
-// TODO
-#define GlobalLog printf
-
 #define _BHC_INCLUDING_COMPONENTS_ 1
+#include "errors.hpp"
 #include "ldio.hpp"
 #include "bino.hpp"
 #include "prtfileemu.hpp"
@@ -745,7 +708,7 @@ template<typename REAL> inline void EchoVector(
 
 HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
 {
-    GlobalLog(
+    printf(
         "%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n", label, m[0][0], m[1][0],
         m[0][1], m[1][1]);
 }

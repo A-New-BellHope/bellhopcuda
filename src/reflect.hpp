@@ -56,17 +56,18 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(
         // iRight = 1;
         RInt.r   = FL(0.0); // rtb.r[iLeft].r
         RInt.phi = FL(0.0); // rtb.r[iLeft].phi
-        GlobalLog(
-            "Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
-            "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
-            thetaIntr, rtb.r[iLeft].theta);
+        RunWarning(errState, BHC_WARN_OUTSIDE_REFLCOEF);
+        // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
+        //        "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
+        //        thetaIntr, rtb.r[iLeft].theta);
     } else if(thetaIntr > rtb.r[iRight].theta) {
         // iLeft = rtb.NPts - 2;
         RInt.r   = FL(0.0); // rtb.r[iRight].r
         RInt.phi = FL(0.0); // rtb.r[iRight].phi
-        // GlobalLog("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
-        //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
-        //     thetaIntr, rtb.r[iRight].theta);
+        // RunWarning(errState, BHC_WARN_OUTSIDE_REFLCOEF);
+        // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
+        //        "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
+        //        thetaIntr, rtb.r[iRight].theta);
     } else {
         // Search for bracketing abscissas: STD::log2(rtb.NPts) stabs required for a
         // bracket
@@ -105,9 +106,8 @@ inline void ReadReflectionCoefficient(
         LDIFile BRCFile(FileRoot + ".brc");
         if(!BRCFile.Good()) {
             PRTFile << "BRCFile = " << FileRoot + ".brc\n";
-            GlobalLog("ReadReflectionCoefficient: Unable to open Bottom Reflection "
-                      "Coefficient file\n");
-            std::abort();
+            EXTERR("ReadReflectionCoefficient: Unable to open Bottom Reflection "
+                   "Coefficient file");
         }
 
         LIST(BRCFile);
@@ -137,9 +137,8 @@ inline void ReadReflectionCoefficient(
         LDIFile TRCFile(FileRoot + ".trc");
         if(!TRCFile.Good()) {
             PRTFile << "TRCFile = " << FileRoot + ".trc\n";
-            GlobalLog("ReadReflectionCoefficient: Unable to open Top Reflection "
-                      "Coefficient file\n");
-            std::abort();
+            EXTERR("ReadReflectionCoefficient: Unable to open Top Reflection "
+                   "Coefficient file");
         }
 
         LIST(TRCFile);
@@ -163,9 +162,8 @@ inline void ReadReflectionCoefficient(
     // Optionally read in internal reflection coefficient data
 
     if(BotRC == 'P') {
-        GlobalLog("Internal reflections not supported by BELLHOP and therefore "
-                  "not supported by " BHC_PROGRAMNAME "\n");
-        std::abort();
+        EXTERR("Internal reflections not supported by BELLHOP and therefore "
+               "not supported by " BHC_PROGRAMNAME);
     }
 }
 
@@ -253,10 +251,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
             newPoint, o.ccpx.real(), nBdry, rayt_tilde, rayn1_tilde, rayn2_tilde,
             RL(-1.0)); // reflected
 
-        // GlobalLog("point0 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
+        // printf("point0 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
         //     rayt.x, rayt.y, rayt.z, rayn1.x, rayn1.y, rayn1.z, rayn2.x, rayn2.y,
         //     rayn2.z);
-        // GlobalLog("point1 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
+        // printf("point1 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
         //     rayt_tilde.x, rayt_tilde.y, rayt_tilde.z, rayn1_tilde.x, rayn1_tilde.y,
         //     rayn1_tilde.z, rayn2_tilde.x, rayn2_tilde.y, rayn2_tilde.z);
 
@@ -289,7 +287,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         real cn1jump = glm::dot(o.gradc, -rayn1_tilde - rayn1);
         real cn2jump = glm::dot(o.gradc, -rayn2_tilde - rayn2);
         real csjump  = -glm::dot(o.gradc, rayt_tilde - rayt);
-        // GlobalLog("cn1jump cn2jump csjump %g, %g, %g\n", cn1jump, cn2jump, csjump);
+        // printf("cn1jump cn2jump csjump %g, %g, %g\n", cn1jump, cn2jump, csjump);
 
         // // not sure if cn2 needs a sign flip also
         // if(isTop){
@@ -377,7 +375,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
             Refl = (hs.rho * gamma1 - o.rho * gamma2)
                 / (hs.rho * gamma1 + o.rho * gamma2);
 
-            // GlobalLog("%f %f %f %f %f\n", STD::abs(Refl), o.ccpx.real(), hs.cP, o.rho,
+            // printf("%f %f %f %f %f\n", STD::abs(Refl), o.ccpx.real(), hs.cP, o.rho,
             // hs.rho);
             if constexpr(R3D) {
                 // Hack to make a wall (where the bottom slope is more than 80 degrees) be
@@ -426,9 +424,9 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
                                                                          // reflection
                                                                          // coef.
             /*
-            GlobalLog("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
+            printf("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
                 hs.cP.real(), hs.cP.imag(), hs.rho);
-            GlobalLog("kx kz f g Refl (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
+            printf("kx kz f g Refl (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
                 kx.real(), kx.imag(), kz.real(), kz.imag(), f.real(), f.imag(),
                 g.real(), g.imag(), Refl.real(), Refl.imag());
             */
@@ -519,11 +517,12 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
             }
         }
     } else {
-        GlobalLog("Reflect: Unknown boundary condition type\n");
-        bail();
+        RunError(errState, BHC_ERR_BOUNDARY_CONDITION_TYPE);
+        newPoint.Amp   = NAN;
+        newPoint.Phase = NAN;
     }
 
-    // GlobalLog("Reflection amp changed from to %g %g\n", oldPoint.Amp, newPoint.Amp);
+    // printf("Reflection amp changed from to %g %g\n", oldPoint.Amp, newPoint.Amp);
 }
 
 } // namespace bhc

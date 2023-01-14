@@ -181,8 +181,8 @@ inline cpx crci(
     if(alphaT > c) {
         PRTFile << "Complex sound speed: " << ret << "\n";
         PRTFile << "Usually this means you have an attenuation that is way too high\n";
-        GlobalLog("attenuation: crci: The complex sound speed has an imaginary part > "
-                  "real part\n");
+        EXTWARN("attenuation: crci: The complex sound speed has an imaginary part > "
+                "real part");
     }
 
     return ret;

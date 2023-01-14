@@ -32,10 +32,7 @@ public:
         if(outputCallback == nullptr) {
             std::string s(FileRoot);
             ofs.open(s + ".prt");
-            if(!ofs.good()) {
-                GlobalLog("Could not open print file: %s.prt\n", FileRoot);
-                bail();
-            }
+            if(!ofs.good()) { EXTERR("Could not open print file: %s.prt", FileRoot); }
             ofs << std::unitbuf;
         } else {
             callback = outputCallback;

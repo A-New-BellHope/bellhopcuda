@@ -59,9 +59,7 @@ void ReadTopOpt(
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()) {
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            GlobalLog(BHC_PROGRAMNAME
-                      " - ReadEnvironment: Unable to open the SSP file\n");
-            std::abort();
+            EXTERR(BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file");
         }
     } break;
     case 'H': {
@@ -72,14 +70,11 @@ void ReadTopOpt(
         SSPFile.open(FileRoot + ".ssp");
         if(!SSPFile.good()) {
             PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            GlobalLog(BHC_PROGRAMNAME
-                      " - ReadEnvironment: Unable to open the SSP file\n");
+            EXTERR(BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file");
         }
     } break;
     case 'A': PRTFile << "    Analytic SSP option\n"; break;
-    default:
-        GlobalLog("ReadEnvironment: Unknown option for SSP approximation\n");
-        std::abort();
+    default: EXTERR("ReadEnvironment: Unknown option for SSP approximation");
     }
 
     // Attenuation options
@@ -91,7 +86,7 @@ void ReadTopOpt(
     case 'W': PRTFile << "    Attenuation units: dB/wavelength\n"; break;
     case 'Q': PRTFile << "    Attenuation units: Q\n"; break;
     case 'L': PRTFile << "    Attenuation units: Loss parameter\n"; break;
-    default: GlobalLog("ReadEnvironment: Unknown attenuation units\n"); std::abort();
+    default: EXTERR("ReadEnvironment: Unknown attenuation units");
     }
 
     // optional addition of volume attenuation using standard formulas
@@ -130,9 +125,7 @@ void ReadTopOpt(
             PRTFile << "      a0 = " << atten->bio[iBio].a0 << "\n";
         }
     case ' ': break;
-    default:
-        GlobalLog("ReadEnvironment: Unknown top option letter in fourth position\n");
-        std::abort();
+    default: EXTERR("ReadEnvironment: Unknown top option letter in fourth position");
     }
 
     switch(TopOpt[4]) {
@@ -174,7 +167,7 @@ template<bool R3D> void ReadRunType(
     case 'C': PRTFile << "Coherent TL calculation\n"; break;
     case 'A': PRTFile << "Arrivals calculation, ASCII  file output\n"; break;
     case 'a': PRTFile << "Arrivals calculation, binary file output\n"; break;
-    default: GlobalLog("ReadEnvironment: Unknown RunType selected\n"); std::abort();
+    default: EXTERR("ReadEnvironment: Unknown RunType selected");
     }
 
     switch(RunType[1]) {
@@ -198,8 +191,8 @@ template<bool R3D> void ReadRunType(
     case 'I':
         PRTFile << "Irregular grid: Receivers at Rr[:] x Rz[:]\n";
         if(Pos->NRz != Pos->NRr)
-            GlobalLog("ReadEnvironment: Irregular grid option selected with NRz not "
-                      "equal to Nr\n");
+            EXTWARN("ReadEnvironment: Irregular grid option selected with NRz not "
+                    "equal to Nr");
         memcpy(PlotType, "irregular ", 10);
         break;
     default:
@@ -212,18 +205,15 @@ template<bool R3D> void ReadRunType(
     case '2':
         PRTFile << "N x 2D calculation (neglects horizontal refraction)\n";
         if constexpr(R3D) {
-            GlobalLog("This is a 2D or Nx2D environment file, but you are "
-                      "running " BHC_PROGRAMNAME " in 3D mode\n");
-            std::abort();
+            EXTERR("This is a 2D or Nx2D environment file, but you are "
+                   "running " BHC_PROGRAMNAME " in 3D mode");
         }
         break;
     case '3':
         PRTFile << "3D calculation\n";
         if constexpr(!R3D) {
-            GlobalLog(
-                "This is a 3D environment file, but you are running " BHC_PROGRAMNAME
-                " in 2D or Nx2D mode\n");
-            std::abort();
+            EXTERR("This is a 3D environment file, but you are running " BHC_PROGRAMNAME
+                   " in 2D or Nx2D mode");
         }
         break;
     default: RunType[5] = '2';
@@ -249,9 +239,8 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     LDIFile ENVFile(FileRoot + ".env");
     if(!ENVFile.Good()) {
         PRTFile << "ENVFile = " << FileRoot << ".env\n";
-        GlobalLog(BHC_PROGRAMNAME
-                  " - ReadEnvironment: Unable to open the environmental file\n");
-        std::abort();
+        EXTERR(BHC_PROGRAMNAME
+               " - ReadEnvironment: Unable to open the environmental file");
     }
 
     // Prepend model name to title
@@ -273,8 +262,8 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     ENVFile.Read(NMedia);
     PRTFile << "Dummy parameter NMedia = " << NMedia << "\n";
     if(NMedia != 1) {
-        GlobalLog("ReadEnvironment: Only one medium or layer is allowed in BELLHOP; "
-                  "sediment layers must be handled using a reflection coefficient\n");
+        EXTWARN("ReadEnvironment: Only one medium or layer is allowed in BELLHOP; "
+                "sediment layers must be handled using a reflection coefficient");
     }
 
     ReadTopOpt(Bdry->Top.hs.Opt, Bdry->Top.hs.bc, FileRoot, ENVFile, PRTFile, ssp, atten);
@@ -327,11 +316,9 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     case '_':
     case ' ': break;
     default:
-        GlobalLog(
-            "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt[1] == "
-            "'%c'\n",
+        EXTERR(
+            "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt[1] == '%c'",
             Bdry->Bot.hs.Opt[1]);
-        std::abort();
     }
 
     Bdry->Bot.hs.bc = Bdry->Bot.hs.Opt[0];

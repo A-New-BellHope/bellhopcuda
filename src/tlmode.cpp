@@ -51,10 +51,7 @@ void WriteHeader(
     LRecl = bhc::max(LRecl, Pos->NRr * (int32_t)sizeof(cpxf));
 
     SHDFile.open(FileName, LRecl);
-    if(!SHDFile.good()) {
-        GlobalLog("Could not open SHDFile: %s\n", FileName.c_str());
-        std::abort();
-    }
+    if(!SHDFile.good()) { EXTERR("Could not open SHDFile: %s", FileName.c_str()); }
     LRecl /= 4;
     SHDFile.rec(0);
     DOFWRITE(SHDFile, &LRecl, 4);
@@ -145,8 +142,7 @@ template<bool O3D, bool R3D> void WriteOutTL(
                     o = RayStartNominalSSP<CfgSel<'C', 'G', 'A'>, O3D>(
                         isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
                 } else {
-                    GlobalLog("Invalid ssp->Type %c!", st);
-                    bail();
+                    EXTERR("Invalid ssp->Type %c!", st);
                 }
                 cpx epsilon1, epsilon2;
                 if constexpr(R3D) {

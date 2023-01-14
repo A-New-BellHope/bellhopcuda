@@ -218,7 +218,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
             defaultEps = true;
         } else if(IsBeamWidthWKB(Beam)) {
             if(R3D) {
-                GlobalLog("Warning, WKB beams unimplemented in BELLHOP3D\n");
+                RunWarning(errState, BHC_WARN_WKB_UNIMPLEMENTED_3D);
             } else {
                 halfwidth  = REAL_MAX;
                 cz         = gradc.y;
@@ -227,33 +227,24 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
                     : ((-STD::sin(angle) / STD::cos(SQ(angle))) * c * c / cz);
             }
         } else if(IsBeamWidthCerveny(Beam)) {
-            GlobalLog(
-                "Warning, Cerveny beam *width* (not type) %s\n",
-                R3D ? "buggy in BELLHOP3D" : "not implemented in BELLHOP (2D)");
+            RunWarning(errState, BHC_WARN_CERVENY_WIDTH_BUGGY);
         } else {
-            GlobalLog(
-                "Invalid beam width option %c buggily ignored in PickEpsilon\n",
-                Beam->Type[1]);
+            RunWarning(errState, BHC_WARN_INVALID_WIDTH_BUGGY);
         }
     } else if(IsGeometricInfl(Beam)) {
         if constexpr(R3D) {
             zeroEps = true;
         } else {
             if(Beam->Type[0] == '^' || Beam->Type[0] == ' ') {
-                GlobalLog("Warning, Beam->Type[0] = ^ or ' ' not properly handled in "
-                          "BELLHOP (2D)\n");
+                RunWarning(errState, BHC_WARN_BEAMTYPE_CARETSPACE);
                 defaultHalfwidth = defaultEps = false;
-            } else if(IsGaussianGeomInfl(Beam) && IsRayCenInfl(Beam)) {
-                GlobalLog(BHC_PROGRAMNAME ": Geo Gaussian beams in ray-cent. coords. not "
-                                          "implemented in BELLHOP (2D)\n");
-                bail();
             }
         }
     } else if(IsSGBInfl(Beam)) {
         // LP: Supported here in 3D even though not supported in Influence 3D.
         NULLSTATEMENT;
     } else {
-        GlobalLog("Invalid Beam->Type[0] %c ignored in PickEpsilon\n", Beam->Type[0]);
+        RunWarning(errState, BHC_WARN_INVALID_TYPE_BUGGY);
         defaultHalfwidth = defaultEps = false;
     }
 
@@ -372,8 +363,7 @@ HOST_DEVICE inline vec2 FlipBeamForImage(
     } else if(image == 3) { // Bottom-reflected beam
         return vec2(x.x, FL(2.0) * Bdry->Bot.hs.Depth - x.y);
     } else {
-        GlobalLog("Image index %d must be 1, 2, or 3\n", image);
-        bail();
+        RunError(errState, BHC_ERR_INVALID_IMAGE_INDEX);
     }
 }
 
@@ -461,7 +451,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
         if(IsCoherentRun(Beam)) {
             // coherent TL
             dfield = Cpx2Cpxf(cnst * w * STD::exp(-J * (omega * delay - phaseInt)));
-            // GlobalLog("%20.17f %20.17f\n", dfield.real(), dfield.imag());
+            // printf("%20.17f %20.17f\n", dfield.real(), dfield.imag());
             // omega * SQ(n) / (FL(2.0) * SQ(point1.c) * delay)))) // curvature correction
             // [LP: 2D only]
         } else {
@@ -489,49 +479,41 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(
         if constexpr(R3D) {
             // LP: The Influence3D (Cerveny) function is commented out; was
             // obviously implemented at some point.
-            GlobalLog(
-                IsCartesianInfl(Beam) ? "Run Type 'C' not supported at this time\n"
-                                      : "Invalid Run Type\n");
-            bail();
+            EXTERR(
+                IsCartesianInfl(Beam) ? "Run Type 'C' not supported at this time"
+                                      : "Invalid Run Type");
         } else if constexpr(O3D) {
             if(IsCartesianInfl(Beam)) {
 #ifdef BHC_LIMIT_FEATURES
-                GlobalLog("Nx2D Cerveny Cartesian is not supported by BELLHOP3D "
-                          "but can be supported by " BHC_PROGRAMNAME " if you turn off "
-                          "BHC_LIMIT_FEATURES\n");
-                bail();
+                EXTERR("Nx2D Cerveny Cartesian is not supported by BELLHOP3D "
+                       "but can be supported by " BHC_PROGRAMNAME " if you turn off "
+                       "BHC_LIMIT_FEATURES");
 #else
-                GlobalLog("Warning: Nx2D Cerveny Cartesian is not supported by "
-                          "BELLHOP3D, but is supported by " BHC_PROGRAMNAME "\n");
+                EXTWARN("Warning: Nx2D Cerveny Cartesian is not supported by "
+                        "BELLHOP3D, but is supported by " BHC_PROGRAMNAME);
 #endif
             }
         }
         if(!IsTLRun(Beam)) {
-            GlobalLog("Cerveny influence does not support eigenrays or arrivals\n");
-            bail();
+            EXTERR("Cerveny influence does not support eigenrays or arrivals");
         }
     } else if(IsSGBInfl(Beam)) {
-        if constexpr(R3D) {
-            GlobalLog("Invalid Run Type\n");
-            bail();
-        }
+        if constexpr(R3D) { EXTERR("Invalid Run Type"); }
     } else if(IsGeometricInfl(Beam)) {
         if constexpr(!O3D) {
             if(IsRayCenInfl(Beam) && IsGaussianGeomInfl(Beam)) {
 #ifdef BHC_LIMIT_FEATURES
-                GlobalLog("2D Gaussian RayCen is not supported by BELLHOP "
-                          "but can be supported by " BHC_PROGRAMNAME " if you turn off "
-                          "BHC_LIMIT_FEATURES\n");
-                bail();
+                EXTERR("2D Gaussian RayCen is not supported by BELLHOP "
+                       "but can be supported by " BHC_PROGRAMNAME " if you turn off "
+                       "BHC_LIMIT_FEATURES");
 #else
-                GlobalLog("Warning: 2D Gaussian RayCen is not supported by "
-                          "BELLHOP, but is supported by " BHC_PROGRAMNAME "\n");
+                EXTWARN("Warning: 2D Gaussian RayCen is not supported by "
+                        "BELLHOP, but is supported by " BHC_PROGRAMNAME);
 #endif
             }
         }
     } else {
-        GlobalLog("Invalid Run Type\n");
-        bail();
+        EXTERR("Invalid Run Type");
     }
 
     for(int32_t i = 0; i < Pos->Ntheta; ++i) {
@@ -728,7 +710,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRa
                     nSq   = SQ(n);
                     if(gamma.imag() > 0) {
 #ifndef BHC_USE_FLOATS
-                        GlobalLog("Unbounded beam\n");
+                        RunWarning(errState, BHC_WARN_UNBOUNDED_BEAM);
 #endif
                         continue;
                     }
@@ -846,7 +828,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCa
 
         if(gamma.imag() > FL(0.0)) {
 #ifndef BHC_USE_FLOATS
-            GlobalLog("Unbounded beam\n");
+            RunWarning(errState, BHC_WARN_UNBOUNDED_BEAM);
 #endif
             continue;
         }
@@ -874,8 +856,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCa
                     deltaz   = -zR + FL(2.0) * Bdry->Bot.hs.Depth - x.y;
                     Polarity = RL(1.0); // assumes rigid bottom
                 } else {
-                    GlobalLog("Invalid Beam->Nimage %d\n", Beam->Nimage);
-                    bail();
+                    RunError(errState, BHC_ERR_INVALID_IMAGE_INDEX);
                 }
                 if(inflray.omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2) {
                     contri += Polarity * point1.Amp
@@ -943,7 +924,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
 #ifdef INFL_DEBUGGING_IR
                 if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
                    && iz == INFL_DEBUGGING_IZ) {
-                    GlobalLog(
+                    printf(
                         "is itheta iz ir %3d %3d %3d %3d: Skipping b/c l1/l2\n", is,
                         itheta, iz, ir);
                 }
@@ -957,7 +938,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
 #ifdef INFL_DEBUGGING_IR
             if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
                && iz == INFL_DEBUGGING_IZ) {
-                GlobalLog(
+                printf(
                     "is itheta iz ir %3d %3d %3d %3d: Skipping b/c qFinal\n", is, itheta,
                     iz, ir);
             }
@@ -970,10 +951,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
 #ifdef INFL_DEBUGGING_IR
         if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
            && iz == INFL_DEBUGGING_IZ) {
-            GlobalLog("is itheta iz ir %3d %3d %3d %3d:\n", is, itheta, iz, ir);
+            printf("is itheta iz ir %3d %3d %3d %3d:\n", is, itheta, iz, ir);
             PrintMatrix(qInterp, "qInterp");
-            GlobalLog("qFinal n1 n2 %13.8g %13.8g %13.8g\n", qFinal, n1, n2);
-            GlobalLog("n1prime %13.8f n2prime %13.8f\n", n1prime, n2prime);
+            printf("qFinal n1 n2 %13.8g %13.8g %13.8g\n", qFinal, n1, n2);
+            printf("n1prime %13.8f n2prime %13.8f\n", n1prime, n2prime);
         }
 #endif
 
@@ -991,7 +972,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
 #ifdef INFL_DEBUGGING_IR
     if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
        && iz == INFL_DEBUGGING_IZ) {
-        GlobalLog(
+        printf(
             "is itheta iz ir %3d %3d %3d %3d: (a+b) %g BeamWindow %g\n", is, itheta, iz,
             ir, beamCoordDist, inflray.BeamWindow * sigma);
     }
@@ -1031,12 +1012,12 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
 #ifdef INFL_DEBUGGING_IR
     if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
        && iz == INFL_DEBUGGING_IZ) {
-        GlobalLog(
+        printf(
             "is itheta iz ir %3d %3d %3d %3d: cnst w delay phaseInt %g %g (%g,%g) %g\n",
             is, itheta, iz, ir, cnst, w, delay.real(), delay.imag(), phaseInt);
     }
 #endif
-    // GlobalLog("%d\n", iz);
+    // printf("%d\n", iz);
 
     ApplyContribution<CFG, O3D, R3D>(
         uAllSources, cnst, w, inflray.omega, delay, phaseInt, RcvrDeclAngle,
@@ -1083,7 +1064,7 @@ Step_InfluenceGeoRayCen(
         inflray.rayn1     = rayn1;
         inflray.rayn2     = rayn2;
 #ifdef INFL_DEBUGGING_IR
-        GlobalLog("Skipping b/c dupl\n");
+        printf("Skipping b/c dupl\n");
 #endif
         return true;
     }
@@ -1127,7 +1108,7 @@ Step_InfluenceGeoRayCen(
                        Pos)) {
 #ifdef INFL_DEBUGGING_IR
                     if(itheta == INFL_DEBUGGING_ITHETA && iz == INFL_DEBUGGING_IZ) {
-                        GlobalLog("Skipping b/c deltaA\n");
+                        printf("Skipping b/c deltaA\n");
                     }
 #endif
                     continue;
@@ -1137,7 +1118,7 @@ Step_InfluenceGeoRayCen(
                        Pos)) {
 #ifdef INFL_DEBUGGING_IR
                     if(itheta == INFL_DEBUGGING_ITHETA && iz == INFL_DEBUGGING_IZ) {
-                        GlobalLog("Skipping b/c deltaB\n");
+                        printf("Skipping b/c deltaB\n");
                     }
 #endif
                     continue;
@@ -1155,7 +1136,7 @@ Step_InfluenceGeoRayCen(
                        && mA * mB >= RL(0.0)) {
 #ifdef INFL_DEBUGGING_IR
                         if(itheta == INFL_DEBUGGING_ITHETA && iz == INFL_DEBUGGING_IZ) {
-                            GlobalLog(
+                            printf(
                                 "Skipping b/c MaxRadius_m %g mA %g mB %g\n", MaxRadius_m,
                                 mA, mB);
                         }
@@ -1166,7 +1147,7 @@ Step_InfluenceGeoRayCen(
                        && nA * nB >= RL(0.0)) {
 #ifdef INFL_DEBUGGING_IR
                         if(itheta == INFL_DEBUGGING_ITHETA && iz == INFL_DEBUGGING_IZ) {
-                            GlobalLog(
+                            printf(
                                 "Skipping b/c MaxRadius_n %g nA %g nB %g\n", MaxRadius_n,
                                 nA, nB);
                         }
@@ -1188,7 +1169,7 @@ Step_InfluenceGeoRayCen(
             if(irA == irB) {
 #ifdef INFL_DEBUGGING_IR
                 if(itheta == INFL_DEBUGGING_ITHETA && iz == INFL_DEBUGGING_IZ) {
-                    GlobalLog("Skipping b/c irA == irB\n");
+                    printf("Skipping b/c irA == irB\n");
                 }
 #endif
                 continue;
@@ -1242,7 +1223,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
         rA = glm::length(XYCOMP(point0.x) - XYCOMP(inflray.xs));
         rB = glm::length(XYCOMP(point1.x) - XYCOMP(inflray.xs));
         if(IsDuplicatePoint<R3D>(rB, rA, false)) {
-            // GlobalLog("Skipping is %d bc dupl point 1\n", is);
+            // printf("Skipping is %d bc dupl point 1\n", is);
             return true;
         }
         // LP: This is silly logic, see comments in influence3D.f90
@@ -1260,12 +1241,12 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
     // if duplicate point in ray, skip to next step along the ray
     // LP: 2D: and don't update rA (inflray.x) for next time
     if(IsSmallValue<R3D>(rlen, point1.x.x, false)) {
-        // GlobalLog("Skipping is bc dupl point 2\n");
+        // printf("Skipping is bc dupl point 2\n");
         return true;
     }
     rayt /= rlen;
 
-    // GlobalLog("is rA rB %d %20.17f %20.17f\n", is, rA, rB);
+    // printf("is rA rB %d %20.17f %20.17f\n", is, rA, rB);
 
     // LP: Ray normals
     VEC23<R3D> rayn1, rayn2; // LP: e1, e2 in 3D; rayn, (none) in 2D
@@ -1345,7 +1326,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                         glm::dot(XYCOMP(x_rcvr) - XYCOMP(x_ray), vec2(-rayt.y, rayt.x)));
                     // LP: Commented out in Gaussian
                     if(IsHatGeomInfl(Beam) && m_prime > inflray.BeamWindow * L_diag) {
-                        // GlobalLog("Skip theta b/c m_prime %g > L_diag %g\n", m_prime,
+                        // printf("Skip theta b/c m_prime %g > L_diag %g\n", m_prime,
                         // L_diag);
                         continue;
                     }
@@ -1361,7 +1342,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                         XYCOMP(x_rcvr) - XYCOMP(inflray.xs),
                         XYCOMP(x_ray) - XYCOMP(inflray.xs));
                     if(s < RL(0.0)) {
-                        // GlobalLog("Skip theta b/c s\n");
+                        // printf("Skip theta b/c s\n");
                         continue;
                     }
 
@@ -1373,7 +1354,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                     real n_ray_z = rayt.x * e_theta.y - rayt.y * e_theta.x;
 
                     if(STD::abs(n_ray_z) < RL(1e-9)) {
-                        // GlobalLog("Skip theta b/c L_z divide by zero %g\n", n_ray_z);
+                        // printf("Skip theta b/c L_z divide by zero %g\n", n_ray_z);
                         continue; // avoid divide by zero
                     }
                     real L_z = inflray.BeamWindow * L_diag / STD::abs(n_ray_z);
@@ -1383,7 +1364,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                     zmax = bhc::max(point0.x.z, point1.x.z) + L_z;
 
                     // if(inflray.ir == 7 && itheta == 59){
-                    //     GlobalLog("step ir itheta %d %d %d\n", is, inflray.ir, itheta);
+                    //     printf("step ir itheta %d %d %d\n", is, inflray.ir, itheta);
                     // }
                 } else {
                     IGNORE_UNUSED(itheta);
@@ -1482,7 +1463,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
 
         IncPhaseIfCaustic<false>(inflray, q, false);
 
-        // GlobalLog("is ir %d %d\n", is, inflray.ir);
+        // printf("is ir %d %d\n", is, inflray.ir);
 
         for(int32_t iz = 0; iz < Pos->NRz_per_range; ++iz) {
             real deltaz = Pos->Rz[iz] - x.y; // ray to rcvr distance
@@ -1537,8 +1518,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
     // See PreRun_Influence, make sure these remain in sync.
     if constexpr(CFG::infl::IsCerveny()) {
         if constexpr(R3D) {
-            GlobalLog("Internal error with infl template system");
-            bail();
+            RunError(errState, BHC_ERR_TEMPLATE);
         } else {
             if constexpr(CFG::infl::IsRayCen()) {
                 return Step_InfluenceCervenyRayCen<CFG, O3D>(
@@ -1551,8 +1531,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
         }
     } else if constexpr(CFG::infl::IsSGB()) {
         if constexpr(R3D) {
-            GlobalLog("Internal error with infl template system");
-            bail();
+            RunError(errState, BHC_ERR_TEMPLATE);
         } else {
             return Step_InfluenceSGB<CFG, O3D>(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);

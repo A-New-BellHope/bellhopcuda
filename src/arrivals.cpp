@@ -98,9 +98,7 @@ template<bool O3D, bool R3D> void WriteOutArrivals(
             BARRFile.write(Pos->theta, Pos->Ntheta);
         }
         break;
-    default:
-        GlobalLog("FinalizeArrivalsMode called while not in arrivals mode\n");
-        bail();
+    default: EXTERR("FinalizeArrivalsMode called while not in arrivals mode");
     }
     // LP: originally most of WriteArrivals[ASCII/Binary][3D]
     for(int32_t isz = 0; isz < Pos->NSz; ++isz) {

@@ -32,24 +32,26 @@ template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
     // Print info about all GPUs and which one is selected
     int num_gpus;
     checkCudaErrors(cudaGetDeviceCount(&num_gpus));
-    BASSERT(num_gpus >= 1);
+    if(num_gpus <= 0) {
+        EXTERR("No CUDA GPUs found; is the driver installed and loaded?");
+    }
     cudaDeviceProp cudaProperties;
     for(int g = 0; g < num_gpus; ++g) {
         checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
         if(g == GetInternal(params)->m_gpu) {
-            GlobalLog(
-                "CUDA device: %s / compute %d.%d\n", cudaProperties.name,
+            EXTWARN(
+                "CUDA device: %s / compute %d.%d", cudaProperties.name,
                 cudaProperties.major, cudaProperties.minor);
         }
         /*
-        GlobalLog("%s", (g == GetInternal(params)->m_gpu) ? "--> " : "    ");
-        GlobalLog("GPU %d: %s, compute SM %d.%d\n",
+        EXTWARN("%s GPU %d: %s, compute SM %d.%d",
+            (g == GetInternal(params)->m_gpu) ? "-->" : "   "
             g, cudaProperties.name, cudaProperties.major, cudaProperties.minor);
-        GlobalLog("      --Global/shared/constant memory: %lli, %d, %d\n",
+        EXTWARN("      --Global/shared/constant memory: %lli, %d, %d",
             cudaProperties.totalGlobalMem,
             cudaProperties.sharedMemPerBlock,
             cudaProperties.totalConstMem);
-        GlobalLog("      --Warp/threads/SMPs: %d, %d, %d\n" ,
+        EXTWARN("      --Warp/threads/SMPs: %d, %d, %d" ,
             cudaProperties.warpSize,
             cudaProperties.maxThreadsPerBlock,
             cudaProperties.multiProcessorCount);

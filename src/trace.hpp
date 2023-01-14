@@ -85,10 +85,11 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
            && (rinit.isx < 0 || rinit.isx >= Pos->NSx || rinit.isy < 0
                || rinit.isy >= Pos->NSy || rinit.ibeta < 0
                || rinit.ibeta >= Angles->beta.n))) {
-        GlobalLog("Invalid ray init indexes!\n");
-        bail();
+        RunError(errState, BHC_ERR_RAYINIT);
+        // printf("Invalid ray init indexes!\n");
+        return false;
     }
-    // GlobalLog("Tracing azimuthal %d declination %d beam\n", rinit.ibeta, rinit.ialpha);
+    // printf("Tracing azimuthal %d declination %d beam\n", rinit.ibeta, rinit.ialpha);
 
     // LP: This part from BellhopCore
 
@@ -121,10 +122,11 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
                     / DalphaOpt);
 
         if(IsCoherentRun(Beam) && Angles->alpha.n < NalphaOpt && rinit.ialpha == 0) {
-            GlobalLog(
-                "Warning in " BHC_PROGRAMNAME
-                " : Too few beams\nNalpha should be at least = %d\n",
-                NalphaOpt);
+            RunWarning(errState, BHC_WARN_TOO_FEW_BEAMS);
+            // printf(
+            //     "Warning in " BHC_PROGRAMNAME
+            //     " : Too few beams\nNalpha should be at least = %d\n",
+            //     NalphaOpt);
         }
     }
 
@@ -211,15 +213,16 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         point0.x, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
 
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)) {
-        GlobalLog("Terminating the ray trace because the source is on or outside the "
-                  "boundaries\n");
+        RunWarning(errState, BHC_WARN_SOURCE_OUTSIDE_BOUNDARIES);
+        // printf("Terminating the ray trace because the source is on or outside the "
+        //           "boundaries\n");
         /*
         if(DistBegTop <= FL(0.0)){
-            GlobalLog("point0.x %f,%f bds.top.x %f,%f bds.top.n %f,%f DistBegTop %f\n",
+            printf("point0.x %f,%f bds.top.x %f,%f bds.top.n %f,%f DistBegTop %f\n",
                 point0.x.x, point0.x.y, bds.top.x.x, bds.top.x.y,
                 bds.top.n.x, bds.top.n.y, DistBegTop);
         }else{
-            GlobalLog("point0.x %f,%f bds.bot.x %f,%f bds.bot.n %f,%f DistBegBot %f\n",
+            printf("point0.x %f,%f bds.bot.x %f,%f bds.bot.n %f,%f DistBegBot %f\n",
                 point0.x.x, point0.x.y, bds.bot.x.x, bds.bot.x.y,
                 bds.bot.n.x, bds.bot.n.y, DistBegBot);
         }
@@ -233,22 +236,23 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
 /**
  * LP: Pulled out contents of ray update loop. Returns the number of ray steps
  * taken (i.e. normally 1, or 2 if reflected).
+ *
+ * Returns whether reflection happened and therefore a second step was taken.
  */
-template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     const rayPt<R3D> &point0, rayPt<R3D> &point1, rayPt<R3D> &point2, real &DistEndTop,
     real &DistEndBot, int32_t &iSmallStepCtr, const Origin<O3D, R3D> &org,
     SSPSegState &iSeg, BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo,
     const ReflectionInfo *refl, const SSPStructure *ssp, const FreqInfo *freqinfo,
     const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs)
 {
-    int32_t numRaySteps = 1;
     bool topRefl, botRefl, flipTopDiag, flipBotDiag;
     Step<CFG, O3D, R3D>(
         point0, point1, bds, Beam, xs, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl,
         flipTopDiag, flipBotDiag);
     /*
     if(point0.x == point1.x){
-        GlobalLog("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
+        printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
         bail();
     }
     */
@@ -272,7 +276,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
 
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl) {
-        // GlobalLog(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
+        // printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
         const BdryInfoTopBot<O3D> &bdi     = topRefl ? bdinfo->top : bdinfo->bot;
         const BdryStateTopBot<O3D> &bdstb  = topRefl ? bds.top : bds.bot;
         const HSInfo &hs                   = topRefl ? Bdry.Top.hs : Bdry.Bot.hs;
@@ -337,13 +341,13 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
             point1, point2, hs, topRefl, tInt, nInt, rcurv, freqinfo->freq0, refltb, Beam,
             org, ssp, iSeg);
         // Incrementing bounce count moved to Reflect
-        numRaySteps = 2;
-        x_o         = RayToOceanX(point2.x, org);
+        x_o = RayToOceanX(point2.x, org);
         Distances<R3D>(
             x_o, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
+        return true;
     }
 
-    return numRaySteps;
+    return false;
 }
 
 /**
@@ -411,32 +415,33 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
 #ifdef STEP_DEBUGGING
         if(leftbox) {
             if constexpr(O3D) {
-                GlobalLog(
+                printf(
                     "Ray left beam box (%g,%g,%g)\n", Beam->Box.x, Beam->Box.y,
                     Beam->Box.z);
             } else {
-                GlobalLog("Ray left beam box (%g,%g)\n", Beam->Box.x, Beam->Box.y);
+                printf("Ray left beam box (%g,%g)\n", Beam->Box.x, Beam->Box.y);
             }
         } else if(escapedboundaries) {
-            GlobalLog(
+            printf(
                 "Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g "
                 "DistEndBot %g\n",
                 DistBegTop, DistEndTop, DistBegBot, DistEndBot);
         } else if(lostenergy) {
-            GlobalLog("Ray energy dropped to %g\n", point.Amp);
+            printf("Ray energy dropped to %g\n", point.Amp);
         } else if(backward) {
-            GlobalLog("Ray is going backwards\n");
+            printf("Ray is going backwards\n");
         } else if(toomanysmallsteps) {
-            GlobalLog("Too many small steps\n");
+            printf("Too many small steps\n");
         } else {
-            GlobalLog("Internal error in RayTerminate\n");
+            printf("Internal error in RayTerminate\n");
             bail();
         }
 #endif
         Nsteps = is + 1;
         return true;
     } else if(is >= MaxN - 3) {
-        GlobalLog("Warning in TraceRay: Insufficient storage for ray trajectory\n");
+        RunWarning(errState, BHC_WARN_ONERAY_OUTOFMEMORY);
+        // printf("Warning in TraceRay: Insufficient storage for ray trajectory\n");
         Nsteps = is;
         return true;
     }

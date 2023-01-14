@@ -25,7 +25,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 template<bool O3D, bool R3D> void EigenModePostWorker(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, ErrState *errState)
 {
     SetupThread();
 
@@ -36,13 +36,7 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
     try {
         while(true) {
             uint32_t job = GetInternal(params)->sharedJobID++;
-            if(job >= outputs.eigen->neigen) break;
-            if(job >= outputs.eigen->memsize) {
-                GlobalLog(
-                    "Had %d eigenrays but only %d fit in memory\n", outputs.eigen->neigen,
-                    outputs.eigen->memsize);
-                break;
-            }
+            if(job >= STD::min(outputs.eigen->neigen, outputs.eigen->memsize)) break;
             EigenHit *hit  = &outputs.eigen->hits[job];
             int32_t Nsteps = hit->is;
             RayInitInfo rinit;
@@ -51,8 +45,10 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
             rinit.isz    = hit->isz;
             rinit.ialpha = hit->ialpha;
             rinit.ibeta  = hit->ibeta;
-            if(!RunRay<O3D, R3D>(outputs.rayinfo, params, localmem, job, rinit, Nsteps)) {
-                GlobalLog("EigenModePostWorker RunRay failed\n");
+            if(!RunRay<O3D, R3D>(
+                   outputs.rayinfo, params, localmem, job, rinit, Nsteps, errState)) {
+                // Already gave out of memory error; that is the only condition leading
+                // here printf("EigenModePostWorker RunRay failed\n");
             }
         }
 
@@ -66,15 +62,18 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
 
 #if BHC_ENABLE_2D
 template void EigenModePostWorker<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
+    ErrState *errState);
 #endif
 #if BHC_ENABLE_NX2D
 template void EigenModePostWorker<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
+    ErrState *errState);
 #endif
 #if BHC_ENABLE_3D
 template void EigenModePostWorker<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs,
+    ErrState *errState);
 #endif
 
 template<bool O3D, bool R3D> void WriteOutEigenrays(
@@ -82,16 +81,25 @@ template<bool O3D, bool R3D> void WriteOutEigenrays(
 {
     InitRayMode<O3D, R3D>(outputs.rayinfo, params, outputs.eigen->neigen);
 
-    GlobalLog("%d eigenrays\n", (int)outputs.eigen->neigen);
+    EXTWARN("%d eigenrays\n", (int)outputs.eigen->neigen);
+    if(outputs.eigen->neigen > outputs.eigen->memsize) {
+        EXTWARN(
+            "Had %d eigenrays but only %d fit in memory\n", outputs.eigen->neigen,
+            outputs.eigen->memsize);
+    }
     std::vector<std::thread> threads;
     GetInternal(params)->exceptionStr = "";
     GetInternal(params)->sharedJobID  = 0;
-    uint32_t nthreads                 = GetNumThreads(params.maxThreads);
+    ErrState errState;
+    ResetErrState(&errState);
+    uint32_t nthreads = GetNumThreads(params.maxThreads);
     for(uint32_t i = 0; i < nthreads; ++i)
         threads.push_back(std::thread(
-            EigenModePostWorker<O3D, R3D>, std::cref(params), std::ref(outputs)));
+            EigenModePostWorker<O3D, R3D>, std::cref(params), std::ref(outputs),
+            &errState));
     for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
 
+    CheckReportErrors(&errState);
     if(!GetInternal(params)->exceptionStr.empty()) {
         throw std::runtime_error(GetInternal(params)->exceptionStr);
     }

@@ -51,7 +51,7 @@ public:
         high_resolution_clock::time_point tend = high_resolution_clock::now();
         double dt = (duration_cast<duration<double>>(tend - tstart)).count();
         dt *= 1000.0;
-        GlobalLog("%s: %f ms\n", label, dt);
+        ExternalWarning(todo_internal, "%s: %f ms", label, dt);
     }
 
 private:
@@ -89,7 +89,7 @@ public:
             ss << names[i] << " = (" << counts[i] << "/" << mins[i] << "/"
                << accumulators[i] << "/" << maxes[i] << ") ms, ";
         }
-        GlobalLog("%s\n", ss.str().c_str());
+        ExternalWarning(todo_internal, "%s", ss.str().c_str());
     }
 
 private:

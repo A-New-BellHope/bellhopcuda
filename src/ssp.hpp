@@ -99,12 +99,18 @@ HOST_DEVICE inline void cPCHIP(SSP_2D_FN_ARGS)
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
     real xt = x.y - ssp->z[iSeg.z];
-    if(STD::abs(xt) > RL(1.0e10)) { GlobalLog("Invalid xt %g\n", xt); }
-    for(int32_t i = 0; i < 4; ++i)
-        if(STD::abs(ssp->cCoef[i][iSeg.z]) > RL(1.0e10))
-            GlobalLog(
-                "Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSeg.z,
-                ssp->cCoef[i][iSeg.z].real(), ssp->cCoef[i][iSeg.z].imag());
+    if(STD::abs(xt) > RL(1.0e10)) {
+        RunWarning(errState, BHC_WARN_CPCHIP_INVALIDXT);
+        // printf("Invalid xt %g\n", xt);
+    }
+    for(int32_t i = 0; i < 4; ++i) {
+        if(STD::abs(ssp->cCoef[i][iSeg.z]) > RL(1.0e10)) {
+            RunWarning(errState, BHC_WARN_CPCHIP_INVALIDCCOEF);
+            // printf(
+            //     "Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSeg.z,
+            //     ssp->cCoef[i][iSeg.z].real(), ssp->cCoef[i][iSeg.z].imag());
+        }
+    }
 
     o.ccpx = ssp->cCoef[0][iSeg.z]
         + (ssp->cCoef[1][iSeg.z]
@@ -154,18 +160,20 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
     real c1, c2, cz1, cz2, cr, cz, s1, s2, delta_r, delta_z;
 
     if(x.x < ssp->Seg.r[0] || x.x > ssp->Seg.r[ssp->Nr - 1]) {
-        GlobalLog(
-            "sspMod: Quad: ray is outside the box where the soundspeed is defined\n");
-        bail();
+        RunError(errState, BHC_ERR_OUTSIDE_SSP);
+        // printf(
+        //     "sspMod: Quad: ray is outside the box where the soundspeed is defined\n");
     }
 
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     UpdateSSPSegment(x.x, t.x, ssp->Seg.r, ssp->Nr, iSeg.r);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
     if(iSeg.z >= ssp->Nz - 1 || iSeg.r >= ssp->Nr - 1) {
-        GlobalLog(
-            "iSeg error in Quad: z %d/%d r %d/%d\n", iSeg.z, ssp->Nz, iSeg.r, ssp->Nr);
-        bail();
+        RunError(errState, BHC_ERR_QUAD_ISEG);
+        // printf(
+        //     "iSeg error in Quad: z %d/%d r %d/%d\n", iSeg.z, ssp->Nz, iSeg.r,
+        //     ssp->Nr);
+        iSeg.z = iSeg.r = 0;
     }
 
     // for this depth, x.y, get the sound speed at both ends of the segment
@@ -220,11 +228,11 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
 {
     if(x.x < ssp->Seg.x[0] || x.x > ssp->Seg.x[ssp->Nx - 1] || x.y < ssp->Seg.y[0]
        || x.y > ssp->Seg.y[ssp->Ny - 1]) {
-        GlobalLog(
-            "sspMod: Hexahedral: ray is outside the box where the ocean soundspeed is "
-            "defined\nx = (x, y, z) = %g, %g, %g\n",
-            x.x, x.y, x.z);
-        bail();
+        RunError(errState, BHC_ERR_OUTSIDE_SSP);
+        // printf(
+        //     "sspMod: Hexahedral: ray is outside the box where the ocean soundspeed is "
+        //     "defined\nx = (x, y, z) = %g, %g, %g\n",
+        //     x.x, x.y, x.z);
     }
 
     UpdateSSPSegment(x.x, t.x, ssp->Seg.x, ssp->Nx, iSeg.x);
@@ -416,15 +424,13 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     } else if constexpr(CFG::ssp::Is2D()) {
         if constexpr(O3D) {
             // Should already have been checked in InitializeSSP
-            GlobalLog("Internal error with SSP template system");
-            bail();
+            RunError(errState, BHC_ERR_TEMPLATE);
         } else {
             if constexpr(CFG::ssp::IsQuad()) { Quad(x_proc, t_proc, o_proc, ssp, iSeg); }
         }
     } else if constexpr(CFG::ssp::Is3D()) {
         if constexpr(!O3D) {
-            GlobalLog("Internal error with SSP template system");
-            bail();
+            RunError(errState, BHC_ERR_TEMPLATE);
         } else {
             if constexpr(CFG::ssp::IsHexahedral()) {
                 Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);

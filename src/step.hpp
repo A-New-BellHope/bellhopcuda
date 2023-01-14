@@ -49,7 +49,7 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
         if(ssp->z[iSeg0.z] > DEP(x) && (!O3D || iSeg0.z > 0)) {
             hInt = (ssp->z[iSeg0.z] - DEP(x0)) / DEP(urayt);
 #ifdef STEP_DEBUGGING
-            GlobalLog(
+            printf(
                 "Shallower bound SSP Z %g > z %g; hInt = %g\n", ssp->z[iSeg0.z], DEP(x),
                 hInt);
 #endif
@@ -57,13 +57,13 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
                 x      = x0 + hInt * urayt; // X or X,Y
                 DEP(x) = ssp->z[iSeg0.z];
 #ifdef STEP_DEBUGGING
-                GlobalLog("to %20.17f %20.17f\n", x.x, x.y);
+                printf("to %20.17f %20.17f\n", x.x, x.y);
 #endif
             }
         } else if(ssp->z[iSeg0.z + 1] < DEP(x) && (!O3D || iSeg0.z + 1 < ssp->Nz - 1)) {
             hInt = (ssp->z[iSeg0.z + 1] - DEP(x0)) / DEP(urayt);
 #ifdef STEP_DEBUGGING
-            GlobalLog(
+            printf(
                 "Deeper bound SSP Z %g < z %g; hInt = %g\n", ssp->z[iSeg0.z + 1], DEP(x),
                 hInt);
 #endif
@@ -71,7 +71,7 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
                 x      = x0 + hInt * urayt; // X or X,Y
                 DEP(x) = ssp->z[iSeg0.z + 1];
 #ifdef STEP_DEBUGGING
-                GlobalLog("to %20.17f %20.17f\n", x.x, x.y);
+                printf("to %20.17f %20.17f\n", x.x, x.y);
 #endif
             }
         }
@@ -90,7 +90,7 @@ template<bool O3D, int DIM> HOST_DEVICE inline void BeamBoxCrossing(
         real d0 = x0[DIM] - BeamBoxCenter<O3D>(xs)[DIM];
         hBox    = (Beam->Box[DIM] - STD::abs(d0)) / STD::abs(urayt[DIM]);
 #ifdef STEP_DEBUGGING
-        GlobalLog(
+        printf(
             "Beam box crossing %c %g, hBox = %g\n",
             (O3D
                  ? (DIM == 0       ? 'X'
@@ -125,7 +125,7 @@ template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
     if(stepTo ? (w > -INFINITESIMAL_STEP_SIZE) : (w >= RL(0.0))) {
         h = -glm::dot(d0, bd.n) / glm::dot(urayt, bd.n);
 #ifdef STEP_DEBUGGING
-        GlobalLog("Top/bot crossing h %g\n", h);
+        printf("Top/bot crossing h %g\n", h);
 #endif
         if(stepTo) {
             x = x0 + h * urayt;
@@ -135,7 +135,7 @@ template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
                 DEP(x) = DEP(bd.x);
             }
 #ifdef STEP_DEBUGGING
-            GlobalLog("to %20.17f %20.17f\n", x.x, x.y);
+            printf("to %20.17f %20.17f\n", x.x, x.y);
 #endif
         }
         refl = true;
@@ -178,7 +178,7 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
                 topRefl = botRefl = false;
             }
 #ifdef STEP_DEBUGGING
-            GlobalLog(
+            printf(
                 "Min bound SSP %s %g > %s %g; hSeg = %g\n", wlbl, segLim.min, wlbl, x_w,
                 hSeg);
 #endif
@@ -190,7 +190,7 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
                 topRefl = botRefl = false;
             }
 #ifdef STEP_DEBUGGING
-            GlobalLog(
+            printf(
                 "Max bound SSP %s %g < %s %g; hSeg = %g\n", wlbl, segLim.max, wlbl, x_w,
                 hSeg);
 #endif
@@ -202,7 +202,7 @@ HOST_DEVICE inline bool CheckDiagCrossing(
     const vec3 &tri_n, const vec3 &d, const bool &tridiag_pos)
 {
     real dend = glm::dot(tri_n, d);
-    // GlobalLog("pos %s dend %g\n", tridiag_pos ? "true" : "false", dend);
+    // printf("pos %s dend %g\n", tridiag_pos ? "true" : "false", dend);
     return (tridiag_pos && dend < -TRIDIAG_THRESH)
         || (!tridiag_pos && dend > TRIDIAG_THRESH);
 }
@@ -224,14 +224,16 @@ HOST_DEVICE inline void TriDiagCrossing(
     if(CheckDiagCrossing(tri_n, d, bd.tridiag_pos)) {
         real hnew = -glm::dot(d0, tri_n) / glm::dot(urayt, tri_n);
         if(hnew < RL(0.0)) {
-            BASSERT(hnew > RL(-1e-3) || STD::abs(glm::dot(urayt, tri_n)) < RL(1e-3));
+            if(hnew < RL(-1e-3) || STD::abs(glm::dot(urayt, tri_n)) > RL(1e-3)) {
+                RunWarning(errState, BHC_WARN_TRIDIAG_H_VERY_NEGATIVE);
+            }
             h = RL(0.0);
         } else {
-            BASSERT(hnew < h);
+            if(hnew >= h) { RunWarning(errState, BHC_WARN_TRIDIAG_H_GROWING); }
             h = hnew;
         }
 #ifdef STEP_DEBUGGING
-        GlobalLog(
+        printf(
             "Tri diag crossing h = %g, dot(n, d0) = %g, dot(n, d) = %g\n", h,
             glm::dot(tri_n, d0), glm::dot(tri_n, d));
 #endif
@@ -264,7 +266,7 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
     bool dummy;
 
 #ifdef STEP_DEBUGGING
-    GlobalLog("ReduceStep%s\n", O3D ? "3D" : "2D");
+    printf("ReduceStep%s\n", O3D ? "3D" : "2D");
 #endif
 
     // Detect SSP interface or boundary crossing and reduce step, if necessary, to land on
@@ -309,15 +311,15 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
         bhc::min(bhc::min(hxSeg, hySeg), bhc::min(hTopDiag, hBotDiag)));
 
     if(h < RL(-1e-4)) {
-        GlobalLog("ReduceStep error: negative h %f\n", h);
-        // bail();
+        RunWarning(errState, BHC_WARN_STEP_NEGATIVE_H);
+        // printf("ReduceStep: negative h %f\n", h);
     }
     if(h < INFINITESIMAL_STEP_SIZE * Beam->deltas) { // is it taking an infinitesimal
                                                      // step?
         h = INFINITESIMAL_STEP_SIZE * Beam->deltas;  // make sure we make some motion
         ++iSmallStepCtr; // keep a count of the number of sequential small steps
 #ifdef STEP_DEBUGGING
-        GlobalLog("Small step forced to %g\n", h);
+        printf("Small step forced to %g\n", h);
 #endif
     } else {
         iSmallStepCtr = 0;
@@ -331,7 +333,7 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
     const SSPStructure *ssp)
 {
 #ifdef STEP_DEBUGGING
-    GlobalLog("StepToBdry\n");
+    printf("StepToBdry\n");
 #endif
     // Original step due to maximum step size
     h  = Beam->deltas;
@@ -365,7 +367,7 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
         h  = INFINITESIMAL_STEP_SIZE * Beam->deltas; // make sure we make some motion
         x2 = x0 + h * urayt;
 #ifdef STEP_DEBUGGING
-        GlobalLog("StepToBdry small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
+        printf("StepToBdry small step forced h %g to (%g,%g)\n", h, x2.x, x2.y);
 #endif
         // Recheck reflection conditions
         VEC23<O3D> d;
@@ -388,7 +390,7 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
         }
     } else {
 #ifdef STEP_DEBUGGING
-        GlobalLog("StepToBdry normal h %20.17g to (%20.17g,%20.17g)\n", h, x2.x, x2.y);
+        printf("StepToBdry normal h %20.17g to (%20.17g,%20.17g)\n", h, x2.x, x2.y);
 #endif
     }
 }
@@ -532,7 +534,7 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
         ray.phi += FL(2.0)
             * STD::acos(bhc::max(bhc::min(d, RL(1.0)), RL(-1.0))); // What happens to
                                                                    // torsion?
-        // GlobalLog("dot %17.12g phi %17.12g\n",
+        // printf("dot %17.12g phi %17.12g\n",
         //     glm::dot(rayn1, e1), ray.phi);
     }
 }
@@ -584,7 +586,7 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
         real cn2jump = glm::dot(gradcjump, rayn2);
         real csjump  = glm::dot(gradcjump, rayt);
 
-        // GlobalLog("cn1 cn2 cs jumps %g %g %g\n", cn1jump, cn2jump, csjump);
+        // printf("cn1 cn2 cs jumps %g %g %g\n", cn1jump, cn2jump, csjump);
 
         CurvatureCorrection3D<false>(
             ray, mat2x2(RL(0.0)), Tg, Th, cn1jump, cn2jump, csjump, rayn1, rayn2, e1, e2);
@@ -631,26 +633,26 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     real csq0, csq1, h, w0, w1, hw0, hw1;
 
 #ifdef STEP_DEBUGGING
-    // GlobalLog("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f)
+    // printf("\nray0 x t p q tau amp (%20.17f,%20.17f) (%20.17f,%20.17f)
     // (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f) %20.17f\n",
     //     ray0.x.x, ray0.x.y, ray0.t.x, ray0.t.y, ray0.p.x, ray0.p.y, ray0.q.x, ray0.q.y,
     //     ray0.tau.real(), ray0.tau.imag(), ray0.Amp);
-    // GlobalLog("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
+    // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
     if constexpr(R3D) {
-        GlobalLog(
+        printf(
             "\nray0 x t (%20.17f,%20.17f,%20.17f) (%20.17e,%20.17e,%20.17e)\n", ray0.x.x,
             ray0.x.y, ray0.x.z, ray0.t.x, ray0.t.y, ray0.t.z);
         PrintMatrix(ray0.p, "ray0.p");
         PrintMatrix(ray0.q, "ray0.q");
-        GlobalLog("iSegx iSegy iSegz %d %d %d\n", iSeg.x + 1, iSeg.y + 1, iSeg.z + 1);
+        printf("iSegx iSegy iSegz %d %d %d\n", iSeg.x + 1, iSeg.y + 1, iSeg.z + 1);
     } else {
-        GlobalLog(
+        printf(
             "\nray0 x t (%20.17f,%20.17f) (%20.17e,%20.17e)\n", ray0.x.x, ray0.x.y,
             ray0.t.x, ray0.t.y);
-        GlobalLog("iSegr iSegz %d %d\n", iSeg.r + 1, iSeg.z + 1);
+        printf("iSegr iSegz %d %d\n", iSeg.r + 1, iSeg.z + 1);
     }
 // if(ray0.x.x > RL(10.0)){
-//     GlobalLog("Enough\n");
+//     printf("Enough\n");
 //     bail();
 // }
 #endif
@@ -663,7 +665,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     // *** Phase 1 (an Euler step)
 
     EvaluateSSP<CFG, O3D, R3D>(ray0.x, ray0.t, o0, org, ssp, iSeg);
-    // GlobalLog("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
+    // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
     Get_c_partials<R3D>(ray0, o0, part0);
     pq0 = ComputeDeltaPQ<R3D>(ray0, o0, part0);
 
@@ -673,20 +675,20 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     urayt0 = o0.ccpx.real() * ray0.t; // unit tangent
     h      = Beam->deltas; // initially set the step h, to the basic one, deltas
 
-    // GlobalLog("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
+    // printf("urayt0 (%g,%g)\n", urayt0.x, urayt0.y);
 
     // reduce h to land on boundary
     VEC23<O3D> x_o = RayToOceanX(ray0.x, org);
     VEC23<O3D> t_o = RayToOceanT(urayt0, org);
     ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, h, iSmallStepCtr);
-    // GlobalLog("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
+    // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     real halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
 
     ray1.x = ray0.x + halfh * urayt0;
     ray1.t = ray0.t - halfh * o0.gradc / csq0;
     UpdateRayPQ<R3D>(ray1, ray0, halfh, pq0);
 
-    // GlobalLog("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)
+    // printf("ray1 x t p q (%20.17f,%20.17f) (%20.17f,%20.17f) (%20.17f,%20.17f)
     // (%20.17f,%20.17f)\n",
     //     ray1.x.x, ray1.x.y, ray1.t.x, ray1.t.y, ray1.p.x, ray1.p.y, ray1.q.x,
     //     ray1.q.y);
@@ -705,7 +707,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     csq1   = SQ(o1.ccpx.real());
     urayt1 = o1.ccpx.real() * ray1.t; // unit tangent
 
-    // GlobalLog("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
+    // printf("urayt1 (%g,%g)\n", urayt1.x, urayt1.y);
 
     // reduce h to land on boundary
     t_o = RayToOceanT(urayt1, org);
@@ -714,7 +716,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     // use blend of f' based on proportion of a full step used.
     w1 = h / (RL(2.0) * halfh);
     w0 = RL(1.0) - w1;
-    // GlobalLog("w1 %20.17f w0 %20.17f\n", w1, w0);
+    // printf("w1 %20.17f w0 %20.17f\n", w1, w0);
     VEC23<R3D> urayt2 = w0 * urayt0 + w1 * urayt1;
     // Take the blended ray tangent (urayt2) and find the minimum step size (h)
     // to put this on a boundary, and ensure that the resulting position
@@ -734,7 +736,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     UpdateRayPQ<R3D>(ray2, ray0, hw0, pq0);
     UpdateRayPQ<R3D>(ray2, ray2, hw1, pq1); // Not a typo, accumulating into 2
 
-    // GlobalLog("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
+    // printf("ray2 x t p q tau (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
     //     ray2.x.x, ray2.x.y, ray2.t.x, ray2.t.y, ray2.p.x, ray2.p.y,
     //     ray2.q.x, ray2.q.y, ray2.tau.real(), ray2.tau.imag());
 
