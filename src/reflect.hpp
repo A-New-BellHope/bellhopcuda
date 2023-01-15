@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -37,7 +37,7 @@ namespace bhc {
  * NPts: # pts in refl. coef.
  */
 HOST_DEVICE inline void InterpolateReflectionCoefficient(
-    ReflectionCoef &RInt, const ReflectionInfoTopBot &rtb)
+    ReflectionCoef &RInt, const ReflectionInfoTopBot &rtb, ErrState *errState)
 {
     int32_t iLeft, iRight, iMid;
     real alpha, thetaIntr;
@@ -64,6 +64,7 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(
         // iLeft = rtb.NPts - 2;
         RInt.r   = FL(0.0); // rtb.r[iRight].r
         RInt.phi = FL(0.0); // rtb.r[iRight].phi
+        // LP: The warning is commented out in BELLHOP in this case.
         // RunWarning(errState, BHC_WARN_OUTSIDE_REFLCOEF);
         // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
         //        "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
@@ -103,7 +104,7 @@ inline void ReadReflectionCoefficient(
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using tabulated bottom reflection coef.\n";
-        LDIFile BRCFile(FileRoot + ".brc");
+        LDIFile BRCFile(GetInternal(params), FileRoot + ".brc");
         if(!BRCFile.Good()) {
             PRTFile << "BRCFile = " << FileRoot + ".brc\n";
             EXTERR("ReadReflectionCoefficient: Unable to open Bottom Reflection "
@@ -134,7 +135,7 @@ inline void ReadReflectionCoefficient(
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using tabulated top    reflection coef.\n";
-        LDIFile TRCFile(FileRoot + ".trc");
+        LDIFile TRCFile(GetInternal(params), FileRoot + ".trc");
         if(!TRCFile.Good()) {
             PRTFile << "TRCFile = " << FileRoot + ".trc\n";
             EXTERR("ReadReflectionCoefficient: Unable to open Top Reflection "
@@ -202,7 +203,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     const rayPt<R3D> &oldPoint, rayPt<R3D> &newPoint, const HSInfo &hs, bool isTop,
     VEC23<R3D> tBdry, const VEC23<O3D> &nBdry, const ReflCurvature<O3D> &rcurv, real freq,
     const ReflectionInfoTopBot &rtb, const BeamStructure<O3D> *Beam,
-    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
+    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+    ErrState *errState)
 {
     VEC23<R3D> nBdry_ray = RayToOceanT<O3D, R3D>(nBdry, org);
     if(O3D && !R3D) nBdry_ray *= RL(1.0) / glm::length(nBdry_ray);
@@ -236,7 +238,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     // o.gradc]
     SSPOutputs<R3D> o;
     EvaluateSSP<CFG, O3D, R3D>(
-        oldPoint.x, (O3D ? newPoint.t : oldPoint.t), o, org, ssp, iSeg);
+        oldPoint.x, (O3D ? newPoint.t : oldPoint.t), o, org, ssp, iSeg, errState);
 
     newPoint.c   = o.ccpx.real();
     newPoint.tau = oldPoint.tau;
@@ -358,7 +360,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         if(RInt.theta > FL(90.0))
             RInt.theta = FL(180.0) - RInt.theta; // reflection coefficient is symmetric
                                                  // about 90 degrees
-        InterpolateReflectionCoefficient(RInt, rtb);
+        InterpolateReflectionCoefficient(RInt, rtb, errState);
         newPoint.Amp   = oldPoint.Amp * RInt.r;
         newPoint.Phase = oldPoint.Phase + RInt.phi;
     } else if(hs.bc == 'A' || hs.bc == 'G') { // half-space

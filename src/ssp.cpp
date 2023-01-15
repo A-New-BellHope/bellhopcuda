@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -62,7 +62,7 @@ void ReadQuad(PrintFileEmu &PRTFile, SSPStructure *ssp, std::string FileRoot)
                "_\n\n";
     PRTFile << "Using range-dependent sound speed\n";
 
-    LDIFile SSPFile(FileRoot + ".ssp");
+    LDIFile SSPFile(GetInternal(params), FileRoot + ".ssp");
     LIST(SSPFile);
     SSPFile.Read(ssp->Nr);
     PRTFile << "Number of SSP ranges = " << ssp->Nr << "\n";
@@ -116,7 +116,7 @@ void ReadHexahedral(PrintFileEmu &PRTFile, SSPStructure *ssp, std::string FileRo
     // Read the 3D SSP matrix
 
     PRTFile << "\nReading sound speed profile from file\n";
-    LDIFile SSPFile(FileRoot + ".ssp");
+    LDIFile SSPFile(GetInternal(params), FileRoot + ".ssp");
 
     // x coordinates
     LIST(SSPFile);

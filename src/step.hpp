@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -212,7 +212,7 @@ HOST_DEVICE inline bool CheckDiagCrossing(
  */
 HOST_DEVICE inline void TriDiagCrossing(
     real &h, const BdryStateTopBot<true> &bd, vec3 &x, const vec3 &x0, const vec3 &urayt,
-    bool stepTo, bool &topRefl, bool &botRefl, bool &flipDiag)
+    bool stepTo, ErrState *errState, bool &topRefl, bool &botRefl, bool &flipDiag)
 {
     vec3 d  = x - bd.xmid;  // vector from top / bottom center to ray end
     vec3 d0 = x0 - bd.xmid; // vector from top / bottom center to ray origin
@@ -259,7 +259,7 @@ HOST_DEVICE inline void TriDiagCrossing(
 template<bool O3D> HOST_DEVICE inline void ReduceStep(
     const VEC23<O3D> &x0, const VEC23<O3D> &urayt, const SSPSegState &iSeg0,
     const BdryState<O3D> &bds, const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs,
-    const SSPStructure *ssp, real &h, int32_t &iSmallStepCtr)
+    const SSPStructure *ssp, ErrState *errState, real &h, int32_t &iSmallStepCtr)
 {
     VEC23<O3D> x;
     real hInt, hBoxxr, hBoxyz, hBoxz_, hTop, hBot, hxSeg, hySeg, hTopDiag, hBotDiag;
@@ -294,8 +294,10 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
         TopBotSegCrossing<O3D>(
             hySeg, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y, x, x0, urayt, 'H',
             ssp, false, dummy, dummy, true);
-        TriDiagCrossing(hTopDiag, bds.top, x, x0, urayt, false, dummy, dummy, dummy);
-        TriDiagCrossing(hBotDiag, bds.bot, x, x0, urayt, false, dummy, dummy, dummy);
+        TriDiagCrossing(
+            hTopDiag, bds.top, x, x0, urayt, false, errState, dummy, dummy, dummy);
+        TriDiagCrossing(
+            hBotDiag, bds.bot, x, x0, urayt, false, errState, dummy, dummy, dummy);
     } else {
         TopBotSegCrossing<O3D>(
             hxSeg, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r, x, x0, urayt, 'Q',
@@ -330,7 +332,7 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
     const VEC23<O3D> &x0, VEC23<O3D> &x2, const VEC23<O3D> &urayt, real &h, bool &topRefl,
     bool &botRefl, bool &flipTopDiag, bool &flipBotDiag, const SSPSegState &iSeg0,
     const BdryState<O3D> &bds, const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs,
-    const SSPStructure *ssp)
+    const SSPStructure *ssp, ErrState *errState)
 {
 #ifdef STEP_DEBUGGING
     printf("StepToBdry\n");
@@ -354,8 +356,10 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
         TopBotSegCrossing<O3D>(
             h, bds.top.lSeg.y, bds.bot.lSeg.y, ssp->Seg.y, iSeg0.y, x2, x0, urayt, 'H',
             ssp, true, topRefl, botRefl, true);
-        TriDiagCrossing(h, bds.top, x2, x0, urayt, true, topRefl, botRefl, flipTopDiag);
-        TriDiagCrossing(h, bds.bot, x2, x0, urayt, true, topRefl, botRefl, flipBotDiag);
+        TriDiagCrossing(
+            h, bds.top, x2, x0, urayt, true, errState, topRefl, botRefl, flipTopDiag);
+        TriDiagCrossing(
+            h, bds.bot, x2, x0, urayt, true, errState, topRefl, botRefl, flipBotDiag);
     } else {
         TopBotSegCrossing<O3D>(
             h, bds.top.lSeg, bds.bot.lSeg, ssp->Seg.r, iSeg0.r, x2, x0, urayt, 'Q', ssp,
@@ -622,8 +626,9 @@ template<bool R3D> HOST_DEVICE inline void CurvatureCorrection(
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     rayPt<R3D> ray0, rayPt<R3D> &ray2, const BdryState<O3D> &bds,
     const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, const Origin<O3D, R3D> &org,
-    const SSPStructure *ssp, SSPSegState &iSeg, int32_t &iSmallStepCtr, bool &topRefl,
-    bool &botRefl, bool &flipTopDiag, bool &flipBotDiag)
+    const SSPStructure *ssp, SSPSegState &iSeg, ErrState *errState,
+    int32_t &iSmallStepCtr, bool &topRefl, bool &botRefl, bool &flipTopDiag,
+    bool &flipBotDiag)
 {
     rayPt<R3D> ray1;
     SSPOutputs<R3D> o0, o1, o2;
@@ -664,7 +669,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
 
     // *** Phase 1 (an Euler step)
 
-    EvaluateSSP<CFG, O3D, R3D>(ray0.x, ray0.t, o0, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, R3D>(ray0.x, ray0.t, o0, org, ssp, iSeg, errState);
     // printf("iSeg.z iSeg.r %d %d\n", iSeg.z, iSeg.r);
     Get_c_partials<R3D>(ray0, o0, part0);
     pq0 = ComputeDeltaPQ<R3D>(ray0, o0, part0);
@@ -680,7 +685,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     // reduce h to land on boundary
     VEC23<O3D> x_o = RayToOceanX(ray0.x, org);
     VEC23<O3D> t_o = RayToOceanT(urayt0, org);
-    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, h, iSmallStepCtr);
+    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, errState, h, iSmallStepCtr);
     // printf("out h, urayt0 %20.17f (%20.17f, %20.17f)\n", h, urayt0.x, urayt0.y);
     real halfh = FL(0.5) * h; // first step of the modified polygon method is a half step
 
@@ -695,7 +700,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
 
     // *** Phase 2
 
-    EvaluateSSP<CFG, O3D, R3D>(ray1.x, ray1.t, o1, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, R3D>(ray1.x, ray1.t, o1, org, ssp, iSeg, errState);
     Get_c_partials<R3D>(ray1, o1, part1);
     pq1 = ComputeDeltaPQ<R3D>(ray1, o1, part1);
 
@@ -711,7 +716,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
 
     // reduce h to land on boundary
     t_o = RayToOceanT(urayt1, org);
-    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, h, iSmallStepCtr);
+    ReduceStep<O3D>(x_o, t_o, iSeg0, bds, Beam, xs, ssp, errState, h, iSmallStepCtr);
 
     // use blend of f' based on proportion of a full step used.
     w1 = h / (RL(2.0) * halfh);
@@ -725,7 +730,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     t_o = RayToOceanT(urayt2, org);
     StepToBdry<O3D>(
         x_o, x2_o, t_o, h, topRefl, botRefl, flipTopDiag, flipBotDiag, iSeg0, bds, Beam,
-        xs, ssp);
+        xs, ssp, errState);
     ray2.x = OceanToRayX(x2_o, org, urayt2);
 
     // Update other variables with this new h
@@ -747,7 +752,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
 
     // If we crossed an interface, apply jump condition
 
-    EvaluateSSP<CFG, O3D, R3D>(ray2.x, ray2.t, o2, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, R3D>(ray2.x, ray2.t, o2, org, ssp, iSeg, errState);
     ray2.c = o2.ccpx.real();
 
     if(iSeg.z != iSeg0.z || (!R3D && !O3D && iSeg.r != iSeg0.r)

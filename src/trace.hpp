@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -77,7 +77,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     BdryState<O3D> &bds, BdryType &Bdry, const BdryType *ConstBdry,
     const BdryInfo<O3D> *bdinfo, const SSPStructure *ssp, const Position *Pos,
     const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo)
+    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, ErrState *errState)
 {
     if(rinit.isz < 0 || rinit.isz >= Pos->NSz || rinit.ialpha < 0
        || rinit.ialpha >= Angles->alpha.n
@@ -203,11 +203,11 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         bds.top.Iseg = bds.bot.Iseg = 0;
     }
     GetBdrySeg<O3D>(
-        xs, RayToOceanT(point0.t, org), bds.top, &bdinfo->top, Bdry.Top, true,
-        true); // identify the top    segment above the source
+        xs, RayToOceanT(point0.t, org), bds.top, &bdinfo->top, Bdry.Top, true, true,
+        errState); // identify the top    segment above the source
     GetBdrySeg<O3D>(
-        xs, RayToOceanT(point0.t, org), bds.bot, &bdinfo->bot, Bdry.Bot, false,
-        true); // identify the bottom segment below the source
+        xs, RayToOceanT(point0.t, org), bds.bot, &bdinfo->bot, Bdry.Bot, false, true,
+        errState); // identify the bottom segment below the source
 
     Distances<R3D>(
         point0.x, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
@@ -244,12 +244,12 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     real &DistEndBot, int32_t &iSmallStepCtr, const Origin<O3D, R3D> &org,
     SSPSegState &iSeg, BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo,
     const ReflectionInfo *refl, const SSPStructure *ssp, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs)
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, ErrState *errState)
 {
     bool topRefl, botRefl, flipTopDiag, flipBotDiag;
     Step<CFG, O3D, R3D>(
         point0, point1, bds, Beam, xs, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl,
-        flipTopDiag, flipBotDiag);
+        flipTopDiag, flipBotDiag, errState);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -263,8 +263,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     }
     VEC23<O3D> x_o = RayToOceanX(point1.x, org);
     VEC23<O3D> t_o = RayToOceanT(point1.t, org);
-    GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true, false);
-    GetBdrySeg<O3D>(x_o, t_o, bds.bot, &bdinfo->bot, Bdry.Bot, false, false);
+    GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true, false, errState);
+    GetBdrySeg<O3D>(x_o, t_o, bds.bot, &bdinfo->bot, Bdry.Bot, false, false, errState);
 
     // Reflections?
     // Tests that ray at step is is inside, and ray at step is+1 is outside
@@ -339,7 +339,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
 
         Reflect<CFG, O3D, R3D>(
             point1, point2, hs, topRefl, tInt, nInt, rcurv, freqinfo->freq0, refltb, Beam,
-            org, ssp, iSeg);
+            org, ssp, iSeg, errState);
         // Incrementing bounce count moved to Reflect
         x_o = RayToOceanX(point2.x, org);
         Distances<R3D>(
@@ -362,7 +362,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const rayPt<R3D> &point, int32_t &Nsteps, int32_t is, const VEC23<O3D> &xs,
     const int32_t &iSmallStepCtr, real &DistBegTop, real &DistBegBot,
     const real &DistEndTop, const real &DistEndBot, const Origin<O3D, R3D> &org,
-    const BdryInfo<O3D> *bdinfo, const BeamStructure<O3D> *Beam)
+    const BdryInfo<O3D> *bdinfo, const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     bool leftbox, escapedboundaries, toomanysmallsteps;
     bool escaped0bdry, escapedNbdry;

@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -67,7 +67,8 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  */
 template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
     VEC23<O3D> x, VEC23<O3D> t, BdryStateTopBot<O3D> &bds,
-    const BdryInfoTopBot<O3D> *bdinfotb, BdryPtSmall &Bdry, bool isTop, bool isInit)
+    const BdryInfoTopBot<O3D> *bdinfotb, BdryPtSmall &Bdry, bool isTop, bool isInit,
+    ErrState *errState)
 {
     if constexpr(O3D) {
         // LP: See discussion of changes in Fortran version readme.
@@ -540,7 +541,7 @@ template<bool O3D> inline void ReadBoundary(
                    "_____\n\n";
         PRTFile << "Using " << s_topbottom << "-" << s_altimetrybathymetry << " file\n";
 
-        LDIFile BDRYFile(FileRoot + "." + s_atibty);
+        LDIFile BDRYFile(GetInternal(params), FileRoot + "." + s_atibty);
         if(!BDRYFile.Good()) {
             PRTFile << s_ATIBTY << "File = " << FileRoot << "." << s_atibty << "\n";
             EXTERR("Read%s: Unable to open %s file", s_ATIBTY, s_altimetrybathymetry);

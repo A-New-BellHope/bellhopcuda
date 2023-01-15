@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -30,7 +30,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     RayInitInfo &rinit, rayPt<R3D> *ray, int32_t &Nsteps, Origin<O3D, R3D> &org,
     const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl,
     const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo)
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo,
+    ErrState *errState)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     SSPSegState iSeg;
@@ -40,7 +41,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
 
     if(!RayInit<CFG, O3D, R3D>(
            rinit, xs, ray[0], gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
-           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) {
+           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo, errState)) {
         Nsteps = 1;
         return;
     }
@@ -51,7 +52,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     while(true) {
         bool twoSteps = RayUpdate<CFG, O3D, R3D>(
             ray[is], ray[is + 1], ray[is + 2], DistEndTop, DistEndBot, iSmallStepCtr, org,
-            iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
+            iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
         if(Nsteps >= 0 && is >= Nsteps) {
             Nsteps = is + 2;
             break;
@@ -59,7 +60,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
         is += (twoSteps ? 2 : 1);
         if(RayTerminate<O3D, R3D>(
                ray[is], Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
-               DistEndBot, org, bdinfo, Beam))
+               DistEndBot, org, bdinfo, Beam, errState))
             break;
     }
 }

@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -27,7 +27,7 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile, BeamInfo *beami
     if(beaminfo->SBPFlag == '*') {
         PRTFile << "\n______________________________\nUsing source beam pattern file\n";
 
-        LDIFile SBPFile(FileRoot, ".sbp");
+        LDIFile SBPFile(GetInternal(params), FileRoot, ".sbp");
         if(!SBPFile.Good()) {
             PRTFile << "SBPFile = " << FileRoot << ".sbp\n";
             EXTERR("BELLHOP-ReadPat: Unable to open source beampattern file");

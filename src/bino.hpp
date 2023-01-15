@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -31,8 +31,9 @@ namespace bhc {
  */
 class DirectOFile {
 public:
-    DirectOFile()
-        : recl(0), record(777777777), bytesWrittenThisRecord(777777777), highestRecord(0),
+    DirectOFile(bhcInternal *internal)
+        : _internal(internal), recl(0), record(777777777),
+          bytesWrittenThisRecord(777777777), highestRecord(0),
           bytesWrittenHighestRecord(0)
     {}
     ~DirectOFile()
@@ -73,7 +74,7 @@ public:
     {
         if(bytesWrittenThisRecord + bytes > recl) {
             ExternalError(
-                internal_todo,
+                _internal,
                 "%s:%d: DirectOFile overflow, %" PRIuMAX
                 " bytes already written, rec size %" PRIuMAX ", tried to write %" PRIuMAX
                 " more",
@@ -104,6 +105,7 @@ public:
     }
 
 private:
+    bhcInternal *_internal;
     std::ofstream ostr;
     size_t recl;
     size_t record;
@@ -119,7 +121,8 @@ private:
  */
 class UnformattedOFile {
 public:
-    UnformattedOFile() : recstart(-1), recl(-1) {}
+    UnformattedOFile(bhcInternal *internal) : _internal(internal), recstart(-1), recl(-1)
+    {}
     ~UnformattedOFile()
     {
         if(ostr.is_open()) {
@@ -142,7 +145,7 @@ public:
     template<typename T> void write(T v)
     {
         if(recstart < 0) {
-            ExternalError(internal_todo, "Missing record in UnformattedOFile!");
+            ExternalError(_internal, "Missing record in UnformattedOFile!");
         }
         ostr.write((const char *)&v, sizeof(T));
         recl += (int32_t)sizeof(T);
@@ -151,7 +154,7 @@ public:
     template<typename T> void write(T *arr, size_t n)
     {
         if(recstart < 0) {
-            ExternalError(internal_todo, "Missing record in UnformattedOFile!");
+            ExternalError(_internal, "Missing record in UnformattedOFile!");
         }
         for(size_t i = 0; i < n; ++i) ostr.write((const char *)&arr[i], sizeof(T));
         recl += (int32_t)(n * sizeof(T));
@@ -173,6 +176,7 @@ private:
         recl = 0;
     }
 
+    bhcInternal *_internal;
     std::ofstream ostr;
     int32_t recstart;
     int32_t recl;

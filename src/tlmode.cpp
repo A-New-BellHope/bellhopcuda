@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -103,7 +103,7 @@ template<bool O3D, bool R3D> void WriteOutTL(
 {
     real atten = FL(0.0);
     std::string PlotType;
-    DirectOFile SHDFile;
+    DirectOFile SHDFile(GetInternal(params));
 
     // following to set PlotType has already been done in READIN if that was used for
     // input
@@ -112,6 +112,8 @@ template<bool O3D, bool R3D> void WriteOutTL(
         SHDFile, GetInternal(params)->FileRoot + ".shd", params.Title, atten, PlotType,
         params.Pos, params.freqinfo);
 
+    ErrState errState;
+    ResetErrState(&errState);
     for(int32_t isz = 0; isz < params.Pos->NSz; ++isz) {
         for(int32_t isx = 0; isx < params.Pos->NSx; ++isx) {
             for(int32_t isy = 0; isy < params.Pos->NSy; ++isy) {
@@ -148,10 +150,16 @@ template<bool O3D, bool R3D> void WriteOutTL(
                 if constexpr(R3D) {
                     epsilon1 = PickEpsilon<O3D, R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(),
-                        o.gradc, FL(0.0), params.Angles->alpha.d, params.Beam);
+                        o.gradc, FL(0.0), params.Angles->alpha.d, params.Beam, errState);
                     epsilon2 = PickEpsilon<O3D, R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(),
-                        o.gradc, FL(0.0), params.Angles->beta.d, params.Beam);
+                        o.gradc, FL(0.0), params.Angles->beta.d, params.Beam, errState);
+                    if(HasErrored(&errState)) {
+                        // Exit loops
+                        isx = params.Pos->NSx;
+                        isz = params.Pos->NSz;
+                        break;
+                    }
                 } else {
                     epsilon1 = epsilon2 = RL(0.0);
                 }
@@ -189,6 +197,7 @@ template<bool O3D, bool R3D> void WriteOutTL(
             }
         }
     }
+    CheckReportErrors(GetInternal(params), &errState);
 }
 
 #if BHC_ENABLE_2D

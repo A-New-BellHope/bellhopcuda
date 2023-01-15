@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -201,7 +201,7 @@ HOST_DEVICE inline bool Compute_M_N_R_IR(
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
     real omega, real c, vec2 gradc, real angle, real Dangle,
-    const BeamStructure<O3D> *Beam)
+    const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     // LP: BUG: Multiple codepaths do not set epsilonOpt, would lead to UB if
     // set up that way in env file. Instead, here they are set to debug values.
@@ -277,13 +277,14 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline cpx Compute_gamma(
     const rayPt<false> &point, const cpx &pB, const cpx &qB,
-    const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg)
+    const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+    ErrState *errState)
 {
     vec2 rayt = point.c * point.t;     // unit tangent
     vec2 rayn = vec2(rayt.y, -rayt.x); // unit normal
 
     SSPOutputs<false> o;
-    EvaluateSSP<CFG, O3D, false>(point.x, point.t, o, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, false>(point.x, point.t, o, org, ssp, iSeg, errState);
 
     real csq = SQ(o.ccpx.real());
     real cS  = glm::dot(o.gradc, rayt);
@@ -354,7 +355,7 @@ template<bool O3D> HOST_DEVICE inline void BranchCut(
 }
 
 HOST_DEVICE inline vec2 FlipBeamForImage(
-    const vec2 &x, int32_t image, const BdryType *Bdry)
+    const vec2 &x, int32_t image, const BdryType *Bdry, ErrState *errState)
 {
     if(image == 1) { // True beam
         return x;
@@ -526,7 +527,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
     InfluenceRayInfo<R3D> &inflray, const rayPt<R3D> &point0, RayInitInfo &rinit,
     vec2 gradc, const Position *Pos, const Origin<O3D, R3D> &org, const SSPStructure *ssp,
     SSPSegState &iSeg, const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam)
+    const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     if constexpr(R3D) IGNORE_UNUSED(ssp);
     bool isGaussian = IsGaussianGeomInfl(Beam);
@@ -634,7 +635,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
         // LP: Partially supported in Nx2D (O3D but not R3D)
         cpx eps0, pB0, qB0;
         Compute_eps_pB_qB<O3D>(eps0, pB0, qB0, point0, inflray, Beam);
-        inflray.gamma = Compute_gamma<CFG, O3D>(point0, pB0, qB0, org, ssp, iSeg);
+        inflray.gamma
+            = Compute_gamma<CFG, O3D>(point0, pB0, qB0, org, ssp, iSeg, errState);
     } else {
         // LP: not used
         inflray.gamma = RL(0.0);
@@ -651,7 +653,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
 template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     const rayPt<false> &point0, const rayPt<false> &point1,
     InfluenceRayInfo<false> &inflray, int32_t is, cpxf *uAllSources, const BdryType *Bdry,
-    const Position *Pos, const BeamStructure<O3D> *Beam)
+    const Position *Pos, const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     IGNORE_UNUSED(is);
 
@@ -693,10 +695,10 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRa
             real nA, rA, nB, rB;
             int32_t ir1, ir2; // LP: mbp switches from A/B naming to 1/2 here.
             Compute_N_R_IR(
-                nB, rB, ir2, FlipBeamForImage(point1.x, image, Bdry),
+                nB, rB, ir2, FlipBeamForImage(point1.x, image, Bdry, errState),
                 FlipNormalForImage(rayn1, image), zR, Pos);
             Compute_N_R_IR(
-                nA, rA, ir1, FlipBeamForImage(inflray.x, image, Bdry),
+                nA, rA, ir1, FlipBeamForImage(inflray.x, image, Bdry, errState),
                 FlipNormalForImage(inflray.rayn1, image), zR, Pos);
 
             if(inflray.lastValid && ir1 < ir2) {
@@ -776,7 +778,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCa
     const rayPt<false> &point0, const rayPt<false> &point1,
     InfluenceRayInfo<false> &inflray, int32_t is, cpxf *uAllSources, const BdryType *Bdry,
     const Origin<O3D, false> &org, const SSPStructure *ssp, SSPSegState &iSeg,
-    const Position *Pos, const BeamStructure<O3D> *Beam)
+    const Position *Pos, const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
     real zR;
@@ -791,7 +793,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCa
     // Form gamma and KMAH index
     // Treatment of KMAH index is incorrect for 'Cerveny' style beam width BeamType
     gamma0        = inflray.gamma;
-    gamma1        = Compute_gamma<CFG, O3D>(point1, pB1, qB1, org, ssp, iSeg);
+    gamma1        = Compute_gamma<CFG, O3D>(point1, pB1, qB1, org, ssp, iSeg, errState);
     inflray.gamma = gamma1;
 
     int32_t old_kmah = inflray.kmah;
@@ -1508,7 +1510,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
     const rayPt<R3D> &point0, const rayPt<R3D> &point1, InfluenceRayInfo<R3D> &inflray,
     int32_t is, cpxf *uAllSources, const BdryType *Bdry, const Origin<O3D, R3D> &org,
     const SSPStructure *ssp, SSPSegState &iSeg, const Position *Pos,
-    const BeamStructure<O3D> *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
+    const BeamStructure<O3D> *Beam, EigenInfo *eigen, const ArrInfo *arrinfo,
+    ErrState *errState)
 {
     if constexpr(R3D) {
         IGNORE_UNUSED(Bdry);
@@ -1522,11 +1525,11 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
         } else {
             if constexpr(CFG::infl::IsRayCen()) {
                 return Step_InfluenceCervenyRayCen<CFG, O3D>(
-                    point0, point1, inflray, is, uAllSources, Bdry, Pos, Beam);
+                    point0, point1, inflray, is, uAllSources, Bdry, Pos, Beam, errState);
             } else {
                 return Step_InfluenceCervenyCart<CFG, O3D>(
                     point0, point1, inflray, is, uAllSources, Bdry, org, ssp, iSeg, Pos,
-                    Beam);
+                    Beam, errState);
             }
         }
     } else if constexpr(CFG::infl::IsSGB()) {

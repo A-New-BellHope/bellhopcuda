@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -26,13 +26,13 @@ constexpr real betaPowerLaw = FL(1.0);
 
 #define SSP_2D_FN_ARGS \
     const vec2 &x, const vec2 &t, SSPOutputs<false> &o, const SSPStructure *ssp, \
-        SSPSegState &iSeg
+        SSPSegState &iSeg, ErrState *errState
 #define SSP_3D_FN_ARGS \
     const vec3 &x, const vec3 &t, SSPOutputs<true> &o, const SSPStructure *ssp, \
-        SSPSegState &iSeg
+        SSPSegState &iSeg, ErrState *errState
 #define SSP_TEMPL_FN_ARGS \
     const VEC23<O3D> &x, const VEC23<O3D> &t, SSPOutputs<O3D> &o, \
-        const SSPStructure *ssp, SSPSegState &iSeg
+        const SSPStructure *ssp, SSPSegState &iSeg, ErrState *errState
 
 HOST_DEVICE inline void UpdateSSPSegment(
     real x, real t, const real *array, int32_t n, int32_t &iSeg)
@@ -64,6 +64,7 @@ HOST_DEVICE inline real LinInterpDensity(
  */
 HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
 {
+    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     real w = LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -81,6 +82,7 @@ HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
  */
 HOST_DEVICE inline void cLinear(SSP_2D_FN_ARGS)
 {
+    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -133,6 +135,7 @@ HOST_DEVICE inline void cPCHIP(SSP_2D_FN_ARGS)
  */
 HOST_DEVICE inline void cCubic(SSP_2D_FN_ARGS)
 {
+    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -319,6 +322,7 @@ template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
 {
     IGNORE_UNUSED(t);
     IGNORE_UNUSED(ssp);
+    IGNORE_UNUSED(errState);
 
     iSeg.z  = 0;
     real c0 = FL(1500.0);
@@ -388,7 +392,8 @@ template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
 
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     const VEC23<R3D> &x, const VEC23<R3D> &t, SSPOutputs<R3D> &o,
-    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
+    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+    ErrState *errState)
 {
     VEC23<O3D> x_proc = RayToOceanX(x, org);
     VEC23<O3D> t_proc = RayToOceanT(t, org);
@@ -404,13 +409,13 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             t_rz = t_proc;
         }
         if constexpr(CFG::ssp::IsN2Linear()) { // N2-linear profile option
-            n2Linear(x_rz, t_rz, o_rz, ssp, iSeg);
+            n2Linear(x_rz, t_rz, o_rz, ssp, iSeg, errState);
         } else if constexpr(CFG::ssp::IsCLinear()) { // C-linear profile option
-            cLinear(x_rz, t_rz, o_rz, ssp, iSeg);
+            cLinear(x_rz, t_rz, o_rz, ssp, iSeg, errState);
         } else if constexpr(CFG::ssp::IsCCubic()) { // Cubic spline profile option
-            cCubic(x_rz, t_rz, o_rz, ssp, iSeg);
+            cCubic(x_rz, t_rz, o_rz, ssp, iSeg, errState);
         } else if constexpr(CFG::ssp::IsCPCHIP()) { // monotone PCHIP ACS profile option
-            cPCHIP(x_rz, t_rz, o_rz, ssp, iSeg);
+            cPCHIP(x_rz, t_rz, o_rz, ssp, iSeg, errState);
         }
         if constexpr(O3D) {
             o_proc.gradc = vec3(RL(0.0), RL(0.0), o_rz.gradc.y);
@@ -426,19 +431,21 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             // Should already have been checked in InitializeSSP
             RunError(errState, BHC_ERR_TEMPLATE);
         } else {
-            if constexpr(CFG::ssp::IsQuad()) { Quad(x_proc, t_proc, o_proc, ssp, iSeg); }
+            if constexpr(CFG::ssp::IsQuad()) {
+                Quad(x_proc, t_proc, o_proc, ssp, iSeg, errState);
+            }
         }
     } else if constexpr(CFG::ssp::Is3D()) {
         if constexpr(!O3D) {
             RunError(errState, BHC_ERR_TEMPLATE);
         } else {
             if constexpr(CFG::ssp::IsHexahedral()) {
-                Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
+                Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg, errState);
             }
         }
     } else if constexpr(CFG::ssp::IsAnyD()) {
         if constexpr(CFG::ssp::IsAnalytic()) { // Analytic profile option
-            Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
+            Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg, errState);
         }
     } else {
         static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");

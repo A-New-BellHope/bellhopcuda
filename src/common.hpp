@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -453,6 +453,8 @@ static inline std::string trim_copy(std::string s)
 
 } // namespace bhc
 
+struct bhcInternal;
+
 #define _BHC_INCLUDING_COMPONENTS_ 1
 #include "errors.hpp"
 #include "ldio.hpp"
@@ -482,7 +484,7 @@ struct bhcInternal {
     int d_multiprocs;
 
     bhcInternal(const char *FileRoot_, void (*outputCallback_)(const char *message))
-        : api_okay(true), PRTFile(FileRoot_, outputCallback_), FileRoot(FileRoot_),
+        : api_okay(true), PRTFile(this, FileRoot_, outputCallback_), FileRoot(FileRoot_),
           outputCallback(outputCallback_), m_gpu(0)
     {}
 };

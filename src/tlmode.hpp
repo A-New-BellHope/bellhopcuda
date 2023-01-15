@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -68,12 +68,13 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
 
     if(!RayInit<CFG, O3D, R3D>(
            rinit, xs, point0, gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
-           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo)) {
+           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo, errState)) {
         return;
     }
 
     Init_Influence<CFG, O3D, R3D>(
-        inflray, point0, rinit, gradc, Pos, org, ssp, iSeg, Angles, freqinfo, Beam);
+        inflray, point0, rinit, gradc, Pos, org, ssp, iSeg, Angles, freqinfo, Beam,
+        errState);
 
     int32_t iSmallStepCtr = 0;
     int32_t is            = 0; // index for a step along the ray
@@ -82,7 +83,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
     for(int32_t istep = 0; istep < MaxN - 1; ++istep) {
         bool twoSteps = RayUpdate<CFG, O3D, R3D>(
             point0, point1, point2, DistEndTop, DistEndBot, iSmallStepCtr, org, iSeg, bds,
-            Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs);
+            Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
         if(!Step_Influence<CFG, O3D, R3D>(
                point0, point1, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg, Pos,
                Beam, eigen, arrinfo)) {
@@ -104,7 +105,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
         }
         if(RayTerminate<O3D, R3D>(
                point0, Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
-               DistEndBot, org, bdinfo, Beam))
+               DistEndBot, org, bdinfo, Beam, errState))
             break;
     }
 
