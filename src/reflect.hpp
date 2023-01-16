@@ -94,19 +94,21 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(
 /**
  * Optionally read in reflection coefficient for Top or Bottom boundary
  *
- * BotRC, TopRC: flag set to 'F' if refl. coef. is to be read from a File
+ * flag set to 'F' if refl. coef. is to be read from a File
  */
-inline void ReadReflectionCoefficient(
-    std::string FileRoot, char BotRC, char TopRC, PrintFileEmu &PRTFile,
-    ReflectionInfo *refl)
+template<bool O3D, bool R3D> inline void ReadReflectionCoefficient(
+    bhcParams<O3D, R3D> &params)
 {
-    if(BotRC == 'F') {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+    ReflectionInfo *refl  = params.refl;
+
+    if(params.Bdry->Bot.hs.Opt[0] == 'F') {
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using tabulated bottom reflection coef.\n";
-        LDIFile BRCFile(GetInternal(params), FileRoot + ".brc");
+        LDIFile BRCFile(GetInternal(params), GetInternal(params)->FileRoot + ".brc");
         if(!BRCFile.Good()) {
-            PRTFile << "BRCFile = " << FileRoot + ".brc\n";
+            PRTFile << "BRCFile = " << GetInternal(params)->FileRoot + ".brc\n";
             EXTERR("ReadReflectionCoefficient: Unable to open Bottom Reflection "
                    "Coefficient file");
         }
@@ -131,13 +133,13 @@ inline void ReadReflectionCoefficient(
 
     // Optionally read in top reflection coefficient
 
-    if(TopRC == 'F') {
+    if(params.Bdry->Top.hs.Opt[1] == 'F') {
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using tabulated top    reflection coef.\n";
-        LDIFile TRCFile(GetInternal(params), FileRoot + ".trc");
+        LDIFile TRCFile(GetInternal(params), GetInternal(params)->FileRoot + ".trc");
         if(!TRCFile.Good()) {
-            PRTFile << "TRCFile = " << FileRoot + ".trc\n";
+            PRTFile << "TRCFile = " << GetInternal(params)->FileRoot + ".trc\n";
             EXTERR("ReadReflectionCoefficient: Unable to open Top Reflection "
                    "Coefficient file");
         }
@@ -162,7 +164,7 @@ inline void ReadReflectionCoefficient(
 
     // Optionally read in internal reflection coefficient data
 
-    if(BotRC == 'P') {
+    if(params.Bdry->Bot.hs.Opt[0] == 'P') {
         EXTERR("Internal reflections not supported by BELLHOP and therefore "
                "not supported by " BHC_PROGRAMNAME);
     }

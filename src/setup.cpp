@@ -298,23 +298,16 @@ template<bool O3D, bool R3D> bool setup(
                                                                                 // scale
                                                                                 // !!!
         } else {
-            ReadEnvironment<O3D, R3D>(
-                FileRoot, PRTFile, params.Title, params.fT, params.Bdry, params.ssp,
-                params.atten, params.Pos, params.Angles, params.freqinfo, params.Beam,
-                RecycledHS);
-            ReadBoundary<O3D>(
-                FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth, PRTFile,
-                &params.bdinfo->top, true, params.freqinfo->freq0, params.fT,
-                params.atten); // AlTImetry
-            ReadBoundary<O3D>(
-                FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth, PRTFile,
-                &params.bdinfo->bot, false, params.freqinfo->freq0, params.fT,
-                params.atten); // BaThYmetry
-            ReadReflectionCoefficient(
-                FileRoot, params.Bdry->Bot.hs.Opt[0], params.Bdry->Top.hs.Opt[1], PRTFile,
-                params.refl); // (top and bottom)
+            ReadEnvironment<O3D, R3D>(params, RecycledHS);
+            ReadBoundary<O3D, R3D>(
+                params, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
+                &params.bdinfo->top, true); // AlTImetry
+            ReadBoundary<O3D, R3D>(
+                params, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
+                &params.bdinfo->bot, false);             // BaThYmetry
+            ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
             params.beaminfo->SBPFlag = params.Beam->RunType[2];
-            ReadPat(FileRoot, PRTFile, params.beaminfo); // Source Beam Pattern
+            ReadPat<O3D, R3D>(params); // Source Beam Pattern
             if constexpr(!O3D) {
                 // dummy bearing angles
                 params.Pos->Ntheta   = 1;

@@ -523,9 +523,9 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
     }
 }
 
-template<bool O3D> inline void ReadBoundary(
-    std::string FileRoot, char BdryDefMode, real BdryDepth, PrintFileEmu &PRTFile,
-    BdryInfoTopBot<O3D> *bdinfotb, bool isTop, real freq, real fT, const AttenInfo *atten)
+template<bool O3D, bool R3D> inline void ReadBoundary(
+    bhcParams<O3D, R3D> &params, char BdryDefMode, real BdryDepth,
+    BdryInfoTopBot<O3D> *bdinfotb, bool isTop)
 {
     const char *s_atibty              = isTop ? "ati" : "bty";
     const char *s_ATIBTY              = isTop ? "ATI" : "BTY";
@@ -534,6 +534,8 @@ template<bool O3D> inline void ReadBoundary(
     const char *s_topbottom           = isTop ? "top" : "bottom";
     const char *s_risesdrops = isTop ? "rises above highest" : "drops below lowest";
 
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
     switch(BdryDefMode) {
     case '~':
     case '*': {
@@ -541,9 +543,11 @@ template<bool O3D> inline void ReadBoundary(
                    "_____\n\n";
         PRTFile << "Using " << s_topbottom << "-" << s_altimetrybathymetry << " file\n";
 
-        LDIFile BDRYFile(GetInternal(params), FileRoot + "." + s_atibty);
+        LDIFile
+            BDRYFile(GetInternal(params), GetInternal(params)->FileRoot + "." + s_atibty);
         if(!BDRYFile.Good()) {
-            PRTFile << s_ATIBTY << "File = " << FileRoot << "." << s_atibty << "\n";
+            PRTFile << s_ATIBTY << "File = " << GetInternal(params)->FileRoot << "."
+                    << s_atibty << "\n";
             EXTERR("Read%s: Unable to open %s file", s_ATIBTY, s_altimetrybathymetry);
         }
 
@@ -783,18 +787,16 @@ template<bool O3D> inline void ReadBoundary(
                 // compressional wave speed
                 bdinfotb->bd[iSeg].hs.cP = crci(
                     RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
-                    bdinfotb->bd[iSeg].hs.alphaI, freq, freq, {'W', ' '}, betaPowerLaw,
-                    fT, atten, PRTFile);
+                    bdinfotb->bd[iSeg].hs.alphaI, params.freqinfo->freq0,
+                    params.freqinfo->freq0, {'W', ' '}, betaPowerLaw, params.fT,
+                    params.atten, PRTFile);
                 // shear         wave speed
                 bdinfotb->bd[iSeg].hs.cS = crci(
                     RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR, bdinfotb->bd[iSeg].hs.betaI,
-                    freq, freq, {'W', ' '}, betaPowerLaw, fT, atten, PRTFile);
+                    params.freqinfo->freq0, params.freqinfo->freq0, {'W', ' '},
+                    betaPowerLaw, params.fT, params.atten, PRTFile);
             }
         }
-    } else {
-        IGNORE_UNUSED(freq);
-        IGNORE_UNUSED(fT);
-        IGNORE_UNUSED(atten);
     }
 }
 
@@ -802,14 +804,15 @@ template<bool O3D> inline void ReadBoundary(
  * Handles top and bottom boundary conditions
  * LP: Moved from readenv.cpp as it relates to boundary conditions.
  *
- * freq: center / nominal frequency (wideband not supported)
+ * params.freqinfo->freq0: center / nominal frequency (wideband not supported)
  */
-inline void TopBot(
-    const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs, LDIFile &ENVFile,
-    PrintFileEmu &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS)
+template<bool O3D, bool R3D> inline void TopBot(
+    bhcParams<O3D, R3D> &params, HSInfo &hs, LDIFile &ENVFile, HSInfo &RecycledHS)
 {
     real Mz, vr, alpha2_f; // values related to grain size
     real zTemp;
+
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
     // Echo to PRTFile user's choice of boundary condition
 
@@ -847,17 +850,20 @@ inline void TopBot(
         // freq0         = freq;
         // betaPowerLaw  = FL(1.0); //LP: Default is 1.0, this is the only other place
         // it's set (also to 1.0).
-        fT = FL(1000.0);
+        params.fT = FL(1000.0);
 
         hs.cP = crci(
-            zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, AttenUnit,
-            betaPowerLaw, fT, atten, PRTFile);
+            zTemp, RecycledHS.alphaR, RecycledHS.alphaI, params.freqinfo->freq0,
+            params.freqinfo->freq0, params.ssp->AttenUnit, betaPowerLaw, params.fT,
+            params.atten, PRTFile);
         hs.cS = crci(
-            zTemp, RecycledHS.betaR, RecycledHS.betaI, freq, freq, AttenUnit,
-            betaPowerLaw, fT, atten, PRTFile);
+            zTemp, RecycledHS.betaR, RecycledHS.betaI, params.freqinfo->freq0,
+            params.freqinfo->freq0, params.ssp->AttenUnit, betaPowerLaw, params.fT,
+            params.atten, PRTFile);
         // printf("%g %g %g %g %c%c %g %g\n", zTemp, RecycledHS.alphaR,
-        // RecycledHS.alphaI, freq,
-        //     AttenUnit[0], AttenUnit[1], betaPowerLaw, fT);
+        // RecycledHS.alphaI, params.freqinfo->freq0,
+        //     params.ssp->AttenUnit[0], params.ssp->AttenUnit[1], betaPowerLaw,
+        //     params.fT);
         // printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
 
         hs.rho = RecycledHS.rho;
@@ -900,7 +906,7 @@ inline void TopBot(
             alpha2_f = FL(0.0601);
         }
 
-        // AttenUnit = 'L';  // loss parameter
+        // params.ssp->AttenUnit = 'L';  // loss parameter
         // !! following uses a reference sound speed of 1500 ???
         // !! should be sound speed in the water, just above the sediment
         // the term vr / 1000 converts vr to units of m per ms
@@ -909,8 +915,9 @@ inline void TopBot(
             / (FL(40.0) * REAL_PI); // loss parameter Sect. IV., Eq. (4) of handbook
 
         hs.cP = crci(
-            zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, {'L', ' '},
-            betaPowerLaw, fT, atten, PRTFile);
+            zTemp, RecycledHS.alphaR, RecycledHS.alphaI, params.freqinfo->freq0,
+            params.freqinfo->freq0, {'L', ' '}, betaPowerLaw, params.fT, params.atten,
+            PRTFile);
         hs.cS  = FL(0.0);
         hs.rho = RecycledHS.rho;
     }

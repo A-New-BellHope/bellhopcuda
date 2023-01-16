@@ -22,14 +22,17 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile, BeamInfo *beaminfo)
+template<bool O3D, bool R3D> inline void ReadPat(bhcParams<O3D, R3D> &params)
 {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+    BeamInfo *beaminfo    = params.beaminfo;
+
     if(beaminfo->SBPFlag == '*') {
         PRTFile << "\n______________________________\nUsing source beam pattern file\n";
 
-        LDIFile SBPFile(GetInternal(params), FileRoot, ".sbp");
+        LDIFile SBPFile(GetInternal(params), GetInternal(params)->FileRoot, ".sbp");
         if(!SBPFile.Good()) {
-            PRTFile << "SBPFile = " << FileRoot << ".sbp\n";
+            PRTFile << "SBPFile = " << GetInternal(params)->FileRoot << ".sbp\n";
             EXTERR("BELLHOP-ReadPat: Unable to open source beampattern file");
         }
 
@@ -85,10 +88,12 @@ template<bool O3D, int DIM> inline HOST_DEVICE bool IsOutsideBeamBoxDim(
 /**
  * Limits for tracing beams
  */
-template<bool O3D> inline void ReadBeamInfo(
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, BeamStructure<O3D> *Beam,
-    const BdryType *Bdry)
+template<bool O3D, bool R3D> inline void ReadBeamInfo(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
+    PrintFileEmu &PRTFile    = GetInternal(params)->PRTFile;
+    BeamStructure<O3D> *Beam = params.Beam;
+
     if constexpr(O3D) {
         LIST(ENVFile);
         ENVFile.Read(Beam->deltas);
@@ -99,7 +104,7 @@ template<bool O3D> inline void ReadBeamInfo(
         Beam->Box.y *= FL(1000.0); // convert km to m
 
         if(Beam->deltas == FL(0.0))
-            Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth)
+            Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth)
                 / FL(10.0); // Automatic step size selection
     } else {
         LIST(ENVFile);

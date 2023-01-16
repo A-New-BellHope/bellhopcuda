@@ -1,2 +1,4 @@
-- Get rid of GlobalLog, replace with flags
-- Get rid of bail, replace with checking atomic errored variable
+Check errored state often
+
+Check for std::abort()
+

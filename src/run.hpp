@@ -33,8 +33,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     // this is always called from run_* so update intermediate params
-    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-    UpdateSSP(params.freqinfo->freq0, params.fT, params.ssp, PRTFile, params.atten, O3D);
+    UpdateSSP<O3D, R3D>(params);
 
     // Common
     int32_t ns = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;
@@ -55,7 +54,9 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     } else if(IsEigenraysRun(params.Beam)) {
         InitEigenMode(outputs.eigen);
     } else if(IsArrivalsRun(params.Beam)) {
-        InitArrivalsMode(outputs.arrinfo, params.maxThreads, O3D, params.Pos, PRTFile);
+        InitArrivalsMode(
+            outputs.arrinfo, params.maxThreads, O3D, params.Pos,
+            GetInternal(params)->PRTFile);
     } else {
         EXTERR("Invalid RunType %c", params.Beam->RunType[0]);
     }

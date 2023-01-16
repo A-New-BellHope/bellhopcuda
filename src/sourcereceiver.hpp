@@ -26,10 +26,13 @@ namespace bhc {
  * If the broadband option is not selected, then the input freq (a scalar) is stored in
  * the frequency vector
  */
-inline void ReadfreqVec(
-    char BroadbandOption, LDIFile &ENVFile, PrintFileEmu &PRTFile, FreqInfo *freqinfo)
+template<bool O3D, bool R3D> inline void ReadfreqVec(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
-    if(BroadbandOption == 'B') {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+    FreqInfo *freqinfo    = params.freqinfo;
+
+    if(params.Bdry->Top.hs.Opt[5] == 'B') {
         LIST(ENVFile);
         ENVFile.Read(freqinfo->Nfreq);
         PRTFile << "_____________________________________________________________________"
@@ -40,7 +43,7 @@ inline void ReadfreqVec(
 
     checkallocate(freqinfo->freqVec, bhc::max(3, freqinfo->Nfreq));
 
-    if(BroadbandOption == 'B') {
+    if(params.Bdry->Top.hs.Opt[5] == 'B') {
         PRTFile << "   Frequencies (Hz)\n";
         freqinfo->freqVec[1] = FL(-999.9);
         freqinfo->freqVec[2] = FL(-999.9);
@@ -98,19 +101,21 @@ template<typename REAL> inline void ReadVector(
  *
  * ThreeD: flag indicating whether this is a 3D run
  */
-template<bool O3D> inline void ReadSxSy(
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
+template<bool O3D, bool R3D> inline void ReadSxSy(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
     if constexpr(O3D) {
         ReadVector(
-            Pos->NSx, Pos->Sx, "Source   x-coordinates, Sx", "km", ENVFile, PRTFile);
+            params.Pos->NSx, params.Pos->Sx, "Source   x-coordinates, Sx", "km", ENVFile,
+            GetInternal(params)->PRTFile);
         ReadVector(
-            Pos->NSy, Pos->Sy, "Source   y-coordinates, Sy", "km", ENVFile, PRTFile);
+            params.Pos->NSy, params.Pos->Sy, "Source   y-coordinates, Sy", "km", ENVFile,
+            GetInternal(params)->PRTFile);
     } else {
-        checkallocate(Pos->Sx, 1);
-        checkallocate(Pos->Sy, 1);
-        Pos->Sx[0] = FL(0.0);
-        Pos->Sy[0] = FL(0.0);
+        checkallocate(params.Pos->Sx, 1);
+        checkallocate(params.Pos->Sy, 1);
+        params.Pos->Sx[0] = FL(0.0);
+        params.Pos->Sy[0] = FL(0.0);
     }
 }
 
@@ -119,9 +124,12 @@ template<bool O3D> inline void ReadSxSy(
  * zMin, zMax: limits for those depths;
  *     sources and receivers are shifted to be within those limits
  */
-inline void ReadSzRz(
-    real zMin, real zMax, LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
+template<bool O3D, bool R3D> inline void ReadSzRz(
+    bhcParams<O3D, R3D> &params, real zMin, real zMax, LDIFile &ENVFile)
 {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+    Position *Pos         = params.Pos;
+
     // bool monotonic; //LP: monotonic is a function, this is a name clash
 
     ReadVector(Pos->NSz, Pos->Sz, "Source   z-coordinates, Sz", "m", ENVFile, PRTFile);
@@ -181,9 +189,14 @@ inline void ReadSzRz(
     */
 }
 
-inline void ReadRcvrRanges(LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
+template<bool O3D, bool R3D> inline void ReadRcvrRanges(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
-    ReadVector(Pos->NRr, Pos->Rr, "Receiver r-coordinates, Rr", "km", ENVFile, PRTFile);
+    Position *Pos = params.Pos;
+
+    ReadVector(
+        Pos->NRr, Pos->Rr, "Receiver r-coordinates, Rr", "km", ENVFile,
+        GetInternal(params)->PRTFile);
 
     // calculate range spacing
     Pos->Delta_r = FL(0.0);
@@ -194,10 +207,14 @@ inline void ReadRcvrRanges(LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Po
     }
 }
 
-inline void ReadRcvrBearings(LDIFile &ENVFile, PrintFileEmu &PRTFile, Position *Pos)
+template<bool O3D, bool R3D> inline void ReadRcvrBearings(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
+    Position *Pos = params.Pos;
+
     ReadVector(
-        Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile, PRTFile);
+        Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile,
+        GetInternal(params)->PRTFile);
     checkallocate<vec2>(Pos->t_rcvr, Pos->Ntheta);
 
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);
