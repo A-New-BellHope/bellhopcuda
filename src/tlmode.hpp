@@ -86,7 +86,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
             Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
         if(!Step_Influence<CFG, O3D, R3D>(
                point0, point1, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg, Pos,
-               Beam, eigen, arrinfo)) {
+               Beam, eigen, arrinfo, errState)) {
 #ifdef STEP_DEBUGGING
             printf("Step_Influence terminated ray\n");
 #endif
@@ -96,7 +96,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
         if(twoSteps) {
             if(!Step_Influence<CFG, O3D, R3D>(
                    point1, point2, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg,
-                   Pos, Beam, eigen, arrinfo))
+                   Pos, Beam, eigen, arrinfo, errState))
                 break;
             point0 = point2;
             ++is;

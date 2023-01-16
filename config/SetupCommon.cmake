@@ -66,6 +66,7 @@ set(common_source
     arrivals.cpp
     arrivals.hpp
     atomics.hpp
+    attenuation.cpp
     attenuation.hpp
     beams.hpp
     bino.hpp

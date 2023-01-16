@@ -150,16 +150,12 @@ inline void InitArrivalsMode(
 }
 
 template<bool O3D, bool R3D> void WriteOutArrivals(
-    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam,
-    std::string FileRoot, const ArrInfo *arrinfo);
+    const bhcParams<O3D, R3D> &params, const ArrInfo *arrinfo);
 extern template void WriteOutArrivals<false, false>(
-    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<false> *Beam,
-    std::string FileRoot, const ArrInfo *arrinfo);
+    const bhcParams<false, false> &params, const ArrInfo *arrinfo);
 extern template void WriteOutArrivals<true, false>(
-    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<true> *Beam,
-    std::string FileRoot, const ArrInfo *arrinfo);
+    const bhcParams<true, false> &params, const ArrInfo *arrinfo);
 extern template void WriteOutArrivals<true, true>(
-    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<true> *Beam,
-    std::string FileRoot, const ArrInfo *arrinfo);
+    const bhcParams<true, true> &params, const ArrInfo *arrinfo);
 
 } // namespace bhc

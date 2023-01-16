@@ -61,10 +61,12 @@ template<bool O3D, bool R3D> inline void ReadfreqVec(
  * Description is something like 'receiver ranges'
  * Units       is something like 'km'
  */
-template<typename REAL> inline void ReadVector(
-    int32_t &Nx, REAL *&x, std::string Description, std::string Units, LDIFile &ENVFile,
-    PrintFileEmu &PRTFile)
+template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
+    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, std::string Description,
+    std::string Units, LDIFile &ENVFile)
 {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
     PRTFile << "\n_______________________________________________________________________"
                "___\n\n";
     LIST(ENVFile);
@@ -106,11 +108,11 @@ template<bool O3D, bool R3D> inline void ReadSxSy(
 {
     if constexpr(O3D) {
         ReadVector(
-            params.Pos->NSx, params.Pos->Sx, "Source   x-coordinates, Sx", "km", ENVFile,
-            GetInternal(params)->PRTFile);
+            params, params.Pos->NSx, params.Pos->Sx, "Source   x-coordinates, Sx", "km",
+            ENVFile);
         ReadVector(
-            params.Pos->NSy, params.Pos->Sy, "Source   y-coordinates, Sy", "km", ENVFile,
-            GetInternal(params)->PRTFile);
+            params, params.Pos->NSy, params.Pos->Sy, "Source   y-coordinates, Sy", "km",
+            ENVFile);
     } else {
         checkallocate(params.Pos->Sx, 1);
         checkallocate(params.Pos->Sy, 1);
@@ -132,8 +134,8 @@ template<bool O3D, bool R3D> inline void ReadSzRz(
 
     // bool monotonic; //LP: monotonic is a function, this is a name clash
 
-    ReadVector(Pos->NSz, Pos->Sz, "Source   z-coordinates, Sz", "m", ENVFile, PRTFile);
-    ReadVector(Pos->NRz, Pos->Rz, "Receiver z-coordinates, Rz", "m", ENVFile, PRTFile);
+    ReadVector(params, Pos->NSz, Pos->Sz, "Source   z-coordinates, Sz", "m", ENVFile);
+    ReadVector(params, Pos->NRz, Pos->Rz, "Receiver z-coordinates, Rz", "m", ENVFile);
 
     checkallocate(Pos->ws, Pos->NSz);
     checkallocate(Pos->iSz, Pos->NSz);
@@ -194,9 +196,7 @@ template<bool O3D, bool R3D> inline void ReadRcvrRanges(
 {
     Position *Pos = params.Pos;
 
-    ReadVector(
-        Pos->NRr, Pos->Rr, "Receiver r-coordinates, Rr", "km", ENVFile,
-        GetInternal(params)->PRTFile);
+    ReadVector(params, Pos->NRr, Pos->Rr, "Receiver r-coordinates, Rr", "km", ENVFile);
 
     // calculate range spacing
     Pos->Delta_r = FL(0.0);
@@ -213,8 +213,7 @@ template<bool O3D, bool R3D> inline void ReadRcvrBearings(
     Position *Pos = params.Pos;
 
     ReadVector(
-        Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile,
-        GetInternal(params)->PRTFile);
+        params, Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile);
     checkallocate<vec2>(Pos->t_rcvr, Pos->Ntheta);
 
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);

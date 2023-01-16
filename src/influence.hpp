@@ -365,6 +365,7 @@ HOST_DEVICE inline vec2 FlipBeamForImage(
         return vec2(x.x, FL(2.0) * Bdry->Bot.hs.Depth - x.y);
     } else {
         RunError(errState, BHC_ERR_INVALID_IMAGE_INDEX);
+        return x;
     }
 }
 
@@ -473,18 +474,17 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
 // Init_Influence
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool O3D, bool R3D> inline void PreRun_Influence(
-    const BeamStructure<O3D> *Beam, const Position *Pos)
+template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D, R3D> &params)
 {
-    if(IsCervenyInfl(Beam)) {
+    if(IsCervenyInfl(params.Beam)) {
         if constexpr(R3D) {
             // LP: The Influence3D (Cerveny) function is commented out; was
             // obviously implemented at some point.
             EXTERR(
-                IsCartesianInfl(Beam) ? "Run Type 'C' not supported at this time"
-                                      : "Invalid Run Type");
+                IsCartesianInfl(params.Beam) ? "Run Type 'C' not supported at this time"
+                                             : "Invalid Run Type");
         } else if constexpr(O3D) {
-            if(IsCartesianInfl(Beam)) {
+            if(IsCartesianInfl(params.Beam)) {
 #ifdef BHC_LIMIT_FEATURES
                 EXTERR("Nx2D Cerveny Cartesian is not supported by BELLHOP3D "
                        "but can be supported by " BHC_PROGRAMNAME " if you turn off "
@@ -495,14 +495,14 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(
 #endif
             }
         }
-        if(!IsTLRun(Beam)) {
+        if(!IsTLRun(params.Beam)) {
             EXTERR("Cerveny influence does not support eigenrays or arrivals");
         }
-    } else if(IsSGBInfl(Beam)) {
+    } else if(IsSGBInfl(params.Beam)) {
         if constexpr(R3D) { EXTERR("Invalid Run Type"); }
-    } else if(IsGeometricInfl(Beam)) {
+    } else if(IsGeometricInfl(params.Beam)) {
         if constexpr(!O3D) {
-            if(IsRayCenInfl(Beam) && IsGaussianGeomInfl(Beam)) {
+            if(IsRayCenInfl(params.Beam) && IsGaussianGeomInfl(params.Beam)) {
 #ifdef BHC_LIMIT_FEATURES
                 EXTERR("2D Gaussian RayCen is not supported by BELLHOP "
                        "but can be supported by " BHC_PROGRAMNAME " if you turn off "
@@ -517,9 +517,9 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(
         EXTERR("Invalid Run Type");
     }
 
-    for(int32_t i = 0; i < Pos->Ntheta; ++i) {
-        real theta     = DegRad * Pos->theta[i];
-        Pos->t_rcvr[i] = vec2(STD::cos(theta), STD::sin(theta));
+    for(int32_t i = 0; i < params.Pos->Ntheta; ++i) {
+        real theta            = DegRad * params.Pos->theta[i];
+        params.Pos->t_rcvr[i] = vec2(STD::cos(theta), STD::sin(theta));
     }
 }
 
@@ -559,10 +559,11 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
 
     if constexpr(CFG::infl::IsCerveny()) {
         inflray.epsilon1 = PickEpsilon<O3D, R3D>(
-            inflray.omega, point0.c, gradc, rinit.alpha, Angles->alpha.d, Beam);
+            inflray.omega, point0.c, gradc, rinit.alpha, Angles->alpha.d, Beam, errState);
         if constexpr(R3D) {
             inflray.epsilon2 = PickEpsilon<O3D, R3D>(
-                inflray.omega, point0.c, gradc, rinit.beta, Angles->beta.d, Beam);
+                inflray.omega, point0.c, gradc, rinit.beta, Angles->beta.d, Beam,
+                errState);
         }
     }
 

@@ -92,7 +92,7 @@ template<bool O3D, bool R3D> bool run(
     GetInternal(params)->sharedJobID  = 0;
 
     try {
-        Stopwatch sw;
+        Stopwatch sw(GetInternal(params));
         sw.tick();
         InitSelectedMode<O3D, R3D>(params, outputs);
         sw.tock("InitSelectedMode");
@@ -145,9 +145,7 @@ template<bool O3D, bool R3D> bool writeout(
         bhc::WriteOutEigenrays<O3D, R3D>(params, outputs);
     } else if(IsArrivalsRun(params.Beam)) {
         // Arrivals mode
-        bhc::WriteOutArrivals<O3D, R3D>(
-            params.Pos, params.freqinfo, params.Beam, GetInternal(params)->FileRoot,
-            outputs.arrinfo);
+        bhc::WriteOutArrivals<O3D, R3D>(params, outputs.arrinfo);
     } else {
         std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
         GetInternal(params)->api_okay = false;

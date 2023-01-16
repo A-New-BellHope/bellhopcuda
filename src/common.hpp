@@ -451,9 +451,9 @@ static inline std::string trim_copy(std::string s)
 // Other components
 ////////////////////////////////////////////////////////////////////////////////
 
-} // namespace bhc
-
 struct bhcInternal;
+
+} // namespace bhc
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
 #include "errors.hpp"

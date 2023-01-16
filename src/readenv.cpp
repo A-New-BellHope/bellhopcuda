@@ -232,7 +232,6 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     real ZMin, ZMax;
     cpx ccpx;
     real Sigma, Depth;
-    char PlotType[10];
 
     bhcInternal *internal = GetInternal(params);
     PrintFileEmu &PRTFile = internal->PRTFile;
@@ -344,9 +343,9 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     ReadRunType<O3D, R3D>(params, ENVFile);
 
     Depth = ZMax - ZMin; // water depth
-    ReadRayAngles<O3D, false>(params, Depth, ENVFile, params.Angles->alpha);
+    ReadRayAngles<O3D, R3D, false>(params, Depth, ENVFile, params.Angles->alpha);
     if constexpr(O3D) {
-        ReadRayAngles<O3D, true>(params, Depth, ENVFile, params.Angles->beta);
+        ReadRayAngles<O3D, R3D, true>(params, Depth, ENVFile, params.Angles->beta);
     }
 
     PRTFile << "\n_______________________________________________________________________"

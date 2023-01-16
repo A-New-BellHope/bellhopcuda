@@ -219,9 +219,7 @@ template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params)
     } else {
         for(int32_t iz = 0; iz < ssp->NPts; ++iz) {
             ssp->c[iz] = crci(
-                ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], params.freqinfo->freq0,
-                params.freqinfo->freq0, ssp->AttenUnit, betaPowerLaw, params.fT,
-                params.atten, GetInternal(params)->PRTFile);
+                params, ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], ssp->AttenUnit);
 
             // verify that the depths are monotone increasing
             if(iz > 0) {

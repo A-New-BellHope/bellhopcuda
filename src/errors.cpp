@@ -22,7 +22,7 @@ namespace bhc {
 
 #define ERRBUFSIZE 1024
 
-void ExternalError(bhcInternal *internal, const char *format, ...) [[noreturn]]
+[[noreturn]] void ExternalError(bhcInternal *internal, const char *format, ...)
 {
     char *buf = new char[ERRBUFSIZE];
     va_list args;
@@ -65,40 +65,41 @@ static const char *const errorDescriptions[BHC_ERR_MAX] = {
 
 static const char *const warningDescriptions[BHC_WARN_MAX] = {
     "BHC_WARN_RAYS_OUTOFMEMORY: Ran out of memory for rays (in ray copy mode); "
-        "subsequent rays will be discarded",
+    "subsequent rays will be discarded",
     "BHC_WARN_ONERAY_OUTOFMEMORY: Ran out of memory for individual ray(s), "
-        "those rays have been truncated",
+    "those rays have been truncated",
     "BHC_WARN_UNBOUNDED_BEAM: Cerveny beam has imaginary component of gamma > 0",
     "BHC_WARN_TOO_FEW_BEAMS: Nalpha is too small; there may be gaps between the beams",
     "BHC_WARN_SOURCE_OUTSIDE_BOUNDARIES: Terminating the ray trace because the "
-        "source is on or outside the boundaries",
+    "source is on or outside the boundaries",
     "BHC_WARN_OUTSIDE_REFLCOEF: Reflection coefficient is undefined where the ray "
-        "has gone",
+    "has gone",
     "BHC_WARN_OUTSIDE_ALTIMETRY: Top altimetry undefined above where the ray has gone",
-    "BHC_WARN_OUTSIDE_BATHYMETRY: Bottom bathymetry undefined below where the ray has gone",
+    "BHC_WARN_OUTSIDE_BATHYMETRY: Bottom bathymetry undefined below where the ray has "
+    "gone",
     "BHC_WARN_STEP_NEGATIVE_H: Ray needs to step backwards to reach next boundary; "
-        "boundary edge case handling has gone wrong, this ray's results may be unreliable",
+    "boundary edge case handling has gone wrong, this ray's results may be unreliable",
     "BHC_WARN_TRIDIAG_H_VERY_NEGATIVE: Ray needs to step backwards to cross diagonal "
-        "of top/bottom triangle; tri diagonal edge case handling has gone wrong, "
-        "this ray's results may be unreliable",
+    "of top/bottom triangle; tri diagonal edge case handling has gone wrong, "
+    "this ray's results may be unreliable",
     "BHC_WARN_TRIDIAG_H_GROWING: Tentative step crossed tri diagonal, but stepping "
-        "to the diagonal resulted in a larger step; tri diagonal edge case handling "
-        "has gone wrong, this ray's results may be unreliable",
+    "to the diagonal resulted in a larger step; tri diagonal edge case handling "
+    "has gone wrong, this ray's results may be unreliable",
     "BHC_WARN_WKB_UNIMPLEMENTED_3D: WKB beamwidth beams unimplemented in BELLHOP3D, "
-        "PickEpsilon results will be nonsense",
+    "PickEpsilon results will be nonsense",
     "BHC_WARN_CERVENY_WIDTH_BUGGY: Cerveny beamwidth Cerveny beams are not propery "
-        "implemented in BELLHOP(3D), PickEpsilon results will be nonsense",
+    "implemented in BELLHOP(3D), PickEpsilon results will be nonsense",
     "BHC_WARN_INVALID_WIDTH_BUGGY: BELLHOP(3D) does not properly handle Cerveny "
-        "beams with an invalid beam with type; PickEpsilon results will be nonsense",
+    "beams with an invalid beam with type; PickEpsilon results will be nonsense",
     "BHC_WARN_BEAMTYPE_CARETSPACE: BELLHOP(3D) does not properly handle hat Cartesian "
-        "runs defined as '^' or ' ' in PickEpsilon",
+    "runs defined as '^' or ' ' in PickEpsilon",
     "BHC_WARN_INVALID_TYPE_BUGGY: BELLHOP(3D) does not properly handle beams with "
-        "an invalid beam type in PickEpsilon",
+    "an invalid beam type in PickEpsilon",
     "BHC_WARN_CPCHIP_INVALIDXT: Difference in depth between ray and segment is "
-        "extremely large in PCHIP SSP, likely bug or garbage input",
+    "extremely large in PCHIP SSP, likely bug or garbage input",
     "BHC_WARN_CPCHIP_INVALIDCCOEF: cCoef is extremely large in PCHIP SSP, likely "
-        "bug or garbage input",
-}
+    "bug or garbage input",
+};
 
 void CheckReportErrors(bhcInternal *internal, const ErrState *errState)
 {

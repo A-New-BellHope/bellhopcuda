@@ -22,8 +22,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-constexpr real betaPowerLaw = FL(1.0);
-
 #define SSP_2D_FN_ARGS \
     const vec2 &x, const vec2 &t, SSPOutputs<false> &o, const SSPStructure *ssp, \
         SSPSegState &iSeg, ErrState *errState

@@ -22,20 +22,21 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 template<bool O3D, bool R3D> void WriteOutArrivals(
-    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam,
-    std::string FileRoot, const ArrInfo *arrinfo)
+    const bhcParams<O3D, R3D> &params, const ArrInfo *arrinfo)
 {
+    const Position *Pos = params.Pos;
+
     // LP: originally most of OpenOutputFiles
     bool isAscii;
     LDOFile AARRFile;
-    UnformattedOFile BARRFile;
-    switch(Beam->RunType[0]) {
+    UnformattedOFile BARRFile(GetInternal(params));
+    switch(params.Beam->RunType[0]) {
     case 'A': // arrivals calculation, ascii
         isAscii = true;
 
-        AARRFile.open(FileRoot + ".arr");
+        AARRFile.open(GetInternal(params)->FileRoot + ".arr");
         AARRFile << (O3D ? "3D" : "2D") << '\n';
-        AARRFile << freqinfo->freq0 << '\n';
+        AARRFile << params.freqinfo->freq0 << '\n';
 
         // write source locations
         if constexpr(O3D) {
@@ -66,11 +67,11 @@ template<bool O3D, bool R3D> void WriteOutArrivals(
     case 'a': // arrivals calculation, binary
         isAscii = false;
 
-        BARRFile.open(FileRoot + ".arr");
+        BARRFile.open(GetInternal(params)->FileRoot + ".arr");
         BARRFile.rec();
         BARRFile.write((O3D ? "'3D'" : "'2D'"), 4);
         BARRFile.rec();
-        BARRFile.write((float)freqinfo->freq0);
+        BARRFile.write((float)params.freqinfo->freq0);
 
         // write source locations
         if constexpr(O3D) {
@@ -131,7 +132,7 @@ template<bool O3D, bool R3D> void WriteOutArrivals(
                             if constexpr(R3D) {
                                 factor = FL(1.0);
                             } else {
-                                if(!O3D && IsLineSource(Beam)) {
+                                if(!O3D && IsLineSource(params.Beam)) {
                                     factor = FL(4.0) * STD::sqrt(REAL_PI);
                                 } else if(Pos->Rr[ir] == FL(0.0)) {
                                     factor = FL(1e5); // avoid /0 at origin
@@ -194,18 +195,15 @@ template<bool O3D, bool R3D> void WriteOutArrivals(
 
 #if BHC_ENABLE_2D
 template void WriteOutArrivals<false, false>(
-    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<false> *Beam,
-    std::string FileRoot, const ArrInfo *arrinfo);
+    const bhcParams<false, false> &params, const ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_NX2D
 template void WriteOutArrivals<true, false>(
-    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<true> *Beam,
-    std::string FileRoot, const ArrInfo *arrinfo);
+    const bhcParams<true, false> &params, const ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_3D
 template void WriteOutArrivals<true, true>(
-    const Position *Pos, const FreqInfo *freqinfo, const BeamStructure<true> *Beam,
-    std::string FileRoot, const ArrInfo *arrinfo);
+    const bhcParams<true, true> &params, const ArrInfo *arrinfo);
 #endif
 
 } // namespace bhc

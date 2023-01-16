@@ -30,7 +30,7 @@ struct ErrState {
     STD::atomic<uint32_t> error, warning, errCount, warnCount;
 };
 
-extern void ExternalError(bhcInternal *internal, const char *format, ...) [[noreturn]];
+[[noreturn]] extern void ExternalError(bhcInternal *internal, const char *format, ...);
 extern void ExternalWarning(bhcInternal *internal, const char *format, ...);
 #define EXTERR(...) ExternalError(GetInternal(params), __VA_ARGS__)
 #define EXTWARN(...) ExternalWarning(GetInternal(params), __VA_ARGS__)

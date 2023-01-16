@@ -48,7 +48,8 @@ template<bool R3D> HOST_DEVICE inline void Distances(
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
     int32_t isx, int32_t isy, int32_t isz, real alpha, SSPSegState &iSeg,
-    const Position *Pos, const SSPStructure *ssp, VEC23<O3D> &xs, VEC23<O3D> &tinit)
+    const Position *Pos, const SSPStructure *ssp, ErrState *errState, VEC23<O3D> &xs,
+    VEC23<O3D> &tinit)
 {
     if constexpr(O3D) {
         xs    = vec3(Pos->Sx[isx], Pos->Sy[isy], Pos->Sz[isz]);
@@ -60,7 +61,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNomi
     }
     SSPOutputs<O3D> o;
     // LP: Not a typo that this is templated on O3D only
-    EvaluateSSP<CFG, O3D, O3D>(xs, tinit, o, Origin<O3D, O3D>(), ssp, iSeg);
+    EvaluateSSP<CFG, O3D, O3D>(xs, tinit, o, Origin<O3D, O3D>(), ssp, iSeg, errState);
     return o;
 }
 
@@ -105,7 +106,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
     VEC23<O3D> tinit;
     SSPOutputs<O3D> o = RayStartNominalSSP<CFG, O3D>(
-        rinit.isx, rinit.isy, rinit.isz, rinit.alpha, iSeg, Pos, ssp, xs, tinit);
+        rinit.isx, rinit.isy, rinit.isz, rinit.alpha, iSeg, Pos, ssp, errState, xs,
+        tinit);
     gradc = o.gradc;
 
     if constexpr(O3D && !R3D) {
@@ -248,8 +250,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
 {
     bool topRefl, botRefl, flipTopDiag, flipBotDiag;
     Step<CFG, O3D, R3D>(
-        point0, point1, bds, Beam, xs, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl,
-        flipTopDiag, flipBotDiag, errState);
+        point0, point1, bds, Beam, xs, org, ssp, iSeg, errState, iSmallStepCtr, topRefl,
+        botRefl, flipTopDiag, flipBotDiag);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);

@@ -34,7 +34,7 @@ template<bool O3D, bool R3D, bool BEARING> inline void ReadRayAngles(
 
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
-    if(Bdry->Top.hs.Opt[5] == 'I') {
+    if(params.Bdry->Top.hs.Opt[5] == 'I') {
         // option to trace a single beam
         LIST(ENVFile);
         ENVFile.Read(a.n);
@@ -107,7 +107,7 @@ template<bool O3D, bool R3D, bool BEARING> inline void ReadRayAngles(
         EXTERR("%s: First and last beam take-off angle are identical", FuncName);
     }
 
-    if(Bdry->Top.hs.Opt[5] == 'I') {
+    if(params.Bdry->Top.hs.Opt[5] == 'I') {
         if(a.iSingle < 1 || a.iSingle > a.n) {
             EXTERR("%s: Selected beam, iSingle not in [1, a.n]", FuncName);
         }

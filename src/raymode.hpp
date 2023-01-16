@@ -183,31 +183,38 @@ template<bool O3D, bool R3D> inline bool RunRay(
     if(st == 'N') {
         MainRayMode<CfgSel<'R', 'G', 'N'>, O3D, R3D>(
             rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
+            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
+            errState);
     } else if(st == 'C') {
         MainRayMode<CfgSel<'R', 'G', 'C'>, O3D, R3D>(
             rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
+            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
+            errState);
     } else if(st == 'S') {
         MainRayMode<CfgSel<'R', 'G', 'S'>, O3D, R3D>(
             rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
+            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
+            errState);
     } else if(st == 'P') {
         MainRayMode<CfgSel<'R', 'G', 'P'>, O3D, R3D>(
             rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
+            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
+            errState);
     } else if(st == 'Q') {
         MainRayMode<CfgSel<'R', 'G', 'Q'>, O3D, R3D>(
             rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
+            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
+            errState);
     } else if(st == 'H') {
         MainRayMode<CfgSel<'R', 'G', 'H'>, O3D, R3D>(
             rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
+            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
+            errState);
     } else if(st == 'A') {
         MainRayMode<CfgSel<'R', 'G', 'A'>, O3D, R3D>(
             rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo);
+            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
+            errState);
     } else {
         RunError(errState, BHC_ERR_INVALID_SSP_TYPE);
     }

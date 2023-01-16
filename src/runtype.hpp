@@ -201,7 +201,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline const char *GetBeamTypeTag(
             ? "Geometric beam, Gaussian-shaped, Ray coord."
             : "Geo Gaussian beams in ray-cent. coords. not implemented in BELLHOP (2D)";
     case 'S': return "Simple Gaussian beams";
-    default: EXTERR("Invalid Beam->Type[0] %c", Beam->Type[0]);
+    default: return "Invalid Beam->Type[0]";
     }
 }
 
@@ -242,7 +242,7 @@ template<bool O3D> HOST_DEVICE inline const char *GetBeamWidthTag(
     case 'M': return "Minimum width beams";
     case 'W': return "WKB beams";
     case 'C': return "Cerveny style beam";
-    default: EXTERR("Invalid Beam->Type[1] %c\n", Beam->Type[1]);
+    default: return "Invalid Beam->Type[1]";
     }
 }
 

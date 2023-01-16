@@ -786,15 +786,12 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
             for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg) {
                 // compressional wave speed
                 bdinfotb->bd[iSeg].hs.cP = crci(
-                    RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
-                    bdinfotb->bd[iSeg].hs.alphaI, params.freqinfo->freq0,
-                    params.freqinfo->freq0, {'W', ' '}, betaPowerLaw, params.fT,
-                    params.atten, PRTFile);
+                    params, RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
+                    bdinfotb->bd[iSeg].hs.alphaI, {'W', ' '});
                 // shear         wave speed
                 bdinfotb->bd[iSeg].hs.cS = crci(
-                    RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR, bdinfotb->bd[iSeg].hs.betaI,
-                    params.freqinfo->freq0, params.freqinfo->freq0, {'W', ' '},
-                    betaPowerLaw, params.fT, params.atten, PRTFile);
+                    params, RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR,
+                    bdinfotb->bd[iSeg].hs.betaI, {'W', ' '});
             }
         }
     }
@@ -848,22 +845,15 @@ template<bool O3D, bool R3D> inline void TopBot(
         // dummy parameters for a layer with a general power law for attenuation
         // these are not in play because the AttenUnit for this is not allowed yet
         // freq0         = freq;
-        // betaPowerLaw  = FL(1.0); //LP: Default is 1.0, this is the only other place
-        // it's set (also to 1.0).
         params.fT = FL(1000.0);
 
         hs.cP = crci(
-            zTemp, RecycledHS.alphaR, RecycledHS.alphaI, params.freqinfo->freq0,
-            params.freqinfo->freq0, params.ssp->AttenUnit, betaPowerLaw, params.fT,
-            params.atten, PRTFile);
+            params, zTemp, RecycledHS.alphaR, RecycledHS.alphaI, params.ssp->AttenUnit);
         hs.cS = crci(
-            zTemp, RecycledHS.betaR, RecycledHS.betaI, params.freqinfo->freq0,
-            params.freqinfo->freq0, params.ssp->AttenUnit, betaPowerLaw, params.fT,
-            params.atten, PRTFile);
-        // printf("%g %g %g %g %c%c %g %g\n", zTemp, RecycledHS.alphaR,
+            params, zTemp, RecycledHS.betaR, RecycledHS.betaI, params.ssp->AttenUnit);
+        // printf("%g %g %g %g %c%c %g\n", zTemp, RecycledHS.alphaR,
         // RecycledHS.alphaI, params.freqinfo->freq0,
-        //     params.ssp->AttenUnit[0], params.ssp->AttenUnit[1], betaPowerLaw,
-        //     params.fT);
+        //     params.ssp->AttenUnit[0], params.ssp->AttenUnit[1], params.fT);
         // printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
 
         hs.rho = RecycledHS.rho;
@@ -914,10 +904,7 @@ template<bool O3D, bool R3D> inline void TopBot(
         RecycledHS.alphaI = alpha2_f * (vr / FL(1000.0)) * FL(1500.0) * STD::log(FL(10.0))
             / (FL(40.0) * REAL_PI); // loss parameter Sect. IV., Eq. (4) of handbook
 
-        hs.cP = crci(
-            zTemp, RecycledHS.alphaR, RecycledHS.alphaI, params.freqinfo->freq0,
-            params.freqinfo->freq0, {'L', ' '}, betaPowerLaw, params.fT, params.atten,
-            PRTFile);
+        hs.cP  = crci(params, zTemp, RecycledHS.alphaR, RecycledHS.alphaI, {'L', ' '});
         hs.cS  = FL(0.0);
         hs.rho = RecycledHS.rho;
     }

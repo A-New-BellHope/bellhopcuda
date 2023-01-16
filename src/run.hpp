@@ -61,11 +61,11 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
         EXTERR("Invalid RunType %c", params.Beam->RunType[0]);
     }
 
-    if(!IsRayRun(params.Beam)) { PreRun_Influence<O3D, R3D>(params.Beam, params.Pos); }
+    if(!IsRayRun(params.Beam)) { PreRun_Influence<O3D, R3D>(params); }
 }
 
 template<typename CFG, bool O3D, bool R3D> void FieldModesWorker(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, ErrState *errState);
 
 template<typename CFG, bool O3D, bool R3D> void RunFieldModesImpl(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);

@@ -32,12 +32,13 @@ namespace bhc {
  * PlotType: If "TL", writes only first and last Sx and Sy [LP: never set to
  * "TL" in BELLHOP]
  */
-void WriteHeader(
-    DirectOFile &SHDFile, const std::string &FileName, const char (&Title)[80],
-    float atten, const std::string &PlotType, const Position *Pos,
-    const FreqInfo *freqinfo)
+template<bool O3D, bool R3D> inline void WriteHeader(
+    const bhcParams<O3D, R3D> &params, DirectOFile &SHDFile, float atten,
+    const std::string &PlotType)
 {
-    bool isTL = (PlotType[0] == 'T' && PlotType[1] == 'L');
+    const Position *Pos      = params.Pos;
+    const FreqInfo *freqinfo = params.freqinfo;
+    bool isTL                = (PlotType[0] == 'T' && PlotType[1] == 'L');
 
     int32_t LRecl = 84; // 4 for LRecl, 80 for Title
     LRecl = bhc::max(LRecl, 2 * freqinfo->Nfreq * (int32_t)sizeof(freqinfo->freqVec[0]));
@@ -50,12 +51,13 @@ void WriteHeader(
     LRecl = bhc::max(LRecl, Pos->NRz * (int32_t)sizeof(Pos->Rz[0]));
     LRecl = bhc::max(LRecl, Pos->NRr * (int32_t)sizeof(cpxf));
 
+    std::string FileName = GetInternal(params)->FileRoot + ".shd";
     SHDFile.open(FileName, LRecl);
     if(!SHDFile.good()) { EXTERR("Could not open SHDFile: %s", FileName.c_str()); }
     LRecl /= 4;
     SHDFile.rec(0);
     DOFWRITE(SHDFile, &LRecl, 4);
-    DOFWRITE(SHDFile, std::string(Title), 80);
+    DOFWRITE(SHDFile, std::string(params.Title), 80);
     SHDFile.rec(1);
     DOFWRITE(SHDFile, PlotType, 10);
     SHDFile.rec(2);
@@ -106,11 +108,9 @@ template<bool O3D, bool R3D> void WriteOutTL(
     DirectOFile SHDFile(GetInternal(params));
 
     // following to set PlotType has already been done in READIN if that was used for
-    // input
+    // input (LP: not anymore)
     PlotType = IsIrregularGrid(params.Beam) ? "irregular " : "rectilin  ";
-    WriteHeader(
-        SHDFile, GetInternal(params)->FileRoot + ".shd", params.Title, atten, PlotType,
-        params.Pos, params.freqinfo);
+    WriteHeader(params, SHDFile, atten, PlotType);
 
     ErrState errState;
     ResetErrState(&errState);
@@ -124,25 +124,32 @@ template<bool O3D, bool R3D> void WriteOutTL(
                 char st = params.ssp->Type;
                 if(st == 'N') {
                     o = RayStartNominalSSP<CfgSel<'C', 'G', 'N'>, O3D>(
-                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, &errState,
+                        xs, tinit);
                 } else if(st == 'C') {
                     o = RayStartNominalSSP<CfgSel<'C', 'G', 'C'>, O3D>(
-                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, &errState,
+                        xs, tinit);
                 } else if(st == 'S') {
                     o = RayStartNominalSSP<CfgSel<'C', 'G', 'S'>, O3D>(
-                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, &errState,
+                        xs, tinit);
                 } else if(st == 'P') {
                     o = RayStartNominalSSP<CfgSel<'C', 'G', 'P'>, O3D>(
-                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, &errState,
+                        xs, tinit);
                 } else if(st == 'Q') {
                     o = RayStartNominalSSP<CfgSel<'C', 'G', 'Q'>, O3D>(
-                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, &errState,
+                        xs, tinit);
                 } else if(st == 'H') {
                     o = RayStartNominalSSP<CfgSel<'C', 'G', 'H'>, O3D>(
-                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, &errState,
+                        xs, tinit);
                 } else if(st == 'A') {
                     o = RayStartNominalSSP<CfgSel<'C', 'G', 'A'>, O3D>(
-                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, xs, tinit);
+                        isx, isy, isz, FL(0.0), iSeg, params.Pos, params.ssp, &errState,
+                        xs, tinit);
                 } else {
                     EXTERR("Invalid ssp->Type %c!", st);
                 }
@@ -150,18 +157,18 @@ template<bool O3D, bool R3D> void WriteOutTL(
                 if constexpr(R3D) {
                     epsilon1 = PickEpsilon<O3D, R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(),
-                        o.gradc, FL(0.0), params.Angles->alpha.d, params.Beam, errState);
+                        o.gradc, FL(0.0), params.Angles->alpha.d, params.Beam, &errState);
                     epsilon2 = PickEpsilon<O3D, R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(),
-                        o.gradc, FL(0.0), params.Angles->beta.d, params.Beam, errState);
-                    if(HasErrored(&errState)) {
-                        // Exit loops
-                        isx = params.Pos->NSx;
-                        isz = params.Pos->NSz;
-                        break;
-                    }
+                        o.gradc, FL(0.0), params.Angles->beta.d, params.Beam, &errState);
                 } else {
                     epsilon1 = epsilon2 = RL(0.0);
+                }
+                if(HasErrored(&errState)) {
+                    // Exit loops
+                    isx = params.Pos->NSx;
+                    isz = params.Pos->NSz;
+                    break;
                 }
                 ScalePressure<O3D, R3D>(
                     params.Angles->alpha.d, params.Angles->beta.d, o.ccpx.real(),

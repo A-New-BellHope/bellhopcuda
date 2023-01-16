@@ -43,7 +43,7 @@ inline uint32_t GetNumThreads(int32_t maxThreads)
 
 class Stopwatch {
 public:
-    Stopwatch() {}
+    Stopwatch(bhcInternal *internal_) : internal(internal_) {}
     inline void tick() { tstart = std::chrono::high_resolution_clock::now(); }
     inline void tock(const char *label)
     {
@@ -51,16 +51,17 @@ public:
         high_resolution_clock::time_point tend = high_resolution_clock::now();
         double dt = (duration_cast<duration<double>>(tend - tstart)).count();
         dt *= 1000.0;
-        ExternalWarning(todo_internal, "%s: %f ms", label, dt);
+        ExternalWarning(internal, "%s: %f ms", label, dt);
     }
 
 private:
+    bhcInternal *internal;
     std::chrono::high_resolution_clock::time_point tstart;
 };
 
 template<int N> class MultiStopwatch {
 public:
-    MultiStopwatch()
+    MultiStopwatch(bhcInternal *internal_) : internal(internal_)
     {
         for(int i = 0; i < N; ++i) {
             counts[i]       = 0;
@@ -89,10 +90,11 @@ public:
             ss << names[i] << " = (" << counts[i] << "/" << mins[i] << "/"
                << accumulators[i] << "/" << maxes[i] << ") ms, ";
         }
-        ExternalWarning(todo_internal, "%s", ss.str().c_str());
+        ExternalWarning(internal, "%s", ss.str().c_str());
     }
 
 private:
+    bhcInternal *internal;
     std::chrono::high_resolution_clock::time_point tstart[N];
     int counts[N];
     double accumulators[N];

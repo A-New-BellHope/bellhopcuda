@@ -206,14 +206,12 @@ template<bool O3D, bool R3D> bool setup(
             params.Bdry->Bot.hs.Depth = FL(100.0);
             memcpy(params.Bdry->Bot.hs.Opt, "A_", 2);
             params.Bdry->Bot.hs.bc = 'A';
-            params.Bdry->Bot.hs.cP = crci(
-                RL(1.0e20), RL(1590.0), RL(0.5), params.freqinfo->freq0,
-                params.freqinfo->freq0, params.ssp->AttenUnit, betaPowerLaw, params.fT,
-                params.atten, PRTFile); // compressional wave speed
-            params.Bdry->Bot.hs.cS = crci(
-                RL(1.0e20), RL(0.0), RL(0.0), params.freqinfo->freq0,
-                params.freqinfo->freq0, params.ssp->AttenUnit, betaPowerLaw, params.fT,
-                params.atten, PRTFile); // shear         wave speed
+            // compressional wave speed
+            params.Bdry->Bot.hs.cP
+                = crci(params, RL(1.0e20), RL(1590.0), RL(0.5), params.ssp->AttenUnit);
+            // shear         wave speed
+            params.Bdry->Bot.hs.cS
+                = crci(params, RL(1.0e20), RL(0.0), RL(0.0), params.ssp->AttenUnit);
             params.Bdry->Bot.hs.rho = FL(1.2);
 
             // *** sound speed in the water column ***
