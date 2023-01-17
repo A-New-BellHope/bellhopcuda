@@ -50,6 +50,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     int32_t is            = 0; // index for a step along the ray
 
     while(true) {
+        if(HasErrored(errState)) break;
         bool twoSteps = RayUpdate<CFG, O3D, R3D>(
             ray[is], ray[is + 1], ray[is + 2], DistEndTop, DistEndBot, iSmallStepCtr, org,
             iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
@@ -217,7 +218,9 @@ template<bool O3D, bool R3D> inline bool RunRay(
             errState);
     } else {
         RunError(errState, BHC_ERR_INVALID_SSP_TYPE);
+        return false;
     }
+    if(HasErrored(errState)) return false;
 
     bool ret = true;
     if(IsRayCopyMode<O3D, R3D>(rayinfo)) {

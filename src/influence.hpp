@@ -365,7 +365,7 @@ HOST_DEVICE inline vec2 FlipBeamForImage(
         return vec2(x.x, FL(2.0) * Bdry->Bot.hs.Depth - x.y);
     } else {
         RunError(errState, BHC_ERR_INVALID_IMAGE_INDEX);
-        return x;
+        return vec2(NAN, NAN);
     }
 }
 
@@ -860,6 +860,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCa
                     Polarity = RL(1.0); // assumes rigid bottom
                 } else {
                     RunError(errState, BHC_ERR_INVALID_IMAGE_INDEX);
+                    deltaz = Polarity = NAN;
                 }
                 if(inflray.omega * gamma.imag() * SQ(deltaz) < inflray.iBeamWindow2) {
                     contri += Polarity * point1.Amp
@@ -1523,6 +1524,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
     if constexpr(CFG::infl::IsCerveny()) {
         if constexpr(R3D) {
             RunError(errState, BHC_ERR_TEMPLATE);
+            return false;
         } else {
             if constexpr(CFG::infl::IsRayCen()) {
                 return Step_InfluenceCervenyRayCen<CFG, O3D>(
@@ -1536,6 +1538,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
     } else if constexpr(CFG::infl::IsSGB()) {
         if constexpr(R3D) {
             RunError(errState, BHC_ERR_TEMPLATE);
+            return false;
         } else {
             return Step_InfluenceSGB<CFG, O3D>(
                 point0, point1, inflray, is, uAllSources, Pos, Beam, eigen, arrinfo);

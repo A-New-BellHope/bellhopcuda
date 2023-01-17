@@ -26,7 +26,8 @@ namespace bhc {
 using GENCFG = CfgSel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@>;
 
 template<typename CFG, bool O3D, bool R3D> __global__ void LAUNCH_BOUNDS
-FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs);
+FieldModesKernel(bhcParams<O3D, R3D> params, bhcOutputs<O3D, R3D> outputs,
+    ErrState *errState);
 
 template<> __global__ void LAUNCH_BOUNDS
 FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(

@@ -28,10 +28,10 @@ class PrintFileEmu {
 public:
     PrintFileEmu(
         bhcInternal *internal, const char *FileRoot,
-        void (*outputCallback)(const char *message))
+        void (*prtCallback)(const char *message))
         : callback(nullptr)
     {
-        if(outputCallback == nullptr) {
+        if(prtCallback == nullptr) {
             std::string s(FileRoot);
             ofs.open(s + ".prt");
             if(!ofs.good()) {
@@ -39,7 +39,7 @@ public:
             }
             ofs << std::unitbuf;
         } else {
-            callback = outputCallback;
+            callback = prtCallback;
         }
     }
     ~PrintFileEmu()

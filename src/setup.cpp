@@ -72,13 +72,13 @@ template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
 constexpr bool Init_Inline = false;
 
 template<bool O3D, bool R3D> bool setup(
-    const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    const char *FileRoot, void (*prtCallback)(const char *message),
+    void (*outputCallback)(const char *message), bhcParams<O3D, R3D> &params,
+    bhcOutputs<O3D, R3D> &outputs)
 {
-    params.internal       = new bhcInternal(FileRoot, outputCallback);
-    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-
     try {
+        params.internal = new bhcInternal(FileRoot, prtCallback, outputCallback);
+
 #ifdef BHC_BUILD_CUDA
         setupGPU(params);
 #endif
@@ -341,46 +341,46 @@ template<bool O3D, bool R3D> bool setup(
             params.Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth)
                 / FL(10.0);
             if constexpr(!O3D) {
-                PRTFile << "\n Step length,       deltas = " << params.Beam->deltas
-                        << " m (automatically selected)\n";
+                GetInternal(params)->PRTFile
+                    << "\n Step length,       deltas = " << params.Beam->deltas
+                    << " m (automatically selected)\n";
             }
         }
 
-        PRTFile << "\n";
+        GetInternal(params)->PRTFile << "\n";
 
     } catch(const std::exception &e) {
-        GetInternal(params)->api_okay = false;
-        PRTFile << e.what() << "\n";
+        EXTWARN("Exception caught in bhc::setup(): %s\n", e.what());
+        return false;
     }
 
-    return GetInternal(params)->api_okay;
+    return true;
 }
 
 #if BHC_ENABLE_2D
 template bool BHC_API setup<false, false>(
-    const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const char *FileRoot, void (*prtCallback)(const char *message),
+    void (*outputCallback)(const char *message), bhcParams<false, false> &params,
+    bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API setup<true, false>(
-    const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const char *FileRoot, void (*prtCallback)(const char *message),
+    void (*outputCallback)(const char *message), bhcParams<true, false> &params,
+    bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API setup<true, true>(
-    const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const char *FileRoot, void (*prtCallback)(const char *message),
+    void (*outputCallback)(const char *message), bhcParams<true, true> &params,
+    bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> void finalize(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    if(params.internal == nullptr) return;
-#ifdef BHC_BUILD_CUDA
-    // Memory was deallocated when the device was reset
-    if(!GetInternal(params)->api_okay) return;
-#endif
     delete GetInternal(params);
+    params.internal = nullptr;
 
     // IMPORTANT--if changes are made here, make the same changes in setup
     // (i.e. setting the pointers to nullptr initially)

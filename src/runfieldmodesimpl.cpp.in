@@ -30,20 +30,15 @@ template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs,
     ErrState *errState)
 {
-    try {
-        while(true) {
-            int32_t job = GetInternal(params)->sharedJobID++;
-            RayInitInfo rinit;
-            if(!GetJobIndices<@BHCGENO3D@>(rinit, job, params.Pos, params.Angles)) break;
+    while(true) {
+        int32_t job = GetInternal(params)->sharedJobID++;
+        RayInitInfo rinit;
+        if(!GetJobIndices<@BHCGENO3D@>(rinit, job, params.Pos, params.Angles)) break;
 
-            MainFieldModes<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
-                rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
-                params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
-                params.beaminfo, outputs.eigen, outputs.arrinfo, errState);
-        }
-    } catch(const std::exception &e) {
-        std::lock_guard<std::mutex> lock(GetInternal(params)->exceptionMutex);
-        GetInternal(params)->exceptionStr += std::string(e.what()) + "\n";
+        MainFieldModes<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+            rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
+            params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
+            params.beaminfo, outputs.eigen, outputs.arrinfo, errState);
     }
 }
 
@@ -53,6 +48,7 @@ template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
 {
     ErrState errState;
     ResetErrState(&errState);
+    GetInternal(params)->sharedJobID  = 0;
     uint32_t nthreads = GetNumThreads(params.maxThreads);
     std::vector<std::thread> threads;
     for(uint32_t i = 0; i < nthreads; ++i)

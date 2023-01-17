@@ -199,15 +199,9 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
 
     // interpolate the attenuation !!!! This will use the wrong segment if the ssp in the
     // envil is sampled at different depths
-    s2         = s2 / delta_z; // convert to a proportional depth in the layer
-    real cimag = ((RL(1.0) - s2) * ssp->c[iSeg.z] + s2 * ssp->c[iSeg.z + 1])
-                     .imag(); // volume
-                              // attenuation
-                              // is taken
-                              // from the
-                              // single
-                              // c(z)
-                              // profile
+    s2 = s2 / delta_z; // convert to a proportional depth in the layer
+    // volume attenuation is taken from the single c(z) profile
+    real cimag = ((RL(1.0) - s2) * ssp->c[iSeg.z] + s2 * ssp->c[iSeg.z + 1]).imag();
 
     o.ccpx = cpx(c, cimag);
 
@@ -259,15 +253,13 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
 
     // s1 = proportional distance of x.x in x
     real s1 = (x.x - ssp->Seg.x[iSeg.x]) / (ssp->Seg.x[iSeg.x + 1] - ssp->Seg.x[iSeg.x]);
-    s1      = bhc::max(bhc::min(s1, RL(1.0)), RL(0.0)); // force piecewise constant
-                                                   // extrapolation for points outside the
-                                                   // box
+    // force piecewise constant extrapolation for points outside the box
+    s1 = bhc::max(bhc::min(s1, RL(1.0)), RL(0.0));
 
     // s2 = proportional distance of x.y in y
     real s2 = (x.y - ssp->Seg.y[iSeg.y]) / (ssp->Seg.y[iSeg.y + 1] - ssp->Seg.y[iSeg.y]);
-    s2      = bhc::max(bhc::min(s2, RL(1.0)), RL(0.0)); // force piecewise constant
-                                                   // extrapolation for points outside the
-                                                   // box
+    // force piecewise constant extrapolation for points outside the box
+    s2 = bhc::max(bhc::min(s2, RL(1.0)), RL(0.0));
 
     // interpolate the soundspeed in the x direction, at the two endpoints in y (top and
     // bottom sides of rectangle)
@@ -414,6 +406,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             cCubic(x_rz, t_rz, o_rz, ssp, iSeg, errState);
         } else if constexpr(CFG::ssp::IsCPCHIP()) { // monotone PCHIP ACS profile option
             cPCHIP(x_rz, t_rz, o_rz, ssp, iSeg, errState);
+        } else {
+            static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");
         }
         if constexpr(O3D) {
             o_proc.gradc = vec3(RL(0.0), RL(0.0), o_rz.gradc.y);
@@ -428,6 +422,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         if constexpr(O3D) {
             // Should already have been checked in InitializeSSP
             RunError(errState, BHC_ERR_TEMPLATE);
+            o_proc.ccpx  = cpx(NAN, NAN);
+            o_proc.gradc = vec3(NAN, NAN, NAN);
+            o_proc.rho = o_proc.czz = NAN;
+            o_proc.cxx = o_proc.cyy = o_proc.cxy = o_proc.cxz = o_proc.cyz = NAN;
         } else {
             if constexpr(CFG::ssp::IsQuad()) {
                 Quad(x_proc, t_proc, o_proc, ssp, iSeg, errState);
@@ -436,6 +434,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     } else if constexpr(CFG::ssp::Is3D()) {
         if constexpr(!O3D) {
             RunError(errState, BHC_ERR_TEMPLATE);
+            o_proc.ccpx  = cpx(NAN, NAN);
+            o_proc.gradc = vec3(NAN, NAN, NAN);
+            o_proc.rho = o_proc.czz = NAN;
+            o_proc.crr = o_proc.crz = NAN;
         } else {
             if constexpr(CFG::ssp::IsHexahedral()) {
                 Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg, errState);
@@ -444,6 +446,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     } else if constexpr(CFG::ssp::IsAnyD()) {
         if constexpr(CFG::ssp::IsAnalytic()) { // Analytic profile option
             Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg, errState);
+        } else {
+            static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");
         }
     } else {
         static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");

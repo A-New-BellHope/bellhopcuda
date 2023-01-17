@@ -44,8 +44,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 //#include <cfenv>
 #include <chrono>
 #include <exception>
-#include <atomic>
-#include <mutex>
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -64,10 +62,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 // seeing if <cuda_install_dir>/include/cuda/std/complex exists.)
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
+#include <cuda/std/atomic>
 #define STD cuda::std
 #define BHC_PROGRAMNAME "bellhopcuda"
 #else
 #define HOST_DEVICE
+#include <atomic>
 #define STD std
 #define BHC_PROGRAMNAME "bellhopcxx"
 #endif
@@ -472,20 +472,17 @@ struct bhcInternal;
 namespace bhc {
 
 struct bhcInternal {
-    bool api_okay;
+    void (*outputCallback)(const char *message);
     PrintFileEmu PRTFile;
     std::string FileRoot;
-    void (*outputCallback)(const char *message);
     std::atomic<int32_t> sharedJobID;
-    std::mutex exceptionMutex;
-    std::string exceptionStr;
-    int m_gpu;
-    /* int d_warp, d_maxthreads; */
-    int d_multiprocs;
+    int m_gpu, d_multiprocs; // d_warp, d_maxthreads
 
-    bhcInternal(const char *FileRoot_, void (*outputCallback_)(const char *message))
-        : api_okay(true), PRTFile(this, FileRoot_, outputCallback_), FileRoot(FileRoot_),
-          outputCallback(outputCallback_), m_gpu(0)
+    bhcInternal(
+        const char *FileRoot_, void (*prtCallback_)(const char *message),
+        void (*outputCallback_)(const char *message))
+        : outputCallback(outputCallback_), PRTFile(this, FileRoot_, prtCallback_),
+          FileRoot(FileRoot_), m_gpu(0)
     {}
 };
 

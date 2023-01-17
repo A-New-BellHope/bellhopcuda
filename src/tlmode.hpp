@@ -63,7 +63,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
 
     rayPt<R3D> point0, point1, point2;
     point2.c = NAN; // Silence incorrect g++ warning about maybe uninitialized;
-    // it is always set when dStep is 2, and not used otherwise
+    // it is always set when doing two steps, and not used otherwise
     InfluenceRayInfo<R3D> inflray;
 
     if(!RayInit<CFG, O3D, R3D>(
@@ -81,6 +81,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
     int32_t Nsteps        = 0; // not actually needed in TL mode, debugging only
 
     for(int32_t istep = 0; istep < MaxN - 1; ++istep) {
+        if(HasErrored(errState)) break;
         bool twoSteps = RayUpdate<CFG, O3D, R3D>(
             point0, point1, point2, DistEndTop, DistEndBot, iSmallStepCtr, org, iSeg, bds,
             Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);

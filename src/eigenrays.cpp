@@ -33,28 +33,23 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo))
         localmem = (rayPt<R3D> *)malloc(MaxN * sizeof(rayPt<R3D>));
 
-    try {
-        while(true) {
-            uint32_t job = GetInternal(params)->sharedJobID++;
-            if(job >= STD::min(outputs.eigen->neigen, outputs.eigen->memsize)) break;
-            EigenHit *hit  = &outputs.eigen->hits[job];
-            int32_t Nsteps = hit->is;
-            RayInitInfo rinit;
-            rinit.isx    = hit->isx;
-            rinit.isy    = hit->isy;
-            rinit.isz    = hit->isz;
-            rinit.ialpha = hit->ialpha;
-            rinit.ibeta  = hit->ibeta;
-            if(!RunRay<O3D, R3D>(
-                   outputs.rayinfo, params, localmem, job, rinit, Nsteps, errState)) {
-                // Already gave out of memory error; that is the only condition leading
-                // here printf("EigenModePostWorker RunRay failed\n");
-            }
+    while(true) {
+        uint32_t job = GetInternal(params)->sharedJobID++;
+        if(job >= std::min(outputs.eigen->neigen, outputs.eigen->memsize)) break;
+        EigenHit *hit  = &outputs.eigen->hits[job];
+        int32_t Nsteps = hit->is;
+        RayInitInfo rinit;
+        rinit.isx    = hit->isx;
+        rinit.isy    = hit->isy;
+        rinit.isz    = hit->isz;
+        rinit.ialpha = hit->ialpha;
+        rinit.ibeta  = hit->ibeta;
+        if(!RunRay<O3D, R3D>(
+               outputs.rayinfo, params, localmem, job, rinit, Nsteps, errState)) {
+            // Already gave out of memory error; that is the only condition leading
+            // here printf("EigenModePostWorker RunRay failed\n");
+            break;
         }
-
-    } catch(const std::exception &e) {
-        std::lock_guard<std::mutex> lock(GetInternal(params)->exceptionMutex);
-        GetInternal(params)->exceptionStr += std::string(e.what()) + "\n";
     }
 
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) free(localmem);
@@ -87,12 +82,11 @@ template<bool O3D, bool R3D> void WriteOutEigenrays(
             "Had %d eigenrays but only %d fit in memory\n", outputs.eigen->neigen,
             outputs.eigen->memsize);
     }
-    std::vector<std::thread> threads;
-    GetInternal(params)->exceptionStr = "";
-    GetInternal(params)->sharedJobID  = 0;
     ErrState errState;
     ResetErrState(&errState);
-    uint32_t nthreads = GetNumThreads(params.maxThreads);
+    GetInternal(params)->sharedJobID = 0;
+    uint32_t nthreads                = GetNumThreads(params.maxThreads);
+    std::vector<std::thread> threads;
     for(uint32_t i = 0; i < nthreads; ++i)
         threads.push_back(std::thread(
             EigenModePostWorker<O3D, R3D>, std::cref(params), std::ref(outputs),
@@ -100,9 +94,6 @@ template<bool O3D, bool R3D> void WriteOutEigenrays(
     for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
 
     CheckReportErrors(GetInternal(params), &errState);
-    if(!GetInternal(params)->exceptionStr.empty()) {
-        throw std::runtime_error(GetInternal(params)->exceptionStr);
-    }
 
     WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
 }

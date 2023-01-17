@@ -22,26 +22,32 @@ namespace bhc {
 
 #define ERRBUFSIZE 1024
 
-[[noreturn]] void ExternalError(bhcInternal *internal, const char *format, ...)
+void ExternalCommon(bhcInternal *internal, const char *format, va_list *args)
 {
     char *buf = new char[ERRBUFSIZE];
+    vsnprintf(buf, ERRBUFSIZE, format, *args);
+    if(internal->outputCallback == nullptr) {
+        printf("%s\n", buf);
+    } else {
+        internal->outputCallback(buf);
+    }
+    delete[] buf;
+}
+
+[[noreturn]] void ExternalError(bhcInternal *internal, const char *format, ...)
+{
     va_list args;
     va_start(args, format);
-    vsnprintf(buf, ERRBUFSIZE, format, args);
-#warning TODO ExternalError
-    printf("%s\n", buf);
+    ExternalCommon(internal, format, &args);
     va_end(args);
-    throw std::runtime_error("bhc::ExternalError");
+    throw std::runtime_error("See previous line(s) above for error message");
 }
 
 void ExternalWarning(bhcInternal *internal, const char *format, ...)
 {
-    char *buf = new char[ERRBUFSIZE];
     va_list args;
     va_start(args, format);
-    vsnprintf(buf, ERRBUFSIZE, format, args);
-#warning TODO ExternalWarning
-    printf("%s\n", buf);
+    ExternalCommon(internal, format, &args);
     va_end(args);
 }
 

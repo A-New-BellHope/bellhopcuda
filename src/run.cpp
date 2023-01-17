@@ -31,21 +31,15 @@ template<bool O3D, bool R3D> void RayModeWorker(
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo))
         localmem = (rayPt<R3D> *)malloc(MaxN * sizeof(rayPt<R3D>));
 
-    try {
-        while(true) {
-            int32_t job    = GetInternal(params)->sharedJobID++;
-            int32_t Nsteps = -1;
-            RayInitInfo rinit;
-            if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
-            if(!RunRay<O3D, R3D>(
-                   outputs.rayinfo, params, localmem, job, rinit, Nsteps, errState)) {
-                break;
-            }
+    while(true) {
+        int32_t job    = GetInternal(params)->sharedJobID++;
+        int32_t Nsteps = -1;
+        RayInitInfo rinit;
+        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
+        if(!RunRay<O3D, R3D>(
+               outputs.rayinfo, params, localmem, job, rinit, Nsteps, errState)) {
+            break;
         }
-
-    } catch(const std::exception &e) {
-        std::lock_guard<std::mutex> lock(GetInternal(params)->exceptionMutex);
-        GetInternal(params)->exceptionStr += std::string(e.what()) + "\n";
     }
 
     if(IsRayCopyMode<O3D, R3D>(outputs.rayinfo)) free(localmem);
@@ -72,7 +66,8 @@ template<bool O3D, bool R3D> inline void RunRayMode(
 {
     ErrState errState;
     ResetErrState(&errState);
-    uint32_t nthreads = GetNumThreads(params.maxThreads);
+    GetInternal(params)->sharedJobID = 0;
+    uint32_t nthreads                = GetNumThreads(params.maxThreads);
     EXTWARN(
         "%d threads, copy mode %s", nthreads,
         IsRayCopyMode<O3D, R3D>(outputs.rayinfo) ? "true" : "false");
@@ -87,10 +82,6 @@ template<bool O3D, bool R3D> inline void RunRayMode(
 template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    if(!GetInternal(params)->api_okay) return false;
-    GetInternal(params)->exceptionStr = "";
-    GetInternal(params)->sharedJobID  = 0;
-
     try {
         Stopwatch sw(GetInternal(params));
         sw.tick();
@@ -104,16 +95,12 @@ template<bool O3D, bool R3D> bool run(
 #endif
             RunFieldModesSelInfl(params, outputs);
         }
-        if(!GetInternal(params)->exceptionStr.empty()) {
-            throw std::runtime_error(GetInternal(params)->exceptionStr);
-        }
     } catch(const std::exception &e) {
-        GetInternal(params)->api_okay = false;
-        PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
-        PRTFile << "Exception caught:\n" << e.what() << "\n";
+        EXTWARN("Exception caught in bhc::run(): %s\n", e.what());
+        return false;
     }
 
-    return GetInternal(params)->api_okay;
+    return true;
 }
 
 #if BHC_ENABLE_2D
@@ -132,26 +119,28 @@ run<true, true>(bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 template<bool O3D, bool R3D> bool writeout(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    if(!GetInternal(params)->api_okay) return false;
-
-    if(IsRayRun(params.Beam)) {
-        // Ray mode
-        bhc::WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
-    } else if(IsTLRun(params.Beam)) {
-        // TL mode
-        bhc::WriteOutTL<O3D, R3D>(params, outputs);
-    } else if(IsEigenraysRun(params.Beam)) {
-        // Eigenrays mode
-        bhc::WriteOutEigenrays<O3D, R3D>(params, outputs);
-    } else if(IsArrivalsRun(params.Beam)) {
-        // Arrivals mode
-        bhc::WriteOutArrivals<O3D, R3D>(params, outputs.arrinfo);
-    } else {
-        std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
-        GetInternal(params)->api_okay = false;
+    try {
+        if(IsRayRun(params.Beam)) {
+            // Ray mode
+            bhc::WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
+        } else if(IsTLRun(params.Beam)) {
+            // TL mode
+            bhc::WriteOutTL<O3D, R3D>(params, outputs);
+        } else if(IsEigenraysRun(params.Beam)) {
+            // Eigenrays mode
+            bhc::WriteOutEigenrays<O3D, R3D>(params, outputs);
+        } else if(IsArrivalsRun(params.Beam)) {
+            // Arrivals mode
+            bhc::WriteOutArrivals<O3D, R3D>(params, outputs.arrinfo);
+        } else {
+            EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
+        }
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::writeout(): %s\n", e.what());
+        return false;
     }
 
-    return GetInternal(params)->api_okay;
+    return true;
 }
 
 #if BHC_ENABLE_2D
