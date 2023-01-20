@@ -30,15 +30,8 @@ template<bool O3D, bool R3D> int mainmain()
     }
     params.maxThreads = maxThreads;
 
-    bhc::Stopwatch sw(GetInternal(params));
-    sw.tick();
     if(!bhc::run<O3D, R3D>(params, outputs)) return 1;
-    sw.tock("run");
-
-    sw.tick();
     if(!bhc::writeout<O3D, R3D>(params, outputs)) return 1;
-    sw.tock("writeout");
-
     bhc::finalize<O3D, R3D>(params, outputs);
     return 0;
 }

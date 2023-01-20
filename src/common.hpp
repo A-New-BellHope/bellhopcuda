@@ -62,6 +62,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 // seeing if <cuda_install_dir>/include/cuda/std/complex exists.)
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
+#include <atomic>
 #include <cuda/std/atomic>
 #define STD cuda::std
 #define BHC_PROGRAMNAME "bellhopcuda"

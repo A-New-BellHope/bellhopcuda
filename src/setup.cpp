@@ -79,6 +79,9 @@ template<bool O3D, bool R3D> bool setup(
     try {
         params.internal = new bhcInternal(FileRoot, prtCallback, outputCallback);
 
+        Stopwatch sw(GetInternal(params));
+        sw.tick();
+
 #ifdef BHC_BUILD_CUDA
         setupGPU(params);
 #endif
@@ -349,6 +352,7 @@ template<bool O3D, bool R3D> bool setup(
 
         GetInternal(params)->PRTFile << "\n";
 
+        sw.tock("setup");
     } catch(const std::exception &e) {
         EXTWARN("Exception caught in bhc::setup(): %s\n", e.what());
         return false;

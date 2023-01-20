@@ -83,10 +83,11 @@ template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     try {
-        Stopwatch sw(GetInternal(params));
-        sw.tick();
+        Stopwatch swinit(GetInternal(params)), swrun(GetInternal(params));
+        swinit.tick();
+        swrun.tick();
         InitSelectedMode<O3D, R3D>(params, outputs);
-        sw.tock("InitSelectedMode");
+        swinit.tock("InitSelectedMode");
         if(IsRayRun(params.Beam)) {
             RunRayMode(params, outputs);
         } else {
@@ -95,6 +96,7 @@ template<bool O3D, bool R3D> bool run(
 #endif
             RunFieldModesSelInfl(params, outputs);
         }
+        swrun.tock("run");
     } catch(const std::exception &e) {
         EXTWARN("Exception caught in bhc::run(): %s\n", e.what());
         return false;
@@ -120,6 +122,8 @@ template<bool O3D, bool R3D> bool writeout(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     try {
+        Stopwatch sw(GetInternal(params));
+        sw.tick();
         if(IsRayRun(params.Beam)) {
             // Ray mode
             bhc::WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
@@ -135,6 +139,7 @@ template<bool O3D, bool R3D> bool writeout(
         } else {
             EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
         }
+        sw.tock("writeout");
     } catch(const std::exception &e) {
         EXTWARN("Exception caught in bhc::writeout(): %s\n", e.what());
         return false;
