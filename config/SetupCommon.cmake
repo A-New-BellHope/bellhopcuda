@@ -35,7 +35,7 @@ else()
     # C2422: implicit conversion of double to float; BELLHOP sometimes carelessly
     # mixes doubles and floats, and we need to use exactly the same ones to match
     set(EXTRA_CXX_FLAGS "/W4 /wd4244")
-endif(CMAKE_COMPILER_IS_GNUCXX)
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
 
 function(prepend OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend to
@@ -119,9 +119,13 @@ function(bhc_setup_target target_name)
     #     target_compile_options(${target_name} PUBLIC -pg)
     #     target_link_options(${target_name} PUBLIC -pg)
     # endif()
+    target_compile_definitions(${target_name} PRIVATE BHC_DLL_EXPORT=1)
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/include")
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
     target_link_libraries(${target_name} PUBLIC Threads::Threads)
+    if(WIN32)
+        set_property(TARGET ${target_name} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+    endif()
 endfunction()
 
 function(bhc_create_executable target_name defs)

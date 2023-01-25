@@ -36,12 +36,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef _WIN32
-#ifdef BHC_CMDLINE
-#define BHC_API
-#elif defined(BHC_EXPORTS)
+#if defined(BHC_DLL_EXPORT)
 #define BHC_API __declspec(dllexport)
-#else // Users of bellhopcxx / bellhopcuda
+#elif defined(BHC_DLL_IMPORT)
 #define BHC_API __declspec(dllimport)
+#else
+#define BHC_API
 #endif
 #else
 #define BHC_API

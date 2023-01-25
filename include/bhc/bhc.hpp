@@ -30,6 +30,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 /**
+ * NOTE: If you are on Windows and writing a program which will link to the
+ * bellhopcxx / bellhopcuda DLL, you must define BHC_DLL_IMPORT before including
+ * this header.
+ * 
  * Main BELLHOP setup from an environment file. Call this to create and
  * initialize the params. You may modify the params after calling this and
  * before calling run().

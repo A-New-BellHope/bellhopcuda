@@ -15,7 +15,8 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.15)
+cmake_policy(SET CMP0091 NEW) # MSVC runtime static library / DLL selection
 
 option(BHC_DEBUG "Enable debugging features, reduces performance" OFF)
 # option(BHC_PROF  "Enable profiling features" OFF)

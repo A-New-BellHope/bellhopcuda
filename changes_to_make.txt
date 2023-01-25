@@ -1,4 +1,1 @@
-Check errored state often
-
-Check for std::abort()
-
+Move post-processing (e.g. ScalePressure) to end of run rather than writeout

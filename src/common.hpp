@@ -56,13 +56,43 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #ifdef BHC_BUILD_CUDA
 #include "cuda_runtime.h"
 #define HOST_DEVICE __host__ __device__
-// Requires libcu++ 1.4 or higher, which is included in the normal CUDA Toolkit
-// install since somewhere between CUDA 11.3 and 11.5. (I.e. 11.5 and later has
-// it, 11.2 and earlier does not, not sure about 11.3 and 11.4. You can check by
-// seeing if <cuda_install_dir>/include/cuda/std/complex exists.)
+// Requires the version of libcudacxx in CUDA 11.5 or later; use the newest CUDA
+// version available
+
+// Fixes for some libcudacxx issues for MSVC; won't be needed once a new enough
+// version is included in CUDA releases
+#if defined(_MSC_VER)
+
+#if _MSC_VER >= 1930
+#include <../crt/src/stl/xmath.hpp>
+#endif
+
+// Yes, I'm aware this is not GCC--this is a hack for the buggy libcudacxx MSVC
+// support
+#define __GCC_ATOMIC_BOOL_LOCK_FREE     2
+#define __GCC_ATOMIC_CHAR_LOCK_FREE     2
+#define __GCC_ATOMIC_CHAR16_T_LOCK_FREE 2
+#define __GCC_ATOMIC_CHAR32_T_LOCK_FREE 2
+#define __GCC_ATOMIC_WCHAR_T_LOCK_FREE  2
+#define __GCC_ATOMIC_SHORT_LOCK_FREE    2
+#define __GCC_ATOMIC_INT_LOCK_FREE      2
+#define __GCC_ATOMIC_LONG_LOCK_FREE     2
+#define __GCC_ATOMIC_LLONG_LOCK_FREE    2
+#define __GCC_ATOMIC_POINTER_LOCK_FREE  2
+
+#ifndef __ATOMIC_RELAXED
+#define __ATOMIC_RELAXED 0
+#define __ATOMIC_CONSUME 1
+#define __ATOMIC_ACQUIRE 2
+#define __ATOMIC_RELEASE 3
+#define __ATOMIC_ACQ_REL 4
+#define __ATOMIC_SEQ_CST 5
+#endif //__ATOMIC_RELAXED
+
+#endif
+
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
-#include <atomic>
 #include <cuda/std/atomic>
 #define STD cuda::std
 #define BHC_PROGRAMNAME "bellhopcuda"

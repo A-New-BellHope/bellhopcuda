@@ -110,8 +110,16 @@ appropriate directories from the Git repo.
 in your other project. Or, if a Git submodule, add the `[bellhopcuda repo]/include`
 directory to your include paths.
 - Set your parent project's C++ version to C++17 or later.
+- If you are on Windows and using the `bellhopcxxlib.dll` shared (dynamic) library
+version, define `BHC_DLL_IMPORT` before including the header. This cannot be
+done automatically because it must not be defined if you're using the static
+library version, and we can't know in advance which version you will use.
 - `#include <bhc/bhc.hpp>`. Follow the instructions in that file for API use.
-- Link to `bellhopcxxlib.dll` / `libbellhopcxxlib.so`.
+- Link to:
+    - Windows shared (dynamic) library: `bellhopcxxlib.dll` and import library `bellhopcxxlib.lib`
+    - Windows static library: `bellhopcxxstatic.lib`
+    - Linux shared library: `libbellhopcxxlib.so`
+    - Linux static library: `libbellhopcxxstatic.a`
 
 ### How do I report bugs?
 
