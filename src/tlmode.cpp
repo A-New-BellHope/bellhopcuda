@@ -100,18 +100,9 @@ template<bool O3D, bool R3D> inline void WriteHeader(
 /**
  * LP: Write TL results
  */
-template<bool O3D, bool R3D> void WriteOutTL(
+template<bool O3D, bool R3D> void PostProcessTL(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    real atten = FL(0.0);
-    std::string PlotType;
-    DirectOFile SHDFile(GetInternal(params));
-
-    // following to set PlotType has already been done in READIN if that was used for
-    // input (LP: not anymore)
-    PlotType = IsIrregularGrid(params.Beam) ? "irregular " : "rectilin  ";
-    WriteHeader(params, SHDFile, atten, PlotType);
-
     ErrState errState;
     ResetErrState(&errState);
     for(int32_t isz = 0; isz < params.Pos->NSz; ++isz) {
@@ -177,15 +168,54 @@ template<bool O3D, bool R3D> void WriteOutTL(
                          .uAllSources[GetFieldAddr(isx, isy, isz, 0, 0, 0, params.Pos)],
                     params.Pos->Ntheta, params.Pos->NRz_per_range, params.Pos->NRr,
                     params.freqinfo->freq0, params.Beam);
-                // LP: depth
-                for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1) {
-                    for(int32_t itheta = 0; itheta < params.Pos->Ntheta; ++itheta) {
-                        // LP: This is in a different order from the field.
-                        // Field: (largest) Z, X, Y, theta, depth, radius (smallest)
-                        // File:  (largest) X, Y, theta, Z, depth, radius (smallest)
-                        // (XYZ are source; theta depth radius are receiver)
-                        // Also, for 3D, mbp iterates over theta inside depth, which does
-                        // not match the order of writing to the file.
+            }
+        }
+    }
+    CheckReportErrors(GetInternal(params), &errState);
+}
+
+#if BHC_ENABLE_2D
+template void PostProcessTL<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template void PostProcessTL<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template void PostProcessTL<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+/**
+ * LP: Write TL results
+ */
+template<bool O3D, bool R3D> void WriteOutTL(
+    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs)
+{
+    real atten = FL(0.0);
+    std::string PlotType;
+    DirectOFile SHDFile(GetInternal(params));
+
+    // following to set PlotType has already been done in READIN if that was used for
+    // input (LP: not anymore)
+    PlotType = IsIrregularGrid(params.Beam) ? "irregular " : "rectilin  ";
+    WriteHeader(params, SHDFile, atten, PlotType);
+
+    // clang-format off
+    // LP: There are three different orders of the data used here.
+    // Field: (largest) Z, X, Y, theta, depth, radius (smallest)
+    // File:  (largest) X, Y, theta, Z, depth, radius (smallest)
+    // Write: (largest) Z, X, Y, depth, theta, radius (smallest)
+    // (XYZ are source; theta depth radius are receiver)
+    // clang-format on
+    // Since the write order doesn't change the file contents, the write order
+    // has been changed to match the file order, to hopefully speed up I/O.
+    for(int32_t isx = 0; isx < params.Pos->NSx; ++isx) {
+        for(int32_t isy = 0; isy < params.Pos->NSy; ++isy) {
+            for(int32_t itheta = 0; itheta < params.Pos->Ntheta; ++itheta) {
+                for(int32_t isz = 0; isz < params.Pos->NSz; ++isz) {
+                    for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1) {
                         // clang-format off
                         size_t IRec = 10                     + ((((size_t)isx
                             * (size_t)params.Pos->NSy           + (size_t)isy)
@@ -204,20 +234,19 @@ template<bool O3D, bool R3D> void WriteOutTL(
             }
         }
     }
-    CheckReportErrors(GetInternal(params), &errState);
 }
 
 #if BHC_ENABLE_2D
 template void WriteOutTL<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void WriteOutTL<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void WriteOutTL<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
 #endif
 
 } // namespace bhc

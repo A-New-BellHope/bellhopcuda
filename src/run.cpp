@@ -79,24 +79,47 @@ template<bool O3D, bool R3D> inline void RunRayMode(
     CheckReportErrors(GetInternal(params), &errState);
 }
 
+template<bool O3D, bool R3D> bool PostProcess(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{}
+
 template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     try {
-        Stopwatch swinit(GetInternal(params)), swrun(GetInternal(params));
-        swinit.tick();
-        swrun.tick();
+        Stopwatch sw(GetInternal(params));
+        sw.tick();
         InitSelectedMode<O3D, R3D>(params, outputs);
-        swinit.tock("InitSelectedMode");
-        if(IsRayRun(params.Beam)) {
+        sw.tock("InitSelectedMode");
+
+        sw.tick() if(IsRayRun(params.Beam))
+        {
             RunRayMode(params, outputs);
-        } else {
+            swrun.tock("RunRayMode");
+        }
+        else
+        {
 #ifdef BHC_BUILD_CUDA
             checkCudaErrors(cudaSetDevice(GetInternal(params)->m_gpu));
 #endif
             RunFieldModesSelInfl(params, outputs);
+            swrun.tock("RunFieldModes");
         }
-        swrun.tock("run");
+
+        sw.tick();
+        if(IsRayRun(params.Beam)) {
+            bhc::PostProcessRays<O3D, R3D>(params, outputs.rayinfo);
+        } else if(IsTLRun(params.Beam)) {
+            bhc::PostProcessTL<O3D, R3D>(params, outputs);
+        } else if(IsEigenraysRun(params.Beam)) {
+            bhc::PostProcessEigenrays<O3D, R3D>(params, outputs);
+        } else if(IsArrivalsRun(params.Beam)) {
+            bhc::PostProcessArrivals<O3D, R3D>(params, outputs.arrinfo);
+        } else {
+            EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
+        }
+        sw.tock("PostProcess");
+
     } catch(const std::exception &e) {
         EXTWARN("Exception caught in bhc::run(): %s\n", e.what());
         return false;
@@ -119,22 +142,18 @@ run<true, true>(bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> bool writeout(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs)
 {
     try {
         Stopwatch sw(GetInternal(params));
         sw.tick();
         if(IsRayRun(params.Beam)) {
-            // Ray mode
             bhc::WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
         } else if(IsTLRun(params.Beam)) {
-            // TL mode
             bhc::WriteOutTL<O3D, R3D>(params, outputs);
         } else if(IsEigenraysRun(params.Beam)) {
-            // Eigenrays mode
             bhc::WriteOutEigenrays<O3D, R3D>(params, outputs);
         } else if(IsArrivalsRun(params.Beam)) {
-            // Arrivals mode
             bhc::WriteOutArrivals<O3D, R3D>(params, outputs.arrinfo);
         } else {
             EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
@@ -150,15 +169,15 @@ template<bool O3D, bool R3D> bool writeout(
 
 #if BHC_ENABLE_2D
 template BHC_API bool writeout<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
 #if BHC_ENABLE_NX2D
 #endif
 template BHC_API bool writeout<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
 #if BHC_ENABLE_3D
 #endif
 template BHC_API bool writeout<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
 #endif
 
 } // namespace bhc

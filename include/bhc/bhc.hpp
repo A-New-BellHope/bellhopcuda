@@ -33,7 +33,7 @@ namespace bhc {
  * NOTE: If you are on Windows and writing a program which will link to the
  * bellhopcxx / bellhopcuda DLL, you must define BHC_DLL_IMPORT before including
  * this header.
- * 
+ *
  * Main BELLHOP setup from an environment file. Call this to create and
  * initialize the params. You may modify the params after calling this and
  * before calling run().
@@ -127,8 +127,6 @@ extern template BHC_API bool run<true, true>(
  * - eigenrays: During run(), only information about which rays hit the
  *   receiver is stored, not the full ray trajectories. During writeout(), those
  *   rays are traced again and written.
- * - rays and eigenrays: Compresses the ray data (discards some points)
- * - TL: scales the field in various ways
  *
  * run() must have been called previously. Don't forget to call finalize()
  * when you're all done.
@@ -136,17 +134,17 @@ extern template BHC_API bool run<true, true>(
  * returns: false if an error occurred, true if no errors.
  */
 template<bool O3D, bool R3D> bool writeout(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
 extern template BHC_API bool writeout<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
 /// Nx2D or 2D-3D version, see template.
 extern template BHC_API bool writeout<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
 extern template BHC_API bool writeout<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
 
 /**
  * Frees memory. You may call run() many times (with changed parameters), you do

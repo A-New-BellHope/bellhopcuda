@@ -136,7 +136,11 @@ inline void InitArrivalsMode(
 {
     arrinfo->AllowMerging = maxThreads == 1;
     size_t nSrcsRcvrs     = Pos->NRz_per_range * Pos->NRr * Pos->NSz;
-    if(ThreeD) nSrcsRcvrs *= Pos->Ntheta * Pos->NSx * Pos->NSy;
+    size_t nSrcs          = Pos->NSz;
+    if(ThreeD) {
+        nSrcsRcvrs *= Pos->Ntheta * Pos->NSx * Pos->NSy;
+        nSrcs *= Pos->NSx * Pos->NSy;
+    }
     // LP: Having a minimum size is not great if the user specified a maximum
     // amount of memory to use.
     // const size_t MinNArr         = 10;
@@ -145,9 +149,20 @@ inline void InitArrivalsMode(
     PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << " )\n";
     checkallocate(arrinfo->Arr, nSrcsRcvrs * (size_t)arrinfo->MaxNArr);
     checkallocate(arrinfo->NArr, nSrcsRcvrs);
+    checkallocate(arrinfo->MaxNPerSource, nSrcs);
     memset(arrinfo->Arr, 0, nSrcsRcvrs * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
     memset(arrinfo->NArr, 0, nSrcsRcvrs * sizeof(int32_t));
+    // MaxNPerSource does not have to be initialized
 }
+
+template<bool O3D, bool R3D> void PostProcessArrivals(
+    const bhcParams<O3D, R3D> &params, ArrInfo *arrinfo);
+extern template void PostProcessArrivals<false, false>(
+    const bhcParams<false, false> &params, ArrInfo *arrinfo);
+extern template void PostProcessArrivals<true, false>(
+    const bhcParams<true, false> &params, ArrInfo *arrinfo);
+extern template void PostProcessArrivals<true, true>(
+    const bhcParams<true, true> &params, ArrInfo *arrinfo);
 
 template<bool O3D, bool R3D> void WriteOutArrivals(
     const bhcParams<O3D, R3D> &params, const ArrInfo *arrinfo);

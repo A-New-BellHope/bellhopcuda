@@ -84,48 +84,64 @@ template<bool O3D, bool R3D> inline void OpenRAYFile(
 
 /**
  * Compress the ray data keeping every iSkip point, points near surface or bottom, and
- * last point. Write to RAYFile.
- *
- * During an eigenray calculation, subsets of the full ray may be passed
- * These have lengths Nsteps1 vs. Nsteps for the entire ray
+ * last point.
  *
  * The 2D version is for ray traces in (r,z) coordinates
  * The 3D version is for ray traces in (x,y,z) coordinates
- *
- * alpha0: take-off angle of this ray [LP: 2D: degrees, 3D: radians]
+ */
+template<bool O3D, bool R3D> void CompressRay(
+    RayResult<O3D, R3D> *res, const BdryType *Bdry)
+{
+    // this is the maximum length of the ray vector that is written out
+    constexpr int32_t MaxNRayPoints = 500000;
+
+    // compression
+    // LP: This is silly for two reasons:
+    // 1) MaxN (maximum number of steps for a ray) is 100000, but MaxNRayPoints
+    //    is 500000. Therefore iSkip will always be 1, and the whole vector will
+    //    always be written.
+    // 2) Even if these constants were changed, the formula for iSkip is not
+    //    ideal: iSkip will only become 2 once the number of steps in the ray is
+    //    more than 2x MaxNRayPoints. If it's less than this, it'll just be
+    //    truncated, which is arguably worse than skipping every other step.
+    // So we'll just make sure this doesn't run unless the constants are changed.
+    if constexpr(MaxN > MaxNRayPoints) {
+        int32_t n2    = 1;
+        int32_t iSkip = bhc::max(Nsteps1 / MaxNRayPoints, 1);
+        if constexpr(R3D) iSkip = 1; // LP: overrides line above
+
+        for(int32_t is = 1; is < Nsteps1; ++is) {
+            // ensure that we always write ray points near bdry reflections (2D only:
+            // works only for flat bdry)
+            if(bhc::min(
+                   Bdry->Bot.hs.Depth - DEP(ray[is].x),
+                   DEP(ray[is].x) - Bdry->Top.hs.Depth)
+                   < FL(0.2)
+               || (is % iSkip) == 0 || is == Nsteps1 - 1) {
+                ++n2;
+                ray[n2 - 1].x = ray[is].x;
+            }
+        }
+        ray->Nsteps = n2;
+    }
+}
+
+/**
+ * Write to RAYFile.
  */
 template<bool O3D, bool R3D> void WriteRay(
-    real alpha0, int32_t Nsteps1, LDOFile &RAYFile, const BdryType *Bdry,
-    const Origin<O3D, R3D> &org, rayPt<R3D> *ray)
+    LDOFile &RAYFile, const RayResult<O3D, R3D> *res)
 {
-    // compression
-
-    constexpr int32_t MaxNRayPoints = 500000; // this is the maximum length of the ray
-                                              // vector that is written out
-    int32_t n2    = 1;
-    int32_t iSkip = bhc::max(Nsteps1 / MaxNRayPoints, 1);
-    if constexpr(R3D) iSkip = 1; // LP: overrides line above
-
-    for(int32_t is = 1; is < Nsteps1; ++is) {
-        // ensure that we always write ray points near bdry reflections (2D only: works
-        // only for flat bdry)
-        if(bhc::min(
-               Bdry->Bot.hs.Depth - DEP(ray[is].x), DEP(ray[is].x) - Bdry->Top.hs.Depth)
-               < FL(0.2)
-           || (is % iSkip) == 0 || is == Nsteps1 - 1) {
-            ++n2;
-            ray[n2 - 1].x = ray[is].x;
-        }
-    }
-
-    // write to ray file
-
+    // take-off angle of this ray [LP: 2D: degrees, 3D: radians]
+    real alpha0 = res->SrcDeclAngle;
     if constexpr(O3D) alpha0 *= DegRad;
-
     RAYFile << alpha0 << '\n';
-    RAYFile << n2 << ray[Nsteps1 - 1].NumTopBnc << ray[Nsteps1 - 1].NumBotBnc << '\n';
 
-    for(int32_t is = 0; is < n2; ++is) { RAYFile << RayToOceanX(ray[is].x, org) << '\n'; }
+    real n = res->Nsteps;
+    RAYFile << n << ray[n - 1].NumTopBnc << ray[n - 1].NumBotBnc << '\n';
+    for(int32_t is = 0; is < n; ++is) {
+        RAYFile << RayToOceanX(res->ray[is].x, res->org) << '\n';
+    }
 }
 
 /**
@@ -143,16 +159,25 @@ template<bool O3D, bool R3D> inline void InitRayMode(
     memset(rayinfo->results, 0, rayinfo->NRays * sizeof(RayResult<O3D, R3D>));
 }
 
-template<bool O3D, bool R3D> inline void WriteOutRays(
+template<bool O3D, bool R3D> inline void PostProcessRays(
     const bhcParams<O3D, R3D> &params, RayInfo<O3D, R3D> *rayinfo)
+{
+    for(int r = 0; r < rayinfo->NRays; ++r) {
+        RayResult<O3D, R3D> *res = &rayinfo->results[r];
+        if(res->ray == nullptr) continue;
+        CompressRay<O3D, R3D>(res, params.Bdry);
+    }
+}
+
+template<bool O3D, bool R3D> inline void WriteOutRays(
+    const bhcParams<O3D, R3D> &params, const RayInfo<O3D, R3D> *rayinfo)
 {
     LDOFile RAYFile;
     OpenRAYFile<O3D, R3D>(RAYFile, GetInternal(params)->FileRoot, params);
     for(int r = 0; r < rayinfo->NRays; ++r) {
-        RayResult<O3D, R3D> *res = &rayinfo->results[r];
+        const RayResult<O3D, R3D> *res = &rayinfo->results[r];
         if(res->ray == nullptr) continue;
-        WriteRay<O3D, R3D>(
-            res->SrcDeclAngle, res->Nsteps, RAYFile, params.Bdry, res->org, res->ray);
+        WriteRay<O3D, R3D>(RAYFile, res);
     }
 }
 
