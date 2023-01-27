@@ -123,14 +123,6 @@ extern template BHC_API bool run<true, true>(
  * a shade file, or an arrivals file. If you only want to use the results in
  * memory, there is no need to call this.
  *
- * Note that the writeout process modifies the data for most runs:
- * - eigenrays: During run(), only information about which rays hit the
- *   receiver is stored, not the full ray trajectories. During writeout(), those
- *   rays are traced again and written.
- *
- * run() must have been called previously. Don't forget to call finalize()
- * when you're all done.
- *
  * returns: false if an error occurred, true if no errors.
  */
 template<bool O3D, bool R3D> bool writeout(

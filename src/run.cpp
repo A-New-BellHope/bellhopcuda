@@ -79,10 +79,6 @@ template<bool O3D, bool R3D> inline void RunRayMode(
     CheckReportErrors(GetInternal(params), &errState);
 }
 
-template<bool O3D, bool R3D> bool PostProcess(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
-{}
-
 template<bool O3D, bool R3D> bool run(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
@@ -92,18 +88,16 @@ template<bool O3D, bool R3D> bool run(
         InitSelectedMode<O3D, R3D>(params, outputs);
         sw.tock("InitSelectedMode");
 
-        sw.tick() if(IsRayRun(params.Beam))
-        {
+        sw.tick();
+        if(IsRayRun(params.Beam)) {
             RunRayMode(params, outputs);
-            swrun.tock("RunRayMode");
-        }
-        else
-        {
+            sw.tock("RunRayMode");
+        } else {
 #ifdef BHC_BUILD_CUDA
             checkCudaErrors(cudaSetDevice(GetInternal(params)->m_gpu));
 #endif
             RunFieldModesSelInfl(params, outputs);
-            swrun.tock("RunFieldModes");
+            sw.tock("RunFieldModes");
         }
 
         sw.tick();

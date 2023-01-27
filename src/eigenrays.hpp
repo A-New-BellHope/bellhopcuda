@@ -18,6 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "raymode.hpp"
 
 namespace bhc {
 
@@ -48,13 +49,19 @@ inline void InitEigenMode(EigenInfo *eigen)
     checkallocate(eigen->hits, maxhits);
 }
 
-template<bool O3D, bool R3D> void WriteOutEigenrays(
+template<bool O3D, bool R3D> void PostProcessEigenrays(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
-extern template void WriteOutEigenrays<false, false>(
+extern template void PostProcessEigenrays<false, false>(
     const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
-extern template void WriteOutEigenrays<true, false>(
+extern template void PostProcessEigenrays<true, false>(
     const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
-extern template void WriteOutEigenrays<true, true>(
+extern template void PostProcessEigenrays<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+
+template<bool O3D, bool R3D> inline void WriteOutEigenrays(
+    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs)
+{
+    WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
+}
 
 } // namespace bhc

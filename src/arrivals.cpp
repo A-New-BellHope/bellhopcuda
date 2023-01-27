@@ -24,6 +24,7 @@ namespace bhc {
 template<bool O3D, bool R3D> void PostProcessArrivals(
     const bhcParams<O3D, R3D> &params, ArrInfo *arrinfo)
 {
+    const Position *Pos = params.Pos;
     for(int32_t isz = 0; isz < Pos->NSz; ++isz) {
         for(int32_t isx = 0; isx < Pos->NSx; ++isx) {
             for(int32_t isy = 0; isy < Pos->NSy; ++isy) {
@@ -70,15 +71,15 @@ template<bool O3D, bool R3D> void PostProcessArrivals(
 }
 
 #if BHC_ENABLE_2D
-extern template void PostProcessArrivals<false, false>(
+template void PostProcessArrivals<false, false>(
     const bhcParams<false, false> &params, ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_NX2D
-extern template void PostProcessArrivals<true, false>(
+template void PostProcessArrivals<true, false>(
     const bhcParams<true, false> &params, ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_3D
-extern template void PostProcessArrivals<true, true>(
+template void PostProcessArrivals<true, true>(
     const bhcParams<true, true> &params, ArrInfo *arrinfo);
 #endif
 

@@ -71,7 +71,7 @@ template void EigenModePostWorker<true, true>(
     ErrState *errState);
 #endif
 
-template<bool O3D, bool R3D> void WriteOutEigenrays(
+template<bool O3D, bool R3D> void PostProcessEigenrays(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     InitRayMode<O3D, R3D>(outputs.rayinfo, params, outputs.eigen->neigen);
@@ -82,6 +82,7 @@ template<bool O3D, bool R3D> void WriteOutEigenrays(
             "Had %d eigenrays but only %d fit in memory\n", outputs.eigen->neigen,
             outputs.eigen->memsize);
     }
+
     ErrState errState;
     ResetErrState(&errState);
     GetInternal(params)->sharedJobID = 0;
@@ -92,22 +93,21 @@ template<bool O3D, bool R3D> void WriteOutEigenrays(
             EigenModePostWorker<O3D, R3D>, std::cref(params), std::ref(outputs),
             &errState));
     for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
-
     CheckReportErrors(GetInternal(params), &errState);
 
-    WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
+    PostProcessRays(params, outputs.rayinfo);
 }
 
 #if BHC_ENABLE_2D
-template void WriteOutEigenrays<false, false>(
+template void PostProcessEigenrays<false, false>(
     const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
-template void WriteOutEigenrays<true, false>(
+template void PostProcessEigenrays<true, false>(
     const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
-template void WriteOutEigenrays<true, true>(
+template void PostProcessEigenrays<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 

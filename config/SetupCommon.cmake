@@ -81,6 +81,7 @@ set(common_source
     jobs.hpp
     ldio.hpp
     prtfileemu.hpp
+    raymode.cpp
     raymode.hpp
     readenv.cpp
     readenv.hpp
