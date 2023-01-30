@@ -54,13 +54,6 @@ def compare_files(cxxf, forf):
             len(cxxdata), reclen))
         sys.exit(1)
     
-    for w in range(10*reclen):
-        cxxd = cxxdata[w*4:(w+1)*4]
-        ford = fordata[w*4:(w+1)*4]
-        if cxxd != ford:
-            print('{:08X}: CXX {:08X}  FOR {:08X}'.format(w*4,
-                struct.unpack('I', cxxd)[0], struct.unpack('I', ford)[0]))
-    
     Nfreq = read_rec_int(fordata, 2, 0)
     Ntheta = read_rec_int(fordata, 2, 1)
     NSx = read_rec_int(fordata, 2, 2)
@@ -68,7 +61,7 @@ def compare_files(cxxf, forf):
     NSz = read_rec_int(fordata, 2, 4)
     NRz = read_rec_int(fordata, 2, 5)
     NRr = read_rec_int(fordata, 2, 6)
-    irre = read_rec_int(fordata, 1, 0)
+    PlotType = read_rec_int(fordata, 1, 0)
     assert Nfreq == read_rec_int(cxxdata, 2, 0)
     assert Ntheta == read_rec_int(cxxdata, 2, 1)
     assert NSx == read_rec_int(cxxdata, 2, 2)
@@ -76,19 +69,44 @@ def compare_files(cxxf, forf):
     assert NSz == read_rec_int(cxxdata, 2, 4)
     assert NRz == read_rec_int(cxxdata, 2, 5)
     assert NRr == read_rec_int(cxxdata, 2, 6)
-    assert irre == read_rec_int(cxxdata, 1, 0)
+    assert PlotType == read_rec_int(cxxdata, 1, 0)
     assert NRr * 2 <= reclen
-    irre = (irre == 0x65727269) #'irre' (gular)
+    isTL = (PlotType & 0xFFFF) == 0x4C54 # 'TL' (only write first and last Sx/Sy)
+    irre = (PlotType == 0x65727269) #'irre' (gular)
+    assert isTL or irre or (PlotType == 0x74636572) #'rect' (ilin)
     rcvrgridsz = Ntheta * (1 if irre else NRz) * reclen # reclen is normally NRr (*2 for complex)
     filesz = NSx * NSy * NSz * rcvrgridsz * 4 + 4 * 10 * reclen
     if len(cxxdata) != filesz:
-        print('NSx {} NSy {} NSz {} Ntheta {} NRz {} NRr {}'.format(
-            NSx, NSy, NSz, Ntheta, NRz, NRr))
+        print('NSx {} NSy {} NSz {} Ntheta {} NRz {} NRr {} Nfreq {}'.format(
+            NSx, NSy, NSz, Ntheta, NRz, NRr, Nfreq))
         print('reclen {} rcvrgridsz {} irregular {}\nPred filesz {} actual {}'.format(
             reclen, rcvrgridsz, irre, filesz, len(cxxdata)))
         print('Invalid file size')
         sys.exit(1)
+
+    print('FOR title: {}'.format(struct.unpack('80s', fordata[4:84])[0].decode('ascii')))
+    print('CXX title: {}'.format(struct.unpack('80s', cxxdata[4:84])[0].decode('ascii')))
     
+    for rec in range(3, 10):
+        N = {3: Nfreq, 4: Ntheta, 5: 2 if isTL else NSx, 6: 2 if isTL else NSy,
+            7: NSz, 8: NRz, 9: NRr}[rec]
+        type, l = ('d', 8) if rec == 3 else ('f', 4)
+        for i in range(N):
+            start = l*(rec*reclen+i)
+            forf = struct.unpack(type, fordata[start:start+l])[0]
+            cxxf = struct.unpack(type, cxxdata[start:start+l])[0]
+            if isnan(forf) or isnan(cxxf) or (forf != cxxf and (cxxf - forf) / forf > 1e-8):
+                print('Pos data did not match: rec {} element {}: FOR {} CXX {}'.format(
+                    rec, i, forf, cxxf))
+                sys.exit(1)
+        for i in range((N*l//2), reclen):
+            fori = read_rec_int(fordata, rec, i)
+            cxxi = read_rec_int(cxxdata, rec, i)
+            if not(fori == cxxi == 0):
+                print('Zeroes after pos data did not match: rec {} element {} FOR {:08X} CXX {:08X}'.format(
+                    rec, i, fori, cxxi))
+                sys.exit(1)
+
     errors = 0
     maxerrors = 100
     for rec in range(10, len(cxxdata) // reclen):
