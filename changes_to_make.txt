@@ -1,4 +1,0 @@
-Better memory management:
-- Reexamine ray mode memory options
-- Memory size parameters for various run types
-
