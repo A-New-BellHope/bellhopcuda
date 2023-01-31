@@ -45,6 +45,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <chrono>
 #include <exception>
 
+#define GLM_FORCE_EXPLICIT_CTOR 1
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_access.hpp>
@@ -69,16 +70,16 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Yes, I'm aware this is not GCC--this is a hack for the buggy libcudacxx MSVC
 // support
-#define __GCC_ATOMIC_BOOL_LOCK_FREE     2
-#define __GCC_ATOMIC_CHAR_LOCK_FREE     2
+#define __GCC_ATOMIC_BOOL_LOCK_FREE 2
+#define __GCC_ATOMIC_CHAR_LOCK_FREE 2
 #define __GCC_ATOMIC_CHAR16_T_LOCK_FREE 2
 #define __GCC_ATOMIC_CHAR32_T_LOCK_FREE 2
-#define __GCC_ATOMIC_WCHAR_T_LOCK_FREE  2
-#define __GCC_ATOMIC_SHORT_LOCK_FREE    2
-#define __GCC_ATOMIC_INT_LOCK_FREE      2
-#define __GCC_ATOMIC_LONG_LOCK_FREE     2
-#define __GCC_ATOMIC_LLONG_LOCK_FREE    2
-#define __GCC_ATOMIC_POINTER_LOCK_FREE  2
+#define __GCC_ATOMIC_WCHAR_T_LOCK_FREE 2
+#define __GCC_ATOMIC_SHORT_LOCK_FREE 2
+#define __GCC_ATOMIC_INT_LOCK_FREE 2
+#define __GCC_ATOMIC_LONG_LOCK_FREE 2
+#define __GCC_ATOMIC_LLONG_LOCK_FREE 2
+#define __GCC_ATOMIC_POINTER_LOCK_FREE 2
 
 #ifndef __ATOMIC_RELAXED
 #define __ATOMIC_RELAXED 0

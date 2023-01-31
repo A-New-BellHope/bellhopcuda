@@ -25,6 +25,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cfloat>
 #include <complex>
 
+#define GLM_FORCE_EXPLICIT_CTOR 1
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/mat2x2.hpp>
