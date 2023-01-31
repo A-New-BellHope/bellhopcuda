@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -25,15 +25,16 @@ namespace bhc {
 /**
  * LP: RunType now passed as part of Beam.
  */
-template<bool O3D, bool BEARING> inline void ReadRayAngles(
-    real freq, real Depth, const char (&TopOpt)[6], LDIFile &ENVFile,
-    PrintFileEmu &PRTFile, AngleInfo &a, Position *Pos, const BeamStructure<O3D> *Beam)
+template<bool O3D, bool R3D, bool BEARING> inline void ReadRayAngles(
+    bhcParams<O3D, R3D> &params, real Depth, LDIFile &ENVFile, AngleInfo &a)
 {
     constexpr real c0          = FL(1500.0);
     const char *const FuncName = BEARING ? "ReadRayBearingAngles"
                                          : "ReadRayElevationAngles";
 
-    if(TopOpt[5] == 'I') {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
+    if(params.Bdry->Top.hs.Opt[5] == 'I') {
         // option to trace a single beam
         LIST(ENVFile);
         ENVFile.Read(a.n);
@@ -44,13 +45,14 @@ template<bool O3D, bool BEARING> inline void ReadRayAngles(
     }
 
     if(a.n == 0) { // automatically estimate n to use
-        if(IsRayRun(Beam)) {
+        if(IsRayRun(params.Beam)) {
             a.n = 50; // For a ray trace plot, we don't want too many rays ...
         } else {
             // you're letting ME choose? OK: ideas based on an isospeed ocean
             // limit based on phase of adjacent beams at maximum range
             a.n = bhc::max(
-                (int)((BEARING ? FL(0.1) : FL(0.3)) * Pos->Rr[Pos->NRr - 1] * freq / c0),
+                (int)((BEARING ? FL(0.1) : FL(0.3)) * params.Pos->Rr[params.Pos->NRr - 1] 
+                * params.freqinfo->freq0 / c0),
                 300);
 
             if constexpr(!BEARING) {
@@ -59,7 +61,7 @@ template<bool O3D, bool BEARING> inline void ReadRayAngles(
                 // check which Depth is used here, in case where there is a variable
                 // bathymetry
                 real d_theta_recommended = STD::atan(
-                    Depth / (FL(10.0) * Pos->Rr[Pos->NRr - 1]));
+                    Depth / (FL(10.0) * params.Pos->Rr[params.Pos->NRr - 1]));
                 a.n = bhc::max((int)(REAL_PI / d_theta_recommended), a.n);
             }
         }
@@ -78,15 +80,15 @@ template<bool O3D, bool BEARING> inline void ReadRayAngles(
 
     if constexpr(BEARING) {
         // Nx2D CASE: beams must lie on rcvr radials--- replace beta with theta
-        if(Beam->RunType[5] == '2' && !IsRayRun(Beam)) {
+        if(params.Beam->RunType[5] == '2' && !IsRayRun(params.Beam)) {
             PRTFile << "\nReplacing beam take-off angles, beta, with receiver bearing "
                        "lines, theta\n";
             checkdeallocate(a.angles);
 
-            a.n = Pos->Ntheta;
+            a.n = params.Pos->Ntheta;
             checkallocate(a.angles, bhc::max(3, a.n));
             for(int32_t i = 0; i < a.n; ++i)
-                a.angles[i] = Pos->theta[i]; // a.n should = Pos->Ntheta
+                a.angles[i] = params.Pos->theta[i]; // a.n should = params.Pos->Ntheta
         }
     }
 
@@ -102,14 +104,12 @@ template<bool O3D, bool BEARING> inline void ReadRayAngles(
     EchoVector(a.angles, a.n, PRTFile);
 
     if(a.n > 1 && a.angles[a.n - 1] == a.angles[0]) {
-        GlobalLog("%s: First and last beam take-off angle are identical\n", FuncName);
-        std::abort();
+        EXTERR("%s: First and last beam take-off angle are identical", FuncName);
     }
 
-    if(TopOpt[5] == 'I') {
+    if(params.Bdry->Top.hs.Opt[5] == 'I') {
         if(a.iSingle < 1 || a.iSingle > a.n) {
-            GlobalLog("%s: Selected beam, iSingle not in [1, a.n]\n", FuncName);
-            std::abort();
+            EXTERR("%s: Selected beam, iSingle not in [1, a.n]", FuncName);
         }
     }
 

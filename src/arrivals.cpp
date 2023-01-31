@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -21,21 +21,84 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-template<bool O3D, bool R3D> void FinalizeArrivalsMode(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, std::string FileRoot)
+template<bool O3D, bool R3D> void PostProcessArrivals(
+    const bhcParams<O3D, R3D> &params, ArrInfo *arrinfo)
 {
+    const Position *Pos = params.Pos;
+    for(int32_t isz = 0; isz < Pos->NSz; ++isz) {
+        for(int32_t isx = 0; isx < Pos->NSx; ++isx) {
+            for(int32_t isy = 0; isy < Pos->NSy; ++isy) {
+                int32_t maxn = 0; // LP: Maximum number of arrivals for this source
+                for(int32_t itheta = 0; itheta < Pos->Ntheta; ++itheta) {
+                    for(int32_t iz = 0; iz < Pos->NRz_per_range; ++iz) {
+                        for(int32_t ir = 0; ir < Pos->NRr; ++ir) {
+                            size_t base
+                                = GetFieldAddr(isx, isy, isz, itheta, iz, ir, Pos);
+
+                            int32_t narr = arrinfo->NArr[base];
+                            if(narr > arrinfo->MaxNArr) {
+                                // For multithreading / AllowMerging == false where this
+                                // holds the total number of attempted arrivals,
+                                // including those not written due to limited memory
+                                arrinfo->NArr[base] = narr = arrinfo->MaxNArr;
+                            }
+                            maxn = std::max(maxn, narr);
+
+                            float factor;
+                            if constexpr(R3D) {
+                                factor = FL(1.0);
+                            } else {
+                                if(!O3D && IsLineSource(params.Beam)) {
+                                    factor = FL(4.0) * STD::sqrt(REAL_PI);
+                                } else if(Pos->Rr[ir] == FL(0.0)) {
+                                    // avoid /0 at origin
+                                    factor = FL(1e5);
+                                } else {
+                                    // cyl. spreading
+                                    factor = FL(1.0) / STD::sqrt(Pos->Rr[ir]);
+                                }
+                            }
+                            for(int32_t iArr = 0; iArr < narr; ++iArr) {
+                                arrinfo->Arr[base * arrinfo->MaxNArr + iArr].a *= factor;
+                            }
+                        }
+                    }
+                }
+                arrinfo->MaxNPerSource[(isz * Pos->NSx + isx) * Pos->NSy + isy] = maxn;
+            }
+        }
+    }
+}
+
+#if BHC_ENABLE_2D
+template void PostProcessArrivals<false, false>(
+    const bhcParams<false, false> &params, ArrInfo *arrinfo);
+#endif
+#if BHC_ENABLE_NX2D
+template void PostProcessArrivals<true, false>(
+    const bhcParams<true, false> &params, ArrInfo *arrinfo);
+#endif
+#if BHC_ENABLE_3D
+template void PostProcessArrivals<true, true>(
+    const bhcParams<true, true> &params, ArrInfo *arrinfo);
+#endif
+
+template<bool O3D, bool R3D> void WriteOutArrivals(
+    const bhcParams<O3D, R3D> &params, const ArrInfo *arrinfo)
+{
+    const Position *Pos = params.Pos;
+
     // LP: originally most of OpenOutputFiles
     bool isAscii;
     LDOFile AARRFile;
-    UnformattedOFile BARRFile;
-    switch(Beam->RunType[0]) {
+    UnformattedOFile BARRFile(GetInternal(params));
+    switch(params.Beam->RunType[0]) {
     case 'A': // arrivals calculation, ascii
         isAscii = true;
 
-        AARRFile.open(FileRoot + ".arr");
+        AARRFile.open(GetInternal(params)->FileRoot + ".arr");
         AARRFile << (O3D ? "3D" : "2D") << '\n';
-        AARRFile << freqinfo->freq0 << '\n';
+        AARRFile << params.freqinfo->freq0 << '\n';
 
         // write source locations
         if constexpr(O3D) {
@@ -66,11 +129,11 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
     case 'a': // arrivals calculation, binary
         isAscii = false;
 
-        BARRFile.open(FileRoot + ".arr");
+        BARRFile.open(GetInternal(params)->FileRoot + ".arr");
         BARRFile.rec();
         BARRFile.write((O3D ? "'3D'" : "'2D'"), 4);
         BARRFile.rec();
-        BARRFile.write((float)freqinfo->freq0);
+        BARRFile.write((float)params.freqinfo->freq0);
 
         // write source locations
         if constexpr(O3D) {
@@ -98,26 +161,15 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
             BARRFile.write(Pos->theta, Pos->Ntheta);
         }
         break;
-    default:
-        GlobalLog("FinalizeArrivalsMode called while not in arrivals mode\n");
-        bail();
-        return;
+    default: EXTERR("FinalizeArrivalsMode called while not in arrivals mode");
     }
     // LP: originally most of WriteArrivals[ASCII/Binary][3D]
     for(int32_t isz = 0; isz < Pos->NSz; ++isz) {
         for(int32_t isx = 0; isx < Pos->NSx; ++isx) {
             for(int32_t isy = 0; isy < Pos->NSy; ++isy) {
-                // LP: Maximum number of arrivals
-                int32_t maxn = 0;
-                for(int32_t itheta = 0; itheta < Pos->Ntheta; ++itheta) {
-                    for(int32_t iz = 0; iz < Pos->NRz_per_range; ++iz) {
-                        for(int32_t ir = 0; ir < Pos->NRr; ++ir) {
-                            size_t base
-                                = GetFieldAddr(isx, isy, isz, itheta, iz, ir, Pos);
-                            if(arrinfo->NArr[base] > maxn) maxn = arrinfo->NArr[base];
-                        }
-                    }
-                }
+                // LP: Maximum number of arrivals for this source
+                int32_t maxn
+                    = arrinfo->MaxNPerSource[(isz * Pos->NSx + isx) * Pos->NSy + isy];
                 if(isAscii) {
                     AARRFile << maxn << '\n';
                 } else {
@@ -130,20 +182,6 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
                         for(int32_t ir = 0; ir < Pos->NRr; ++ir) {
                             size_t base
                                 = GetFieldAddr(isx, isy, isz, itheta, iz, ir, Pos);
-                            float factor;
-                            if constexpr(R3D) {
-                                factor = FL(1.0);
-                            } else {
-                                if(!O3D && IsLineSource(Beam)) {
-                                    factor = FL(4.0) * STD::sqrt(REAL_PI);
-                                } else if(Pos->Rr[ir] == FL(0.0)) {
-                                    factor = FL(1e5); // avoid /0 at origin
-                                } else {
-                                    factor = FL(1.0)
-                                        / STD::sqrt(Pos->Rr[ir]); // cyl. spreading
-                                }
-                            }
-
                             int32_t narr = arrinfo->NArr[base];
                             if(isAscii) {
                                 AARRFile << narr << '\n';
@@ -162,7 +200,7 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
                                     // in an explicit format statement here ... However,
                                     // you'll need to make sure you keep adequate
                                     // precision
-                                    AARRFile << factor * arr->a;
+                                    AARRFile << arr->a;
                                     if constexpr(O3D) {
                                         AARRFile << RadDeg * arr->Phase;
                                     } else {
@@ -176,7 +214,7 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
                                     AARRFile << arr->NTopBnc << arr->NBotBnc << '\n';
                                 } else {
                                     BARRFile.rec();
-                                    BARRFile.write(factor * arr->a);
+                                    BARRFile.write(arr->a);
                                     BARRFile.write((float)(RadDeg * arr->Phase));
                                     BARRFile.write(arr->delay);
                                     BARRFile.write(arr->SrcDeclAngle);
@@ -196,19 +234,16 @@ template<bool O3D, bool R3D> void FinalizeArrivalsMode(
 }
 
 #if BHC_ENABLE_2D
-template void FinalizeArrivalsMode<false, false>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<false> *Beam, std::string FileRoot);
+template void WriteOutArrivals<false, false>(
+    const bhcParams<false, false> &params, const ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_NX2D
-template void FinalizeArrivalsMode<true, false>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<true> *Beam, std::string FileRoot);
+template void WriteOutArrivals<true, false>(
+    const bhcParams<true, false> &params, const ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_3D
-template void FinalizeArrivalsMode<true, true>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<true> *Beam, std::string FileRoot);
+template void WriteOutArrivals<true, true>(
+    const bhcParams<true, true> &params, const ArrInfo *arrinfo);
 #endif
 
 } // namespace bhc

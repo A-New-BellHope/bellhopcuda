@@ -1,5 +1,5 @@
 # bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-# Copyright (C) 2021-2022 The Regents of the University of California
+# Copyright (C) 2021-2023 The Regents of the University of California
 # c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 # Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 # 
@@ -39,10 +39,6 @@ if(copy_hook)
 endif()
 
 add_subdirectory(cxx)
-
-if(BHC_ENABLE_LIB)
-    add_subdirectory(cxxlib)
-endif()
 
 if(BHC_ENABLE_CUDA AND NOT(APPLE OR DEFINED ENV{BHC_NO_CUDA}))
     add_subdirectory(cuda)

@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -20,6 +20,71 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 
 namespace bhc {
+
+template<char RT> struct RunType {
+    static constexpr bool IsRay() { return RT == 'R'; }
+    static constexpr bool IsTL() { return RT == 'C' /*|| RT == 'S' || RT == 'I'*/; }
+    static constexpr bool IsEigenrays() { return RT == 'E'; }
+    static constexpr bool IsArrivals() { return RT == 'A' /*|| RT == 'a'*/; }
+    /*
+    static constexpr bool IsCoherent() { return RT == 'C'; }
+    static constexpr bool IsSemiCoherent() { return RT == 'S'; }
+    static constexpr bool IsIncoherent() { return RT == 'I'; }
+    */
+
+    static_assert(
+        IsRay() || IsTL() || IsEigenrays() || IsArrivals(),
+        "RunType templated with invalid character!");
+};
+
+template<char IT> struct InflType {
+    // ' ' and '^' are equivalent to 'G', but are handled in the template
+    // selection, not here.
+    static constexpr bool IsCerveny() { return IT == 'R' || IT == 'C'; }
+    static constexpr bool IsGeometric() { return IT == 'G' || IT == 'g'; }
+    // return IsHatGeom() || IsGaussianGeom();
+    static constexpr bool IsSGB() { return IT == 'S'; }
+    static constexpr bool IsCartesian()
+    {
+        return IT == 'C' || IT == 'G' /*|| IT == 'B'*/;
+    }
+    static constexpr bool IsRayCen() { return IT == 'R' || IT == 'g' /*|| IT == 'b'*/; }
+    /*
+    static constexpr bool IsHatGeom() { return IT == 'G' || IT == 'g'; }
+    static constexpr bool IsGaussianGeom() { return IT == 'B' || IT == 'b'; }
+    */
+
+    static_assert(
+        IsCerveny() || IsGeometric() || IsSGB(),
+        "InflType templated with invalid character!");
+};
+
+template<char ST> struct SSPType {
+    static constexpr bool IsN2Linear() { return ST == 'N'; }
+    static constexpr bool IsCLinear() { return ST == 'C'; }
+    static constexpr bool IsCCubic() { return ST == 'S'; }
+    static constexpr bool IsCPCHIP() { return ST == 'P'; }
+    static constexpr bool IsQuad() { return ST == 'Q'; }
+    static constexpr bool IsHexahedral() { return ST == 'H'; }
+    static constexpr bool IsAnalytic() { return ST == 'A'; }
+    static constexpr bool Is1D()
+    {
+        return IsN2Linear() || IsCLinear() || IsCCubic() || IsCPCHIP();
+    }
+    static constexpr bool Is2D() { return IsQuad(); }
+    static constexpr bool Is3D() { return IsHexahedral(); }
+    static constexpr bool IsAnyD() { return IsAnalytic(); }
+
+    static_assert(
+        Is1D() || Is2D() || Is3D() || IsAnyD(),
+        "SSPType templated with invalid character!");
+};
+
+template<char RT, char IT, char ST> struct CfgSel {
+    using run  = RunType<RT>;
+    using infl = InflType<IT>;
+    using ssp  = SSPType<ST>;
+};
 
 template<bool O3D> HOST_DEVICE inline bool IsRayRun(const BeamStructure<O3D> *Beam)
 {
@@ -136,10 +201,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline const char *GetBeamTypeTag(
             ? "Geometric beam, Gaussian-shaped, Ray coord."
             : "Geo Gaussian beams in ray-cent. coords. not implemented in BELLHOP (2D)";
     case 'S': return "Simple Gaussian beams";
-    default:
-        GlobalLog("Invalid Beam->Type[0] %c\n", Beam->Type[0]);
-        bail();
-        return "Error";
+    default: return "Invalid Beam->Type[0]";
     }
 }
 
@@ -180,10 +242,7 @@ template<bool O3D> HOST_DEVICE inline const char *GetBeamWidthTag(
     case 'M': return "Minimum width beams";
     case 'W': return "WKB beams";
     case 'C': return "Cerveny style beam";
-    default:
-        GlobalLog("Invalid Beam->Type[1] %c\n", Beam->Type[1]);
-        bail();
-        return "Error";
+    default: return "Invalid Beam->Type[1]";
     }
 }
 

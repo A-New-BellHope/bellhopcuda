@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -26,19 +26,20 @@ namespace bhc {
 
 class PrintFileEmu {
 public:
-    PrintFileEmu(const char *FileRoot, void (*outputCallback)(const char *message))
+    PrintFileEmu(
+        bhcInternal *internal, const char *FileRoot,
+        void (*prtCallback)(const char *message))
         : callback(nullptr)
     {
-        if(outputCallback == nullptr) {
+        if(prtCallback == nullptr) {
             std::string s(FileRoot);
             ofs.open(s + ".prt");
             if(!ofs.good()) {
-                GlobalLog("Could not open print file: %s.prt\n", FileRoot);
-                bail();
+                ExternalError(internal, "Could not open print file: %s.prt", FileRoot);
             }
             ofs << std::unitbuf;
         } else {
-            callback = outputCallback;
+            callback = prtCallback;
         }
     }
     ~PrintFileEmu()

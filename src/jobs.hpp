@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -43,8 +43,8 @@ template<bool O3D> HOST_DEVICE inline bool GetJobIndices(
     RayInitInfo &rinit, int32_t job, const Position *Pos, const AnglesStructure *Angles)
 {
     if(Angles->alpha.iSingle >= 1) {
-        rinit.ialpha = Angles->alpha.iSingle - 1; // iSingle is 1-indexed because how
-                                                  // defined in env file
+        // iSingle is 1-indexed because how defined in env file
+        rinit.ialpha = Angles->alpha.iSingle - 1;
     } else {
         rinit.ialpha = job % Angles->alpha.n;
         job /= Angles->alpha.n;

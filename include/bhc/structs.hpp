@@ -280,7 +280,7 @@ struct AnglesStructure {
 struct FreqInfo {
     real freq0;    // Nominal or carrier frequency
     int32_t Nfreq; // number of frequencies
-    real *freqVec; // frequency vector for braoaband runs
+    real *freqVec; // frequency vector for broadband runs
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -346,8 +346,10 @@ struct Arrival {
 struct ArrInfo {
     Arrival *Arr;
     int32_t *NArr;
+    int32_t *MaxNPerSource;
     int32_t MaxNArr;
-    bool singlethread;
+    size_t ArrMemSize;
+    bool AllowMerging;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -443,6 +445,9 @@ template<bool R3D> struct InfluenceRayInfo {
 ////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> struct bhcParams {
+    /// Initialized to -1 meaning "one thread per logical core"; after setup
+    /// (but before run), can set to 1 or some other value.
+    int32_t maxThreads;
     char Title[80]; // Size determined by WriteHeader for TL
     real fT;
     BdryType *Bdry;

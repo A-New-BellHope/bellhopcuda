@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -22,24 +22,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 template<bool O3D, bool R3D> void ReadEnvironment(
-    const std::string &FileRoot, PrintFileEmu &PRTFile, char (&Title)[80], real &fT,
-    BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, Position *Pos,
-    AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<O3D> *Beam,
-    HSInfo &RecycledHS);
+    bhcParams<O3D, R3D> &params, HSInfo &RecycledHS);
 extern template void ReadEnvironment<false, false>(
-    const std::string &FileRoot, PrintFileEmu &PRTFile, char (&Title)[80], real &fT,
-    BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, Position *Pos,
-    AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<false> *Beam,
-    HSInfo &RecycledHS);
+    bhcParams<false, false> &params, HSInfo &RecycledHS);
 extern template void ReadEnvironment<true, false>(
-    const std::string &FileRoot, PrintFileEmu &PRTFile, char (&Title)[80], real &fT,
-    BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, Position *Pos,
-    AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<true> *Beam,
-    HSInfo &RecycledHS);
+    bhcParams<true, false> &params, HSInfo &RecycledHS);
 extern template void ReadEnvironment<true, true>(
-    const std::string &FileRoot, PrintFileEmu &PRTFile, char (&Title)[80], real &fT,
-    BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, Position *Pos,
-    AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<true> *Beam,
-    HSInfo &RecycledHS);
+    bhcParams<true, true> &params, HSInfo &RecycledHS);
 
 } // namespace bhc

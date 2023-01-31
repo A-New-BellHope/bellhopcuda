@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -22,17 +22,15 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-constexpr real betaPowerLaw = FL(1.0);
-
 #define SSP_2D_FN_ARGS \
     const vec2 &x, const vec2 &t, SSPOutputs<false> &o, const SSPStructure *ssp, \
-        SSPSegState &iSeg
+        SSPSegState &iSeg, ErrState *errState
 #define SSP_3D_FN_ARGS \
     const vec3 &x, const vec3 &t, SSPOutputs<true> &o, const SSPStructure *ssp, \
-        SSPSegState &iSeg
+        SSPSegState &iSeg, ErrState *errState
 #define SSP_TEMPL_FN_ARGS \
     const VEC23<O3D> &x, const VEC23<O3D> &t, SSPOutputs<O3D> &o, \
-        const SSPStructure *ssp, SSPSegState &iSeg
+        const SSPStructure *ssp, SSPSegState &iSeg, ErrState *errState
 
 HOST_DEVICE inline void UpdateSSPSegment(
     real x, real t, const real *array, int32_t n, int32_t &iSeg)
@@ -64,6 +62,7 @@ HOST_DEVICE inline real LinInterpDensity(
  */
 HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
 {
+    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     real w = LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -81,6 +80,7 @@ HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
  */
 HOST_DEVICE inline void cLinear(SSP_2D_FN_ARGS)
 {
+    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -99,12 +99,18 @@ HOST_DEVICE inline void cPCHIP(SSP_2D_FN_ARGS)
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
     real xt = x.y - ssp->z[iSeg.z];
-    if(STD::abs(xt) > RL(1.0e10)) { GlobalLog("Invalid xt %g\n", xt); }
-    for(int32_t i = 0; i < 4; ++i)
-        if(STD::abs(ssp->cCoef[i][iSeg.z]) > RL(1.0e10))
-            GlobalLog(
-                "Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSeg.z,
-                ssp->cCoef[i][iSeg.z].real(), ssp->cCoef[i][iSeg.z].imag());
+    if(STD::abs(xt) > RL(1.0e10)) {
+        RunWarning(errState, BHC_WARN_CPCHIP_INVALIDXT);
+        // printf("Invalid xt %g\n", xt);
+    }
+    for(int32_t i = 0; i < 4; ++i) {
+        if(STD::abs(ssp->cCoef[i][iSeg.z]) > RL(1.0e10)) {
+            RunWarning(errState, BHC_WARN_CPCHIP_INVALIDCCOEF);
+            // printf(
+            //     "Invalid ssp->cCoef[%d][%d] = (%g,%g)\n", i, iSeg.z,
+            //     ssp->cCoef[i][iSeg.z].real(), ssp->cCoef[i][iSeg.z].imag());
+        }
+    }
 
     o.ccpx = ssp->cCoef[0][iSeg.z]
         + (ssp->cCoef[1][iSeg.z]
@@ -127,6 +133,7 @@ HOST_DEVICE inline void cPCHIP(SSP_2D_FN_ARGS)
  */
 HOST_DEVICE inline void cCubic(SSP_2D_FN_ARGS)
 {
+    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -154,18 +161,20 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
     real c1, c2, cz1, cz2, cr, cz, s1, s2, delta_r, delta_z;
 
     if(x.x < ssp->Seg.r[0] || x.x > ssp->Seg.r[ssp->Nr - 1]) {
-        GlobalLog(
-            "sspMod: Quad: ray is outside the box where the soundspeed is defined\n");
-        bail();
+        RunError(errState, BHC_ERR_OUTSIDE_SSP);
+        // printf(
+        //     "sspMod: Quad: ray is outside the box where the soundspeed is defined\n");
     }
 
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     UpdateSSPSegment(x.x, t.x, ssp->Seg.r, ssp->Nr, iSeg.r);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
     if(iSeg.z >= ssp->Nz - 1 || iSeg.r >= ssp->Nr - 1) {
-        GlobalLog(
-            "iSeg error in Quad: z %d/%d r %d/%d\n", iSeg.z, ssp->Nz, iSeg.r, ssp->Nr);
-        bail();
+        RunError(errState, BHC_ERR_QUAD_ISEG);
+        // printf(
+        //     "iSeg error in Quad: z %d/%d r %d/%d\n", iSeg.z, ssp->Nz, iSeg.r,
+        //     ssp->Nr);
+        iSeg.z = iSeg.r = 0;
     }
 
     // for this depth, x.y, get the sound speed at both ends of the segment
@@ -190,15 +199,9 @@ HOST_DEVICE inline void Quad(SSP_2D_FN_ARGS)
 
     // interpolate the attenuation !!!! This will use the wrong segment if the ssp in the
     // envil is sampled at different depths
-    s2         = s2 / delta_z; // convert to a proportional depth in the layer
-    real cimag = ((RL(1.0) - s2) * ssp->c[iSeg.z] + s2 * ssp->c[iSeg.z + 1])
-                     .imag(); // volume
-                              // attenuation
-                              // is taken
-                              // from the
-                              // single
-                              // c(z)
-                              // profile
+    s2 = s2 / delta_z; // convert to a proportional depth in the layer
+    // volume attenuation is taken from the single c(z) profile
+    real cimag = ((RL(1.0) - s2) * ssp->c[iSeg.z] + s2 * ssp->c[iSeg.z + 1]).imag();
 
     o.ccpx = cpx(c, cimag);
 
@@ -220,11 +223,11 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
 {
     if(x.x < ssp->Seg.x[0] || x.x > ssp->Seg.x[ssp->Nx - 1] || x.y < ssp->Seg.y[0]
        || x.y > ssp->Seg.y[ssp->Ny - 1]) {
-        GlobalLog(
-            "sspMod: Hexahedral: ray is outside the box where the ocean soundspeed is "
-            "defined\nx = (x, y, z) = %g, %g, %g\n",
-            x.x, x.y, x.z);
-        bail();
+        RunError(errState, BHC_ERR_OUTSIDE_SSP);
+        // printf(
+        //     "sspMod: Hexahedral: ray is outside the box where the ocean soundspeed is "
+        //     "defined\nx = (x, y, z) = %g, %g, %g\n",
+        //     x.x, x.y, x.z);
     }
 
     UpdateSSPSegment(x.x, t.x, ssp->Seg.x, ssp->Nx, iSeg.x);
@@ -250,15 +253,13 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
 
     // s1 = proportional distance of x.x in x
     real s1 = (x.x - ssp->Seg.x[iSeg.x]) / (ssp->Seg.x[iSeg.x + 1] - ssp->Seg.x[iSeg.x]);
-    s1      = bhc::max(bhc::min(s1, RL(1.0)), RL(0.0)); // force piecewise constant
-                                                   // extrapolation for points outside the
-                                                   // box
+    // force piecewise constant extrapolation for points outside the box
+    s1 = bhc::max(bhc::min(s1, RL(1.0)), RL(0.0));
 
     // s2 = proportional distance of x.y in y
     real s2 = (x.y - ssp->Seg.y[iSeg.y]) / (ssp->Seg.y[iSeg.y + 1] - ssp->Seg.y[iSeg.y]);
-    s2      = bhc::max(bhc::min(s2, RL(1.0)), RL(0.0)); // force piecewise constant
-                                                   // extrapolation for points outside the
-                                                   // box
+    // force piecewise constant extrapolation for points outside the box
+    s2 = bhc::max(bhc::min(s2, RL(1.0)), RL(0.0));
 
     // interpolate the soundspeed in the x direction, at the two endpoints in y (top and
     // bottom sides of rectangle)
@@ -311,6 +312,7 @@ template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
 {
     IGNORE_UNUSED(t);
     IGNORE_UNUSED(ssp);
+    IGNORE_UNUSED(errState);
 
     iSeg.z  = 0;
     real c0 = FL(1500.0);
@@ -378,14 +380,15 @@ template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
     }
 }
 
-template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     const VEC23<R3D> &x, const VEC23<R3D> &t, SSPOutputs<R3D> &o,
-    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
+    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+    ErrState *errState)
 {
     VEC23<O3D> x_proc = RayToOceanX(x, org);
     VEC23<O3D> t_proc = RayToOceanT(t, org);
     SSPOutputs<O3D> o_proc;
-    if(ssp->Type == 'N' || ssp->Type == 'C' || ssp->Type == 'S') {
+    if constexpr(CFG::ssp::Is1D()) {
         vec2 x_rz, t_rz;
         SSPOutputs<false> o_rz;
         if constexpr(O3D) {
@@ -395,12 +398,16 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
             x_rz = x_proc;
             t_rz = t_proc;
         }
-        if(ssp->Type == 'N') { // N2-linear profile option
-            n2Linear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if(ssp->Type == 'C') { // C-linear profile option
-            cLinear(x_rz, t_rz, o_rz, ssp, iSeg);
-        } else if(ssp->Type == 'S') { // Cubic spline profile option
-            cCubic(x_rz, t_rz, o_rz, ssp, iSeg);
+        if constexpr(CFG::ssp::IsN2Linear()) { // N2-linear profile option
+            n2Linear(x_rz, t_rz, o_rz, ssp, iSeg, errState);
+        } else if constexpr(CFG::ssp::IsCLinear()) { // C-linear profile option
+            cLinear(x_rz, t_rz, o_rz, ssp, iSeg, errState);
+        } else if constexpr(CFG::ssp::IsCCubic()) { // Cubic spline profile option
+            cCubic(x_rz, t_rz, o_rz, ssp, iSeg, errState);
+        } else if constexpr(CFG::ssp::IsCPCHIP()) { // monotone PCHIP ACS profile option
+            cPCHIP(x_rz, t_rz, o_rz, ssp, iSeg, errState);
+        } else {
+            static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");
         }
         if constexpr(O3D) {
             o_proc.gradc = vec3(RL(0.0), RL(0.0), o_rz.gradc.y);
@@ -411,33 +418,39 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         } else {
             o_proc = o_rz;
         }
-    } else if(ssp->Type == 'P' || ssp->Type == 'Q') {
+    } else if constexpr(CFG::ssp::Is2D()) {
         if constexpr(O3D) {
-            // LP: TODO: I don't think there's any reason P (PCHIP) should not be
-            // supported, it's very similar to cubic.
-            GlobalLog(
-                "EvaluateSSP: '%c' profile not supported in 3D or Nx2D mode\n",
-                ssp->Type);
-            bail();
+            // Should already have been checked in InitializeSSP
+            RunError(errState, BHC_ERR_TEMPLATE);
+            o_proc.ccpx  = cpx(NAN, NAN);
+            o_proc.gradc = vec3(NAN, NAN, NAN);
+            o_proc.rho = o_proc.czz = NAN;
+            o_proc.cxx = o_proc.cyy = o_proc.cxy = o_proc.cxz = o_proc.cyz = NAN;
         } else {
-            if(ssp->Type == 'P') { // monotone PCHIP ACS profile option
-                cPCHIP(x_proc, t_proc, o_proc, ssp, iSeg);
-            } else if(ssp->Type == 'Q') {
-                Quad(x_proc, t_proc, o_proc, ssp, iSeg);
+            if constexpr(CFG::ssp::IsQuad()) {
+                Quad(x_proc, t_proc, o_proc, ssp, iSeg, errState);
             }
         }
-    } else if(ssp->Type == 'H') {
-        if constexpr(O3D) {
-            Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg);
+    } else if constexpr(CFG::ssp::Is3D()) {
+        if constexpr(!O3D) {
+            RunError(errState, BHC_ERR_TEMPLATE);
+            o_proc.ccpx  = cpx(NAN, NAN);
+            o_proc.gradc = vec3(NAN, NAN, NAN);
+            o_proc.rho = o_proc.czz = NAN;
+            o_proc.crr = o_proc.crz = NAN;
         } else {
-            GlobalLog("EvaluateSSP: 'H' (Hexahedral) profile not supported in 2D mode\n");
-            bail();
+            if constexpr(CFG::ssp::IsHexahedral()) {
+                Hexahedral(x_proc, t_proc, o_proc, ssp, iSeg, errState);
+            }
         }
-    } else if(ssp->Type == 'A') { // Analytic profile option
-        Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg);
+    } else if constexpr(CFG::ssp::IsAnyD()) {
+        if constexpr(CFG::ssp::IsAnalytic()) { // Analytic profile option
+            Analytic<O3D>(x_proc, t_proc, o_proc, ssp, iSeg, errState);
+        } else {
+            static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");
+        }
     } else {
-        GlobalLog("EvaluateSSP: Invalid profile option %c\n", ssp->Type);
-        bail();
+        static_assert(!sizeof(CFG), "Invalid template in EvaluateSSP");
     }
     if constexpr(O3D && !R3D) {
         o.gradc.x
@@ -457,12 +470,18 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     }
 }
 
-void UpdateSSP(
-    real freq, const real &fT, SSPStructure *ssp, PrintFileEmu &PRTFile,
-    const AttenInfo *atten);
+template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params);
+extern template void UpdateSSP<false, false>(bhcParams<false, false> &params);
+extern template void UpdateSSP<true, false>(bhcParams<true, false> &params);
+extern template void UpdateSSP<true, true>(bhcParams<true, true> &params);
 
-void InitializeSSP(
-    real Depth, LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot,
-    SSPStructure *ssp, HSInfo &RecycledHS);
+template<bool O3D, bool R3D> void InitializeSSP(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
+extern template void InitializeSSP<false, false>(
+    bhcParams<false, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
+extern template void InitializeSSP<true, false>(
+    bhcParams<true, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
+extern template void InitializeSSP<true, true>(
+    bhcParams<true, true> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
 
 } // namespace bhc

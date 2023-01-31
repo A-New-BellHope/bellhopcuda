@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -18,6 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "raymode.hpp"
 
 namespace bhc {
 
@@ -27,7 +28,7 @@ HOST_DEVICE inline void RecordEigenHit(
 {
     uint32_t mi = AtomicFetchAdd(&eigen->neigen, 1u);
     if(mi >= eigen->memsize) return;
-    // GlobalLog("Eigenray hit %d ir %d iz %d isrc %d ialpha %d is %d\n",
+    // printf("Eigenray hit %d ir %d iz %d isrc %d ialpha %d is %d\n",
     //     mi, ir, iz, isrc, ialpha, is);
     eigen->hits[mi].is     = is;
     eigen->hits[mi].iz     = iz;
@@ -48,17 +49,19 @@ inline void InitEigenMode(EigenInfo *eigen)
     checkallocate(eigen->hits, maxhits);
 }
 
-template<bool O3D, bool R3D> void FinalizeEigenMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, std::string FileRoot,
-    bool singlethread);
-extern template void FinalizeEigenMode<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    std::string FileRoot, bool singlethread);
-extern template void FinalizeEigenMode<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
-    std::string FileRoot, bool singlethread);
-extern template void FinalizeEigenMode<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, std::string FileRoot,
-    bool singlethread);
+template<bool O3D, bool R3D> void PostProcessEigenrays(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+extern template void PostProcessEigenrays<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+extern template void PostProcessEigenrays<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+extern template void PostProcessEigenrays<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+
+template<bool O3D, bool R3D> inline void WriteOutEigenrays(
+    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs)
+{
+    WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
+}
 
 } // namespace bhc

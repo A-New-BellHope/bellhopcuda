@@ -1,5 +1,0 @@
-//
-//Coherent
-//Geom Gaussian cart:
-aet_VLA_B
-calibB_gb

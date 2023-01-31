@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -67,7 +67,8 @@ HOST_DEVICE inline void CopyHSInfo(HSInfo &b, const HSInfo &a)
  */
 template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
     VEC23<O3D> x, VEC23<O3D> t, BdryStateTopBot<O3D> &bds,
-    const BdryInfoTopBot<O3D> *bdinfotb, BdryPtSmall &Bdry, bool isTop, bool isInit)
+    const BdryInfoTopBot<O3D> *bdinfotb, BdryPtSmall &Bdry, bool isTop, bool isInit,
+    ErrState *errState)
 {
     if constexpr(O3D) {
         // LP: See discussion of changes in Fortran version readme.
@@ -110,11 +111,16 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
 
         if(bds.Iseg.x < 0 || bds.Iseg.x >= nx - 1 || bds.Iseg.y < 0
            || bds.Iseg.y >= ny - 1) {
-            GlobalLog(
+            RunWarning(
+                errState,
+                isTop ? BHC_WARN_OUTSIDE_ALTIMETRY : BHC_WARN_OUTSIDE_BATHYMETRY);
+            /*
+            printf(
                 "Warning: Get%s the ray, x=(%g,%g)\n",
                 isTop ? "TopSeg3D: Top altimetry undefined above"
                       : "BotSeg3D: Bottom bathymetry undefined below",
                 x.x, x.y);
+            */
             bds.Iseg.x = bhc::min(bhc::max(bds.Iseg.x, 0), nx - 2);
             bds.Iseg.y = bhc::min(bhc::max(bds.Iseg.y, 0), ny - 2);
         }
@@ -129,8 +135,8 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         bds.xmid = (bds.x + bdinfotb->bd[(bds.Iseg.x + 1) * ny + (bds.Iseg.y + 1)].x)
             * RL(0.5);
 
-        // GlobalLog("Iseg%s %d %d\n", isTop ? "Top" : "Bot", bds.Iseg.x+1, bds.Iseg.y+1);
-        // GlobalLog("Bdryx %g,%g,%g x %g,%g,%g\n", bds.x.x, bds.x.y, bds.x.z, x.x, x.y,
+        // printf("Iseg%s %d %d\n", isTop ? "Top" : "Bot", bds.Iseg.x+1, bds.Iseg.y+1);
+        // printf("Bdryx %g,%g,%g x %g,%g,%g\n", bds.x.x, bds.x.y, bds.x.z, x.x, x.y,
         // x.z);
 
         // identify the normal based on the active triangle of a pair
@@ -140,7 +146,7 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         tri_n /= glm::length(tri_n);
         vec2 temp             = vec2(x.x, x.y) - vec2(bds.xmid.x, bds.xmid.y);
         real over_diag_amount = glm::dot(temp, tri_n);
-        // GlobalLog("temp %g,%g | tri_n %g,%g | over_diag_amount %g\n",
+        // printf("temp %g,%g | tri_n %g,%g | over_diag_amount %g\n",
         //     temp.x, temp.y, tri_n.x, tri_n.y, over_diag_amount);
         if(STD::abs(over_diag_amount) > TRIDIAG_THRESH) {
             bds.tridiag_pos = over_diag_amount >= RL(0.0);
@@ -155,8 +161,7 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
 
         // if the depth is bad (a NaN) then error out
         if(!STD::isfinite(bds.x.z) || !bhc::isfinite(bds.n)) {
-            GlobalLog("Error: Boundary segment contains NaN!\n");
-            bail();
+            RunError(errState, BHC_ERR_BOUNDARY_SEG_CONTAINS_NAN);
         }
 
     } else {
@@ -185,12 +190,16 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         }
         if(bds.Iseg < 0 || bds.Iseg >= n - 1) {
             // Iseg MUST LIE IN [0, NPts-2]
-            GlobalLog(
+            RunError(
+                errState, isTop ? BHC_ERR_OUTSIDE_ALTIMETRY : BHC_ERR_OUTSIDE_BATHYMETRY);
+            /*
+            printf(
                 "Error: Get%s the ray, r=%g\n",
                 isTop ? "TopSeg: Top altimetry undefined above"
                       : "BotSeg: Bottom bathymetry undefined below",
                 x.x);
-            bail();
+            */
+            bds.Iseg = 0;
         }
         bds.lSeg.min = bdinfotb->bd[bds.Iseg].x.x;
         bds.lSeg.max = bdinfotb->bd[bds.Iseg + 1].x.x;
@@ -338,7 +347,7 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
         for(int32_t ii = 0; ii < NPts - 1; ++ii) {
             bd->bd[ii].t  = bd->bd[ii + 1].x - bd->bd[ii].x;
             bd->bd[ii].Dx = bd->bd[ii].t[1] / bd->bd[ii].t[0]; // first derivative
-            // GlobalLog("Dx, t %g %g %g\n", bd->bd[ii].Dx, bd->bd[ii].x,
+            // printf("Dx, t %g %g %g\n", bd->bd[ii].Dx, bd->bd[ii].x,
             //     (FL(1.0) / (bd->bd[ii].x[1] / FL(500.0)));
 
             // normalize the tangent vector
@@ -483,7 +492,7 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
                 bd->bd[ii].Dss = bd->bd[ii].Dxx * CUBE(bd->bd[ii].t[0]); // derivative in
                                                                          // direction of
                                                                          // tangent
-                // GlobalLog("kappa, Dss, Dxx %g %g %g %g %g %g %g\n", bd->bd[ii].kappa,
+                // printf("kappa, Dss, Dxx %g %g %g %g %g %g %g\n", bd->bd[ii].kappa,
                 // bd->bd[ii].Dss, bd->bd[ii].Dxx,
                 //    FL(1.0) / ((FL(8.0) / SQ(FL(1000.0))) *
                 //    CUBE(STD::abs(bd->bd[ii].x[1]))), bd->bd[ii].x[1], FL(-1.0) /
@@ -514,9 +523,9 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
     }
 }
 
-template<bool O3D> inline void ReadBoundary(
-    std::string FileRoot, char BdryDefMode, real BdryDepth, PrintFileEmu &PRTFile,
-    BdryInfoTopBot<O3D> *bdinfotb, bool isTop, real freq, real fT, const AttenInfo *atten)
+template<bool O3D, bool R3D> inline void ReadBoundary(
+    bhcParams<O3D, R3D> &params, char BdryDefMode, real BdryDepth,
+    BdryInfoTopBot<O3D> *bdinfotb, bool isTop)
 {
     const char *s_atibty              = isTop ? "ati" : "bty";
     const char *s_ATIBTY              = isTop ? "ATI" : "BTY";
@@ -525,6 +534,8 @@ template<bool O3D> inline void ReadBoundary(
     const char *s_topbottom           = isTop ? "top" : "bottom";
     const char *s_risesdrops = isTop ? "rises above highest" : "drops below lowest";
 
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
     switch(BdryDefMode) {
     case '~':
     case '*': {
@@ -532,12 +543,12 @@ template<bool O3D> inline void ReadBoundary(
                    "_____\n\n";
         PRTFile << "Using " << s_topbottom << "-" << s_altimetrybathymetry << " file\n";
 
-        LDIFile BDRYFile(FileRoot + "." + s_atibty);
+        LDIFile
+            BDRYFile(GetInternal(params), GetInternal(params)->FileRoot + "." + s_atibty);
         if(!BDRYFile.Good()) {
-            PRTFile << s_ATIBTY << "File = " << FileRoot << "." << s_atibty << "\n";
-            GlobalLog(
-                "Read%s: Unable to open %s file\n", s_ATIBTY, s_altimetrybathymetry);
-            std::abort();
+            PRTFile << s_ATIBTY << "File = " << GetInternal(params)->FileRoot << "."
+                    << s_atibty << "\n";
+            EXTERR("Read%s: Unable to open %s file", s_ATIBTY, s_altimetrybathymetry);
         }
 
         LIST(BDRYFile);
@@ -568,10 +579,9 @@ template<bool O3D> inline void ReadBoundary(
             }
             break;
         default:
-            GlobalLog(
-                "Read%s: Unknown option for selecting %s interpolation\n", s_ATIBTY,
+            EXTERR(
+                "Read%s: Unknown option for selecting %s interpolation", s_ATIBTY,
                 s_altimetrybathymetry);
-            std::abort();
         }
 
         if constexpr(O3D) {
@@ -591,10 +601,9 @@ template<bool O3D> inline void ReadBoundary(
             SubTab(Globalx, bdinfotb->NPts.x);
             EchoVector(Globalx, bdinfotb->NPts.x, PRTFile, Bdry_Number_to_Echo);
             if(!monotonic(Globalx, bdinfotb->NPts.x)) {
-                GlobalLog(
-                    "BELLHOP:Read%s: %s x-coordinates are not monotonically increasing\n",
+                EXTERR(
+                    "BELLHOP:Read%s: %s x-coordinates are not monotonically increasing",
                     s_ATIBTY, s_AltimetryBathymetry);
-                std::abort();
             }
 
             // y values
@@ -610,10 +619,9 @@ template<bool O3D> inline void ReadBoundary(
             SubTab(Globaly, bdinfotb->NPts.y);
             EchoVector(Globaly, bdinfotb->NPts.y, PRTFile, Bdry_Number_to_Echo);
             if(!monotonic(Globaly, bdinfotb->NPts.y)) {
-                GlobalLog(
-                    "BELLHOP:Read%s: %s y-coordinates are not monotonically increasing\n",
+                EXTERR(
+                    "BELLHOP:Read%s: %s y-coordinates are not monotonically increasing",
                     s_ATIBTY, s_AltimetryBathymetry);
-                std::abort();
             }
 
             // convert km to m
@@ -666,10 +674,9 @@ template<bool O3D> inline void ReadBoundary(
                 PRTFile << "Range (km)  Depth (m)  alphaR (m/s)  betaR  rho (g/cm^3)  "
                            "alphaI     betaI\n";
             } else {
-                GlobalLog(
-                    "Read%s: Unknown option for selecting %s option\n", s_ATIBTY,
+                EXTERR(
+                    "Read%s: Unknown option for selecting %s option", s_ATIBTY,
                     s_altimetrybathymetry);
-                std::abort();
             }
 
             for(int32_t ii = 1; ii < bdinfotb->NPts - 1; ++ii) {
@@ -707,18 +714,16 @@ template<bool O3D> inline void ReadBoundary(
                     }
                     break;
                 default:
-                    GlobalLog(
-                        "Read%s: Unknown option for selecting %s option\n", s_ATIBTY,
+                    EXTERR(
+                        "Read%s: Unknown option for selecting %s option", s_ATIBTY,
                         s_altimetrybathymetry);
-                    std::abort();
                 }
 
                 real sidemult = (isTop ? RL(1.0) : RL(-1.0));
                 if(sidemult * bdinfotb->bd[ii].x[1] < sidemult * BdryDepth) {
-                    GlobalLog(
-                        "BELLHOP:Read%s: %s %s point in the sound speed profile\n",
+                    EXTERR(
+                        "BELLHOP:Read%s: %s %s point in the sound speed profile",
                         s_ATIBTY, s_AltimetryBathymetry, s_risesdrops);
-                    std::abort();
                 }
             }
 
@@ -739,10 +744,9 @@ template<bool O3D> inline void ReadBoundary(
             if(!monotonic(
                    &bdinfotb->bd[0].x.x, bdinfotb->NPts,
                    sizeof(BdryPtFull<false>) / sizeof(real), 0)) {
-                GlobalLog(
+                EXTERR(
                     "BELLHOP:Read%s: %s ranges are not monotonically increasing\n",
                     s_ATIBTY, s_AltimetryBathymetry);
-                std::abort();
             }
         }
 
@@ -782,19 +786,14 @@ template<bool O3D> inline void ReadBoundary(
             for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg) {
                 // compressional wave speed
                 bdinfotb->bd[iSeg].hs.cP = crci(
-                    RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
-                    bdinfotb->bd[iSeg].hs.alphaI, freq, freq, {'W', ' '}, betaPowerLaw,
-                    fT, atten, PRTFile);
+                    params, RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
+                    bdinfotb->bd[iSeg].hs.alphaI, {'W', ' '});
                 // shear         wave speed
                 bdinfotb->bd[iSeg].hs.cS = crci(
-                    RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR, bdinfotb->bd[iSeg].hs.betaI,
-                    freq, freq, {'W', ' '}, betaPowerLaw, fT, atten, PRTFile);
+                    params, RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR,
+                    bdinfotb->bd[iSeg].hs.betaI, {'W', ' '});
             }
         }
-    } else {
-        IGNORE_UNUSED(freq);
-        IGNORE_UNUSED(fT);
-        IGNORE_UNUSED(atten);
     }
 }
 
@@ -802,14 +801,15 @@ template<bool O3D> inline void ReadBoundary(
  * Handles top and bottom boundary conditions
  * LP: Moved from readenv.cpp as it relates to boundary conditions.
  *
- * freq: center / nominal frequency (wideband not supported)
+ * params.freqinfo->freq0: center / nominal frequency (wideband not supported)
  */
-inline void TopBot(
-    const real &freq, const char (&AttenUnit)[2], real &fT, HSInfo &hs, LDIFile &ENVFile,
-    PrintFileEmu &PRTFile, const AttenInfo *atten, HSInfo &RecycledHS)
+template<bool O3D, bool R3D> inline void TopBot(
+    bhcParams<O3D, R3D> &params, HSInfo &hs, LDIFile &ENVFile, HSInfo &RecycledHS)
 {
     real Mz, vr, alpha2_f; // values related to grain size
     real zTemp;
+
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
     // Echo to PRTFile user's choice of boundary condition
 
@@ -821,7 +821,7 @@ inline void TopBot(
     case 'F': PRTFile << "    FILE used for reflection loss\n"; break;
     case 'W': PRTFile << "    Writing an IFL file\n"; break;
     case 'P': PRTFile << "    reading PRECALCULATED IFL\n"; break;
-    default: GlobalLog("TopBot: Unknown boundary condition type\n"); std::abort();
+    default: EXTERR("TopBot: Unknown boundary condition type");
     }
 
     // ****** Read in BC parameters depending on particular choice ******
@@ -845,20 +845,16 @@ inline void TopBot(
         // dummy parameters for a layer with a general power law for attenuation
         // these are not in play because the AttenUnit for this is not allowed yet
         // freq0         = freq;
-        // betaPowerLaw  = FL(1.0); //LP: Default is 1.0, this is the only other place
-        // it's set (also to 1.0).
-        fT = FL(1000.0);
+        params.fT = FL(1000.0);
 
         hs.cP = crci(
-            zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, AttenUnit,
-            betaPowerLaw, fT, atten, PRTFile);
+            params, zTemp, RecycledHS.alphaR, RecycledHS.alphaI, params.ssp->AttenUnit);
         hs.cS = crci(
-            zTemp, RecycledHS.betaR, RecycledHS.betaI, freq, freq, AttenUnit,
-            betaPowerLaw, fT, atten, PRTFile);
-        // GlobalLog("%g %g %g %g %c%c %g %g\n", zTemp, RecycledHS.alphaR,
-        // RecycledHS.alphaI, freq,
-        //     AttenUnit[0], AttenUnit[1], betaPowerLaw, fT);
-        // GlobalLog("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
+            params, zTemp, RecycledHS.betaR, RecycledHS.betaI, params.ssp->AttenUnit);
+        // printf("%g %g %g %g %c%c %g\n", zTemp, RecycledHS.alphaR,
+        // RecycledHS.alphaI, params.freqinfo->freq0,
+        //     params.ssp->AttenUnit[0], params.ssp->AttenUnit[1], params.fT);
+        // printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
 
         hs.rho = RecycledHS.rho;
     } else if(hs.bc == 'G') { // *** Grain size (formulas from UW-APL HF Handbook)
@@ -900,7 +896,7 @@ inline void TopBot(
             alpha2_f = FL(0.0601);
         }
 
-        // AttenUnit = 'L';  // loss parameter
+        // params.ssp->AttenUnit = 'L';  // loss parameter
         // !! following uses a reference sound speed of 1500 ???
         // !! should be sound speed in the water, just above the sediment
         // the term vr / 1000 converts vr to units of m per ms
@@ -908,9 +904,7 @@ inline void TopBot(
         RecycledHS.alphaI = alpha2_f * (vr / FL(1000.0)) * FL(1500.0) * STD::log(FL(10.0))
             / (FL(40.0) * REAL_PI); // loss parameter Sect. IV., Eq. (4) of handbook
 
-        hs.cP = crci(
-            zTemp, RecycledHS.alphaR, RecycledHS.alphaI, freq, freq, {'L', ' '},
-            betaPowerLaw, fT, atten, PRTFile);
+        hs.cP  = crci(params, zTemp, RecycledHS.alphaR, RecycledHS.alphaI, {'L', ' '});
         hs.cS  = FL(0.0);
         hs.rho = RecycledHS.rho;
     }

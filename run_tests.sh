@@ -19,7 +19,7 @@
 #set -x
 
 if [[ -z $1 || -z $2 ]]; then
-    echo "Usage: ./run_tests.sh (ray/tl/eigen/arr)(3d) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore]"
+    echo "Usage: ./run_tests.sh (ray/tl/eigen/arr)(3d) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore/nocompare]"
     exit 1
 fi
 
@@ -31,7 +31,7 @@ if [[ $1 == *3d ]]; then
     bhexec=bellhop3d.exe
 fi
 if [[ $runtype == "ray" || $runtype == "eigen" ]]; then
-    comparepy=compare_ray.py
+    comparepy=compare_ray_2.py
 elif [[ $runtype == "tl" ]]; then
     comparepy=compare_shdfil.py
 elif [[ $runtype == "arr" ]]; then
@@ -48,6 +48,10 @@ fi
 ignore=0
 if [[ $3 == "ignore" || $4 == "ignore" ]]; then
     ignore=1
+fi
+nocompare=0
+if [[ $3 == "nocompare" || $4 == "nocompare" ]]; then
+    nocompare=1
 fi
 
 desiredresult=0
@@ -67,7 +71,7 @@ check_fail () {
     if [[ $i != $desiredresult ]]; then
         echo "$3: $2 $failedmsg"
         if [[ $ignore != "1" ]]; then
-            exit
+            exit 1
         fi
     fi
 }
@@ -105,7 +109,10 @@ compare_results () {
     if [[ $desiredresult == "1" ]]; then
         echo "Skipping results comparison because in shouldfail mode"
         return 0
-    elif [[ $runtype != "tl" && ( $dir == "cxxmulti" || $dir == "cuda" ) ]]; then
+    elif [[ $nocompare == "1" ]]; then
+        echo "Not comparing results because 'nocompare' specified"
+        return 0
+    elif [[ $runtype == "arr" && ( $dir == "cxxmulti" || $dir == "cuda" ) ]]; then
         echo "Skipping $runtype results comparison for $dir"
         return 0
     fi

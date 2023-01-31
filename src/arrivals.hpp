@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -53,7 +53,7 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
     int32_t *baseNArr = &arrinfo->NArr[base];
     int32_t Nt;
 
-    if(arrinfo->singlethread) {
+    if(arrinfo->AllowMerging) {
         // LP: BUG: This only checks the last arrival, whereas the first step of the
         // pair could have been placed in previous slots. See the Fortran version readme.
 
@@ -131,37 +131,46 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
 }
 
 inline void InitArrivalsMode(
-    ArrInfo *arrinfo, bool singlethread, bool ThreeD, const Position *Pos,
+    ArrInfo *arrinfo, int32_t maxThreads, bool ThreeD, const Position *Pos,
     PrintFileEmu &PRTFile)
 {
-    arrinfo->singlethread = singlethread;
-    size_t nReceivers     = Pos->NRz_per_range * Pos->NRr;
-    if(ThreeD) nReceivers *= Pos->Ntheta;
-    const size_t ArrivalsStorage = ThreeD ? 400000000
-                                          : (singlethread ? 20000000 : 50000000);
-    const size_t MinNArr         = 10;
-    arrinfo->MaxNArr = (int32_t)bhc::max(ArrivalsStorage / nReceivers, MinNArr);
-    PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << ")\n";
-    size_t nSources = Pos->NSz;
-    if(ThreeD) nSources *= Pos->NSx * Pos->NSy;
-    size_t nTotal = nSources * nReceivers;
-    checkallocate(arrinfo->Arr, nTotal * (size_t)arrinfo->MaxNArr);
-    checkallocate(arrinfo->NArr, nTotal);
-    memset(arrinfo->Arr, 0, nTotal * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
-    memset(arrinfo->NArr, 0, nTotal * sizeof(int32_t));
+    arrinfo->AllowMerging = maxThreads == 1;
+    size_t nSrcsRcvrs     = Pos->NRz_per_range * Pos->NRr * Pos->NSz;
+    size_t nSrcs          = Pos->NSz;
+    if(ThreeD) {
+        nSrcsRcvrs *= Pos->Ntheta * Pos->NSx * Pos->NSy;
+        nSrcs *= Pos->NSx * Pos->NSy;
+    }
+    // LP: Having a minimum size is not great if the user specified a maximum
+    // amount of memory to use.
+    // const size_t MinNArr         = 10;
+    // arrinfo->MaxNArr = (int32_t)bhc::max(ArrivalsStorage / nReceivers, MinNArr);
+    arrinfo->MaxNArr = arrinfo->ArrMemSize / (nSrcsRcvrs * sizeof(Arrival));
+    PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << " )\n";
+    checkallocate(arrinfo->Arr, nSrcsRcvrs * (size_t)arrinfo->MaxNArr);
+    checkallocate(arrinfo->NArr, nSrcsRcvrs);
+    checkallocate(arrinfo->MaxNPerSource, nSrcs);
+    memset(arrinfo->Arr, 0, nSrcsRcvrs * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
+    memset(arrinfo->NArr, 0, nSrcsRcvrs * sizeof(int32_t));
+    // MaxNPerSource does not have to be initialized
 }
 
-template<bool O3D, bool R3D> void FinalizeArrivalsMode(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, std::string FileRoot);
-extern template void FinalizeArrivalsMode<false, false>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<false> *Beam, std::string FileRoot);
-extern template void FinalizeArrivalsMode<true, false>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<true> *Beam, std::string FileRoot);
-extern template void FinalizeArrivalsMode<true, true>(
-    const ArrInfo *arrinfo, const Position *Pos, const FreqInfo *freqinfo,
-    const BeamStructure<true> *Beam, std::string FileRoot);
+template<bool O3D, bool R3D> void PostProcessArrivals(
+    const bhcParams<O3D, R3D> &params, ArrInfo *arrinfo);
+extern template void PostProcessArrivals<false, false>(
+    const bhcParams<false, false> &params, ArrInfo *arrinfo);
+extern template void PostProcessArrivals<true, false>(
+    const bhcParams<true, false> &params, ArrInfo *arrinfo);
+extern template void PostProcessArrivals<true, true>(
+    const bhcParams<true, true> &params, ArrInfo *arrinfo);
+
+template<bool O3D, bool R3D> void WriteOutArrivals(
+    const bhcParams<O3D, R3D> &params, const ArrInfo *arrinfo);
+extern template void WriteOutArrivals<false, false>(
+    const bhcParams<false, false> &params, const ArrInfo *arrinfo);
+extern template void WriteOutArrivals<true, false>(
+    const bhcParams<true, false> &params, const ArrInfo *arrinfo);
+extern template void WriteOutArrivals<true, true>(
+    const bhcParams<true, true> &params, const ArrInfo *arrinfo);
 
 } // namespace bhc

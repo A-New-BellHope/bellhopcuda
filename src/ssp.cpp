@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -55,14 +55,17 @@ void InitcCubic(SSPStructure *ssp)
         ssp->NPts, iBCBeg, iBCEnd, ssp->NPts);
 }
 
-void ReadQuad(PrintFileEmu &PRTFile, SSPStructure *ssp, std::string FileRoot)
+template<bool O3D, bool R3D> void ReadQuad(bhcParams<O3D, R3D> &params)
 {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+    SSPStructure *ssp     = params.ssp;
+
     // Read the 2D SSP matrix
     PRTFile << "_________________________________________________________________________"
                "_\n\n";
     PRTFile << "Using range-dependent sound speed\n";
 
-    LDIFile SSPFile(FileRoot + ".ssp");
+    LDIFile SSPFile(GetInternal(params), GetInternal(params)->FileRoot + ".ssp");
     LIST(SSPFile);
     SSPFile.Read(ssp->Nr);
     PRTFile << "Number of SSP ranges = " << ssp->Nr << "\n";
@@ -111,12 +114,14 @@ void InitQuad(SSPStructure *ssp)
     }
 }
 
-void ReadHexahedral(PrintFileEmu &PRTFile, SSPStructure *ssp, std::string FileRoot)
+template<bool O3D, bool R3D> void ReadHexahedral(bhcParams<O3D, R3D> &params)
 {
-    // Read the 3D SSP matrix
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+    SSPStructure *ssp     = params.ssp;
 
+    // Read the 3D SSP matrix
     PRTFile << "\nReading sound speed profile from file\n";
-    LDIFile SSPFile(FileRoot + ".ssp");
+    LDIFile SSPFile(GetInternal(params), GetInternal(params)->FileRoot + ".ssp");
 
     // x coordinates
     LIST(SSPFile);
@@ -143,14 +148,12 @@ void ReadHexahedral(PrintFileEmu &PRTFile, SSPStructure *ssp, std::string FileRo
     SSPFile.Read(ssp->Seg.z, ssp->Nz);
 
     if(ssp->Nx < 2 || ssp->Ny < 2 || ssp->Nz < 2) {
-        GlobalLog("ssp: Hexahedral: You must have at least two points in x, y, z "
-                  "directions in your 3D SSP field\n");
-        std::abort();
+        EXTERR("ssp: Hexahedral: You must have at least two points in x, y, z "
+               "directions in your 3D SSP field");
     }
 
     if(ssp->Nz >= MaxSSP) {
-        GlobalLog("ssp: Hexahedral: Number of SSP points in Z exceeds limit\n");
-        std::abort();
+        EXTERR("ssp: Hexahedral: Number of SSP points in Z exceeds limit");
     }
 
     checkallocate(ssp->cMat, ssp->Nx * ssp->Ny * ssp->Nz);
@@ -200,14 +203,15 @@ void InitHexahedral(SSPStructure *ssp)
  * Update the SSP parameters. Safe to call multiple times with flags.
  * Be sure to flag ssp->dirty if you change the SSP externally.
  */
-void UpdateSSP(
-    real freq, const real &fT, SSPStructure *ssp, PrintFileEmu &PRTFile,
-    const AttenInfo *atten)
+template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params)
 {
+    SSPStructure *ssp = params.ssp;
+
     if(!ssp->dirty) return;
     ssp->dirty = false;
 
     if(ssp->Type == 'H') {
+        if constexpr(!O3D) { EXTERR("UpdateSSP: 3D profile not supported in 2D mode"); }
         // LP: ssp->c and ssp->cz are not well-defined in hexahedral mode, and
         // if the number of depths is changed (ssp->Nz vs. ssp->NPts), computing
         // them may read uninitialized data.
@@ -215,17 +219,15 @@ void UpdateSSP(
     } else {
         for(int32_t iz = 0; iz < ssp->NPts; ++iz) {
             ssp->c[iz] = crci(
-                ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], freq, freq, ssp->AttenUnit,
-                betaPowerLaw, fT, atten, PRTFile);
+                params, ssp->z[iz], ssp->alphaR[iz], ssp->alphaI[iz], ssp->AttenUnit);
 
             // verify that the depths are monotone increasing
             if(iz > 0) {
                 if(ssp->z[iz] <= ssp->z[iz - 1]) {
-                    GlobalLog(
-                        "ReadSSP: The depths in the SSP must be monotone increasing "
-                        "(%d)\n",
+                    EXTERR(
+                        "UpdateSSP: The depths in the SSP must be monotone increasing "
+                        "(%f)",
                         ssp->z[iz]);
-                    std::abort();
                 }
             }
 
@@ -245,89 +247,124 @@ void UpdateSSP(
         case 'C': // C-linear profile option
             // nothing to do
             break;
-        case 'P': // monotone PCHIP ACS profile option
-            InitcPCHIP(ssp);
-            break;
         case 'S': // Cubic spline profile option
             InitcCubic(ssp);
             break;
-        case 'Q': InitQuad(ssp); break;
-        default:
-            GlobalLog("InitializeSSP: Invalid profile option %c\n", ssp->Type);
-            std::abort();
+        case 'P': // monotone PCHIP ACS profile option
+            if constexpr(O3D) {
+#ifdef BHC_LIMIT_FEATURES
+                EXTERR("UpdateSSP: PCHIP is not supported in BELLHOP3D in "
+                       "3D or Nx2D mode, but can be supported in " BHC_PROGRAMNAME
+                       "if you turn off BHC_LIMIT_FEATURES");
+#else
+                EXTWARN("UpdateSSP: warning: PCHIP not supported in BELLHOP3D in "
+                        "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME);
+#endif
+            }
+            InitcPCHIP(ssp);
+            break;
+        case 'Q':
+            if constexpr(O3D) {
+                EXTERR("UpdateSSP: 2D profile not supported in 3D or Nx2D mode");
+            }
+            InitQuad(ssp);
+            break;
+        default: EXTERR("UpdateSSP: Invalid profile option %c", ssp->Type);
         }
     }
 }
 
+#if BHC_ENABLE_2D
+template void UpdateSSP<false, false>(bhcParams<false, false> &params);
+#endif
+#if BHC_ENABLE_NX2D
+template void UpdateSSP<true, false>(bhcParams<true, false> &params);
+#endif
+#if BHC_ENABLE_3D
+template void UpdateSSP<true, true>(bhcParams<true, true> &params);
+#endif
+
 /**
  * reads the SSP data from the environmental file and convert to Nepers/m
  */
-void ReadSSP(
-    real Depth, SSPStructure *ssp, LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    HSInfo &RecycledHS, std::string FileRoot)
+template<bool O3D, bool R3D> inline void ReadSSP(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS)
 {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
     PRTFile << "\nSound speed profile:\n";
     PRTFile << "      z         alphaR      betaR     rho        alphaI     betaI\n";
     PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
 
-    ssp->NPts = 1;
+    params.ssp->NPts = 1;
 
     for(int32_t iz = 0; iz < MaxSSP; ++iz) {
         LIST_WARNLINE(ENVFile);
-        ENVFile.Read(ssp->z[iz]);
+        ENVFile.Read(params.ssp->z[iz]);
         ENVFile.Read(RecycledHS.alphaR);
         ENVFile.Read(RecycledHS.betaR);
         ENVFile.Read(RecycledHS.rho);
         ENVFile.Read(RecycledHS.alphaI);
         ENVFile.Read(RecycledHS.betaI);
 
-        PRTFile << std::setprecision(2) << ssp->z[iz] << " " << RecycledHS.alphaR << " "
-                << RecycledHS.betaR << " " << RecycledHS.rho << " "
+        PRTFile << std::setprecision(2) << params.ssp->z[iz] << " " << RecycledHS.alphaR
+                << " " << RecycledHS.betaR << " " << RecycledHS.rho << " "
                 << std::setprecision(4) << RecycledHS.alphaI << " " << RecycledHS.betaI
                 << "\n";
-        ssp->rho[iz]    = RecycledHS.rho;
-        ssp->alphaR[iz] = RecycledHS.alphaR;
-        ssp->alphaI[iz] = RecycledHS.alphaI;
+        params.ssp->rho[iz]    = RecycledHS.rho;
+        params.ssp->alphaR[iz] = RecycledHS.alphaR;
+        params.ssp->alphaI[iz] = RecycledHS.alphaI;
 
         // Did we read the last point?
-        if(std::abs(ssp->z[iz] - Depth) < FL(100.0) * FLT_EPSILON) { // LP: FLT_EPSILON is
-                                                                     // not a typo
-            ssp->Nz = ssp->NPts;
-            if(ssp->NPts == 1) {
-                GlobalLog("ReadSSP: The SSP must have at least 2 points\n");
-                std::abort();
+        // LP: FLT_EPSILON is not a typo
+        if(std::abs(params.ssp->z[iz] - params.Bdry->Bot.hs.Depth)
+           < FL(100.0) * FLT_EPSILON) {
+            params.ssp->Nz = params.ssp->NPts;
+            if(params.ssp->NPts == 1) {
+                EXTERR("ReadSSP: The SSP must have at least 2 points");
             }
 
-            if(ssp->Type == 'Q') {
+            if(params.ssp->Type == 'Q') {
                 // read in extra SSP data for 2D
-                ReadQuad(PRTFile, ssp, FileRoot);
-            } else if(ssp->Type == 'H') {
+                ReadQuad(params);
+            } else if(params.ssp->Type == 'H') {
                 // read in extra SSP data for 3D
-                ReadHexahedral(PRTFile, ssp, FileRoot);
+                ReadHexahedral(params);
             }
 
             return;
         }
 
-        ++ssp->NPts;
+        ++params.ssp->NPts;
     }
 
     // Fall through means too many points in the profile
-    GlobalLog("ReadSSP: Number of SSP points exceeds limit\n");
-    std::abort();
+    EXTERR("ReadSSP: Number of SSP points exceeds limit");
 }
 
-void InitializeSSP(
-    real Depth, LDIFile &ENVFile, PrintFileEmu &PRTFile, std::string FileRoot,
-    SSPStructure *ssp, HSInfo &RecycledHS)
+template<bool O3D, bool R3D> void InitializeSSP(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS)
 {
-    if(ssp->Type == 'A') {
+    if(params.ssp->Type == 'A') {
         // nothing to do for analytic
         return;
     }
 
-    ReadSSP(Depth, ssp, ENVFile, PRTFile, RecycledHS, FileRoot);
-    ssp->dirty = true;
+    ReadSSP(params, ENVFile, RecycledHS);
+    params.ssp->dirty = true;
 }
+
+#if BHC_ENABLE_2D
+template void InitializeSSP<false, false>(
+    bhcParams<false, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
+#endif
+#if BHC_ENABLE_NX2D
+template void InitializeSSP<true, false>(
+    bhcParams<true, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
+#endif
+#if BHC_ENABLE_3D
+template void InitializeSSP<true, true>(
+    bhcParams<true, true> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
+#endif
 
 } // namespace bhc

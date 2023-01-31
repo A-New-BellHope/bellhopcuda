@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -37,7 +37,7 @@ namespace bhc {
  * NPts: # pts in refl. coef.
  */
 HOST_DEVICE inline void InterpolateReflectionCoefficient(
-    ReflectionCoef &RInt, const ReflectionInfoTopBot &rtb)
+    ReflectionCoef &RInt, const ReflectionInfoTopBot &rtb, ErrState *errState)
 {
     int32_t iLeft, iRight, iMid;
     real alpha, thetaIntr;
@@ -56,17 +56,19 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(
         // iRight = 1;
         RInt.r   = FL(0.0); // rtb.r[iLeft].r
         RInt.phi = FL(0.0); // rtb.r[iLeft].phi
-        GlobalLog(
-            "Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
-            "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
-            thetaIntr, rtb.r[iLeft].theta);
+        RunWarning(errState, BHC_WARN_OUTSIDE_REFLCOEF);
+        // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
+        //        "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
+        //        thetaIntr, rtb.r[iLeft].theta);
     } else if(thetaIntr > rtb.r[iRight].theta) {
         // iLeft = rtb.NPts - 2;
         RInt.r   = FL(0.0); // rtb.r[iRight].r
         RInt.phi = FL(0.0); // rtb.r[iRight].phi
-        // GlobalLog("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
-        //     "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
-        //     thetaIntr, rtb.r[iRight].theta);
+        // LP: The warning is commented out in BELLHOP in this case.
+        // RunWarning(errState, BHC_WARN_OUTSIDE_REFLCOEF);
+        // printf("Warning in InterpolateReflectionCoefficient : Refl. Coef. being "
+        //        "set to 0 outside tabulated domain : angle = %f, lower limit = %f",
+        //        thetaIntr, rtb.r[iRight].theta);
     } else {
         // Search for bracketing abscissas: STD::log2(rtb.NPts) stabs required for a
         // bracket
@@ -92,22 +94,23 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(
 /**
  * Optionally read in reflection coefficient for Top or Bottom boundary
  *
- * BotRC, TopRC: flag set to 'F' if refl. coef. is to be read from a File
+ * flag set to 'F' if refl. coef. is to be read from a File
  */
-inline void ReadReflectionCoefficient(
-    std::string FileRoot, char BotRC, char TopRC, PrintFileEmu &PRTFile,
-    ReflectionInfo *refl)
+template<bool O3D, bool R3D> inline void ReadReflectionCoefficient(
+    bhcParams<O3D, R3D> &params)
 {
-    if(BotRC == 'F') {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+    ReflectionInfo *refl  = params.refl;
+
+    if(params.Bdry->Bot.hs.Opt[0] == 'F') {
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using tabulated bottom reflection coef.\n";
-        LDIFile BRCFile(FileRoot + ".brc");
+        LDIFile BRCFile(GetInternal(params), GetInternal(params)->FileRoot + ".brc");
         if(!BRCFile.Good()) {
-            PRTFile << "BRCFile = " << FileRoot + ".brc\n";
-            GlobalLog("ReadReflectionCoefficient: Unable to open Bottom Reflection "
-                      "Coefficient file\n");
-            std::abort();
+            PRTFile << "BRCFile = " << GetInternal(params)->FileRoot + ".brc\n";
+            EXTERR("ReadReflectionCoefficient: Unable to open Bottom Reflection "
+                   "Coefficient file");
         }
 
         LIST(BRCFile);
@@ -130,16 +133,15 @@ inline void ReadReflectionCoefficient(
 
     // Optionally read in top reflection coefficient
 
-    if(TopRC == 'F') {
+    if(params.Bdry->Top.hs.Opt[1] == 'F') {
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using tabulated top    reflection coef.\n";
-        LDIFile TRCFile(FileRoot + ".trc");
+        LDIFile TRCFile(GetInternal(params), GetInternal(params)->FileRoot + ".trc");
         if(!TRCFile.Good()) {
-            PRTFile << "TRCFile = " << FileRoot + ".trc\n";
-            GlobalLog("ReadReflectionCoefficient: Unable to open Top Reflection "
-                      "Coefficient file\n");
-            std::abort();
+            PRTFile << "TRCFile = " << GetInternal(params)->FileRoot + ".trc\n";
+            EXTERR("ReadReflectionCoefficient: Unable to open Top Reflection "
+                   "Coefficient file");
         }
 
         LIST(TRCFile);
@@ -162,10 +164,9 @@ inline void ReadReflectionCoefficient(
 
     // Optionally read in internal reflection coefficient data
 
-    if(BotRC == 'P') {
-        GlobalLog("Internal reflections not supported by BELLHOP and therefore "
-                  "not supported by " BHC_PROGRAMNAME "\n");
-        std::abort();
+    if(params.Bdry->Bot.hs.Opt[0] == 'P') {
+        EXTERR("Internal reflections not supported by BELLHOP and therefore "
+               "not supported by " BHC_PROGRAMNAME);
     }
 }
 
@@ -200,11 +201,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCur
  * rcurv: Boundary curvature
  * rtb: Reflection coefficient table
  */
-template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     const rayPt<R3D> &oldPoint, rayPt<R3D> &newPoint, const HSInfo &hs, bool isTop,
     VEC23<R3D> tBdry, const VEC23<O3D> &nBdry, const ReflCurvature<O3D> &rcurv, real freq,
     const ReflectionInfoTopBot &rtb, const BeamStructure<O3D> *Beam,
-    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg)
+    const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
+    ErrState *errState)
 {
     VEC23<R3D> nBdry_ray = RayToOceanT<O3D, R3D>(nBdry, org);
     if(O3D && !R3D) nBdry_ray *= RL(1.0) / glm::length(nBdry_ray);
@@ -237,7 +239,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     // just to get c [LP: o.ccpx.real(); also, this comment is wrong, it is also using
     // o.gradc]
     SSPOutputs<R3D> o;
-    EvaluateSSP<O3D, R3D>(oldPoint.x, (O3D ? newPoint.t : oldPoint.t), o, org, ssp, iSeg);
+    EvaluateSSP<CFG, O3D, R3D>(
+        oldPoint.x, (O3D ? newPoint.t : oldPoint.t), o, org, ssp, iSeg, errState);
 
     newPoint.c   = o.ccpx.real();
     newPoint.tau = oldPoint.tau;
@@ -252,10 +255,10 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
             newPoint, o.ccpx.real(), nBdry, rayt_tilde, rayn1_tilde, rayn2_tilde,
             RL(-1.0)); // reflected
 
-        // GlobalLog("point0 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
+        // printf("point0 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
         //     rayt.x, rayt.y, rayt.z, rayn1.x, rayn1.y, rayn1.z, rayn2.x, rayn2.y,
         //     rayn2.z);
-        // GlobalLog("point1 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
+        // printf("point1 (%g,%g,%g) (%g,%g,%g) (%g,%g,%g)\n",
         //     rayt_tilde.x, rayt_tilde.y, rayt_tilde.z, rayn1_tilde.x, rayn1_tilde.y,
         //     rayn1_tilde.z, rayn2_tilde.x, rayn2_tilde.y, rayn2_tilde.z);
 
@@ -288,7 +291,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         real cn1jump = glm::dot(o.gradc, -rayn1_tilde - rayn1);
         real cn2jump = glm::dot(o.gradc, -rayn2_tilde - rayn2);
         real csjump  = -glm::dot(o.gradc, rayt_tilde - rayt);
-        // GlobalLog("cn1jump cn2jump csjump %g, %g, %g\n", cn1jump, cn2jump, csjump);
+        // printf("cn1jump cn2jump csjump %g, %g, %g\n", cn1jump, cn2jump, csjump);
 
         // // not sure if cn2 needs a sign flip also
         // if(isTop){
@@ -359,7 +362,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         if(RInt.theta > FL(90.0))
             RInt.theta = FL(180.0) - RInt.theta; // reflection coefficient is symmetric
                                                  // about 90 degrees
-        InterpolateReflectionCoefficient(RInt, rtb);
+        InterpolateReflectionCoefficient(RInt, rtb, errState);
         newPoint.Amp   = oldPoint.Amp * RInt.r;
         newPoint.Phase = oldPoint.Phase + RInt.phi;
     } else if(hs.bc == 'A' || hs.bc == 'G') { // half-space
@@ -376,7 +379,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
             Refl = (hs.rho * gamma1 - o.rho * gamma2)
                 / (hs.rho * gamma1 + o.rho * gamma2);
 
-            // GlobalLog("%f %f %f %f %f\n", STD::abs(Refl), o.ccpx.real(), hs.cP, o.rho,
+            // printf("%f %f %f %f %f\n", STD::abs(Refl), o.ccpx.real(), hs.cP, o.rho,
             // hs.rho);
             if constexpr(R3D) {
                 // Hack to make a wall (where the bottom slope is more than 80 degrees) be
@@ -425,9 +428,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
                                                                          // reflection
                                                                          // coef.
             /*
-            GlobalLog("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
+            printf("cS cP rho (%g,%g) (%g,%g) %g\n", hs.cS.real(), hs.cS.imag(),
                 hs.cP.real(), hs.cP.imag(), hs.rho);
-            GlobalLog("kx kz f g Refl (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
+            printf("kx kz f g Refl (%g,%g) (%g,%g) (%g,%g) (%g,%g) (%g,%g)\n",
                 kx.real(), kx.imag(), kz.real(), kz.imag(), f.real(), f.imag(),
                 g.real(), g.imag(), Refl.real(), Refl.imag());
             */
@@ -518,11 +521,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
             }
         }
     } else {
-        GlobalLog("Reflect: Unknown boundary condition type\n");
-        bail();
+        RunError(errState, BHC_ERR_BOUNDARY_CONDITION_TYPE);
+        newPoint.Amp   = NAN;
+        newPoint.Phase = NAN;
     }
 
-    // GlobalLog("Reflection amp changed from to %g %g\n", oldPoint.Amp, newPoint.Amp);
+    // printf("Reflection amp changed from to %g %g\n", oldPoint.Amp, newPoint.Amp);
 }
 
 } // namespace bhc

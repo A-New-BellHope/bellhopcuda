@@ -1,3 +1,4 @@
+#!/bin/bash
 # bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
 # Copyright (C) 2021-2022 The Regents of the University of California
 # c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
@@ -15,21 +16,24 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.9)
-project(bellhopcxxlib LANGUAGES CXX)
+set -e
 
-include(../SetupCommon.cmake)
+run_kind() {
+    kind=$1
+    ./run_tests.sh $kind gen_${kind}_pass
+    ./run_tests.sh $kind gen_${kind}_fail shouldfail
+}
 
-add_library(bellhopcxxlib SHARED ${COMMON_SOURCE}
-    #no additional source files
-)
-#LP: If this is being used in a parent CMake project, just
-#target_link_libraries(parentproject bellhopcxxlib) should work and get the
-#includes. If this is being used with another build system, e.g. Unreal, just
-#copy the include and glm directories into your build system and set them as
-#public include paths.
-#include(GenerateExportHeader)
-#generate_export_header(bellhopcxxlib)
+run_kind ray
+run_kind tl
+run_kind eigen
+run_kind arr
 
-target_compile_definitions(bellhopcxxlib PUBLIC BHC_EXPORTS=1)
-bellhop_setup_target(bellhopcxxlib)
+run_kind ray3d
+run_kind tl3d
+run_kind eigen3d
+run_kind arr3d
+
+echo "================"
+echo "Done with script"
+echo "================"

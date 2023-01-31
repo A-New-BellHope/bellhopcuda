@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -27,25 +27,63 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 #ifdef BHC_BUILD_CUDA
-void setupGPU();
-#endif
+template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
+{
+    // Print info about all GPUs and which one is selected
+    int num_gpus;
+    checkCudaErrors(cudaGetDeviceCount(&num_gpus));
+    if(num_gpus <= 0) {
+        EXTERR("No CUDA GPUs found; is the driver installed and loaded?");
+    }
+    cudaDeviceProp cudaProperties;
+    for(int g = 0; g < num_gpus; ++g) {
+        checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
+        if(g == GetInternal(params)->m_gpu) {
+            EXTWARN(
+                "CUDA device: %s / compute %d.%d", cudaProperties.name,
+                cudaProperties.major, cudaProperties.minor);
+        }
+        /*
+        EXTWARN("%s GPU %d: %s, compute SM %d.%d",
+            (g == GetInternal(params)->m_gpu) ? "-->" : "   "
+            g, cudaProperties.name, cudaProperties.major, cudaProperties.minor);
+        EXTWARN("      --Global/shared/constant memory: %lli, %d, %d",
+            cudaProperties.totalGlobalMem,
+            cudaProperties.sharedMemPerBlock,
+            cudaProperties.totalConstMem);
+        EXTWARN("      --Warp/threads/SMPs: %d, %d, %d" ,
+            cudaProperties.warpSize,
+            cudaProperties.maxThreadsPerBlock,
+            cudaProperties.multiProcessorCount);
+        */
+    }
 
-bool api_okay = false;
+    // Store properties about used GPU
+    checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, GetInternal(params)->m_gpu));
+    /*
+    GetInternal(params)->d_warp       = cudaProperties.warpSize;
+    GetInternal(params)->d_maxthreads = cudaProperties.maxThreadsPerBlock;
+    */
+    GetInternal(params)->d_multiprocs = cudaProperties.multiProcessorCount;
+    checkCudaErrors(cudaSetDevice(GetInternal(params)->m_gpu));
+}
+#endif
 
 constexpr bool Init_Inline = false;
 
 template<bool O3D, bool R3D> bool setup(
-    const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    const char *FileRoot, void (*prtCallback)(const char *message),
+    void (*outputCallback)(const char *message), bhcParams<O3D, R3D> &params,
+    bhcOutputs<O3D, R3D> &outputs)
 {
-    api_okay = true;
-    InitLog(outputCallback);
-    params.internal       = new PrintFileEmu(FileRoot, outputCallback);
-    PrintFileEmu &PRTFile = *(PrintFileEmu *)params.internal;
-
     try {
+        params.internal = new bhcInternal(FileRoot, prtCallback, outputCallback);
+
+        Stopwatch sw(GetInternal(params));
+        sw.tick();
+
 #ifdef BHC_BUILD_CUDA
-        setupGPU();
+        setupGPU(params);
 #endif
 
         // Allocate main structs
@@ -101,7 +139,8 @@ template<bool O3D, bool R3D> bool setup(
         outputs.arrinfo->NArr       = nullptr;
 
         // Fill in default / "constructor" data
-        params.fT = RL(1.0e20);
+        params.maxThreads = -1;
+        params.fT         = RL(1.0e20);
         // Bdry: none
         if constexpr(O3D) {
             params.bdinfo->top.NPts.x = 2;
@@ -137,17 +176,18 @@ template<bool O3D, bool R3D> bool setup(
         params.Beam->epsMultiplier   = FL(1.0);
         memcpy(params.Beam->Type, "G S ", 4);
         // params.beaminfo: none
-        outputs.rayinfo->NPoints   = 0;
-        outputs.rayinfo->MaxPoints = 0;
-        outputs.rayinfo->NRays     = 0;
-        outputs.eigen->neigen      = 0;
-        outputs.eigen->memsize     = 0;
-        outputs.arrinfo->MaxNArr   = 1;
-        RecycledHS.alphaR          = FL(1500.0);
-        RecycledHS.betaR           = FL(0.0);
-        RecycledHS.alphaI          = FL(0.0);
-        RecycledHS.betaI           = FL(0.0);
-        RecycledHS.rho             = FL(1.0);
+        outputs.rayinfo->NPoints    = 0;
+        outputs.rayinfo->MaxPoints  = 0;
+        outputs.rayinfo->NRays      = 0;
+        outputs.eigen->neigen       = 0;
+        outputs.eigen->memsize      = 0;
+        outputs.arrinfo->MaxNArr    = 1;
+        outputs.arrinfo->ArrMemSize = (O3D ? 200000000 : 20000000) * sizeof(Arrival);
+        RecycledHS.alphaR           = FL(1500.0);
+        RecycledHS.betaR            = FL(0.0);
+        RecycledHS.alphaI           = FL(0.0);
+        RecycledHS.betaI            = FL(0.0);
+        RecycledHS.rho              = FL(1.0);
 
         if constexpr(!O3D && !R3D && Init_Inline) {
             // NPts, Sigma not used by BELLHOP
@@ -169,14 +209,12 @@ template<bool O3D, bool R3D> bool setup(
             params.Bdry->Bot.hs.Depth = FL(100.0);
             memcpy(params.Bdry->Bot.hs.Opt, "A_", 2);
             params.Bdry->Bot.hs.bc = 'A';
-            params.Bdry->Bot.hs.cP = crci(
-                RL(1.0e20), RL(1590.0), RL(0.5), params.freqinfo->freq0,
-                params.freqinfo->freq0, params.ssp->AttenUnit, betaPowerLaw, params.fT,
-                params.atten, PRTFile); // compressional wave speed
-            params.Bdry->Bot.hs.cS = crci(
-                RL(1.0e20), RL(0.0), RL(0.0), params.freqinfo->freq0,
-                params.freqinfo->freq0, params.ssp->AttenUnit, betaPowerLaw, params.fT,
-                params.atten, PRTFile); // shear         wave speed
+            // compressional wave speed
+            params.Bdry->Bot.hs.cP
+                = crci(params, RL(1.0e20), RL(1590.0), RL(0.5), params.ssp->AttenUnit);
+            // shear         wave speed
+            params.Bdry->Bot.hs.cS
+                = crci(params, RL(1.0e20), RL(0.0), RL(0.0), params.ssp->AttenUnit);
             params.Bdry->Bot.hs.rho = FL(1.2);
 
             // *** sound speed in the water column ***
@@ -261,23 +299,16 @@ template<bool O3D, bool R3D> bool setup(
                                                                                 // scale
                                                                                 // !!!
         } else {
-            ReadEnvironment<O3D, R3D>(
-                FileRoot, PRTFile, params.Title, params.fT, params.Bdry, params.ssp,
-                params.atten, params.Pos, params.Angles, params.freqinfo, params.Beam,
-                RecycledHS);
-            ReadBoundary<O3D>(
-                FileRoot, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth, PRTFile,
-                &params.bdinfo->top, true, params.freqinfo->freq0, params.fT,
-                params.atten); // AlTImetry
-            ReadBoundary<O3D>(
-                FileRoot, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth, PRTFile,
-                &params.bdinfo->bot, false, params.freqinfo->freq0, params.fT,
-                params.atten); // BaThYmetry
-            ReadReflectionCoefficient(
-                FileRoot, params.Bdry->Bot.hs.Opt[0], params.Bdry->Top.hs.Opt[1], PRTFile,
-                params.refl); // (top and bottom)
+            ReadEnvironment<O3D, R3D>(params, RecycledHS);
+            ReadBoundary<O3D, R3D>(
+                params, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
+                &params.bdinfo->top, true); // AlTImetry
+            ReadBoundary<O3D, R3D>(
+                params, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
+                &params.bdinfo->bot, false);             // BaThYmetry
+            ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
             params.beaminfo->SBPFlag = params.Beam->RunType[2];
-            ReadPat(FileRoot, PRTFile, params.beaminfo); // Source Beam Pattern
+            ReadPat<O3D, R3D>(params); // Source Beam Pattern
             if constexpr(!O3D) {
                 // dummy bearing angles
                 params.Pos->Ntheta   = 1;
@@ -313,50 +344,50 @@ template<bool O3D, bool R3D> bool setup(
             params.Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth)
                 / FL(10.0);
             if constexpr(!O3D) {
-                PRTFile << "\n Step length,       deltas = " << params.Beam->deltas
-                        << " m (automatically selected)\n";
+                GetInternal(params)->PRTFile
+                    << "\n Step length,       deltas = " << params.Beam->deltas
+                    << " m (automatically selected)\n";
             }
         }
 
-        PRTFile << "\n";
+        GetInternal(params)->PRTFile << "\n";
 
+        sw.tock("setup");
     } catch(const std::exception &e) {
-        api_okay = false;
-        PRTFile << e.what() << "\n";
+        EXTWARN("Exception caught in bhc::setup(): %s\n", e.what());
+        return false;
     }
 
-    return api_okay;
+    return true;
 }
 
 #if BHC_ENABLE_2D
 template bool BHC_API setup<false, false>(
-    const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const char *FileRoot, void (*prtCallback)(const char *message),
+    void (*outputCallback)(const char *message), bhcParams<false, false> &params,
+    bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API setup<true, false>(
-    const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const char *FileRoot, void (*prtCallback)(const char *message),
+    void (*outputCallback)(const char *message), bhcParams<true, false> &params,
+    bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API setup<true, true>(
-    const char *FileRoot, void (*outputCallback)(const char *message),
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const char *FileRoot, void (*prtCallback)(const char *message),
+    void (*outputCallback)(const char *message), bhcParams<true, true> &params,
+    bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> void finalize(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
+    delete GetInternal(params);
+    params.internal = nullptr;
+
     // IMPORTANT--if changes are made here, make the same changes in setup
     // (i.e. setting the pointers to nullptr initially)
-
-    PrintFileEmu *PRTFile = (PrintFileEmu *)params.internal;
-    delete PRTFile;
-
-#ifdef BHC_BUILD_CUDA
-    if(!api_okay) return; // Memory was deallocated when the device was reset
-#endif
-    api_okay = false;
 
     checkdeallocate(params.bdinfo->top.bd);
     checkdeallocate(params.bdinfo->bot.bd);

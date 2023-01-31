@@ -1,5 +1,5 @@
 # bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-# Copyright (C) 2021-2022 The Regents of the University of California
+# Copyright (C) 2021-2023 The Regents of the University of California
 # c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 # Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 # 
@@ -31,40 +31,12 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(STATUS "Clang detected")
     set(EXTRA_CXX_FLAGS "-Wall -Wextra")
 else()
-    message(STATUS "Not GCC, assuming Windows format compile flags")
+    message(STATUS "Not GCC or clang, assuming Windows format compile flags")
     # C2422: implicit conversion of double to float; BELLHOP sometimes carelessly
     # mixes doubles and floats, and we need to use exactly the same ones to match
     set(EXTRA_CXX_FLAGS "/W4 /wd4244")
-endif(CMAKE_COMPILER_IS_GNUCXX)
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
-
-find_package(Threads)
-
-function(bellhop_setup_target target_name)
-    if(USE_FLOAT)
-        target_compile_definitions(${target_name} PUBLIC BHC_USE_FLOATS=1)
-    endif()
-    target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/include")
-    target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
-    target_link_libraries(${target_name} Threads::Threads)
-endfunction()
-
-function(bellhop_create_executable target_name sources defs incs)
-    add_executable(${target_name} ${sources})
-    target_compile_definitions(${target_name} PUBLIC BHC_CMDLINE=1 ${defs})
-    target_include_directories(${target_name} PRIVATE ${incs})
-    bellhop_setup_target(${target_name})
-endfunction()
-
-function(bellhop_create_executables type_name sources defs incs)
-    if(BHC_3D_SEPARATE)
-        bellhop_create_executable(bellhop${type_name}2d   "${sources}" "BHC_DIMMODE=2;${defs}" "${incs}")
-        bellhop_create_executable(bellhop${type_name}nx2d "${sources}" "BHC_DIMMODE=3;${defs}" "${incs}")
-        bellhop_create_executable(bellhop${type_name}3d   "${sources}" "BHC_DIMMODE=4;${defs}" "${incs}")
-    else()
-        bellhop_create_executable(bellhop${type_name}     "${sources}" "BHC_DIMMODE=0;${defs}" "${incs}")
-    endif()
-endfunction()
 
 function(prepend OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend to
     set(TEMP "")
@@ -82,18 +54,19 @@ function(prependlist OUT_VAR PREFIX) #Arguments 3, 4, etc. are items to prepend 
     set(${OUT_VAR} "${TEMP}" PARENT_SCOPE)
 endfunction()
 
-set(COMMON_INCLUDES
+set(common_includes
     bhc.hpp
     math.hpp
     platform.hpp
     structs.hpp
 )
 
-set(COMMON_SOURCE
+set(common_source
     angles.hpp
     arrivals.cpp
     arrivals.hpp
     atomics.hpp
+    attenuation.cpp
     attenuation.hpp
     beams.hpp
     bino.hpp
@@ -102,27 +75,115 @@ set(COMMON_SOURCE
     curves.hpp
     eigenrays.cpp
     eigenrays.hpp
+    errors.cpp
+    errors.hpp
     influence.hpp
     jobs.hpp
     ldio.hpp
-    logging.cpp
-    logging.hpp
     prtfileemu.hpp
+    raymode.cpp
     raymode.hpp
     readenv.cpp
     readenv.hpp
     reflect.hpp
-    run_cxx.cpp
+    run.cpp
     run.hpp
     setup.cpp
     sourcereceiver.hpp
     ssp.cpp
     ssp.hpp
     step.hpp
+    timing.cpp
+    timing.hpp
     tlmode.cpp
     tlmode.hpp
     trace.hpp
 )
 
-prependlist(COMMON_INCLUDES "${CMAKE_SOURCE_DIR}/include/bhc/" ${COMMON_INCLUDES})
-prependlist(COMMON_SOURCE "${CMAKE_SOURCE_DIR}/src/" ${COMMON_SOURCE})
+prependlist(common_includes "${CMAKE_SOURCE_DIR}/include/bhc/" ${common_includes})
+prependlist(common_source "${CMAKE_SOURCE_DIR}/src/" ${common_source})
+
+if(NOT BHC_DIM_ENABLE_2D AND NOT BHC_DIM_ENABLE_3D AND NOT BHC_DIM_ENABLE_NX2D)
+    message(FATAL_ERROR "2D, 3D, and Nx2D dim modes all disabled, nothing to build!")
+endif()
+
+find_package(Threads)
+
+function(bhc_setup_target target_name)
+    if(BHC_USE_FLOATS)
+        target_compile_definitions(${target_name} PUBLIC BHC_USE_FLOATS=1)
+    endif()
+    if(BHC_DEBUG)
+        target_compile_definitions(${target_name} PUBLIC BHC_DEBUG=1)
+    endif()
+    # if(BHC_PROF AND CMAKE_COMPILER_IS_GNUCXX)
+    #     target_compile_options(${target_name} PUBLIC -pg)
+    #     target_link_options(${target_name} PUBLIC -pg)
+    # endif()
+    target_compile_definitions(${target_name} PRIVATE BHC_DLL_EXPORT=1)
+    target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/include")
+    target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
+    target_link_libraries(${target_name} PUBLIC Threads::Threads)
+    if(WIN32)
+        set_property(TARGET ${target_name} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+    endif()
+endfunction()
+
+function(bhc_create_executable target_name defs)
+    add_executable(${target_name}
+        $<TARGET_OBJECTS:${objlibname}>
+        ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
+    )
+    bhc_setup_target(${target_name})
+    target_compile_definitions(${target_name} PUBLIC BHC_CMDLINE=1 ${defs})
+endfunction()
+
+include(${CMAKE_SOURCE_DIR}/config/GenTemplates.cmake)
+
+function(bhc_add_libs_exes type_name gen_extension addl_sources addl_includes addl_defs)
+    set(exename "bellhop${type_name}")
+    set(objlibname "${exename}objlib")
+    gen_templates(${gen_extension} gen_sources)
+    add_library(${objlibname} OBJECT
+        ${common_includes}
+        ${common_source}
+        ${gen_sources}
+        ${addl_sources}
+    )
+    bhc_setup_target(${objlibname})
+    set_property(TARGET ${objlibname} PROPERTY POSITION_INDEPENDENT_CODE 1)
+    target_include_directories(${objlibname} PRIVATE ${addl_includes})
+    set(enab2d 0)
+    set(enab3d 0)
+    set(enabnx2d 0)
+    if(BHC_DIM_ENABLE_2D)
+        set(enab2d 1)
+    endif()
+    if(BHC_DIM_ENABLE_3D)
+        set(enab3d 1)
+    endif()
+    if(BHC_DIM_ENABLE_NX2D)
+        set(enabnx2d 1)
+    endif()
+    set(dim_enables "BHC_ENABLE_2D=${enab2d};BHC_ENABLE_3D=${enab3d};BHC_ENABLE_NX2D=${enabnx2d}")
+    target_compile_definitions(${objlibname} PUBLIC ${dim_enables} ${addl_defs})
+    if(BHC_LIMIT_FEATURES)
+        target_compile_definitions(${objlibname} PRIVATE BHC_LIMIT_FEATURES=1)
+    endif()
+    add_gen_template_defs(${objlibname})
+    # Targets using object library
+    add_library(${exename}lib SHARED $<TARGET_OBJECTS:${objlibname}>)
+    bhc_setup_target(${exename}lib)
+    add_library(${exename}static STATIC $<TARGET_OBJECTS:${objlibname}>)
+    bhc_setup_target(${exename}static)
+    bhc_create_executable(${exename} "${dim_enables};BHC_DIM_ONLY=0")
+    if(BHC_DIM_ENABLE_2D)
+        bhc_create_executable(${exename}2d   "BHC_ENABLE_2D=1;BHC_DIM_ONLY=2")
+    endif()
+    if(BHC_DIM_ENABLE_3D)
+        bhc_create_executable(${exename}3d   "BHC_ENABLE_3D=1;BHC_DIM_ONLY=3")
+    endif()
+    if(BHC_DIM_ENABLE_NX2D)
+        bhc_create_executable(${exename}nx2d "BHC_ENABLE_NX2D=1;BHC_DIM_ONLY=4")
+    endif()
+endfunction()

@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -17,50 +17,28 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #include "common.hpp"
-#include "raymode.hpp"
-#include "tlmode.hpp"
-#include "eigenrays.hpp"
-#include "arrivals.hpp"
 
 static std::string FileRoot;
-static bool singlethread = false;
+static int32_t maxThreads = -1;
 
 template<bool O3D, bool R3D> int mainmain()
 {
     bhc::bhcParams<O3D, R3D> params;
     bhc::bhcOutputs<O3D, R3D> outputs;
-    if(!bhc::setup<O3D, R3D>(FileRoot.c_str(), nullptr, params, outputs)) return 1;
-
-    bhc::Stopwatch sw;
-    sw.tick();
-    if(!bhc::run<O3D, R3D>(params, outputs, singlethread)) return 1;
-    sw.tock();
-
-    if(IsRayRun(params.Beam)) {
-        // Ray mode
-        bhc::FinalizeRayMode<O3D, R3D>(outputs.rayinfo, FileRoot, params);
-    } else if(IsTLRun(params.Beam)) {
-        // TL mode
-        bhc::FinalizeTLMode(FileRoot, params, outputs);
-    } else if(IsEigenraysRun(params.Beam)) {
-        // Eigenrays mode
-        bhc::FinalizeEigenMode<O3D, R3D>(params, outputs, FileRoot, singlethread);
-    } else if(IsArrivalsRun(params.Beam)) {
-        // Arrivals mode
-        bhc::FinalizeArrivalsMode<O3D, R3D>(
-            outputs.arrinfo, params.Pos, params.freqinfo, params.Beam, FileRoot);
-    } else {
-        std::cout << "Invalid RunType " << params.Beam->RunType[0] << "\n";
-        std::abort();
+    if(!bhc::setup<O3D, R3D>(FileRoot.c_str(), nullptr, nullptr, params, outputs)) {
+        return 1;
     }
+    params.maxThreads = maxThreads;
 
+    if(!bhc::run<O3D, R3D>(params, outputs)) return 1;
+    if(!bhc::writeout<O3D, R3D>(params, outputs)) return 1;
     bhc::finalize<O3D, R3D>(params, outputs);
     return 0;
 }
 
 int main(int argc, char **argv)
 {
-    int dimmode = BHC_DIMMODE;
+    int dimmode = BHC_DIM_ONLY;
     for(int32_t i = 1; i < argc; ++i) {
         std::string s = argv[i];
         if(argv[i][0] == '-') {
@@ -68,7 +46,7 @@ int main(int argc, char **argv)
                 s = s.substr(1);
             }
             if(s == "-1" || s == "-singlethread") {
-                singlethread = true;
+                maxThreads = 1;
             } else if(s == "-2" || s == "-2D") {
                 dimmode = 2;
             } else if(s == "-Nx2D" || s == "-2D3D" || s == "-2.5D" || s == "-4") {
@@ -93,27 +71,47 @@ int main(int argc, char **argv)
         std::cout << "Must provide FileRoot as command-line parameter\n";
         std::abort();
     }
-#if BHC_DIMMODE
-    if(dimmode != BHC_DIMMODE) {
-        std::cout << "Cannot change dimensionality, this is " BHC_PROGRAMNAME "\n";
+#if BHC_DIM_ONLY > 0
+    if(dimmode != BHC_DIM_ONLY) {
+        std::cout << "This version of " BHC_PROGRAMNAME " was compiled to only support ";
+        if(BHC_DIM_ONLY == 4) {
+            std::cout << "Nx2D";
+        } else {
+            std::cout << BHC_DIM_ONLY << "D";
+        }
+        std::cout << " runs\n";
         std::abort();
     }
 #else
-    if(dimmode == 0) {
+    if(dimmode < 2 || dimmode > 4) {
         std::cout << "No dimensionality specified (--2D, --Nx2D, --3D), assuming 2D\n";
         dimmode = 2;
     }
 #endif
 
+    if(dimmode == 2) {
 #if BHC_ENABLE_2D
-    if(dimmode == 2) { return mainmain<false, false>(); }
+        return mainmain<false, false>();
+#else
+        std::cout << "This version of " BHC_PROGRAMNAME
+                     " was compiled with 2D support disabled\n";
 #endif
+    }
+    if(dimmode == 3) {
 #if BHC_ENABLE_3D
-    if(dimmode == 3) { return mainmain<true, true>(); }
+        return mainmain<true, true>();
+#else
+        std::cout << "This version of " BHC_PROGRAMNAME
+                     " was compiled with 3D support disabled\n";
 #endif
+    }
+    if(dimmode == 4) {
 #if BHC_ENABLE_NX2D
-    if(dimmode == 4) { return mainmain<true, false>(); }
+        return mainmain<true, false>();
+#else
+        std::cout << "This version of " BHC_PROGRAMNAME
+                     " was compiled with Nx2D support disabled\n";
 #endif
-    std::cout << "Internal error\n";
+    }
     std::abort();
 }

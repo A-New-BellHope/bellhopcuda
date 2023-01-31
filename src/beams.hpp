@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -22,16 +22,18 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile, BeamInfo *beaminfo)
+template<bool O3D, bool R3D> inline void ReadPat(bhcParams<O3D, R3D> &params)
 {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+    BeamInfo *beaminfo    = params.beaminfo;
+
     if(beaminfo->SBPFlag == '*') {
         PRTFile << "\n______________________________\nUsing source beam pattern file\n";
 
-        LDIFile SBPFile(FileRoot, ".sbp");
+        LDIFile SBPFile(GetInternal(params), GetInternal(params)->FileRoot, ".sbp");
         if(!SBPFile.Good()) {
-            PRTFile << "SBPFile = " << FileRoot << ".sbp\n";
-            GlobalLog("BELLHOP-ReadPat: Unable to open source beampattern file\n");
-            std::abort();
+            PRTFile << "SBPFile = " << GetInternal(params)->FileRoot << ".sbp\n";
+            EXTERR("BELLHOP-ReadPat: Unable to open source beampattern file");
         }
 
         LIST(SBPFile);
@@ -58,8 +60,7 @@ inline void ReadPat(std::string FileRoot, PrintFileEmu &PRTFile, BeamInfo *beami
     }
 
     if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)) {
-        GlobalLog("BELLHOP-ReadPat: Source beam pattern angles are not monotonic\n");
-        std::abort();
+        EXTERR("BELLHOP-ReadPat: Source beam pattern angles are not monotonic");
     }
 
     // convert dB to linear scale
@@ -87,10 +88,12 @@ template<bool O3D, int DIM> inline HOST_DEVICE bool IsOutsideBeamBoxDim(
 /**
  * Limits for tracing beams
  */
-template<bool O3D> inline void ReadBeamInfo(
-    LDIFile &ENVFile, PrintFileEmu &PRTFile, BeamStructure<O3D> *Beam,
-    const BdryType *Bdry)
+template<bool O3D, bool R3D> inline void ReadBeamInfo(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
+    PrintFileEmu &PRTFile    = GetInternal(params)->PRTFile;
+    BeamStructure<O3D> *Beam = params.Beam;
+
     if constexpr(O3D) {
         LIST(ENVFile);
         ENVFile.Read(Beam->deltas);
@@ -101,7 +104,7 @@ template<bool O3D> inline void ReadBeamInfo(
         Beam->Box.y *= FL(1000.0); // convert km to m
 
         if(Beam->deltas == FL(0.0))
-            Beam->deltas = (Bdry->Bot.hs.Depth - Bdry->Top.hs.Depth)
+            Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth)
                 / FL(10.0); // Automatic step size selection
     } else {
         LIST(ENVFile);
@@ -158,8 +161,8 @@ template<bool O3D> inline void ReadBeamInfo(
             case 'Z': PRTFile << "Curvature zeroing invoked\n"; break;
             case 'S': PRTFile << "Standard curvature condition\n"; break;
             default:
-                GlobalLog("ReadEnvironment: Unknown curvature condition\n");
-                std::abort();
+                EXTERR(
+                    "ReadEnvironment: Unknown curvature condition '%c'", Beam->Type[2]);
             }
 
             PRTFile << "Epsilon multiplier " << Beam->epsMultiplier << "\n";
@@ -179,8 +182,9 @@ template<bool O3D> inline void ReadBeamInfo(
             PRTFile << "Beam windowing parameter  = " << Beam->iBeamWindow << "\n";
             PRTFile << "Component                 = " << Beam->Component << "\n";
         } else {
-            GlobalLog("ReadEnvironment: Unknown beam type (second letter of run type)\n");
-            std::abort();
+            EXTERR(
+                "ReadEnvironment: Unknown beam type (second letter of run type == '%c')",
+                Beam->RunType[1]);
         }
 
         PRTFile << "\n";

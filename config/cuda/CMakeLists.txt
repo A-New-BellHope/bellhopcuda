@@ -1,5 +1,5 @@
 # bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-# Copyright (C) 2021-2022 The Regents of the University of California
+# Copyright (C) 2021-2023 The Regents of the University of California
 # c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 # Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 # 
@@ -21,14 +21,8 @@ project(bellhopcuda LANGUAGES CXX CUDA)
 include(../SetupCommon.cmake)
 include(SetupCUDA.cmake)
 
-set(ALL_SOURCES ${COMMON_INCLUDES} ${COMMON_SOURCE} 
-    ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
+set(addl_sources
     ${CMAKE_SOURCE_DIR}/src/UtilsCUDA.cuh
-    ${CMAKE_SOURCE_DIR}/src/logging.cu
-    ${CMAKE_SOURCE_DIR}/src/run_cuda.cu
 )
 
-bellhop_create_executables(cuda "${ALL_SOURCES}"
-    "BHC_BUILD_CUDA=1"
-    "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-)
+bhc_add_libs_exes(cuda cu "${addl_sources}" "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" "BHC_BUILD_CUDA=1")

@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -27,7 +27,7 @@ namespace bhc {
 /**
  * C++ emulation of FORTRAN list-directed input.
  * To use:
- * LDIFile YourFile("filename");
+ * LDIFile YourFile(internal, "filename");
  * LIST(YourFile); YourFile.Read(somestring); YourFile.read(somecpx); //etc.
  *
  * List() starts a new list (single READ line). This is needed because ending a
@@ -41,9 +41,10 @@ namespace bhc {
  */
 class LDIFile {
 public:
-    LDIFile(const std::string &filename, bool abort_on_error = true)
-        : _filename(filename), _abort_on_error(abort_on_error), lastitemcount(0), line(0),
-          isafterslash(false), isafternewline(true)
+    LDIFile(
+        bhcInternal *internal, const std::string &filename, bool abort_on_error = true)
+        : _internal(internal), _filename(filename), _abort_on_error(abort_on_error),
+          lastitemcount(0), line(0), isafterslash(false), isafternewline(true)
     {
         f.open(filename);
         if(!f.good()) Error("Failed to open file");
@@ -57,7 +58,7 @@ public:
 #define LIST_WARNLINE(ldif) ldif.List(__FILE__, __LINE__, true)
     void List(const char *file, int fline, bool warnline = false)
     {
-        codefile     = SOURCE_FILENAME(file);
+        codefile     = file; // SOURCE_FILENAME(file);
         codeline     = fline;
         isafterslash = false;
         if(!isafternewline) { IgnoreRestOfLine(); }
@@ -155,18 +156,20 @@ public:
 private:
     void PrintLoc()
     {
-        GlobalLog(
-            "%s:%d reading %s:%d: ", codefile.c_str(), codeline, _filename.c_str(), line);
+        ExternalWarning(
+            _internal, "%s:%d reading %s:%d: ", codefile.c_str(), codeline,
+            _filename.c_str(), line);
     }
     void Error(std::string msg)
     {
         PrintLoc();
-        GlobalLog("%s\nLast token is: \"%s\"\n", msg.c_str(), lastitem.c_str());
-        if(_abort_on_error) std::abort();
+        ExternalWarning(
+            _internal, "%s\nLast token is: \"%s\"\n", msg.c_str(), lastitem.c_str());
+        if(_abort_on_error) ExternalError(_internal, "LDIFile abort on error");
     }
     void IgnoreRestOfLine()
     {
-        if(_debug) GlobalLog("-- ignoring rest of line\n");
+        if(_debug) ExternalWarning(_internal, "-- ignoring rest of line\n");
         f.peek();
         if(f.eof()) Error("End of file");
         while(true) {
@@ -182,11 +185,13 @@ private:
     {
         if(lastitemcount > 0) {
             --lastitemcount;
-            if(_debug) GlobalLog("-- lastitemcount, returning %s\n", lastitem.c_str());
+            if(_debug)
+                ExternalWarning(
+                    _internal, "-- lastitemcount, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(isafterslash) {
-            if(_debug) GlobalLog("-- isafterslash, returning null\n");
+            if(_debug) ExternalWarning(_internal, "-- isafterslash, returning null\n");
             return nullitem;
         }
         // Whitespace before start of item
@@ -206,13 +211,14 @@ private:
         if(f.peek() == ',') {
             f.get();
             isafternewline = false;
-            if(_debug) GlobalLog("-- empty comma, returning null\n");
+            if(_debug) ExternalWarning(_internal, "-- empty comma, returning null\n");
             return nullitem;
         }
         // Main item
         if(_warnline >= 0 && _warnline != line) {
             PrintLoc();
-            GlobalLog("Warning: input continues onto next line, likely mistake\n");
+            ExternalWarning(
+                _internal, "Warning: input continues onto next line, likely mistake\n");
             _warnline = line;
         }
         lastitem      = "";
@@ -283,7 +289,8 @@ private:
         }
         if(quotemode > 0) Error("Quotes or parentheses not closed");
         if(f.eof()) {
-            if(_debug) GlobalLog("-- eof, returning %s\n", lastitem.c_str());
+            if(_debug)
+                ExternalWarning(_internal, "-- eof, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(quotemode < 0) {
@@ -294,11 +301,15 @@ private:
                     + std::string("' after end of quoted string"));
         }
         if(isafternewline) {
-            if(_debug) GlobalLog("-- isafternewline, returning %s\n", lastitem.c_str());
+            if(_debug)
+                ExternalWarning(
+                    _internal, "-- isafternewline, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         if(isafterslash) {
-            if(_debug) GlobalLog("-- new isafterslash, returning %s\n", lastitem.c_str());
+            if(_debug)
+                ExternalWarning(
+                    _internal, "-- new isafterslash, returning %s\n", lastitem.c_str());
             return lastitem;
         }
         // Whitespace and comma after item
@@ -329,11 +340,13 @@ private:
         }
         // Finally
         if(lastitemcount > 0) --lastitemcount;
-        if(_debug) GlobalLog("-- normal returning %s\n", lastitem.c_str());
+        if(_debug)
+            ExternalWarning(_internal, "-- normal returning %s\n", lastitem.c_str());
         return lastitem;
     }
 
     constexpr static bool _debug = false;
+    bhcInternal *_internal;
     std::string _filename;
     std::string codefile;
     int codeline;

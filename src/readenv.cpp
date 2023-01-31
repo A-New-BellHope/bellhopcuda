@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -26,27 +26,27 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 /**
- * LP: No function description given.
- *
- * bc: Boundary condition type
+ * LP: Read top halfspace options; 4 out of the 6 entries are general program
+ * options.
  */
-void ReadTopOpt(
-    char (&TopOpt)[6], char &bc, std::string FileRoot, LDIFile &ENVFile,
-    PrintFileEmu &PRTFile, SSPStructure *ssp, AttenInfo *atten)
+template<bool O3D, bool R3D> inline void ReadTopOpt(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
-    memcpy(TopOpt, "      ", 6); // initialize to blanks
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
+    memcpy(params.Bdry->Top.hs.Opt, "      ", 6); // initialize to blanks
     LIST(ENVFile);
-    ENVFile.Read(TopOpt, 6);
+    ENVFile.Read(params.Bdry->Top.hs.Opt, 6);
     PRTFile << "\n";
 
-    ssp->Type         = TopOpt[0];
-    bc                = TopOpt[1];
-    ssp->AttenUnit[0] = TopOpt[2];
-    ssp->AttenUnit[1] = TopOpt[3];
+    params.ssp->Type         = params.Bdry->Top.hs.Opt[0];
+    params.Bdry->Top.hs.bc   = params.Bdry->Top.hs.Opt[1];
+    params.ssp->AttenUnit[0] = params.Bdry->Top.hs.Opt[2];
+    params.ssp->AttenUnit[1] = params.Bdry->Top.hs.Opt[3];
 
     // SSP approximation options
 
-    switch(ssp->Type) {
+    switch(params.ssp->Type) {
     case 'N': PRTFile << "    N2-linear approximation to SSP\n"; break;
     case 'C': PRTFile << "    C-linear approximation to SSP\n"; break;
     case 'P': PRTFile << "    PCHIP approximation to SSP\n"; break;
@@ -56,12 +56,10 @@ void ReadTopOpt(
         // LP: This just checks for existence, moved actual open for reading
         // to InitQuad.
         std::ifstream SSPFile;
-        SSPFile.open(FileRoot + ".ssp");
+        SSPFile.open(GetInternal(params)->FileRoot + ".ssp");
         if(!SSPFile.good()) {
-            PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            GlobalLog(BHC_PROGRAMNAME
-                      " - ReadEnvironment: Unable to open the SSP file\n");
-            std::abort();
+            PRTFile << "SSPFile = " << GetInternal(params)->FileRoot << ".ssp\n";
+            EXTERR(BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file");
         }
     } break;
     case 'H': {
@@ -69,34 +67,32 @@ void ReadTopOpt(
         // to InitHexahedral.
         PRTFile << "    Hexahedral approximation to SSP\n";
         std::ifstream SSPFile;
-        SSPFile.open(FileRoot + ".ssp");
+        SSPFile.open(GetInternal(params)->FileRoot + ".ssp");
         if(!SSPFile.good()) {
-            PRTFile << "SSPFile = " << FileRoot << ".ssp\n";
-            GlobalLog(BHC_PROGRAMNAME
-                      " - ReadEnvironment: Unable to open the SSP file\n");
+            PRTFile << "SSPFile = " << GetInternal(params)->FileRoot << ".ssp\n";
+            EXTERR(BHC_PROGRAMNAME " - ReadEnvironment: Unable to open the SSP file");
         }
     } break;
     case 'A': PRTFile << "    Analytic SSP option\n"; break;
-    default:
-        GlobalLog("ReadEnvironment: Unknown option for SSP approximation\n");
-        std::abort();
+    default: EXTERR("ReadEnvironment: Unknown option for SSP approximation");
     }
 
     // Attenuation options
 
-    switch(ssp->AttenUnit[0]) {
+    switch(params.ssp->AttenUnit[0]) {
     case 'N': PRTFile << "    Attenuation units: nepers/m\n"; break;
     case 'F': PRTFile << "    Attenuation units: dB/mkHz\n"; break;
     case 'M': PRTFile << "    Attenuation units: dB/m\n"; break;
     case 'W': PRTFile << "    Attenuation units: dB/wavelength\n"; break;
     case 'Q': PRTFile << "    Attenuation units: Q\n"; break;
     case 'L': PRTFile << "    Attenuation units: Loss parameter\n"; break;
-    default: GlobalLog("ReadEnvironment: Unknown attenuation units\n"); std::abort();
+    default: EXTERR("ReadEnvironment: Unknown attenuation units");
     }
 
     // optional addition of volume attenuation using standard formulas
 
-    switch(ssp->AttenUnit[1]) {
+    AttenInfo *atten = params.atten;
+    switch(params.ssp->AttenUnit[1]) {
     case 'T': PRTFile << "    THORP volume attenuation added\n"; break;
     case 'F':
         PRTFile << "    Francois-Garrison volume attenuation added\n";
@@ -130,12 +126,10 @@ void ReadTopOpt(
             PRTFile << "      a0 = " << atten->bio[iBio].a0 << "\n";
         }
     case ' ': break;
-    default:
-        GlobalLog("ReadEnvironment: Unknown top option letter in fourth position\n");
-        std::abort();
+    default: EXTERR("ReadEnvironment: Unknown top option letter in fourth position");
     }
 
-    switch(TopOpt[4]) {
+    switch(params.Bdry->Top.hs.Opt[4]) {
     case '~':
     case '*': PRTFile << "    Altimetry file selected\n"; break;
     case '-':
@@ -146,7 +140,7 @@ void ReadTopOpt(
         std::abort();
     }
 
-    switch(TopOpt[5]) {
+    switch(params.Bdry->Top.hs.Opt[5]) {
     case 'I': PRTFile << "    Development options enabled\n"; break;
     case ' ': break;
     default:
@@ -158,15 +152,16 @@ void ReadTopOpt(
 /**
  * Read the RunType variable and echo with explanatory information to the print file
  */
-template<bool R3D> void ReadRunType(
-    char (&RunType)[7], char (&PlotType)[10], LDIFile &ENVFile, PrintFileEmu &PRTFile,
-    Position *Pos)
+template<bool O3D, bool R3D> void ReadRunType(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
     LIST(ENVFile);
-    ENVFile.Read(RunType, 7);
+    ENVFile.Read(params.Beam->RunType, 7);
     PRTFile << "\n";
 
-    switch(RunType[0]) {
+    switch(params.Beam->RunType[0]) {
     case 'R': PRTFile << "Ray trace run\n"; break;
     case 'E': PRTFile << "Eigenray trace run\n"; break;
     case 'I': PRTFile << "Incoherent TL calculation\n"; break;
@@ -174,10 +169,10 @@ template<bool R3D> void ReadRunType(
     case 'C': PRTFile << "Coherent TL calculation\n"; break;
     case 'A': PRTFile << "Arrivals calculation, ASCII  file output\n"; break;
     case 'a': PRTFile << "Arrivals calculation, binary file output\n"; break;
-    default: GlobalLog("ReadEnvironment: Unknown RunType selected\n"); std::abort();
+    default: EXTERR("ReadEnvironment: Unknown RunType selected");
     }
 
-    switch(RunType[1]) {
+    switch(params.Beam->RunType[1]) {
     case 'C': PRTFile << "Cartesian beams\n"; break;
     case 'R': PRTFile << "Ray centered beams\n"; break;
     case 'S': PRTFile << "Simple gaussian beams\n"; break;
@@ -185,74 +180,71 @@ template<bool R3D> void ReadRunType(
     case 'B': PRTFile << "Geometric gaussian beams in Cartesian coordinates\n"; break;
     case 'g': PRTFile << "Geometric hat beams in ray-centered coordinates\n"; break;
     default:
-        RunType[1] = 'G';
+        params.Beam->RunType[1] = 'G';
         PRTFile << "Geometric hat beams in Cartesian coordinates\n";
     }
 
-    switch(RunType[3]) {
+    switch(params.Beam->RunType[3]) {
     case 'X': PRTFile << "Line source (Cartesian coordinates)\n"; break;
-    default: RunType[3] = 'R'; PRTFile << "Point source (cylindrical coordinates)\n";
+    default:
+        params.Beam->RunType[3] = 'R';
+        PRTFile << "Point source (cylindrical coordinates)\n";
     }
 
-    switch(RunType[4]) {
+    switch(params.Beam->RunType[4]) {
     case 'I':
         PRTFile << "Irregular grid: Receivers at Rr[:] x Rz[:]\n";
-        if(Pos->NRz != Pos->NRr)
-            GlobalLog("ReadEnvironment: Irregular grid option selected with NRz not "
-                      "equal to Nr\n");
-        memcpy(PlotType, "irregular ", 10);
+        if(params.Pos->NRz != params.Pos->NRr)
+            EXTWARN("ReadEnvironment: Irregular grid option selected with NRz not "
+                    "equal to Nr");
+        // memcpy(PlotType, "irregular ", 10);
         break;
     default:
         PRTFile << "Rectilinear receiver grid: Receivers at Rr[:] x Rz[:]\n";
-        RunType[4] = 'R';
-        memcpy(PlotType, "rectilin  ", 10);
+        params.Beam->RunType[4] = 'R';
+        // memcpy(PlotType, "rectilin  ", 10);
     }
 
-    switch(RunType[5]) {
+    switch(params.Beam->RunType[5]) {
     case '2':
         PRTFile << "N x 2D calculation (neglects horizontal refraction)\n";
         if constexpr(R3D) {
-            GlobalLog("This is a 2D or Nx2D environment file, but you are "
-                      "running " BHC_PROGRAMNAME " in 3D mode\n");
-            std::abort();
+            EXTERR("This is a 2D or Nx2D environment file, but you are "
+                   "running " BHC_PROGRAMNAME " in 3D mode");
         }
         break;
     case '3':
         PRTFile << "3D calculation\n";
         if constexpr(!R3D) {
-            GlobalLog(
-                "This is a 3D environment file, but you are running " BHC_PROGRAMNAME
-                " in 2D or Nx2D mode\n");
-            std::abort();
+            EXTERR("This is a 3D environment file, but you are running " BHC_PROGRAMNAME
+                   " in 2D or Nx2D mode");
         }
         break;
-    default: RunType[5] = '2';
+    default: params.Beam->RunType[5] = '2';
     }
 }
 
 template<bool O3D, bool R3D> void ReadEnvironment(
-    const std::string &FileRoot, PrintFileEmu &PRTFile, char (&Title)[80], real &fT,
-    BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, Position *Pos,
-    AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<O3D> *Beam,
-    HSInfo &RecycledHS)
+    bhcParams<O3D, R3D> &params, HSInfo &RecycledHS)
 {
     // const real c0 = FL(1500.0); //LP: unused
     int32_t NPts, NMedia;
     real ZMin, ZMax;
-    vec2 x;
     cpx ccpx;
     real Sigma, Depth;
-    char PlotType[10];
+
+    bhcInternal *internal = GetInternal(params);
+    PrintFileEmu &PRTFile = internal->PRTFile;
+    BdryType *Bdry        = params.Bdry;
 
     PRTFile << BHC_PROGRAMNAME << (R3D ? "3D" : O3D ? "Nx2D" : "") << "\n\n";
 
     // Open the environmental file
-    LDIFile ENVFile(FileRoot + ".env");
+    LDIFile ENVFile(GetInternal(params), internal->FileRoot + ".env");
     if(!ENVFile.Good()) {
-        PRTFile << "ENVFile = " << FileRoot << ".env\n";
-        GlobalLog(BHC_PROGRAMNAME
-                  " - ReadEnvironment: Unable to open the environmental file\n");
-        std::abort();
+        PRTFile << "ENVFile = " << internal->FileRoot << ".env\n";
+        EXTERR(BHC_PROGRAMNAME
+               " - ReadEnvironment: Unable to open the environmental file");
     }
 
     // Prepend model name to title
@@ -261,24 +253,24 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     ENVFile.Read(TempTitle);
     TempTitle = BHC_PROGRAMNAME "- " + TempTitle;
     PRTFile << TempTitle << "\n";
-    size_t l = bhc::min(sizeof(Title) - 1, TempTitle.size());
-    memcpy(Title, TempTitle.c_str(), l);
-    Title[l] = 0;
+    size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
+    memcpy(params.Title, TempTitle.c_str(), l);
+    params.Title[l] = 0;
 
     LIST(ENVFile);
-    ENVFile.Read(freqinfo->freq0);
+    ENVFile.Read(params.freqinfo->freq0);
     PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);
-    PRTFile << " frequency = " << std::setw(11) << freqinfo->freq0 << " Hz\n";
+    PRTFile << " frequency = " << std::setw(11) << params.freqinfo->freq0 << " Hz\n";
 
     LIST(ENVFile);
     ENVFile.Read(NMedia);
     PRTFile << "Dummy parameter NMedia = " << NMedia << "\n";
     if(NMedia != 1) {
-        GlobalLog("ReadEnvironment: Only one medium or layer is allowed in BELLHOP; "
-                  "sediment layers must be handled using a reflection coefficient\n");
+        EXTWARN("ReadEnvironment: Only one medium or layer is allowed in BELLHOP; "
+                "sediment layers must be handled using a reflection coefficient");
     }
 
-    ReadTopOpt(Bdry->Top.hs.Opt, Bdry->Top.hs.bc, FileRoot, ENVFile, PRTFile, ssp, atten);
+    ReadTopOpt<O3D, R3D>(params, ENVFile);
 
     // *** Top BC ***
 
@@ -287,9 +279,7 @@ template<bool O3D, bool R3D> void ReadEnvironment(
         PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
     }
 
-    TopBot(
-        freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Top.hs, ENVFile, PRTFile, atten,
-        RecycledHS);
+    TopBot<O3D, R3D>(params, Bdry->Top.hs, ENVFile, RecycledHS);
 
     // ****** Read in ocean SSP data ******
 
@@ -303,14 +293,15 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     if(Bdry->Top.hs.Opt[0] == 'A') {
         PRTFile << "Analytic SSP option\n";
         // following is hokey, should be set in Analytic routine
-        ssp->NPts = 2;
-        ssp->z[0] = FL(0.0);
-        ssp->z[1] = Bdry->Bot.hs.Depth;
+        params.ssp->NPts = 2;
+        params.ssp->z[0] = FL(0.0);
+        params.ssp->z[1] = Bdry->Bot.hs.Depth;
     } else {
-        InitializeSSP(Bdry->Bot.hs.Depth, ENVFile, PRTFile, FileRoot, ssp, RecycledHS);
+        InitializeSSP<O3D, R3D>(params, ENVFile, RecycledHS);
     }
 
-    Bdry->Top.hs.Depth = ssp->z[0]; // Depth of top boundary is taken from first SSP point
+    Bdry->Top.hs.Depth = params.ssp->z[0]; // Depth of top boundary is taken from first
+                                           // SSP point
     // bottom depth should perhaps be set the same way?
 
     // *** Bottom BC ***
@@ -328,70 +319,53 @@ template<bool O3D, bool R3D> void ReadEnvironment(
     case '_':
     case ' ': break;
     default:
-        GlobalLog(
-            "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt == '%c'\n",
-            Bdry->Bot.hs.Opt);
-        std::abort();
+        EXTERR(
+            "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt[1] == '%c'",
+            Bdry->Bot.hs.Opt[1]);
     }
 
     Bdry->Bot.hs.bc = Bdry->Bot.hs.Opt[0];
-    TopBot(
-        freqinfo->freq0, ssp->AttenUnit, fT, Bdry->Bot.hs, ENVFile, PRTFile, atten,
-        RecycledHS);
+    TopBot<O3D, R3D>(params, Bdry->Bot.hs, ENVFile, RecycledHS);
 
     // *** source and receiver locations ***
 
-    ReadSxSy<O3D>(ENVFile, PRTFile, Pos);
+    ReadSxSy<O3D, R3D>(params, ENVFile);
 
     ZMin = Bdry->Top.hs.Depth;
     ZMax = Bdry->Bot.hs.Depth;
     // not sure why I had this
-    // ReadSzRz(ZMin + FL(100.0) * spacing(ZMin),
-    //     ZMax - FL(100.0) * spacing(ZMax),
-    //     ENVFile, PRTFile);
-    ReadSzRz(ZMin, ZMax, ENVFile, PRTFile, Pos);
-    ReadRcvrRanges(ENVFile, PRTFile, Pos);
-    if constexpr(O3D) ReadRcvrBearings(ENVFile, PRTFile, Pos);
-    ReadfreqVec(Bdry->Top.hs.Opt[5], ENVFile, PRTFile, freqinfo);
-    ReadRunType<R3D>(Beam->RunType, PlotType, ENVFile, PRTFile, Pos);
+    // ReadSzRz(params, ZMin + FL(100.0) * spacing(ZMin),
+    //     ZMax - FL(100.0) * spacing(ZMax), ENVFile);
+    ReadSzRz(params, ZMin, ZMax, ENVFile);
+    ReadRcvrRanges(params, ENVFile);
+    if constexpr(O3D) ReadRcvrBearings(params, ENVFile);
+    ReadfreqVec(params, ENVFile);
+    ReadRunType<O3D, R3D>(params, ENVFile);
 
     Depth = ZMax - ZMin; // water depth
-    ReadRayAngles<O3D, false>(
-        freqinfo->freq0, Depth, Bdry->Top.hs.Opt, ENVFile, PRTFile, Angles->alpha, Pos,
-        Beam);
+    ReadRayAngles<O3D, R3D, false>(params, Depth, ENVFile, params.Angles->alpha);
     if constexpr(O3D) {
-        ReadRayAngles<O3D, true>(
-            freqinfo->freq0, Depth, Bdry->Top.hs.Opt, ENVFile, PRTFile, Angles->beta, Pos,
-            Beam);
+        ReadRayAngles<O3D, R3D, true>(params, Depth, ENVFile, params.Angles->beta);
     }
 
     PRTFile << "\n_______________________________________________________________________"
                "___\n\n";
 
     // LP: Moved to separate function for clarity and modularity.
-    ReadBeamInfo<O3D>(ENVFile, PRTFile, Beam, Bdry);
+    ReadBeamInfo<O3D, R3D>(params, ENVFile);
 }
 
 #if BHC_ENABLE_2D
 template void ReadEnvironment<false, false>(
-    const std::string &FileRoot, PrintFileEmu &PRTFile, char (&Title)[80], real &fT,
-    BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, Position *Pos,
-    AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<false> *Beam,
-    HSInfo &RecycledHS);
+    bhcParams<false, false> &params, HSInfo &RecycledHS);
 #endif
 #if BHC_ENABLE_NX2D
 template void ReadEnvironment<true, false>(
-    const std::string &FileRoot, PrintFileEmu &PRTFile, char (&Title)[80], real &fT,
-    BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, Position *Pos,
-    AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<true> *Beam,
-    HSInfo &RecycledHS);
+    bhcParams<true, false> &params, HSInfo &RecycledHS);
 #endif
 #if BHC_ENABLE_3D
 template void ReadEnvironment<true, true>(
-    const std::string &FileRoot, PrintFileEmu &PRTFile, char (&Title)[80], real &fT,
-    BdryType *Bdry, SSPStructure *ssp, AttenInfo *atten, Position *Pos,
-    AnglesStructure *Angles, FreqInfo *freqinfo, BeamStructure<true> *Beam,
-    HSInfo &RecycledHS);
+    bhcParams<true, true> &params, HSInfo &RecycledHS);
 #endif
 
 } // namespace bhc

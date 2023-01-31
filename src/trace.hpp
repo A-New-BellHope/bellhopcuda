@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -46,9 +46,10 @@ template<bool R3D> HOST_DEVICE inline void Distances(
 /**
  * LP: Not a typo that this is templated on O3D only
  */
-template<bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
+template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
     int32_t isx, int32_t isy, int32_t isz, real alpha, SSPSegState &iSeg,
-    const Position *Pos, const SSPStructure *ssp, VEC23<O3D> &xs, VEC23<O3D> &tinit)
+    const Position *Pos, const SSPStructure *ssp, ErrState *errState, VEC23<O3D> &xs,
+    VEC23<O3D> &tinit)
 {
     if constexpr(O3D) {
         xs    = vec3(Pos->Sx[isx], Pos->Sy[isy], Pos->Sz[isz]);
@@ -60,7 +61,7 @@ template<bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
     }
     SSPOutputs<O3D> o;
     // LP: Not a typo that this is templated on O3D only
-    EvaluateSSP<O3D, O3D>(xs, tinit, o, Origin<O3D, O3D>(), ssp, iSeg);
+    EvaluateSSP<CFG, O3D, O3D>(xs, tinit, o, Origin<O3D, O3D>(), ssp, iSeg, errState);
     return o;
 }
 
@@ -71,13 +72,13 @@ template<bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
  *
  * DistBegTop etc.: Distances from ray beginning, end to top and bottom
  */
-template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     RayInitInfo &rinit, VEC23<O3D> &xs, rayPt<R3D> &point0, VEC23<O3D> &gradc,
     real &DistBegTop, real &DistBegBot, Origin<O3D, R3D> &org, SSPSegState &iSeg,
     BdryState<O3D> &bds, BdryType &Bdry, const BdryType *ConstBdry,
     const BdryInfo<O3D> *bdinfo, const SSPStructure *ssp, const Position *Pos,
     const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo)
+    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, ErrState *errState)
 {
     if(rinit.isz < 0 || rinit.isz >= Pos->NSz || rinit.ialpha < 0
        || rinit.ialpha >= Angles->alpha.n
@@ -85,10 +86,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
            && (rinit.isx < 0 || rinit.isx >= Pos->NSx || rinit.isy < 0
                || rinit.isy >= Pos->NSy || rinit.ibeta < 0
                || rinit.ibeta >= Angles->beta.n))) {
-        GlobalLog("Invalid ray init indexes!\n");
-        bail();
+        RunError(errState, BHC_ERR_RAYINIT);
+        // printf("Invalid ray init indexes!\n");
+        return false;
     }
-    // GlobalLog("Tracing azimuthal %d declination %d beam\n", rinit.ibeta, rinit.ialpha);
+    // printf("Tracing azimuthal %d declination %d beam\n", rinit.ibeta, rinit.ialpha);
 
     // LP: This part from BellhopCore
 
@@ -100,16 +102,18 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     } else {
         rinit.beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
     }
+
+    iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
+    VEC23<O3D> tinit;
+    SSPOutputs<O3D> o = RayStartNominalSSP<CFG, O3D>(
+        rinit.isx, rinit.isy, rinit.isz, rinit.alpha, iSeg, Pos, ssp, errState, xs,
+        tinit);
+    gradc = o.gradc;
+
     if constexpr(O3D && !R3D) {
         org.xs      = xs;
         org.tradial = vec2(STD::cos(rinit.beta), STD::sin(rinit.beta));
     }
-
-    iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
-    VEC23<O3D> tinit;
-    SSPOutputs<O3D> o = RayStartNominalSSP<O3D>(
-        rinit.isx, rinit.isy, rinit.isz, rinit.alpha, iSeg, Pos, ssp, xs, tinit);
-    gradc = o.gradc;
 
     if constexpr(!O3D) {
         // Are there enough beams?
@@ -120,10 +124,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
                     / DalphaOpt);
 
         if(IsCoherentRun(Beam) && Angles->alpha.n < NalphaOpt && rinit.ialpha == 0) {
-            GlobalLog(
-                "Warning in " BHC_PROGRAMNAME
-                " : Too few beams\nNalpha should be at least = %d\n",
-                NalphaOpt);
+            RunWarning(errState, BHC_WARN_TOO_FEW_BEAMS);
+            // printf(
+            //     "Warning in " BHC_PROGRAMNAME
+            //     " : Too few beams\nNalpha should be at least = %d\n",
+            //     NalphaOpt);
         }
     }
 
@@ -200,25 +205,26 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         bds.top.Iseg = bds.bot.Iseg = 0;
     }
     GetBdrySeg<O3D>(
-        xs, RayToOceanT(point0.t, org), bds.top, &bdinfo->top, Bdry.Top, true,
-        true); // identify the top    segment above the source
+        xs, RayToOceanT(point0.t, org), bds.top, &bdinfo->top, Bdry.Top, true, true,
+        errState); // identify the top    segment above the source
     GetBdrySeg<O3D>(
-        xs, RayToOceanT(point0.t, org), bds.bot, &bdinfo->bot, Bdry.Bot, false,
-        true); // identify the bottom segment below the source
+        xs, RayToOceanT(point0.t, org), bds.bot, &bdinfo->bot, Bdry.Bot, false, true,
+        errState); // identify the bottom segment below the source
 
     Distances<R3D>(
         point0.x, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
 
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)) {
-        GlobalLog("Terminating the ray trace because the source is on or outside the "
-                  "boundaries\n");
+        RunWarning(errState, BHC_WARN_SOURCE_OUTSIDE_BOUNDARIES);
+        // printf("Terminating the ray trace because the source is on or outside the "
+        //           "boundaries\n");
         /*
         if(DistBegTop <= FL(0.0)){
-            GlobalLog("point0.x %f,%f bds.top.x %f,%f bds.top.n %f,%f DistBegTop %f\n",
+            printf("point0.x %f,%f bds.top.x %f,%f bds.top.n %f,%f DistBegTop %f\n",
                 point0.x.x, point0.x.y, bds.top.x.x, bds.top.x.y,
                 bds.top.n.x, bds.top.n.y, DistBegTop);
         }else{
-            GlobalLog("point0.x %f,%f bds.bot.x %f,%f bds.bot.n %f,%f DistBegBot %f\n",
+            printf("point0.x %f,%f bds.bot.x %f,%f bds.bot.n %f,%f DistBegBot %f\n",
                 point0.x.x, point0.x.y, bds.bot.x.x, bds.bot.x.y,
                 bds.bot.n.x, bds.bot.n.y, DistBegBot);
         }
@@ -232,22 +238,23 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
 /**
  * LP: Pulled out contents of ray update loop. Returns the number of ray steps
  * taken (i.e. normally 1, or 2 if reflected).
+ *
+ * Returns whether reflection happened and therefore a second step was taken.
  */
-template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     const rayPt<R3D> &point0, rayPt<R3D> &point1, rayPt<R3D> &point2, real &DistEndTop,
     real &DistEndBot, int32_t &iSmallStepCtr, const Origin<O3D, R3D> &org,
     SSPSegState &iSeg, BdryState<O3D> &bds, BdryType &Bdry, const BdryInfo<O3D> *bdinfo,
     const ReflectionInfo *refl, const SSPStructure *ssp, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs)
+    const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, ErrState *errState)
 {
-    int32_t numRaySteps = 1;
     bool topRefl, botRefl, flipTopDiag, flipBotDiag;
-    Step<O3D, R3D>(
-        point0, point1, bds, Beam, xs, org, ssp, iSeg, iSmallStepCtr, topRefl, botRefl,
-        flipTopDiag, flipBotDiag);
+    Step<CFG, O3D, R3D>(
+        point0, point1, bds, Beam, xs, org, ssp, iSeg, errState, iSmallStepCtr, topRefl,
+        botRefl, flipTopDiag, flipBotDiag);
     /*
     if(point0.x == point1.x){
-        GlobalLog("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
+        printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
         bail();
     }
     */
@@ -258,8 +265,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
     }
     VEC23<O3D> x_o = RayToOceanX(point1.x, org);
     VEC23<O3D> t_o = RayToOceanT(point1.t, org);
-    GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true, false);
-    GetBdrySeg<O3D>(x_o, t_o, bds.bot, &bdinfo->bot, Bdry.Bot, false, false);
+    GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true, false, errState);
+    GetBdrySeg<O3D>(x_o, t_o, bds.bot, &bdinfo->bot, Bdry.Bot, false, false, errState);
 
     // Reflections?
     // Tests that ray at step is is inside, and ray at step is+1 is outside
@@ -271,7 +278,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
 
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl) {
-        // GlobalLog(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
+        // printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
         const BdryInfoTopBot<O3D> &bdi     = topRefl ? bdinfo->top : bdinfo->bot;
         const BdryStateTopBot<O3D> &bdstb  = topRefl ? bds.top : bds.bot;
         const HSInfo &hs                   = topRefl ? Bdry.Top.hs : Bdry.Bot.hs;
@@ -332,17 +339,17 @@ template<bool O3D, bool R3D> HOST_DEVICE inline int32_t RayUpdate(
             rcurv.kappa = bd0->kappa;
         }
 
-        Reflect<O3D, R3D>(
+        Reflect<CFG, O3D, R3D>(
             point1, point2, hs, topRefl, tInt, nInt, rcurv, freqinfo->freq0, refltb, Beam,
-            org, ssp, iSeg);
+            org, ssp, iSeg, errState);
         // Incrementing bounce count moved to Reflect
-        numRaySteps = 2;
-        x_o         = RayToOceanX(point2.x, org);
+        x_o = RayToOceanX(point2.x, org);
         Distances<R3D>(
             x_o, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
+        return true;
     }
 
-    return numRaySteps;
+    return false;
 }
 
 /**
@@ -357,7 +364,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const rayPt<R3D> &point, int32_t &Nsteps, int32_t is, const VEC23<O3D> &xs,
     const int32_t &iSmallStepCtr, real &DistBegTop, real &DistBegBot,
     const real &DistEndTop, const real &DistEndBot, const Origin<O3D, R3D> &org,
-    const BdryInfo<O3D> *bdinfo, const BeamStructure<O3D> *Beam)
+    const BdryInfo<O3D> *bdinfo, const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     bool leftbox, escapedboundaries, toomanysmallsteps;
     bool escaped0bdry, escapedNbdry;
@@ -410,32 +417,33 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
 #ifdef STEP_DEBUGGING
         if(leftbox) {
             if constexpr(O3D) {
-                GlobalLog(
+                printf(
                     "Ray left beam box (%g,%g,%g)\n", Beam->Box.x, Beam->Box.y,
                     Beam->Box.z);
             } else {
-                GlobalLog("Ray left beam box (%g,%g)\n", Beam->Box.x, Beam->Box.y);
+                printf("Ray left beam box (%g,%g)\n", Beam->Box.x, Beam->Box.y);
             }
         } else if(escapedboundaries) {
-            GlobalLog(
+            printf(
                 "Ray escaped boundaries DistBegTop %g DistEndTop %g DistBegBot %g "
                 "DistEndBot %g\n",
                 DistBegTop, DistEndTop, DistBegBot, DistEndBot);
         } else if(lostenergy) {
-            GlobalLog("Ray energy dropped to %g\n", point.Amp);
+            printf("Ray energy dropped to %g\n", point.Amp);
         } else if(backward) {
-            GlobalLog("Ray is going backwards\n");
+            printf("Ray is going backwards\n");
         } else if(toomanysmallsteps) {
-            GlobalLog("Too many small steps\n");
+            printf("Too many small steps\n");
         } else {
-            GlobalLog("Internal error in RayTerminate\n");
+            printf("Internal error in RayTerminate\n");
             bail();
         }
 #endif
         Nsteps = is + 1;
         return true;
     } else if(is >= MaxN - 3) {
-        GlobalLog("Warning in TraceRay: Insufficient storage for ray trajectory\n");
+        RunWarning(errState, BHC_WARN_ONERAY_OUTOFMEMORY);
+        // printf("Warning in TraceRay: Insufficient storage for ray trajectory\n");
         Nsteps = is;
         return true;
     }

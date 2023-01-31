@@ -1,6 +1,6 @@
 /*
 bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
+Copyright (C) 2021-2023 The Regents of the University of California
 c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
 Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
 
@@ -17,24 +17,6 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-
-////////////////////////////////////////////////////////////////////////////////
-// Build configuration
-////////////////////////////////////////////////////////////////////////////////
-
-// BHC_DIMMODE is undefined or 0 for "all enabled, set on command line"
-#define BHC_ENABLE_2D (!(BHC_DIMMODE == 3 || BHC_DIMMODE == 4))
-#define BHC_ENABLE_3D (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 4))
-#define BHC_ENABLE_NX2D (!(BHC_DIMMODE == 2 || BHC_DIMMODE == 3))
-#if BHC_DIMMODE == 2
-#define BHC_DIMNAME "2d"
-#elif BHC_DIMMODE == 3
-#define BHC_DIMNAME "3d"
-#elif BHC_DIMMODE == 4
-#define BHC_DIMNAME "nx2d"
-#else
-#define BHC_DIMNAME
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // General headers
@@ -54,6 +36,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cstdio>
 #include <iomanip>
 #include <cctype>
+#include <cinttypes>
 #include <cstring>
 #include <string>
 #include <locale>
@@ -73,18 +56,51 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #ifdef BHC_BUILD_CUDA
 #include "cuda_runtime.h"
 #define HOST_DEVICE __host__ __device__
-// Requires libcu++ 1.4 or higher, which is included in the normal CUDA Toolkit
-// install since somewhere between CUDA 11.3 and 11.5. (I.e. 11.5 and later has
-// it, 11.2 and earlier does not, not sure about 11.3 and 11.4. You can check by
-// seeing if <cuda_install_dir>/include/cuda/std/complex exists.)
+// Requires the version of libcudacxx in CUDA 11.5 or later; use the newest CUDA
+// version available
+
+// Fixes for some libcudacxx issues for MSVC; won't be needed once a new enough
+// version is included in CUDA releases
+#if defined(_MSC_VER)
+
+#if _MSC_VER >= 1930
+#include <../crt/src/stl/xmath.hpp>
+#endif
+
+// Yes, I'm aware this is not GCC--this is a hack for the buggy libcudacxx MSVC
+// support
+#define __GCC_ATOMIC_BOOL_LOCK_FREE     2
+#define __GCC_ATOMIC_CHAR_LOCK_FREE     2
+#define __GCC_ATOMIC_CHAR16_T_LOCK_FREE 2
+#define __GCC_ATOMIC_CHAR32_T_LOCK_FREE 2
+#define __GCC_ATOMIC_WCHAR_T_LOCK_FREE  2
+#define __GCC_ATOMIC_SHORT_LOCK_FREE    2
+#define __GCC_ATOMIC_INT_LOCK_FREE      2
+#define __GCC_ATOMIC_LONG_LOCK_FREE     2
+#define __GCC_ATOMIC_LLONG_LOCK_FREE    2
+#define __GCC_ATOMIC_POINTER_LOCK_FREE  2
+
+#ifndef __ATOMIC_RELAXED
+#define __ATOMIC_RELAXED 0
+#define __ATOMIC_CONSUME 1
+#define __ATOMIC_ACQUIRE 2
+#define __ATOMIC_RELEASE 3
+#define __ATOMIC_ACQ_REL 4
+#define __ATOMIC_SEQ_CST 5
+#endif //__ATOMIC_RELAXED
+
+#endif
+
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
+#include <cuda/std/atomic>
 #define STD cuda::std
-#define BHC_PROGRAMNAME "bellhopcuda" BHC_DIMNAME
+#define BHC_PROGRAMNAME "bellhopcuda"
 #else
 #define HOST_DEVICE
+#include <atomic>
 #define STD std
-#define BHC_PROGRAMNAME "bellhopcxx" BHC_DIMNAME
+#define BHC_PROGRAMNAME "bellhopcxx"
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -99,8 +115,6 @@ namespace bhc {
 // Assertions and debug
 ////////////////////////////////////////////////////////////////////////////////
 
-extern bool api_okay;
-
 #define NULLSTATEMENT ((void)0)
 #define REQUIRESEMICOLON \
     do { \
@@ -111,45 +125,22 @@ extern bool api_okay;
         (void)x; \
     } while(false)
 
-/**
- * Returns a pointer to only the last portion of the source filename.
- */
-inline const char *SOURCE_FILENAME(const char *file)
-{
-    static const char *const tag = "/bellhopcuda/";
-    static const int taglen      = 13;
-    const char *x                = file;
-    for(; *x; ++x) {
-        int i = 0;
-        for(; i < taglen && x[i]; ++i) {
-            if(x[i] != tag[i]) break;
-        }
-        if(i == taglen) break;
-    }
-    if(*x) return x + taglen;
-    return file;
-}
-
-#define BASSERT_STR(x) #x
-#define BASSERT_XSTR(x) BASSERT_STR(x)
+// bail() to be used for debugging only, not normal error reporting.
 #ifdef __CUDA_ARCH__
-#define bail __trap
-#define BASSERT(statement) \
-    if(__builtin_expect(!(statement), 0)) { \
-        GlobalLog("Assertion " #statement " failed line " BASSERT_XSTR(__LINE__) "!\n"); \
-        __trap(); \
-    } \
-    REQUIRESEMICOLON
+[[noreturn]] __forceinline__ __device__ void dev_bail()
+{
+    __trap();
+    __builtin_unreachable();
+}
+#define bail() dev_bail()
 #else
 #define bail() throw std::runtime_error("bhc::bail()")
-#define BASSERT(statement) \
-    if(!(statement)) { \
-        throw std::runtime_error( \
-            "Assertion \"" #statement "\" failed in " \
-            + std::string(SOURCE_FILENAME(__FILE__)) \
-            + " line " BASSERT_XSTR(__LINE__) "\n"); \
-    } \
-    REQUIRESEMICOLON
+#endif
+
+#ifdef _MSC_VER
+#define CPU_NOINLINE __declspec(noinline)
+#else
+#define CPU_NOINLINE __attribute__((noinline))
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -491,14 +482,17 @@ static inline std::string trim_copy(std::string s)
 // Other components
 ////////////////////////////////////////////////////////////////////////////////
 
+struct bhcInternal;
+
 } // namespace bhc
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
-#include "logging.hpp"
+#include "errors.hpp"
 #include "ldio.hpp"
 #include "bino.hpp"
 #include "prtfileemu.hpp"
 #include "atomics.hpp"
+#include "timing.hpp"
 
 #ifdef BHC_BUILD_CUDA
 #include "UtilsCUDA.cuh"
@@ -507,6 +501,27 @@ static inline std::string trim_copy(std::string s)
 #undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {
+
+struct bhcInternal {
+    void (*outputCallback)(const char *message);
+    PrintFileEmu PRTFile;
+    std::string FileRoot;
+    std::atomic<int32_t> sharedJobID;
+    int m_gpu, d_multiprocs; // d_warp, d_maxthreads
+
+    bhcInternal(
+        const char *FileRoot_, void (*prtCallback_)(const char *message),
+        void (*outputCallback_)(const char *message))
+        : outputCallback(outputCallback_), PRTFile(this, FileRoot_, prtCallback_),
+          FileRoot(FileRoot_), m_gpu(0)
+    {}
+};
+
+template<bool O3D, bool R3D> inline bhcInternal *GetInternal(
+    const bhcParams<O3D, R3D> &params)
+{
+    return reinterpret_cast<bhcInternal *>(params.internal);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // CUDA memory
@@ -518,10 +533,12 @@ template<typename T> inline T *allocate(size_t n = 1)
 #ifdef BHC_BUILD_CUDA
     checkCudaErrors(cudaMallocManaged(&ret, n * sizeof(T)));
 #else
-    ret = new T[n];
+    ret = (T *)malloc(n * sizeof(T));
 #endif
+#ifdef BHC_DEBUG
     // Debugging: Fill memory with garbage data to help detect uninitialized vars
     memset(ret, 0xFE, n * sizeof(T));
+#endif
     return ret;
 }
 
@@ -530,7 +547,7 @@ template<typename T> inline void deallocate(T *&ptr)
 #ifdef BHC_BUILD_CUDA
     checkCudaErrors(cudaFree(ptr));
 #else
-    delete[] ptr;
+    free(ptr);
 #endif
     ptr = nullptr;
 }
@@ -719,6 +736,13 @@ template<typename REAL> inline void EchoVector(
     */
 }
 
+HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
+{
+    printf(
+        "%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n", label, m[0][0], m[1][0],
+        m[0][1], m[1][1]);
+}
+
 /**
  * If x[2] == -999.9 then subtabulation is performed
  * i.e., a vector is generated with Nx points in [x[0], x[1]]
@@ -831,34 +855,6 @@ HOST_DEVICE inline void RayNormal(const vec3 &t, real phi, real c, vec3 &e1, vec
 HOST_DEVICE inline void RayNormal_unit(const vec3 &t, real phi, vec3 &e1, vec3 &e2)
 {
     RayNormalImpl(t, phi, true, RL(1.0), e1, e2);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Timing
-////////////////////////////////////////////////////////////////////////////////
-
-class Stopwatch {
-public:
-    Stopwatch() {}
-    inline void tick() { tstart = std::chrono::high_resolution_clock::now(); }
-    inline void tock()
-    {
-        using namespace std::chrono;
-        high_resolution_clock::time_point tend = high_resolution_clock::now();
-        double dt = (duration_cast<duration<double>>(tend - tstart)).count();
-        dt *= 1000.0;
-        GlobalLog("%f ms\n", dt);
-    }
-
-private:
-    std::chrono::high_resolution_clock::time_point tstart;
-};
-
-HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
-{
-    GlobalLog(
-        "%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n", label, m[0][0], m[1][0],
-        m[0][1], m[1][1]);
 }
 
 } // namespace bhc
