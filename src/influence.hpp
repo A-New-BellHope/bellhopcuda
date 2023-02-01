@@ -200,7 +200,7 @@ HOST_DEVICE inline bool Compute_M_N_R_IR(
  * used in non-Cerveny cases.
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
-    real omega, real c, vec2 gradc, real angle, real Dangle,
+    real omega, real c, const VEC23<O3D> &gradc, real angle, real Dangle,
     const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     // LP: BUG: Multiple codepaths do not set epsilonOpt, would lead to UB if
@@ -208,7 +208,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
     real halfwidth        = R3D ? RL(0.0) : DEBUG_LARGEVAL;
     cpx epsilonOpt        = cpx(DEBUG_LARGEVAL, DEBUG_LARGEVAL);
     bool defaultHalfwidth = true, defaultEps = true, zeroEps = false;
-    real cz;
     if(IsCervenyInfl(Beam)) {
         defaultHalfwidth = defaultEps = false;
         if(IsBeamWidthSpaceFilling(Beam)) {
@@ -217,11 +216,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
             halfwidth  = STD::sqrt(FL(2.0) * c * FL(1000.0) * Beam->rLoop / omega);
             defaultEps = true;
         } else if(IsBeamWidthWKB(Beam)) {
-            if(R3D) {
+            if(O3D) {
                 RunWarning(errState, BHC_WARN_WKB_UNIMPLEMENTED_3D);
             } else {
                 halfwidth  = REAL_MAX;
-                cz         = gradc.y;
+                real cz    = DEP(gradc);
                 epsilonOpt = (cz == FL(0.0))
                     ? RL(1e10)
                     : ((-STD::sin(angle) / STD::cos(SQ(angle))) * c * c / cz);
@@ -274,6 +273,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
 
 /**
  * Form gamma
+ *
+ * LP: This is for Cerveny, so R3D == false
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline cpx Compute_gamma(
     const rayPt<false> &point, const cpx &pB, const cpx &qB,
@@ -525,9 +526,9 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D, R3D> &p
 
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     InfluenceRayInfo<R3D> &inflray, const rayPt<R3D> &point0, RayInitInfo &rinit,
-    vec2 gradc, const Position *Pos, const Origin<O3D, R3D> &org, const SSPStructure *ssp,
-    SSPSegState &iSeg, const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, ErrState *errState)
+    const VEC23<O3D> &gradc, const Position *Pos, const Origin<O3D, R3D> &org,
+    const SSPStructure *ssp, SSPSegState &iSeg, const AnglesStructure *Angles,
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     if constexpr(R3D) IGNORE_UNUSED(ssp);
     bool isGaussian = IsGaussianGeomInfl(Beam);

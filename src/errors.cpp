@@ -91,8 +91,8 @@ static const char *const warningDescriptions[BHC_WARN_MAX] = {
     "BHC_WARN_TRIDIAG_H_GROWING: Tentative step crossed tri diagonal, but stepping "
     "to the diagonal resulted in a larger step; tri diagonal edge case handling "
     "has gone wrong, this ray's results may be unreliable",
-    "BHC_WARN_WKB_UNIMPLEMENTED_3D: WKB beamwidth beams unimplemented in BELLHOP3D, "
-    "PickEpsilon results will be nonsense",
+    "BHC_WARN_WKB_UNIMPLEMENTED_3D: WKB beamwidth beams unimplemented in BELLHOP3D "
+    "(Nx2D or 3D), PickEpsilon results will be nonsense",
     "BHC_WARN_CERVENY_WIDTH_BUGGY: Cerveny beamwidth Cerveny beams are not propery "
     "implemented in BELLHOP(3D), PickEpsilon results will be nonsense",
     "BHC_WARN_INVALID_WIDTH_BUGGY: BELLHOP(3D) does not properly handle Cerveny "

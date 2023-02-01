@@ -383,7 +383,7 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
         // Try adding or subtracting one ulp.
         vec2 x_try  = x_orig;
         x_try.x     = RealBitsAddInt(x_orig.x, 1);
-        vec2 x_res2 = RayToOceanX(x_try, org);
+        vec3 x_res2 = RayToOceanX(x_try, org);
         if(x_res2.x == x.x && x_res2.y == x.y) return x_try;
         x_try.x = RealBitsAddInt(x_orig.x, -1);
         x_res2  = RayToOceanX(x_try, org);
@@ -394,6 +394,17 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
         return x_try;
     } else {
         return x;
+    }
+}
+
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayT(
+    const VEC23<O3D> &t, const Origin<O3D, R3D> &org)
+{
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D) {
+        return vec2(glm::dot(XYCOMP(t), org.tradial), DEP(t));
+    } else {
+        return t;
     }
 }
 

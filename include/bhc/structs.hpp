@@ -84,16 +84,18 @@ struct SSPStructure {
     bool dirty; // reset and update derived params
 };
 
-template<bool R3D> struct SSPOutputsExtras {};
+// SSPOutputs is templated as O3D during computation, but R3D when returned,
+// except in RayStartNominalSSP and everywhere which uses those results.
+template<bool X3D> struct SSPOutputsExtras {};
 template<> struct SSPOutputsExtras<false> {
     real crr, crz;
 };
 template<> struct SSPOutputsExtras<true> {
     real cxx, cyy, cxy, cxz, cyz;
 };
-template<bool R3D> struct SSPOutputs : public SSPOutputsExtras<R3D> {
+template<bool X3D> struct SSPOutputs : public SSPOutputsExtras<X3D> {
     cpx ccpx;
-    VEC23<R3D> gradc;
+    VEC23<X3D> gradc;
     real rho, czz;
 };
 

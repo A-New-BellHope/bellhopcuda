@@ -208,7 +208,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     ErrState *errState)
 {
-    VEC23<R3D> nBdry_ray = RayToOceanT<O3D, R3D>(nBdry, org);
+    VEC23<R3D> nBdry_ray = OceanToRayT<O3D, R3D>(nBdry, org);
     if(O3D && !R3D) nBdry_ray *= RL(1.0) / glm::length(nBdry_ray);
 
     real Th = glm::dot(oldPoint.t, nBdry_ray); // component of ray tangent, normal to
@@ -317,10 +317,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
         // a different orientation)
         VEC23<R3D> rayt_tilde = o.ccpx.real() * newPoint.t;         // unit tangent to ray
         VEC23<R3D> rayn_tilde = -vec2(-rayt_tilde.y, rayt_tilde.x); // unit normal  to ray
-
-        real rn = FL(2.0) * rcurv_ray.kappa / SQ(o.ccpx.real()) / Th; // boundary
-                                                                      // curvature
-                                                                      // correction
+        // boundary curvature correction
+        real rn = FL(2.0) * rcurv_ray.kappa / SQ(o.ccpx.real()) / Th;
 
         // get the jumps (this could be simplified, e.g. jump in rayt is roughly 2 * Th *
         // nbdry

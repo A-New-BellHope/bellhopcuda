@@ -33,18 +33,19 @@ namespace bhc {
  * Topn, Botn: top, bottom normal vector (outward)
  * DistTop, DistBot: distance (normal to bdry) from the ray to top, bottom boundary
  */
-template<bool R3D> HOST_DEVICE inline void Distances(
-    const VEC23<R3D> &rayx, const VEC23<R3D> &Topx, const VEC23<R3D> &Botx,
-    const VEC23<R3D> &Topn, const VEC23<R3D> &Botn, real &DistTop, real &DistBot)
+template<bool O3D> HOST_DEVICE inline void Distances(
+    const VEC23<O3D> &rayx, const VEC23<O3D> &Topx, const VEC23<O3D> &Botx,
+    const VEC23<O3D> &Topn, const VEC23<O3D> &Botn, real &DistTop, real &DistBot)
 {
-    VEC23<R3D> dTop = rayx - Topx; // vector pointing from top    bdry to ray
-    VEC23<R3D> dBot = rayx - Botx; // vector pointing from bottom bdry to ray
+    VEC23<O3D> dTop = rayx - Topx; // vector pointing from top    bdry to ray
+    VEC23<O3D> dBot = rayx - Botx; // vector pointing from bottom bdry to ray
     DistTop         = -glm::dot(Topn, dTop);
     DistBot         = -glm::dot(Botn, dBot);
 }
 
 /**
- * LP: Not a typo that this is templated on O3D only
+ * LP: Not a typo that this is templated on O3D only. In BELLHOP3D, this happens
+ * before the Nx2D/3D split, so it is only dependent on the ocean's dimensionality.
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
     int32_t isx, int32_t isy, int32_t isz, real alpha, SSPSegState &iSeg,
@@ -60,7 +61,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNomi
         tinit = vec2(STD::cos(alpha), STD::sin(alpha));
     }
     SSPOutputs<O3D> o;
-    // LP: Not a typo that this is templated on O3D only
+    // LP: Not a typo that this is templated on O3D only; see function comment.
     EvaluateSSP<CFG, O3D, O3D>(xs, tinit, o, Origin<O3D, O3D>(), ssp, iSeg, errState);
     return o;
 }
@@ -211,8 +212,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         xs, RayToOceanT(point0.t, org), bds.bot, &bdinfo->bot, Bdry.Bot, false, true,
         errState); // identify the bottom segment below the source
 
-    Distances<R3D>(
-        point0.x, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
+    Distances<O3D>(
+        xs, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
 
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)) {
         RunWarning(errState, BHC_WARN_SOURCE_OUTSIDE_BOUNDARIES);
@@ -303,7 +304,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     // to detect only a crossing from inside to outside
     // DistBeg is the distance at point0, which is saved
     // DistEnd is the distance at point1, which needs to be calculated
-    Distances<R3D>(
+    Distances<O3D>(
         x_o, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
 
     // LP: Merging these cases is important for GPU performance.
@@ -374,7 +375,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
             org, ssp, iSeg, errState);
         // Incrementing bounce count moved to Reflect
         x_o = RayToOceanX(point2.x, org);
-        Distances<R3D>(
+        Distances<O3D>(
             x_o, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
         return true;
     }

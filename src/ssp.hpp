@@ -435,7 +435,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         if constexpr(!O3D) {
             RunError(errState, BHC_ERR_TEMPLATE);
             o_proc.ccpx  = cpx(NAN, NAN);
-            o_proc.gradc = vec3(NAN, NAN, NAN);
+            o_proc.gradc = vec2(NAN, NAN);
             o_proc.rho = o_proc.czz = NAN;
             o_proc.crr = o_proc.crz = NAN;
         } else {
