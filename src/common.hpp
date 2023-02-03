@@ -373,7 +373,7 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
         if(STD::abs(org.tradial.x) >= STD::abs(org.tradial.y)) {
             x_orig.x = (x.x - org.xs.x) / org.tradial.x;
         } else {
-            x_orig.x = (x.x - org.xs.y) / org.tradial.y;
+            x_orig.x = (x.y - org.xs.y) / org.tradial.y;
         }
         vec3 x_res = RayToOceanX(x_orig, org);
         if(x_res.x == x.x && x_res.y == x.y) {

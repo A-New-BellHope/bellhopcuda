@@ -402,15 +402,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     if constexpr(O3D) {
         vec3 x_o = RayToOceanX(point.x, org);
         vec3 t_o = RayToOceanT(point.t, org);
-        if constexpr(R3D) {
-            leftbox = IsOutsideBeamBoxDim<true, 0>(x_o, Beam, xs)
-                || IsOutsideBeamBoxDim<true, 1>(x_o, Beam, xs)
-                || IsOutsideBeamBoxDim<true, 2>(x_o, Beam, xs);
-        } else {
-            // LP: This condition was inexplicably commented out in 2022 revision of Nx2D.
-            leftbox = false;
-            IGNORE_UNUSED(Beam);
-        }
+        // LP: This condition was inexplicably commented out in 2022 revision of Nx2D,
+        // see Fortran version readme.
+        leftbox = IsOutsideBeamBoxDim<true, 0>(x_o, Beam, xs)
+            || IsOutsideBeamBoxDim<true, 1>(x_o, Beam, xs)
+            || IsOutsideBeamBoxDim<true, 2>(x_o, Beam, xs);
         real minx = bhc::max(bdinfo->bot.bd[0].x.x, bdinfo->top.bd[0].x.x);
         real miny = bhc::max(bdinfo->bot.bd[0].x.y, bdinfo->top.bd[0].x.y);
         real maxx = bhc::min(

@@ -732,6 +732,17 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
         x_o, x2_o, t_o, h, topRefl, botRefl, flipTopDiag, flipBotDiag, iSeg0, bds, Beam,
         xs, ssp, errState);
     ray2.x = OceanToRayX(x2_o, org, urayt2);
+#ifdef STEP_DEBUGGING
+    if constexpr(O3D && !R3D) {
+        VEC23<O3D> x2_o_out = RayToOceanX(ray2.x, org);
+        printf(
+            "OceanToRayX in (%20.17f,%20.17f,%20.17f)\n"
+            "           ==> (%20.17f,%20.17f)\n"
+            "           ==> (%20.17f,%20.17f,%20.17f)\n",
+            x2_o.x, x2_o.y, x2_o.z, ray2.x.x, ray2.x.y, x2_o_out.x, x2_o_out.y,
+            x2_o_out.z);
+    }
+#endif
 
     // Update other variables with this new h
     hw0      = h * w0;
