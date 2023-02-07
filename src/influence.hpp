@@ -123,8 +123,8 @@ template<bool R3D> HOST_DEVICE inline void ReceiverAngles(
         RcvrAzimAngle = angleXY;
     } else {
         RcvrDeclAngle = angleXY;
-        RcvrAzimAngle = inflray.init.SrcAzimAngle; // LP: Needed for Nx2D; for 2D, debug
-                                                   // value
+        // LP: Needed for Nx2D; for 2D, debug value
+        RcvrAzimAngle = inflray.init.SrcAzimAngle;
     }
 }
 
@@ -467,6 +467,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
             }
             dfield = cpxf((float)v, 0.0f);
         }
+        // printf("ApplyContribution dfield (%g,%g)\n", dfield.real(), dfield.imag());
         AddToField<R3D>(uAllSources, dfield, itheta, ir, iz, inflray, Pos);
     }
 }
@@ -1374,6 +1375,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                 } else {
                     IGNORE_UNUSED(itheta);
                     x_rcvr.x = Pos->Rr[inflray.ir];
+
+                    // printf("Step ir %d %d\n", is, inflray.ir);
                 }
 
                 for(int32_t iz = 0; iz < Pos->NRz_per_range; ++iz) {
@@ -1386,15 +1389,19 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
 
                     VEC23<R3D> x_rcvr_ray = x_rcvr - x_ray;
 
-                    // linear interpolation of q's
-                    real s = glm::dot(x_rcvr_ray, rayt) / rlen; // proportional distance
-                                                                // along ray
-                    real n1 = STD::abs(glm::dot(x_rcvr_ray, rayn1)); // normal distance to
-                                                                     // ray
+                    // linear interpolation of q's.
+                    // proportional distance along ray
+                    real s = glm::dot(x_rcvr_ray, rayt) / rlen;
+                    // normal distance to ray
+                    real n1 = STD::abs(glm::dot(x_rcvr_ray, rayn1));
                     real n2 = DEBUG_LARGEVAL;
                     if constexpr(R3D) {
-                        n2 = STD::abs(glm::dot(x_rcvr_ray, rayn2)); // normal distance to
-                                                                    // ray
+                        // normal distance to ray
+                        n2 = STD::abs(glm::dot(x_rcvr_ray, rayn2));
+                    }
+                    if(inflray.ir == 20) {
+                        printf(
+                            "is ir iz s n1 %d %d %d %g %g\n", is, inflray.ir, iz, s, n1);
                     }
                     InfluenceGeoCore<CFG, O3D, R3D>(
                         s, n1, n2, dq, dtau, itheta, inflray.ir, iz, is, point0, point1,
@@ -1640,7 +1647,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ScalePressure(
                     factor = cnst / (real)STD::sqrt(STD::abs(r[ir]));
                 }
             }
-            for(int32_t irz = 0; irz < NRz; ++irz) { u[irz * Nr + ir] *= (float)factor; }
+            for(int32_t itheta = 0; itheta < Ntheta; ++itheta) {
+                for(int32_t irz = 0; irz < NRz; ++irz) {
+                    size_t addr = ((size_t)itheta * NRz + irz) * Nr + ir;
+                    u[addr] *= (float)factor;
+                }
+            }
         }
     }
 }

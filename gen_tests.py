@@ -66,7 +66,7 @@ def should_work(dim, rt, it, st):
         return False
     if it == 'C' and dim == 4:
         return False
-    if it == 'b' and dim == 2:
+    if it == 'b' and dim != 3:
         return False
     if it in {'R', 'C'} and rt in {'E', 'A', 'a'}:
         return False
@@ -202,33 +202,25 @@ def gen_all_it_st_combos(passtxt, failtxt, dim, rt):
             (passtxt if should_work(dim, rt, it, st) else failtxt).write(env_name + '\n')
 
 def gen_coverage_tests():
-    for dim in {2, 3}:
-        dimname = '3d' if dim == 3 else ''
-        print('\n\nray{}:\n'.format(dimname))
-        with open('gen_ray{}_pass.txt'.format(dimname), 'w') as passtxt, \
-            open('gen_ray{}_fail.txt'.format(dimname), 'w') as failtxt:
-            gen_all_it_st_combos(passtxt, failtxt, dim, 'R')
-        print('\n\ntl{}:\n'.format(dimname))
-        with open('gen_tl{}_pass.txt'.format(dimname), 'w') as passtxt, \
-            open('gen_tl{}_fail.txt'.format(dimname), 'w') as failtxt:
-            for rt in ['C', 'S', 'I']:
-                gen_all_it_st_combos(passtxt, failtxt, dim, rt)
-        print('\n\neigen{}:\n'.format(dimname))
-        with open('gen_eigen{}_pass.txt'.format(dimname), 'w') as passtxt, \
-            open('gen_eigen{}_fail.txt'.format(dimname), 'w') as failtxt:
-            gen_all_it_st_combos(passtxt, failtxt, dim, 'E')
-        print('\n\narr{}:\n'.format(dimname))
-        with open('gen_arr{}_pass.txt'.format(dimname), 'w') as passtxt, \
-            open('gen_arr{}_fail.txt'.format(dimname), 'w') as failtxt:
-            for rt in ['A', 'a']:
-                gen_all_it_st_combos(passtxt, failtxt, dim, rt)
+    for dim in [2, 3, 4]:
+        def gen_coverage_tests_type(type, rt_list):
+            tdname = type + dims[dim]
+            print('\n\n{}:\n'.format(tdname))
+            with open('gen_{}_pass.txt'.format(tdname), 'w') as passtxt, \
+                open('gen_{}_fail.txt'.format(tdname), 'w') as failtxt:
+                for rt in rt_list:
+                    gen_all_it_st_combos(passtxt, failtxt, dim, rt)
+        gen_coverage_tests_type('ray', ['R'])
+        gen_coverage_tests_type('tl', ['C', 'S', 'I'])
+        gen_coverage_tests_type('eigen', ['E'])
+        gen_coverage_tests_type('arr', ['A', 'a'])
 
 def gen_perf_ray_tests():
-    for dim in {2, 3}:
+    for dim in [2, 3, 4]:
         env_name_base = 'genperf_ray' + dims[dim] + '_numrays'
         with open(env_name_base + '.txt', 'w') as txt:
             for Nalpha in [0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000]:
-                if dim == 3 and Nalpha > 1024:
+                if dim != 2 and Nalpha > 1024:
                     break
                 title = 'Increasing num rays ' + str(Nalpha)
                 env_name = env_name_base + '_' + str(Nalpha)
@@ -238,7 +230,7 @@ def gen_perf_ray_tests():
                 p['Nalpha'] = Nalpha
                 write_env_etc(dim, rt, it, st, p, env_name, title)
     #
-    for dim in {2, 3}:
+    for dim in [2, 3, 4]:
         env_name_base = 'genperf_ray' + dims[dim] + '_long'
         Nalpha = 1000
         Nbeta = 1
@@ -266,7 +258,7 @@ def gen_perf_ray_tests():
             write_env_etc(dim, rt, it, st, p, env_name, title)
 
 def gen_perf_tl_tests():
-    for dim in {2, 3}:
+    for dim in [2, 3, 4]:
         env_name_base = 'genperf_tl' + dims[dim] + '_numrays'
         with open(env_name_base + '.txt', 'w') as txt:
             for Nalpha in [0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000, 0x40000, 0x100000, 0x400000]:
@@ -287,11 +279,11 @@ def gen_perf_tl_tests():
                 p['beta'] = [2.3]
                 write_env_etc(dim, rt, it, st, p, env_name, title)
     #
-    for dim in {2, 3}:
+    for dim in [2, 3, 4]:
         env_name_base = 'genperf_tl' + dims[dim] + '_numsources'
         with open(env_name_base + '.txt', 'w') as txt:
             for NS in range(1, 11):
-                if dim == 3 and NS > 4:
+                if dim != 2 and NS > 4:
                     break
                 title = 'Increasing num sources '
                 if dim == 2:
@@ -318,17 +310,17 @@ def gen_perf_tl_tests():
                 write_env_etc(dim, rt, it, st, p, env_name, title)
     #
     for Nalpha in [300, 20000]:
-        for dim in {2, 3}:
+        for dim in [2, 3, 4]:
             env_name_base = 'genperf_tl' + dims[dim] + '_numreceivers'
             env_name_base += 'fewrays' if Nalpha == 300 else 'manyrays'
             with open(env_name_base + '.txt', 'w') as txt:
                 for NR in [10, 30, 100, 300, 1000, 3000, 10000]:
-                    if dim == 3 and NR > 300:
+                    if dim != 2 and NR > 300:
                         break
                     if dim == 2 and Nalpha == 20000 and NR == 10000:
                         break
                     title = 'Increasing num receivers with few rays, ' + str(NR) + 'x' + str(NR)
-                    if dim == 3: title += 'x' + str(NR)
+                    if dim != 2: title += 'x' + str(NR)
                     env_name = env_name_base + '_' + str(NR)
                     txt.write(env_name + '\n')
                     rt, it, st = 'C', 'G', 'C'
@@ -346,7 +338,7 @@ def gen_perf_tl_tests():
 def gen_perf_arr_tests():
     for hits in [False, True]:
         for bigfield in [False, True]:
-            for dim in [2, 3]:
+            for dim in [2, 3, 4]:
                 env_name_base = 'genperf_arr' + dims[dim]
                 env_name_base += '_hits' if hits else '_nohits'
                 env_name_base += '_big' if bigfield else '_small'
@@ -377,7 +369,7 @@ def gen_perf_arr_tests():
                             p['theta'] = [43.2, 43.9]
                             p['NRz'] = p['NRr'] = 100 if dim == 2 else 20
                             p['Ntheta'] = 1 if dim == 2 else 20
-                        Nbeta = 8 if dim == 3 else 1
+                        Nbeta = 8 if dim != 2 else 1
                         p['Nalpha'] = Nalpha // Nbeta
                         p['Nbeta'] = Nbeta
                         p['alpha'] = [150.0, 170.0] if dim == 2 and not hits else [-51.2, 51.2]
@@ -385,7 +377,7 @@ def gen_perf_arr_tests():
                         write_env_etc(dim, rt, it, st, p, env_name, title)
                 
 
-# gen_coverage_tests()
-# gen_perf_ray_tests()
-# gen_perf_tl_tests()
+gen_coverage_tests()
+gen_perf_ray_tests()
+gen_perf_tl_tests()
 gen_perf_arr_tests()
