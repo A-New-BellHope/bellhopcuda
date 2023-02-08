@@ -362,7 +362,8 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanT(
     }
 }
 template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
-    const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t)
+    const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t,
+    const int32_t &snapDim)
 {
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
     if constexpr(O3D && !R3D) {
@@ -393,6 +394,7 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
         if(x_try.x == x_orig.x) { x_try.x = x_orig.x + RL(1e-3) * t.x; }
         return x_try;
     } else {
+        IGNORE_UNUSED(snapDim);
         return x;
     }
 }

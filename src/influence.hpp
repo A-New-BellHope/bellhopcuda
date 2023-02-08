@@ -34,6 +34,13 @@ namespace bhc {
 
 /**
  * detect and skip duplicate points (happens at boundary reflection)
+ * LP: Despite const_thresh == true being very likely a bug, as it's only used
+ * once and the non-constant threshold is commented out at that point, the
+ * constant threshold is a better approach. This is always comparing positions,
+ * not other kinds of data. 1000*spacing is likely to be on the order of 1.0e-10
+ * or so, whereas 1.0e-4 is just one tenth of a millimeter. Duplicate steps are
+ * typically closer to the latter scale, so the former won't actually skip
+ * anything.
  */
 template<bool R3D> HOST_DEVICE inline bool IsSmallValue(
     real delta, real ref, bool const_thresh)
@@ -1375,8 +1382,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                 } else {
                     IGNORE_UNUSED(itheta);
                     x_rcvr.x = Pos->Rr[inflray.ir];
-
-                    // printf("Step ir %d %d\n", is, inflray.ir);
                 }
 
                 for(int32_t iz = 0; iz < Pos->NRz_per_range; ++iz) {
@@ -1398,10 +1403,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                     if constexpr(R3D) {
                         // normal distance to ray
                         n2 = STD::abs(glm::dot(x_rcvr_ray, rayn2));
-                    }
-                    if(inflray.ir == 20) {
-                        printf(
-                            "is ir iz s n1 %d %d %d %g %g\n", is, inflray.ir, iz, s, n1);
                     }
                     InfluenceGeoCore<CFG, O3D, R3D>(
                         s, n1, n2, dq, dtau, itheta, inflray.ir, iz, is, point0, point1,
