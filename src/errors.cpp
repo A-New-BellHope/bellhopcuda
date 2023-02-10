@@ -105,6 +105,8 @@ static const char *const warningDescriptions[BHC_WARN_MAX] = {
     "extremely large in PCHIP SSP, likely bug or garbage input",
     "BHC_WARN_CPCHIP_INVALIDCCOEF: cCoef is extremely large in PCHIP SSP, likely "
     "bug or garbage input",
+    "BHC_WARN_OCEANTORAYX_GAVEUP: Failed to transform Nx2D ray 3D -> 2D -> 3D in a "
+    "consistent way, edge case issues may result",
 };
 
 void CheckReportErrors(bhcInternal *internal, const ErrState *errState)

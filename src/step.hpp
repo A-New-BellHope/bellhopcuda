@@ -25,7 +25,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-#define STEP_DEBUGGING 1
+// #define STEP_DEBUGGING 1
 
 #ifdef BHC_USE_FLOATS
 #define INFINITESIMAL_STEP_SIZE (RL(1e-3))
@@ -54,8 +54,9 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
                 hInt);
 #endif
             if(stepTo) {
-                x      = x0 + hInt * urayt; // X or X,Y
-                DEP(x) = ssp->z[iSeg0.z];
+                x       = x0 + hInt * urayt; // X or X,Y
+                DEP(x)  = ssp->z[iSeg0.z];
+                snapDim = ZDIM<O3D>();
 #ifdef STEP_DEBUGGING
                 printf("to %20.17f %20.17f\n", x.x, x.y);
 #endif
@@ -68,8 +69,9 @@ template<bool O3D> HOST_DEVICE inline void DepthInterfaceCrossing(
                 hInt);
 #endif
             if(stepTo) {
-                x      = x0 + hInt * urayt; // X or X,Y
-                DEP(x) = ssp->z[iSeg0.z + 1];
+                x       = x0 + hInt * urayt; // X or X,Y
+                DEP(x)  = ssp->z[iSeg0.z + 1];
+                snapDim = ZDIM<O3D>();
 #ifdef STEP_DEBUGGING
                 printf("to %20.17f %20.17f\n", x.x, x.y);
 #endif
@@ -100,8 +102,9 @@ template<bool O3D, int DIM> HOST_DEVICE inline void BeamBoxCrossing(
             Beam->Box[DIM], hBox);
 #endif
         if(stepTo) {
-            x      = x0 + hBox * urayt;
-            x[DIM] = BeamBoxCenter<O3D>(xs)[DIM] + STD::copysign(Beam->Box[DIM], d0);
+            x       = x0 + hBox * urayt;
+            x[DIM]  = BeamBoxCenter<O3D>(xs)[DIM] + STD::copysign(Beam->Box[DIM], d0);
+            snapDim = DIM;
         }
     }
 }
@@ -134,6 +137,7 @@ template<bool O3D> HOST_DEVICE inline void TopBotCrossing(
                && (!O3D || STD::abs(bd.n.y) < REAL_EPSILON)) {
                 DEP(x) = DEP(bd.x);
             }
+            snapDim = ZDIM<O3D>(); // Even if not flat, exactness in Z most important
 #ifdef STEP_DEBUGGING
             printf("to %20.17f %20.17f\n", x.x, x.y);
 #endif
@@ -163,9 +167,10 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
         segLim.max = bhc::min(segLim.max, seg_w[iSeg + 1]);
     }
 
-    real &x_w    = isY ? x.y : x.x;
-    real x0_w    = isY ? x0.y : x0.x;
-    real urayt_w = isY ? urayt.y : urayt.x;
+    real &x_w      = isY ? x.y : x.x;
+    real x0_w      = isY ? x0.y : x0.x;
+    real urayt_w   = isY ? urayt.y : urayt.x;
+    int32_t snap_w = isY ? 1 : 0;
 #ifdef STEP_DEBUGGING
     const char *wlbl = O3D ? (isY ? "Y" : "X") : "R";
 #endif
@@ -176,6 +181,7 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
             if(stepTo) {
                 x       = x0 + hSeg * urayt;
                 x_w     = segLim.min;
+                snapDim = snap_w;
                 topRefl = botRefl = false;
             }
 #ifdef STEP_DEBUGGING
@@ -188,6 +194,7 @@ template<bool O3D> HOST_DEVICE inline void TopBotSegCrossing(
             if(stepTo) {
                 x       = x0 + hSeg * urayt;
                 x_w     = segLim.max;
+                snapDim = snap_w;
                 topRefl = botRefl = false;
             }
 #ifdef STEP_DEBUGGING
@@ -241,6 +248,7 @@ HOST_DEVICE inline void TriDiagCrossing(
 #endif
         if(stepTo) {
             x        = x0 + h * urayt;
+            snapDim  = -2; // Snap to X or Y unspecified
             flipDiag = true;
             topRefl = botRefl = false;
         }
@@ -333,6 +341,9 @@ template<bool O3D> HOST_DEVICE inline void ReduceStep(
     }
 }
 
+/**
+ * snapDim: See OceanToRayX.
+ */
 template<bool O3D> HOST_DEVICE inline void StepToBdry(
     const VEC23<O3D> &x0, VEC23<O3D> &x2, const VEC23<O3D> &urayt, real &h, bool &topRefl,
     bool &botRefl, bool &flipTopDiag, bool &flipBotDiag, int32_t &snapDim,
@@ -391,7 +402,7 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
             topRefl     = true;
             flipTopDiag = false;
             flipBotDiag = false;
-            snapDim     = 2;
+            snapDim     = ZDIM<O3D>();
         } else {
             topRefl = false;
         }
@@ -401,7 +412,7 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
             topRefl     = false;
             flipTopDiag = false;
             flipBotDiag = false;
-            snapDim     = 2;
+            snapDim     = ZDIM<O3D>();
         } else {
             botRefl = false;
         }
@@ -745,7 +756,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
     StepToBdry<O3D>(
         x_o, x2_o, t_o, h, topRefl, botRefl, flipTopDiag, flipBotDiag, snapDim, iSeg0,
         bds, Beam, xs, ssp, errState);
-    ray2.x = OceanToRayX(x2_o, org, urayt2, snapDim);
+    ray2.x = OceanToRayX(x2_o, org, urayt2, snapDim, errState);
 #ifdef STEP_DEBUGGING
     if constexpr(O3D && !R3D) {
         VEC23<O3D> x2_o_out = RayToOceanX(ray2.x, org);

@@ -89,6 +89,7 @@ extern void CheckReportErrors(bhcInternal *internal, const ErrState *errState);
 #define BHC_WARN_INVALID_TYPE_BUGGY 15
 #define BHC_WARN_CPCHIP_INVALIDXT 16
 #define BHC_WARN_CPCHIP_INVALIDCCOEF 17
-#define BHC_WARN_MAX 18
+#define BHC_WARN_OCEANTORAYX_GAVEUP 18
+#define BHC_WARN_MAX 19
 
 } // namespace bhc
