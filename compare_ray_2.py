@@ -87,8 +87,11 @@ def load_rayfil(f):
                 n2 -= 1
             else:
                 raise RuntimeError
-    assert state == 9 and n2 == 0
-    ret['rays'].append(ray)
+    if ray is None:
+        assert state == 7 and len(ret['rays']) == 0
+    else:
+        assert state == 9 and n2 == 0
+        ret['rays'].append(ray)
     return ret
 
 def compare_floats(cf, ff, cl, fl):

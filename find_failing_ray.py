@@ -87,7 +87,7 @@ while True:
     if os.system('../bellhop/Bellhop/bellhop' + ('' if dim == 2 else '3d') + '.exe test/FORTRAN/' + envfil) != 0:
         print('BELLHOP failed')
         sys.exit(4)
-    passed = os.system('python3 compare_shdfil.py ' + envfil) == 0
+    passed = os.system('python3 compare_shdfil.py ' + envfil + ' cxx1') == 0
     print('{} with alpha {} beta {}'.format('passed' if passed else 'failed', alpha, beta))
     if not passed:
         break

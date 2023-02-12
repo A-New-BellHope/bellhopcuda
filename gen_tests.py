@@ -192,6 +192,8 @@ def get_default_p(rt):
     
 def gen_all_it_st_combos(passtxt, failtxt, dim, rt):
     p = get_default_p(rt)
+    if dim == 4 and rt not in {'E', 'A', 'a'}:
+        p['theta'] = [1.0, 361.0]
     it_list = ['G'] if rt == 'R' else infl_types.keys()
     for it in it_list:
         for st in ssp_types.keys():

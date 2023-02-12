@@ -510,14 +510,14 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D, R3D> &p
     } else if(IsSGBInfl(params.Beam)) {
         if constexpr(R3D) { EXTERR("Invalid Run Type"); }
     } else if(IsGeometricInfl(params.Beam)) {
-        if constexpr(!O3D) {
+        if constexpr(!R3D) {
             if(IsRayCenInfl(params.Beam) && IsGaussianGeomInfl(params.Beam)) {
 #ifdef BHC_LIMIT_FEATURES
-                EXTERR("2D Gaussian RayCen is not supported by BELLHOP "
+                EXTERR("2D/Nx2D Gaussian RayCen is not supported by BELLHOP "
                        "but can be supported by " BHC_PROGRAMNAME " if you turn off "
                        "BHC_LIMIT_FEATURES");
 #else
-                EXTWARN("Warning: 2D Gaussian RayCen is not supported by "
+                EXTWARN("Warning: 2D/Nx2D Gaussian RayCen is not supported by "
                         "BELLHOP, but is supported by " BHC_PROGRAMNAME);
 #endif
             }
@@ -1497,8 +1497,8 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
                 real phaseInt = point1.Phase + inflray.phase;
                 ApplyContribution<CFG, O3D, false>(
                     uAllSources, cnst, w, inflray.omega, delay, phaseInt, RcvrDeclAngle,
-                    RL(0.0), 0, inflray.ir, iz, is, inflray, point1, Pos, Beam, eigen,
-                    arrinfo);
+                    RcvrAzimAngle, 0, inflray.ir, iz, is, inflray, point1, Pos, Beam,
+                    eigen, arrinfo);
             }
         }
 
