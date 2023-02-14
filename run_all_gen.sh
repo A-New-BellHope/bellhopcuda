@@ -24,16 +24,15 @@ run_kind() {
     ./run_tests.sh $kind gen_${kind}_fail shouldfail
 }
 
+run_kind rayNx2D
+run_kind tlNx2D
+run_kind eigenNx2D
 run_kind arrNx2D
 
 echo "================"
 echo "Done with script"
 echo "================"
 exit 0
-
-run_kind rayNx2D
-run_kind tlNx2D
-run_kind eigenNx2D
 
 run_kind ray2D
 run_kind tl2D
