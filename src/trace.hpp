@@ -279,10 +279,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     const ReflectionInfo *refl, const SSPStructure *ssp, const FreqInfo *freqinfo,
     const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, ErrState *errState)
 {
-    bool topRefl, botRefl, flipTopDiag, flipBotDiag;
+    bool topRefl, botRefl;
     Step<CFG, O3D, R3D>(
         point0, point1, bds, Beam, xs, org, ssp, iSeg, errState, iSmallStepCtr, topRefl,
-        botRefl, flipTopDiag, flipBotDiag);
+        botRefl);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -290,10 +290,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     }
     */
 
-    if constexpr(O3D) {
-        if(flipTopDiag) bds.top.tridiag_pos = !bds.top.tridiag_pos;
-        if(flipBotDiag) bds.bot.tridiag_pos = !bds.bot.tridiag_pos;
-    }
     VEC23<O3D> x_o = RayToOceanX(point1.x, org);
     VEC23<O3D> t_o = RayToOceanT(point1.t, org);
     GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true, false, errState);
@@ -309,7 +305,9 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
 
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl) {
-        // printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
+#ifdef STEP_DEBUGGING
+        printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
+#endif
         const BdryInfoTopBot<O3D> &bdi     = topRefl ? bdinfo->top : bdinfo->bot;
         const BdryStateTopBot<O3D> &bdstb  = topRefl ? bds.top : bds.bot;
         const HSInfo &hs                   = topRefl ? Bdry.Top.hs : Bdry.Bot.hs;

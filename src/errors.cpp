@@ -85,7 +85,7 @@ static const char *const warningDescriptions[BHC_WARN_MAX] = {
     "gone",
     "BHC_WARN_STEP_NEGATIVE_H: Ray needs to step backwards to reach next boundary; "
     "boundary edge case handling has gone wrong, this ray's results may be unreliable",
-    "BHC_WARN_TRIDIAG_H_VERY_NEGATIVE: Ray needs to step backwards to cross diagonal "
+    "BHC_WARN_TRIDIAG_H_NEGATIVE: Ray needs to step backwards to cross diagonal "
     "of top/bottom triangle; tri diagonal edge case handling has gone wrong, "
     "this ray's results may be unreliable",
     "BHC_WARN_TRIDIAG_H_GROWING: Tentative step crossed tri diagonal, but stepping "

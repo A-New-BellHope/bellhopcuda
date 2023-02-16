@@ -169,6 +169,13 @@ template<bool O3D> struct BdryInfo {
     BdryInfoTopBot<O3D> top, bot;
 };
 
+struct BdryTriDiagState {
+    bool side;
+    bool onEdge;
+    bool justSteppedTo;
+    bool outgoingSide;
+};
+
 struct BdryLimits {
     real min, max;
 };
@@ -184,7 +191,7 @@ template<> struct TmplBdryLimits12<true> {
 };
 template<bool O3D> struct BdryStateTopBotExtras {};
 template<> struct BdryStateTopBotExtras<true> {
-    bool tridiag_pos;
+    BdryTriDiagState td;
 };
 template<bool O3D> struct BdryStateTopBot : public BdryStateTopBotExtras<O3D> {
     IORI2<O3D> Iseg; // indices that point to the current active segment
