@@ -676,7 +676,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
             ray0.x.y, ray0.x.z, ray0.t.x, ray0.t.y, ray0.t.z);
         PrintMatrix(ray0.p, "ray0.p");
         PrintMatrix(ray0.q, "ray0.q");
-        printf("iSegx iSegy iSegz %d %d %d\n", iSeg.x + 1, iSeg.y + 1, iSeg.z + 1);
+        printf(
+            "iSegx iSegy iSegz top.td.side bot.td.side %d %d %d %c %c\n", iSeg.x + 1,
+            iSeg.y + 1, iSeg.z + 1, bds.top.td.side ? 'T' : 'F',
+            bds.bot.td.side ? 'T' : 'F');
     } else {
         printf(
             "\nray0 x t (%20.17f,%20.17f) (%20.17e,%20.17e)\n", ray0.x.x, ray0.x.y,

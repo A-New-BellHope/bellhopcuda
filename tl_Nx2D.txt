@@ -1,3 +1,0 @@
-//Fails due to tri diag issues
-KermitRooseveltwedge2d
-TruncatedWedge2d

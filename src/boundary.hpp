@@ -146,14 +146,16 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         tri_n /= glm::length(tri_n);
         vec2 temp             = vec2(x.x, x.y) - vec2(bds.xmid.x, bds.xmid.y);
         real over_diag_amount = glm::dot(temp, tri_n);
+        bds.td.onEdge         = STD::abs(over_diag_amount) < TRIDIAG_THRESH;
         // printf("temp %g,%g | tri_n %g,%g | over_diag_amount %g\n",
         //     temp.x, temp.y, tri_n.x, tri_n.y, over_diag_amount);
-        if(isInit || !bds.td.justSteppedTo) {
-            bds.td.side = over_diag_amount >= RL(0.0);
-        } else {
+        if(!isInit && bds.td.justSteppedTo) {
             bds.td.side = bds.td.outgoingSide;
+        } else if(!isInit && bds.td.onEdge) {
+            bds.td.side = glm::dot(XYCOMP(t), tri_n) >= RL(0.0);
+        } else {
+            bds.td.side = over_diag_amount >= RL(0.0);
         }
-        bds.td.onEdge        = STD::abs(over_diag_amount) < TRIDIAG_THRESH;
         bds.td.justSteppedTo = false;
         if(!bds.td.side) {
             bds.n = bdinfotb->bd[bds.Iseg.x * ny + bds.Iseg.y].n1;

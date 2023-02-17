@@ -27,15 +27,27 @@ import os
 import shutil
 
 if len(sys.argv) != 3:
-    print('Usage: python3 find_failing_ray.py <2/3/4> munk_something')
+    print('Usage: python3 find_failing_ray.py (ray/tl)(2D/3D/Nx2D) munk_something')
     print('No path, no .env')
     sys.exit(1)
 
 testpath = 'test/in/'
 envfil = sys.argv[2]
 envfilename = testpath + envfil + '.env'
-dim = int(sys.argv[1])
-assert 2 <= dim <= 4
+if 'Nx2D' in sys.argv[1]:
+    dim = 4
+elif '3D' in sys.argv[1]:
+    dim = 3
+elif '2D' in sys.argv[1]:
+    dim = 2
+else:
+    raise RuntimeError('Invalid run type')
+if 'ray' in sys.argv[1]:
+    compare_script = 'compare_ray_2.py'
+elif 'tl' in sys.argv[1]:
+    compare_script = 'compare_shdfil.py'
+else:
+    raise RuntimeError('Invalid run type')
 alphathreesixtysweep = False
 betathreesixtysweep = True
 
@@ -87,7 +99,7 @@ while True:
     if os.system('../bellhop/Bellhop/bellhop' + ('' if dim == 2 else '3d') + '.exe test/FORTRAN/' + envfil) != 0:
         print('BELLHOP failed')
         sys.exit(4)
-    passed = os.system('python3 compare_shdfil.py ' + envfil + ' cxx1') == 0
+    passed = os.system('python3 ' + compare_script + ' ' + envfil + ' cxx1') == 0
     print('{} with alpha {} beta {}'.format('passed' if passed else 'failed', alpha, beta))
     if not passed:
         break
