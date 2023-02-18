@@ -27,3 +27,15 @@ KR3dGaussian
 TruncatedWedge3dGaussian_side
 //40 minutes
 TruncatedWedge3dHatRayCen
+//22 minutes
+TruncatedWedge3d
+//128 minutes
+Seamount3DHatcart
+//68 minutes
+DoubleSeamount3D
+//71 minutes
+pwedge3dCart
+//84 minutes
+pwedge_elastic_3dCart
+//196 minutes
+Seamount3DHatRaycen
