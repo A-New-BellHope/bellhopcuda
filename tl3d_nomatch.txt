@@ -1,7 +1,10 @@
+//New failures:
+//19 seconds, only a few errors
+DoubleSeamount3DHat
 //
-// Coherent
 //
-// Hat Cartesian specified as G
+//Old failures
+//
 //1.5 minutes
 Taiwan3D
 //3.5 minutes
@@ -16,19 +19,3 @@ PerfectWedge3dGaussian
 PerfectWedge3dGaussianRayCen
 //157 or 166 minutes; lots wrong
 PerfectWedge3dHatRayCen
-//
-//BELLHOP3D runs for 314 MINUTES (!) and then fails
-Seamount3DGaussian
-//
-// Gaussian Cartesian
-//
-//
-//300 minutes, few wrong
-pwedge3dRayCen
-//
-//
-//
-//
-// New failures:
-// 19 seconds, only a few errors
-DoubleSeamount3DHat

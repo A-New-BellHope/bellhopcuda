@@ -22,6 +22,8 @@ Munkslice3dHatRaycen
 munk3d
 //36 seconds
 HyperBot3DPolar
+// 2 minutes
+KoreanSea_3D
 // 4 minutes
 TruncatedWedge3dHat_side
 // 5 minutes
@@ -32,6 +34,8 @@ KR3dCart
 // About 8 seconds each
 freeBgaussian
 freeBgaussianpolar
+// 2.5 minutes
+Munkslice3dGaussian
 //
 // Hat ray-centered
 // 15 seconds
