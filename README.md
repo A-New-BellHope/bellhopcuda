@@ -88,9 +88,7 @@ better in 2D than either of the others.
 [Download pre-compiled binaries for Windows 10 64-bit](
 https://github.com/A-New-BellHope/bellhopcuda/releases). We try to keep these
 up-to-date with most changes to the repo's main branch, though this is not
-guaranteed.
-
-However, the pre-compiled versions:
+guaranteed. However, the pre-compiled versions:
 - do not include all the executable and library versions possible to build
 - are only built for one GPU version (SM86, RTX 30x0)
 - are Windows versions only
@@ -101,10 +99,9 @@ If you need any other versions, please `git clone` and build from source.
 
 - Make sure you got the Git submodules (the `glm` folder should not be empty).
 - If you want `bellhopcuda`, install [the latest CUDA toolkit](
-  https://developer.nvidia.com/cuda-downloads) (see below for version
-  information). Otherwise if you do not want `bellhopcuda`, set the environment
-  variable `BHC_NO_CUDA` (to something like "1") or turn off the CMake option
-  `BHC_ENABLE_CUDA`.
+  https://developer.nvidia.com/cuda-downloads). Otherwise if you do not want
+  `bellhopcuda`, set the environment variable `BHC_NO_CUDA` (to something like
+  "1") or turn off the CMake option `BHC_ENABLE_CUDA`.
 - Build the project with CMake in the usual way for your platform. If you are
 not familiar with CMake, there are numerous tutorials online; the process is
 not project-specific, besides the options mentioned in this readme.
@@ -122,11 +119,11 @@ might see might mention some of the following items:
   be used as arguments...`
 
 We have [submitted an issue to NVIDIA](https://github.com/NVIDIA/libcudacxx/issues/354)
-about some of these issues, and they are in the process of being fixed. However,
-depending on when you are reading this, the fixes may be anywhere between "not
-yet finished" and "in the version of the CUDA toolkit you already have on your
-machine". So, always first upgrade to the latest CUDA version. If that does not
-solve the problem, let us know and also try the following:
+about some of these issues, and they are in the process of being fixed. We also
+put workarounds in place in the `bellhopcxx` / `bellhopcuda` codebase. However,
+if you run into any of these problems, always first upgrade to the latest CUDA
+version. If that does not solve the problem, let us know and also try the
+following:
 - Upgrade from Visual Studio 2017 to 2019 or 2022.
 - Download the libcudacxx source manually and replace `include/cuda` and
 `include/nv` in your CUDA installation with the appropriate directories from
@@ -135,7 +132,7 @@ the Git repo.
 ### How do I use `bellhopcxxlib` as a library in another project?
 
 - Copy the `[bellhopcuda repo]/include/bhc` directory to an `include` directory
-in your other project. Or, if a Git submodule, add the `[bellhopcuda repo]/include`
+in your parent project. Or, if a Git submodule, add the `[bellhopcuda repo]/include`
 directory to your include paths.
 - Set your parent project's C++ version to C++17 or later.
 - If you are on Windows and using the `bellhopcxxlib.dll` shared (dynamic) library
@@ -174,11 +171,11 @@ The summary is:
 - Generally, the speedup in multithreaded mode roughly scales with the number of
   logical CPU cores, with a scaling factor roughly ranging from 0.5 to 1.2
   (e.g. a 6-core, 12-thread CPU will often get a 6x-15x speedup).
-- If you have a reasonably modern (but consumer-grade) GPU and the run uses
-  a large number of rays (in the 10,000s or more), the speedup from CUDA will
-  often be a few times above than the CPU speedup (e.g. 20x-100x). Conversely,
-  if there are a small number of rays, the CUDA performance will be worse than
-  the CPU performance.
+- If you have a reasonably modern (but consumer-grade) GPU and the run uses a
+  large number of rays (in the 10,000s or more), the speedup of the CUDA version
+  will often be a few times above the CPU speedup (e.g. 20x-100x compared to the
+  Fortran version). Conversely, if there are a small number of rays, the CUDA
+  performance will be worse than the CPU performance.
 
 Some factors affecting the performance are discussed below.
 
@@ -187,12 +184,12 @@ Some factors affecting the performance are discussed below.
 In both CPU multithreaded mode and CUDA mode, the processing is parallelized
 over the rays. The number of rays needed to fully utilize each chip is a few
 times the number of cores--but on the CPU this will be anything over a hundred
-or so, whereas on the GPU you will need tens of thousands as there are many
-thousands of cores. However, experimentally, the speedup does not stop once this
-number is reached--running hundreds of thousands or millions of rays continues
-to bring additional, though diminishing, performance gain over `BELLHOP` /
-`BELLHOP3D`. Of course, whether more rays is useful or not is very application-
-dependent.
+or so rays, whereas on the GPU you will need tens of thousands of rays as there
+are many thousands of cores. However, experimentally, the speedup does not stop
+once this number is reached--running hundreds of thousands or millions of rays
+continues to bring additional, though diminishing, performance gain over
+`BELLHOP` / `BELLHOP3D`. Of course, whether more rays is useful or not is very
+application- dependent.
 
 #### File I/O
 
@@ -213,14 +210,14 @@ the rays traverse. In the latter, every step of every ray will influence a
 number of receivers, whereas in the former, whereas in the former most rays will
 not influence any receivers. This is especially true for eigenrays and arrivals
 runs: these run types will work best when the user is interested in finding a
-handful of rays which reach an area of interest out of a large number initially
-traced.
+handful of rays which reach an area of interest out of a large number of rays
+initially traced.
 
 #### Run type
 
 Transmission loss runs typically bring the largest speedups over `BELLHOP` /
-`BELLHOP3D`. Arrivals typically have worse performance, depending on the
-receivers' layout as discussed above.
+`BELLHOP3D`. Arrivals typically have lower speedups, depending on the receivers'
+layout as discussed above.
 
 For ray runs, the full rays must be written out to disk, serially one after
 another. For this reason, our CUDA version does not even compute the rays on the
@@ -237,7 +234,7 @@ end, just those rays which hit receivers are re-traced in CPU multithreaded
 mode (even if the CUDA version is running), and the resulting rays are written.
 This can be much more efficient than `BELLHOP` / `BELLHOP3D` when there are
 few receivers, but it will be less efficient when there are receivers everywhere
-and extremely large numbers of eigenrays.
+and consequently extremely large numbers of eigenrays.
 
 #### Dimensionality
 
@@ -261,22 +258,27 @@ match the double precision version.
 Consumer NVIDIA GPUs only contain vestigial double-precision floating-point
 support, at 1/64th the throughput compared to single-precision. Only the server-
 class GPUs (in the tens of thousands of dollars) include full double-precision
-support. So for some applications, the single-precision version may be useful
-for obtaining fast but rough initial results on the GPU. 
+support. The fact that the CUDA version still can bring substantial speedups
+over the CPU is explained by the fact that most of the actual instructions being
+executed are integer or memory instructions, with only a portion being
+floating-point math. Nevertheless, the floating-point performance may be the
+bottleneck in some runs, and for some applications, the single-precision version
+may be useful for obtaining fast, approximate initial results on a consumer GPU. 
 
 ## Accuracy
 
-The physics model in `BELLHOP` / `BELLHOP3D` has a number of properties which
-make it sensitive to numerical details. For example, moving a source by 1 cm
-in a basic test case causes up to about 3 dB differences throughout the field.
-As a more extreme example, we created a modified version of the original
-`BELLHOP` code which adds random perturbations less than *100 microns* to the
-position (not even direction!) of each ray after each step. This was chosen
-because on the one hand, the real-world uncertainty in the ocean is at a far
-larger scale, and on the other hand, these perturbations wreak havoc on
-`BELLHOP`'s edge case handling (see below). The differences in the resulting
-field reach up to 40 dB and are visible when comparing the transmission loss
-plots by eye.
+The physics model in the original `BELLHOP` / `BELLHOP3D` has a number of
+properties which make it sensitive to numerical details. For example, moving a
+source by 1 cm in a basic test case causes up to about 3 dB differences
+throughout the field. As a more extreme example, we created a modified version
+of the original `BELLHOP` code which adds random perturbations less than *100
+microns* to the position (not even direction!) of each ray after each step.
+(Steps are typically on the order of 1 km, so this is a relative error on the
+order of 10^-7.) This was chosen because on the one hand, the real-world
+uncertainty in the ocean is at a far larger scale, and on the other hand, these
+perturbations wreak havoc on `BELLHOP`'s edge case handling (see below). These
+tiny perturbations result in up to 40 dB differences in the field, which are
+visible when comparing the transmission loss plots by eye.
 
 Of course, `BELLHOP` has been providing useful results to researchers for four
 decades now, despite these limitations of its model. We mention this for the
@@ -285,20 +287,20 @@ mismatch between the program's output and the reference output means the test
 has failed and the program has a bug somewhere. In this project, such a mismatch
 could be caused by something as subtle as the Fortran compiler emitting a fused
 multiply-add instruction where the C++ compiler emitted separate multiply and
-add instructions--in fact, in one case, we confirmed this was the source of a
+add instructions. (In fact, in one case, we confirmed this was the source of a
 discrepancy from examining the disassembly, and explicitly added the FMA to the
-C++ version.
+C++ version.)
 
 But not only is it not realistic to try to reproduce the exact set of floating-
 point operations in a different language and compiler to get exactly matching
 results--we *want* the set of operations to be different in some cases. For
-example, this was necessary to introduce parallelism, which was one of the main
-goals of the project. Early on in the project, we found a combination of bugs
-and edge case conditions--documented in [the readme of our modified Fortran
-version](https://github.com/A-New-BellHope/bellhop)--which made it impossible
-to parallelize the computation if we wanted to reproduce the original results
-(with the bugs). Instead of abandoning the parallelization and the project, we
-decided to fix the bugs and improve the numerical stability.
+example, early on in the project, we found a combination of bugs and edge case
+conditions--documented in [the readme of our modified Fortran
+version](https://github.com/A-New-BellHope/bellhop)--which made it impossible to
+parallelize the computation if we wanted to reproduce the original results (with
+the bugs). Instead of abandoning the parallelization--which was one of the main
+goals of the project--we decided to fix the bugs and improve the numerical
+stability.
 
 Since then, we have been comparing the results of `bellhopcxx` / `bellhopcuda`
 to our modified Fortran version, not to the original `BELLHOP` / `BELLHOP3D`.
@@ -308,6 +310,22 @@ responsible. Of course, if it is a bug in our new code, we fix that. But when it
 is a numerical stability / robustness issue, we implement a change in *both*
 versions which attempts to make that part of the code more reproducible, and
 hopefully then the results start matching again.
+
+We have made a variety of these changes, [documented
+here](https://github.com/A-New-BellHope/bellhop), but the most significant set
+of changes was to the handling of boundaries. Boundaries are locations in the
+ocean, such as a change in SSP or a change in the bathymetry slope, where the
+ray may have to recompute its direction to curve. As such, the ray steps forward
+until it hits the next boundary in the direction it is traveling, and then
+adjusts its direction. Thus, most steps place a ray directly on a boundary.
+Due to floating-point imprecision, this may actually be slightly in front of or
+behind the boundary, which (slightly) affects the subsequent trajectory. In
+short, almost every step of every ray lands on an edge case. The original
+`BELLHOP` / `BELLHOP3D` made no attempt to handle this consistently; our version
+handles most boundaries in a fully consistent manner and the remaining couple in
+a manner which is perhaps about 99.999% consistent. (Of course, that means the
+remaining ~0.001% of rays diverge slightly, potentially causing results to not
+match.)
 
 So all of the results discussed here are as compared to [our modified Fortran
 version](https://github.com/A-New-BellHope/bellhop), not the original `BELLHOP`
