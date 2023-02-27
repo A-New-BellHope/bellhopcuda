@@ -24,6 +24,11 @@ run_kind() {
     ./run_tests.sh $kind gen_${kind}_fail shouldfail
 }
 
+run_kind ray2D
+run_kind tl2D
+run_kind eigen2D
+run_kind arr2D
+
 run_kind ray3D
 run_kind tl3D
 run_kind eigen3D
@@ -38,8 +43,3 @@ echo "================"
 echo "Done with script"
 echo "================"
 exit 0
-
-run_kind ray2D
-run_kind tl2D
-run_kind eigen2D
-run_kind arr2D

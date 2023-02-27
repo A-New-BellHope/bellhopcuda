@@ -46,12 +46,13 @@ Windows).
 to improve its numerical properties and robustness (see below). These fixes were
 essential to being able to reproduce its results in another language (or two).
 These fixes are of course also incorporated into `bellhopcxx` / `bellhopcuda`.
-- This repo also builds `bellhopcxx` as a library, which can be incorporated
-into other programs, as well as the traditional executable version. The library
-version allows the simulation parameters to be modified and the simulation
-rerun, and it is not bottlenecked by slow file I/O for getting the results.
-The library version also allows running multiple independent simulations with
-different parameters at the same time (there are no global variables).
+- As well as the traditional executable version, this repo also builds
+  `bellhopcxx` as a library, which can be incorporated into other programs. The
+  library version allows the simulation parameters to be modified and the
+  simulation rerun, and it is not bottlenecked by slow file I/O for getting the
+  results. The library version also allows running multiple independent
+  simulations with different parameters at the same time (there are no global
+  variables).
 - By default, our version supports certain combinations of parameters which are
   not supported by the original version, such as 2D Gaussian ray-centered
   influence and 3D PCHIP. A compile-time option can be set to artificially limit
@@ -60,7 +61,7 @@ different parameters at the same time (there are no global variables).
 ### Can I use `bellhopcxx` / `bellhopcuda` with MATLAB?
 
 Yes. `bellhopcxx` and `bellhopcuda` read the same `.env` and other input files
-and produce output files in the same formats as `BELLHOP`.
+and produce output files in the same formats as `BELLHOP` / `BELLHOP3D`.
 
 The normal `bellhopcxx.exe` and `bellhopcuda.exe` executables select their
 dimensionality with command-line flags (e.g. `--2D`, `--3D`, `--Nx2D`). The
@@ -80,8 +81,8 @@ reasonably well-tested. The numerical stability and robustness of all of
 these versions is significantly improved from the original `BELLHOP` /
 `BELLHOP3D` (see more discussion below), so in any application where the
 original version was sufficient, our versions should be as well. With that said,
-the numerical stability and reproducibility is better in 3D than Nx2D, and
-better in 2D than either of the others.
+the numerical stability and reproducibility is better in 2D than in 3D or Nx2D,
+and slightly better in 3D than Nx2D.
 
 ### How do I download the project?
 
@@ -228,20 +229,20 @@ are still often noticeable.
 
 For eigenrays runs, when a ray influences a receiver, a data structure similar
 to an arrival is written to memory, but the full ray is not saved to memory (or
-worse, to disk). This allows a large number of rays to be searched for the few
-which hit target receivers, on either CPU multithreaded or CUDA. Then, at the
-end, just those rays which hit receivers are re-traced in CPU multithreaded
-mode (even if the CUDA version is running), and the resulting rays are written.
-This can be much more efficient than `BELLHOP` / `BELLHOP3D` when there are
-few receivers, but it will be less efficient when there are receivers everywhere
-and consequently extremely large numbers of eigenrays.
+worse for the parallelism, to disk). This allows a large number of rays to be
+searched for the few which hit target receivers, on either CPU multithreaded or
+CUDA. Then, at the end, just those rays which hit receivers are re-traced in CPU
+multithreaded mode (even if the CUDA version is running), and the resulting rays
+are written. This can be much more efficient than `BELLHOP` / `BELLHOP3D` when
+there are few receivers, but it will be less efficient when there are receivers
+everywhere and consequently extremely large numbers of eigenrays.
 
 #### Dimensionality
 
 The speedup for 2D is typically slightly (maybe 10% on average) higher than for
 3D. The speedup for Nx2D is similar to that for 3D.
 
-#### Double-precision floating point
+#### Floating point precision
 
 By default, `bellhopcxx` / `bellhopcuda` uses double precision (64-bit floats)
 for almost all arithmetic. (It uses the same precision as the Fortran version
@@ -253,7 +254,9 @@ However, our version can also be built to use single precision (32-bit floats)
 for all arithmetic. This generally works--the ray or TL plots generally look the
 same by eye--but as you might expect, this substantially increases the chances
 of numerical stability problems, and the details of the results generally do not
-match the double precision version.
+match the double precision version. For example, in a particular run, 99% of the
+rays might follow nearly the same trajectory as with full precision, but 1% of
+the rays might diverge and go elsewhere.
 
 Consumer NVIDIA GPUs only contain vestigial double-precision floating-point
 support, at 1/64th the throughput compared to single-precision. Only the server-
@@ -262,7 +265,7 @@ support. The fact that the CUDA version still can bring substantial speedups
 over the CPU is explained by the fact that most of the actual instructions being
 executed are integer or memory instructions, with only a portion being
 floating-point math. Nevertheless, the floating-point performance may be the
-bottleneck in some runs, and for some applications, the single-precision version
+bottleneck in some runs. For some applications, the single-precision version
 may be useful for obtaining fast, approximate initial results on a consumer GPU. 
 
 ## Accuracy
@@ -317,19 +320,20 @@ of changes was to the handling of boundaries. Boundaries are locations in the
 ocean, such as a change in SSP or a change in the bathymetry slope, where the
 ray may have to recompute its direction to curve. As such, the ray steps forward
 until it hits the next boundary in the direction it is traveling, and then
-adjusts its direction. Thus, most steps place a ray directly on a boundary.
-Due to floating-point imprecision, this may actually be slightly in front of or
-behind the boundary, which (slightly) affects the subsequent trajectory. In
-short, almost every step of every ray lands on an edge case. The original
-`BELLHOP` / `BELLHOP3D` made no attempt to handle this consistently; our version
-handles most boundaries in a fully consistent manner and the remaining couple in
-a manner which is perhaps about 99.999% consistent. (Of course, that means the
-remaining ~0.001% of rays diverge slightly, potentially causing results to not
-match.)
+adjusts its direction. Thus, most steps place a ray directly on a boundary--in
+other words, almost every step of every ray hits an edge case. Due to
+floating-point imprecision, this may actually be slightly in front of or behind
+the boundary. This affects the subsequent trajectory in a way which is usually
+very small, but can be amplified to large changes later. The original `BELLHOP`
+/ `BELLHOP3D` made no attempt to handle stepping to boundaries consistently; our
+version handles most boundaries in a fully consistent manner and the remaining
+couple in a manner which is perhaps about 99.99% consistent. (Of course, that
+means the remaining ~0.01% of rays diverge slightly, potentially causing
+results to not match.)
 
 So all of the results discussed here are as compared to [our modified Fortran
 version](https://github.com/A-New-BellHope/bellhop), not the original `BELLHOP`
-/ `BELLHOP3D`. And when we discuss results that do not match, these are mostly
+/ `BELLHOP3D`. And when we report results that do not match, these are mostly
 either cases where the best methods we were able to come up with still
 occasionally diverge, or cases we have not studied in detail. Because of how
 many cases do match, it's unlikely that these are just the result of bugs in our
@@ -345,12 +349,14 @@ the outputs.
 
 ### Coverage Tests
 
-A set of scripts are provided which generate test environment files (with
+A set of scripts are provided which generate test environment files (along with
 SSP files, bathymetry, etc. as appropriate) for every combination of run type,
 influence type, SSP, and dimensionality (about 1500 tests). These are primarily
 for code coverage, rather than testing the correctness of the physics, and are
 short to be able to run relatively quickly. The scripts also test to make sure
-which any tests which 
+that any combinations of these settings which are not supported by `BELLHOP` /
+`BELLHOP3D` are rejected by our version, assuming the `BHC_LIMIT_FEATURES` build
+option was enabled.
 
 The current version of `bellhopcxx` / `bellhopcuda` matches on all the coverage
 tests.
@@ -363,12 +369,12 @@ data are in the text files included in the root of this repo, e.g.
 `ray_3d_pass.txt`, `tl_long.txt`, etc. This table is just counts of the entries
 in those files.
 
-Note that many of these tests fail to run in `BELLHOP` / `BELLHOP3D` at all,
-either because they may be for one of the other Acoustics Toolbox simulators or
-because the environment file syntax has changed since they were written. Our
-version produces the same behavior as the original version on all of these test
-cases (though often with more descriptive error messages), so this "Both fail"
-case is actually a "pass" for our version.
+The "Both fail" column is for tests which fail to run in `BELLHOP` / `BELLHOP3D`
+at all, either because they may be for one of the other Acoustics Toolbox
+simulators or because the environment file syntax has changed since they were
+written. Our version produces the same behavior as the original version on all
+of these test cases (though often with more descriptive error messages), so this
+"Both fail" case is actually a "pass" for our version.
 
 |     | Match | Do not match | Both fail |
 | --- | --- | --- | --- |
@@ -385,8 +391,8 @@ case is actually a "pass" for our version.
 | Nx2D eigen | 0 | 0 | 0 |
 | Nx2D arrivals | 0 | 0 | 0 |
 
-[1]: Two runs match in single-threaded mode but inconsistently don't match in
-multithreaded or CUDA mode. \
+[1]: There are two runs which consistently match in single-threaded mode, but
+sometimes do and sometimes don't match in multithreaded or CUDA mode. \
 [2]: There is only one environment file; it runs out of memory after over 3
 hours, so this has not been investigated further.
 
