@@ -45,6 +45,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <chrono>
 #include <exception>
 
+#define GLM_FORCE_EXPLICIT_CTOR 1
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_access.hpp>
@@ -69,16 +70,16 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Yes, I'm aware this is not GCC--this is a hack for the buggy libcudacxx MSVC
 // support
-#define __GCC_ATOMIC_BOOL_LOCK_FREE     2
-#define __GCC_ATOMIC_CHAR_LOCK_FREE     2
+#define __GCC_ATOMIC_BOOL_LOCK_FREE 2
+#define __GCC_ATOMIC_CHAR_LOCK_FREE 2
 #define __GCC_ATOMIC_CHAR16_T_LOCK_FREE 2
 #define __GCC_ATOMIC_CHAR32_T_LOCK_FREE 2
-#define __GCC_ATOMIC_WCHAR_T_LOCK_FREE  2
-#define __GCC_ATOMIC_SHORT_LOCK_FREE    2
-#define __GCC_ATOMIC_INT_LOCK_FREE      2
-#define __GCC_ATOMIC_LONG_LOCK_FREE     2
-#define __GCC_ATOMIC_LLONG_LOCK_FREE    2
-#define __GCC_ATOMIC_POINTER_LOCK_FREE  2
+#define __GCC_ATOMIC_WCHAR_T_LOCK_FREE 2
+#define __GCC_ATOMIC_SHORT_LOCK_FREE 2
+#define __GCC_ATOMIC_INT_LOCK_FREE 2
+#define __GCC_ATOMIC_LONG_LOCK_FREE 2
+#define __GCC_ATOMIC_LLONG_LOCK_FREE 2
+#define __GCC_ATOMIC_POINTER_LOCK_FREE 2
 
 #ifndef __ATOMIC_RELAXED
 #define __ATOMIC_RELAXED 0
@@ -338,62 +339,6 @@ HOST_DEVICE inline double RealBitsAddInt(double r, int32_t i)
     std::memcpy(&x, &k, 8);
     return x;
 #endif
-}
-
-template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanX(
-    const VEC23<R3D> &x, const Origin<O3D, R3D> &org)
-{
-    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
-    if constexpr(O3D && !R3D) {
-        return vec3(org.xs.x + x.x * org.tradial.x, org.xs.y + x.x * org.tradial.y, x.y);
-    } else {
-        return x;
-    }
-}
-template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanT(
-    const VEC23<R3D> &t, const Origin<O3D, R3D> &org)
-{
-    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
-    if constexpr(O3D && !R3D) {
-        return vec3(t.x * org.tradial.x, t.x * org.tradial.y, t.y);
-    } else {
-        return t;
-    }
-}
-template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
-    const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t)
-{
-    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
-    if constexpr(O3D && !R3D) {
-        // LP: Going back and forth through the coordinate transform won't
-        // always keep the precise value, so we may have to finesse the floats.
-        vec2 x_orig;
-        x_orig.y = x.z;
-        if(STD::abs(org.tradial.x) >= STD::abs(org.tradial.y)) {
-            x_orig.x = (x.x - org.xs.x) / org.tradial.x;
-        } else {
-            x_orig.x = (x.x - org.xs.y) / org.tradial.y;
-        }
-        vec3 x_res = RayToOceanX(x_orig, org);
-        if(x_res.x == x.x && x_res.y == x.y) {
-            // Got lucky--it went through and came back with the same values.
-            return x_orig;
-        }
-        // Try adding or subtracting one ulp.
-        vec2 x_try  = x_orig;
-        x_try.x     = RealBitsAddInt(x_orig.x, 1);
-        vec2 x_res2 = RayToOceanX(x_try, org);
-        if(x_res2.x == x.x && x_res2.y == x.y) return x_try;
-        x_try.x = RealBitsAddInt(x_orig.x, -1);
-        x_res2  = RayToOceanX(x_try, org);
-        if(x_res2.x == x.x && x_res2.y == x.y) return x_try;
-        // No hope of being exact. Just try to be slightly forward of the boundary.
-        x_try.x = x_orig.x + RL(1e-6) * t.x;
-        if(x_try.x == x_orig.x) { x_try.x = x_orig.x + RL(1e-3) * t.x; }
-        return x_try;
-    } else {
-        return x;
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -855,6 +800,109 @@ HOST_DEVICE inline void RayNormal(const vec3 &t, real phi, real c, vec3 &e1, vec
 HOST_DEVICE inline void RayNormal_unit(const vec3 &t, real phi, vec3 &e1, vec3 &e2)
 {
     RayNormalImpl(t, phi, true, RL(1.0), e1, e2);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Nx2D conversions
+////////////////////////////////////////////////////////////////////////////////
+
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanX(
+    const VEC23<R3D> &x, const Origin<O3D, R3D> &org)
+{
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D) {
+        return vec3(org.xs.x + x.x * org.tradial.x, org.xs.y + x.x * org.tradial.y, x.y);
+    } else {
+        return x;
+    }
+}
+
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanT(
+    const VEC23<R3D> &t, const Origin<O3D, R3D> &org)
+{
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D) {
+        return vec3(t.x * org.tradial.x, t.x * org.tradial.y, t.y);
+    } else {
+        return t;
+    }
+}
+
+/**
+ * LP: Going back and forth through the coordinate transform won't
+ * always keep the precise value, so we may have to finesse the floats.
+ * Valid values of snapDim:
+ * -2: Snap to X or Y unspecified
+ * -1: No snap
+ *  0: Snap to X
+ *  1: Snap to Y
+ *  2: Snap to Z
+ */
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
+    const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t,
+    const int32_t &snapDim, ErrState *errState)
+{
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D) {
+        vec2 ret;
+        // Depth always transfers perfectly--not changed.
+        ret.y = x.z;
+        // For range, use larger dimension--this avoids divide-by-zero or divide
+        // by a small number causing accuracy problems.
+        if(STD::abs(org.tradial.x) >= STD::abs(org.tradial.y)) {
+            ret.x = (x.x - org.xs.x) / org.tradial.x;
+        } else {
+            ret.x = (x.y - org.xs.y) / org.tradial.y;
+        }
+        if(snapDim < -2 || snapDim == -1 || snapDim >= 2) {
+            // Either:
+            // snapDim out of range (won't happen, but want to help compiler)
+            // No snap selected--this is the best estimate
+            // Snap to Z--Z already perfect, this is the best estimate
+            return ret;
+        }
+        // Only do this iteration a few times, then give up.
+        for(int32_t i = 0; i < 4; ++i) {
+            // Go back from 2D to 3D, compare to original x.
+            vec3 x_back = RayToOceanX(ret, org);
+            // If we can't be on the boundary, we want to be slightly forward of
+            // the boundary, measured in terms of the ray tangent range. This also
+            // encompasses cases where one component exactly matches (errdir.x_or_y
+            // == RL(0.0)). For both of these values, only the sign matters.
+            vec2 wantdir     = org.tradial * t.x;
+            vec2 errdir      = XYCOMP(x_back) - XYCOMP(x);
+            bool correctdirx = (wantdir.x * errdir.x) >= RL(0.0);
+            bool correctdiry = (wantdir.y * errdir.y) >= RL(0.0);
+            if((snapDim == 0 && correctdirx) || (snapDim == 1 && correctdiry)
+               || (correctdirx && correctdiry)) {
+                return ret;
+            }
+            // Move to the next floating point value for ret, in the direction
+            // of the ray tangent. How do we know this will actually produce a
+            // new value for x_back? If the scale of the floating point steps
+            // around x_back is larger than that of ret (several values of ret
+            // map to the same value of x_back after the transform), there
+            // should be no problem in finding a value that maps exactly, so
+            // we would not get here.
+            ret.x = RealBitsAddInt(ret.x, (t.x > RL(0.0)) ? 1 : -1);
+        }
+        RunWarning(errState, BHC_WARN_OCEANTORAYX_GAVEUP);
+        return ret;
+    } else {
+        IGNORE_UNUSED(snapDim);
+        return x;
+    }
+}
+
+template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayT(
+    const VEC23<O3D> &t, const Origin<O3D, R3D> &org)
+{
+    static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
+    if constexpr(O3D && !R3D) {
+        return vec2(glm::dot(XYCOMP(t), org.tradial), DEP(t));
+    } else {
+        return t;
+    }
 }
 
 } // namespace bhc

@@ -82,7 +82,7 @@ template<bool O3D, int DIM> inline HOST_DEVICE bool IsOutsideBeamBoxDim(
 {
     static_assert(DIM >= 0 && DIM <= ZDIM<O3D>(), "Invalid use of IsOutsideBoxDim!");
     // LP: In 2D, source range is always 0.
-    return STD::abs(x[DIM] - BeamBoxCenter<O3D>(xs)[DIM]) > Beam->Box[DIM];
+    return STD::abs(x[DIM] - BeamBoxCenter<O3D>(xs)[DIM]) >= Beam->Box[DIM];
 }
 
 /**

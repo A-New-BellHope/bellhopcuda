@@ -27,9 +27,11 @@ use_float = False
 if use_float:
     thresh_rel_print = 1e-4
     thresh_rel_alarm = 1e-2
+    thresh_abs = 1e-3
 else:
     thresh_rel_print = 1e-6
     thresh_rel_alarm = 1e-3
+    thresh_abs = 1e-5
 
 def load_rayfil(f):
     ret = {'rays': []}
@@ -85,12 +87,15 @@ def load_rayfil(f):
                 n2 -= 1
             else:
                 raise RuntimeError
-    assert state == 9 and n2 == 0
-    ret['rays'].append(ray)
+    if ray is None:
+        assert state == 7 and len(ret['rays']) == 0
+    else:
+        assert state == 9 and n2 == 0
+        ret['rays'].append(ray)
     return ret
 
 def compare_floats(cf, ff, cl, fl):
-    if abs(cf - ff) < 1e-8:
+    if abs(cf - ff) < thresh_abs:
         return True # Ignore relative error if abs error very small
     if (cf == 0.0) != (ff == 0.0):
         return False

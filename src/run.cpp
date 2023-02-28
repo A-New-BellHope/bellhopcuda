@@ -164,12 +164,12 @@ template<bool O3D, bool R3D> bool writeout(
 #if BHC_ENABLE_2D
 template BHC_API bool writeout<false, false>(
     const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
-#if BHC_ENABLE_NX2D
 #endif
+#if BHC_ENABLE_NX2D
 template BHC_API bool writeout<true, false>(
     const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
-#if BHC_ENABLE_3D
 #endif
+#if BHC_ENABLE_3D
 template BHC_API bool writeout<true, true>(
     const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
 #endif

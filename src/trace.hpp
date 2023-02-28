@@ -33,18 +33,19 @@ namespace bhc {
  * Topn, Botn: top, bottom normal vector (outward)
  * DistTop, DistBot: distance (normal to bdry) from the ray to top, bottom boundary
  */
-template<bool R3D> HOST_DEVICE inline void Distances(
-    const VEC23<R3D> &rayx, const VEC23<R3D> &Topx, const VEC23<R3D> &Botx,
-    const VEC23<R3D> &Topn, const VEC23<R3D> &Botn, real &DistTop, real &DistBot)
+template<bool O3D> HOST_DEVICE inline void Distances(
+    const VEC23<O3D> &rayx, const VEC23<O3D> &Topx, const VEC23<O3D> &Botx,
+    const VEC23<O3D> &Topn, const VEC23<O3D> &Botn, real &DistTop, real &DistBot)
 {
-    VEC23<R3D> dTop = rayx - Topx; // vector pointing from top    bdry to ray
-    VEC23<R3D> dBot = rayx - Botx; // vector pointing from bottom bdry to ray
+    VEC23<O3D> dTop = rayx - Topx; // vector pointing from top    bdry to ray
+    VEC23<O3D> dBot = rayx - Botx; // vector pointing from bottom bdry to ray
     DistTop         = -glm::dot(Topn, dTop);
     DistBot         = -glm::dot(Botn, dBot);
 }
 
 /**
- * LP: Not a typo that this is templated on O3D only
+ * LP: Not a typo that this is templated on O3D only. In BELLHOP3D, this happens
+ * before the Nx2D/3D split, so it is only dependent on the ocean's dimensionality.
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
     int32_t isx, int32_t isy, int32_t isz, real alpha, SSPSegState &iSeg,
@@ -60,7 +61,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNomi
         tinit = vec2(STD::cos(alpha), STD::sin(alpha));
     }
     SSPOutputs<O3D> o;
-    // LP: Not a typo that this is templated on O3D only
+    // LP: Not a typo that this is templated on O3D only; see function comment.
     EvaluateSSP<CFG, O3D, O3D>(xs, tinit, o, Origin<O3D, O3D>(), ssp, iSeg, errState);
     return o;
 }
@@ -211,24 +212,54 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         xs, RayToOceanT(point0.t, org), bds.bot, &bdinfo->bot, Bdry.Bot, false, true,
         errState); // identify the bottom segment below the source
 
-    Distances<R3D>(
-        point0.x, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
+    Distances<O3D>(
+        xs, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistBegTop, DistBegBot);
 
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)) {
         RunWarning(errState, BHC_WARN_SOURCE_OUTSIDE_BOUNDARIES);
         // printf("Terminating the ray trace because the source is on or outside the "
         //           "boundaries\n");
-        /*
-        if(DistBegTop <= FL(0.0)){
-            printf("point0.x %f,%f bds.top.x %f,%f bds.top.n %f,%f DistBegTop %f\n",
-                point0.x.x, point0.x.y, bds.top.x.x, bds.top.x.y,
-                bds.top.n.x, bds.top.n.y, DistBegTop);
-        }else{
-            printf("point0.x %f,%f bds.bot.x %f,%f bds.bot.n %f,%f DistBegBot %f\n",
-                point0.x.x, point0.x.y, bds.bot.x.x, bds.bot.x.y,
-                bds.bot.n.x, bds.bot.n.y, DistBegBot);
+        // /*
+        if(DistBegTop <= FL(0.0)) {
+            if constexpr(R3D) {
+                printf(
+                    "point0.x %g,%g,%g bds.top.x %g,%g,%g bds.top.n %g,%g,%g DistBegTop "
+                    "%g\n",
+                    point0.x.x, point0.x.y, point0.x.z, bds.top.x.x, bds.top.x.y,
+                    bds.top.x.z, bds.top.n.x, bds.top.n.y, bds.top.n.z, DistBegTop);
+            } else if constexpr(O3D) {
+                printf(
+                    "point0.x %g,%g bds.top.x %g,%g,%g bds.top.n %g,%g,%g DistBegTop "
+                    "%g\n",
+                    point0.x.x, point0.x.y, bds.top.x.x, bds.top.x.y, bds.top.x.z,
+                    bds.top.n.x, bds.top.n.y, bds.top.n.z, DistBegTop);
+            } else {
+                printf(
+                    "point0.x %g,%g bds.top.x %g,%g bds.top.n %g,%g DistBegTop %g\n",
+                    point0.x.x, point0.x.y, bds.top.x.x, bds.top.x.y, bds.top.n.x,
+                    bds.top.n.y, DistBegTop);
+            }
+        } else {
+            if constexpr(R3D) {
+                printf(
+                    "point0.x %g,%g,%g bds.bot.x %g,%g,%g bds.bot.n %g,%g,%g DistBegBot "
+                    "%g\n",
+                    point0.x.x, point0.x.y, point0.x.z, bds.bot.x.x, bds.bot.x.y,
+                    bds.bot.x.z, bds.bot.n.x, bds.bot.n.y, bds.bot.n.z, DistBegBot);
+            } else if constexpr(O3D) {
+                printf(
+                    "point0.x %g,%g bds.bot.x %g,%g,%g bds.bot.n %g,%g,%g DistBegBot "
+                    "%g\n",
+                    point0.x.x, point0.x.y, bds.bot.x.x, bds.bot.x.y, bds.bot.x.z,
+                    bds.bot.n.x, bds.bot.n.y, bds.bot.n.z, DistBegBot);
+            } else {
+                printf(
+                    "point0.x %g,%g bds.bot.x %g,%g bds.bot.n %g,%g DistBegBot %g\n",
+                    point0.x.x, point0.x.y, bds.bot.x.x, bds.bot.x.y, bds.bot.n.x,
+                    bds.bot.n.y, DistBegBot);
+            }
         }
-        */
+        // */
         return false; // source must be within the medium
     }
 
@@ -248,10 +279,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     const ReflectionInfo *refl, const SSPStructure *ssp, const FreqInfo *freqinfo,
     const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs, ErrState *errState)
 {
-    bool topRefl, botRefl, flipTopDiag, flipBotDiag;
+    bool topRefl, botRefl;
     Step<CFG, O3D, R3D>(
         point0, point1, bds, Beam, xs, org, ssp, iSeg, errState, iSmallStepCtr, topRefl,
-        botRefl, flipTopDiag, flipBotDiag);
+        botRefl);
     /*
     if(point0.x == point1.x){
         printf("Ray did not move from (%g,%g), bailing\n", point0.x.x, point0.x.y);
@@ -259,10 +290,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     }
     */
 
-    if constexpr(O3D) {
-        if(flipTopDiag) bds.top.tridiag_pos = !bds.top.tridiag_pos;
-        if(flipBotDiag) bds.bot.tridiag_pos = !bds.bot.tridiag_pos;
-    }
     VEC23<O3D> x_o = RayToOceanX(point1.x, org);
     VEC23<O3D> t_o = RayToOceanT(point1.t, org);
     GetBdrySeg<O3D>(x_o, t_o, bds.top, &bdinfo->top, Bdry.Top, true, false, errState);
@@ -273,12 +300,14 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
     // to detect only a crossing from inside to outside
     // DistBeg is the distance at point0, which is saved
     // DistEnd is the distance at point1, which needs to be calculated
-    Distances<R3D>(
+    Distances<O3D>(
         x_o, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
 
     // LP: Merging these cases is important for GPU performance.
     if(topRefl || botRefl) {
-        // printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
+#ifdef STEP_DEBUGGING
+        printf(topRefl ? "Top reflecting\n" : "Bottom reflecting\n");
+#endif
         const BdryInfoTopBot<O3D> &bdi     = topRefl ? bdinfo->top : bdinfo->bot;
         const BdryStateTopBot<O3D> &bdstb  = topRefl ? bds.top : bds.bot;
         const HSInfo &hs                   = topRefl ? Bdry.Top.hs : Bdry.Bot.hs;
@@ -344,7 +373,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
             org, ssp, iSeg, errState);
         // Incrementing bounce count moved to Reflect
         x_o = RayToOceanX(point2.x, org);
-        Distances<R3D>(
+        Distances<O3D>(
             x_o, bds.top.x, bds.bot.x, bds.top.n, bds.bot.n, DistEndTop, DistEndBot);
         return true;
     }
@@ -371,15 +400,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     if constexpr(O3D) {
         vec3 x_o = RayToOceanX(point.x, org);
         vec3 t_o = RayToOceanT(point.t, org);
-        if constexpr(R3D) {
-            leftbox = IsOutsideBeamBoxDim<true, 0>(x_o, Beam, xs)
-                || IsOutsideBeamBoxDim<true, 1>(x_o, Beam, xs)
-                || IsOutsideBeamBoxDim<true, 2>(x_o, Beam, xs);
-        } else {
-            // LP: This condition was inexplicably commented out in 2022 revision of Nx2D.
-            leftbox = false;
-            IGNORE_UNUSED(Beam);
-        }
+        // LP: This condition was inexplicably commented out in 2022 revision of Nx2D,
+        // see Fortran version readme.
+        leftbox = IsOutsideBeamBoxDim<true, 0>(x_o, Beam, xs)
+            || IsOutsideBeamBoxDim<true, 1>(x_o, Beam, xs)
+            || IsOutsideBeamBoxDim<true, 2>(x_o, Beam, xs);
         real minx = bhc::max(bdinfo->bot.bd[0].x.x, bdinfo->top.bd[0].x.x);
         real miny = bhc::max(bdinfo->bot.bd[0].x.y, bdinfo->top.bd[0].x.y);
         real maxx = bhc::min(

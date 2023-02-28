@@ -146,6 +146,8 @@ template<bool O3D, bool R3D> void PostProcessTL(
                 }
                 cpx epsilon1, epsilon2;
                 if constexpr(R3D) {
+                    // LP: In BELLHOP3D, this is run for both Nx2D and 3D, but the results
+                    // are only used in ScalePressure for 3D
                     epsilon1 = PickEpsilon<O3D, R3D>(
                         FL(2.0) * REAL_PI * params.freqinfo->freq0, o.ccpx.real(),
                         o.gradc, FL(0.0), params.Angles->alpha.d, params.Beam, &errState);

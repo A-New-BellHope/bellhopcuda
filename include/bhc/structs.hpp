@@ -84,16 +84,18 @@ struct SSPStructure {
     bool dirty; // reset and update derived params
 };
 
-template<bool R3D> struct SSPOutputsExtras {};
+// SSPOutputs is templated as O3D during computation, but R3D when returned,
+// except in RayStartNominalSSP and everywhere which uses those results.
+template<bool X3D> struct SSPOutputsExtras {};
 template<> struct SSPOutputsExtras<false> {
     real crr, crz;
 };
 template<> struct SSPOutputsExtras<true> {
     real cxx, cyy, cxy, cxz, cyz;
 };
-template<bool R3D> struct SSPOutputs : public SSPOutputsExtras<R3D> {
+template<bool X3D> struct SSPOutputs : public SSPOutputsExtras<X3D> {
     cpx ccpx;
-    VEC23<R3D> gradc;
+    VEC23<X3D> gradc;
     real rho, czz;
 };
 
@@ -167,6 +169,13 @@ template<bool O3D> struct BdryInfo {
     BdryInfoTopBot<O3D> top, bot;
 };
 
+struct BdryTriDiagState {
+    bool side;
+    bool onEdge;
+    bool justSteppedTo;
+    bool outgoingSide;
+};
+
 struct BdryLimits {
     real min, max;
 };
@@ -182,7 +191,7 @@ template<> struct TmplBdryLimits12<true> {
 };
 template<bool O3D> struct BdryStateTopBotExtras {};
 template<> struct BdryStateTopBotExtras<true> {
-    bool tridiag_pos;
+    BdryTriDiagState td;
 };
 template<bool O3D> struct BdryStateTopBot : public BdryStateTopBotExtras<O3D> {
     IORI2<O3D> Iseg; // indices that point to the current active segment

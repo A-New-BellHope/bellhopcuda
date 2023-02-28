@@ -1,3 +1,4 @@
+//
 // 
 // Coherent
 //
@@ -17,12 +18,12 @@ MunkRotfoozz
 Munkslice3dHatCart
 //Env file is wrong, it is cart despite being called raycen
 Munkslice3dHatRaycen
-// 19 seconds
-DoubleSeamount3DHat
 // 20 seconds
 munk3d
 //36 seconds
 HyperBot3DPolar
+// 2 minutes
+KoreanSea_3D
 // 4 minutes
 TruncatedWedge3dHat_side
 // 5 minutes
@@ -33,6 +34,8 @@ KR3dCart
 // About 8 seconds each
 freeBgaussian
 freeBgaussianpolar
+// 2.5 minutes
+Munkslice3dGaussian
 //
 // Hat ray-centered
 // 15 seconds
@@ -62,3 +65,8 @@ Munkslice3dHatCartInc
 // 30 seconds
 Munkslice3dHatRaycenInc
 //
+//
+// 2.5 minutes; only CUDA doesn't match and only one one point, but consistently identical results
+Munkslice3dGaussian
+// 9 seconds; same as above
+Munkslice3dGaussianInc

@@ -85,14 +85,14 @@ static const char *const warningDescriptions[BHC_WARN_MAX] = {
     "gone",
     "BHC_WARN_STEP_NEGATIVE_H: Ray needs to step backwards to reach next boundary; "
     "boundary edge case handling has gone wrong, this ray's results may be unreliable",
-    "BHC_WARN_TRIDIAG_H_VERY_NEGATIVE: Ray needs to step backwards to cross diagonal "
+    "BHC_WARN_TRIDIAG_H_NEGATIVE: Ray needs to step backwards to cross diagonal "
     "of top/bottom triangle; tri diagonal edge case handling has gone wrong, "
     "this ray's results may be unreliable",
     "BHC_WARN_TRIDIAG_H_GROWING: Tentative step crossed tri diagonal, but stepping "
     "to the diagonal resulted in a larger step; tri diagonal edge case handling "
     "has gone wrong, this ray's results may be unreliable",
-    "BHC_WARN_WKB_UNIMPLEMENTED_3D: WKB beamwidth beams unimplemented in BELLHOP3D, "
-    "PickEpsilon results will be nonsense",
+    "BHC_WARN_WKB_UNIMPLEMENTED_3D: WKB beamwidth beams unimplemented in BELLHOP3D "
+    "(Nx2D or 3D), PickEpsilon results will be nonsense",
     "BHC_WARN_CERVENY_WIDTH_BUGGY: Cerveny beamwidth Cerveny beams are not propery "
     "implemented in BELLHOP(3D), PickEpsilon results will be nonsense",
     "BHC_WARN_INVALID_WIDTH_BUGGY: BELLHOP(3D) does not properly handle Cerveny "
@@ -105,6 +105,8 @@ static const char *const warningDescriptions[BHC_WARN_MAX] = {
     "extremely large in PCHIP SSP, likely bug or garbage input",
     "BHC_WARN_CPCHIP_INVALIDCCOEF: cCoef is extremely large in PCHIP SSP, likely "
     "bug or garbage input",
+    "BHC_WARN_OCEANTORAYX_GAVEUP: Failed to transform Nx2D ray 3D -> 2D -> 3D in a "
+    "consistent way, edge case issues may result",
 };
 
 void CheckReportErrors(bhcInternal *internal, const ErrState *errState)

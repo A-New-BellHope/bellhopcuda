@@ -34,6 +34,13 @@ namespace bhc {
 
 /**
  * detect and skip duplicate points (happens at boundary reflection)
+ * LP: Despite const_thresh == true being very likely a bug, as it's only used
+ * once and the non-constant threshold is commented out at that point, the
+ * constant threshold is a better approach. This is always comparing positions,
+ * not other kinds of data. 1000*spacing is likely to be on the order of 1.0e-10
+ * or so, whereas 1.0e-4 is just one tenth of a millimeter. Duplicate steps are
+ * typically closer to the latter scale, so the former won't actually skip
+ * anything.
  */
 template<bool R3D> HOST_DEVICE inline bool IsSmallValue(
     real delta, real ref, bool const_thresh)
@@ -123,8 +130,8 @@ template<bool R3D> HOST_DEVICE inline void ReceiverAngles(
         RcvrAzimAngle = angleXY;
     } else {
         RcvrDeclAngle = angleXY;
-        RcvrAzimAngle = inflray.init.SrcAzimAngle; // LP: Needed for Nx2D; for 2D, debug
-                                                   // value
+        // LP: Needed for Nx2D; for 2D, debug value
+        RcvrAzimAngle = inflray.init.SrcAzimAngle;
     }
 }
 
@@ -200,7 +207,7 @@ HOST_DEVICE inline bool Compute_M_N_R_IR(
  * used in non-Cerveny cases.
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
-    real omega, real c, vec2 gradc, real angle, real Dangle,
+    real omega, real c, const VEC23<O3D> &gradc, real angle, real Dangle,
     const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     // LP: BUG: Multiple codepaths do not set epsilonOpt, would lead to UB if
@@ -208,7 +215,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
     real halfwidth        = R3D ? RL(0.0) : DEBUG_LARGEVAL;
     cpx epsilonOpt        = cpx(DEBUG_LARGEVAL, DEBUG_LARGEVAL);
     bool defaultHalfwidth = true, defaultEps = true, zeroEps = false;
-    real cz;
     if(IsCervenyInfl(Beam)) {
         defaultHalfwidth = defaultEps = false;
         if(IsBeamWidthSpaceFilling(Beam)) {
@@ -217,11 +223,11 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
             halfwidth  = STD::sqrt(FL(2.0) * c * FL(1000.0) * Beam->rLoop / omega);
             defaultEps = true;
         } else if(IsBeamWidthWKB(Beam)) {
-            if(R3D) {
+            if(O3D) {
                 RunWarning(errState, BHC_WARN_WKB_UNIMPLEMENTED_3D);
             } else {
                 halfwidth  = REAL_MAX;
-                cz         = gradc.y;
+                real cz    = DEP(gradc);
                 epsilonOpt = (cz == FL(0.0))
                     ? RL(1e10)
                     : ((-STD::sin(angle) / STD::cos(SQ(angle))) * c * c / cz);
@@ -274,6 +280,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
 
 /**
  * Form gamma
+ *
+ * LP: This is for Cerveny, so R3D == false
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline cpx Compute_gamma(
     const rayPt<false> &point, const cpx &pB, const cpx &qB,
@@ -466,6 +474,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
             }
             dfield = cpxf((float)v, 0.0f);
         }
+        // printf("ApplyContribution dfield (%g,%g)\n", dfield.real(), dfield.imag());
         AddToField<R3D>(uAllSources, dfield, itheta, ir, iz, inflray, Pos);
     }
 }
@@ -501,14 +510,14 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D, R3D> &p
     } else if(IsSGBInfl(params.Beam)) {
         if constexpr(R3D) { EXTERR("Invalid Run Type"); }
     } else if(IsGeometricInfl(params.Beam)) {
-        if constexpr(!O3D) {
+        if constexpr(!R3D) {
             if(IsRayCenInfl(params.Beam) && IsGaussianGeomInfl(params.Beam)) {
 #ifdef BHC_LIMIT_FEATURES
-                EXTERR("2D Gaussian RayCen is not supported by BELLHOP "
+                EXTERR("2D/Nx2D Gaussian RayCen is not supported by BELLHOP "
                        "but can be supported by " BHC_PROGRAMNAME " if you turn off "
                        "BHC_LIMIT_FEATURES");
 #else
-                EXTWARN("Warning: 2D Gaussian RayCen is not supported by "
+                EXTWARN("Warning: 2D/Nx2D Gaussian RayCen is not supported by "
                         "BELLHOP, but is supported by " BHC_PROGRAMNAME);
 #endif
             }
@@ -525,9 +534,9 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D, R3D> &p
 
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     InfluenceRayInfo<R3D> &inflray, const rayPt<R3D> &point0, RayInitInfo &rinit,
-    vec2 gradc, const Position *Pos, const Origin<O3D, R3D> &org, const SSPStructure *ssp,
-    SSPSegState &iSeg, const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, ErrState *errState)
+    const VEC23<O3D> &gradc, const Position *Pos, const Origin<O3D, R3D> &org,
+    const SSPStructure *ssp, SSPSegState &iSeg, const AnglesStructure *Angles,
+    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     if constexpr(R3D) IGNORE_UNUSED(ssp);
     bool isGaussian = IsGaussianGeomInfl(Beam);
@@ -1385,15 +1394,15 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
 
                     VEC23<R3D> x_rcvr_ray = x_rcvr - x_ray;
 
-                    // linear interpolation of q's
-                    real s = glm::dot(x_rcvr_ray, rayt) / rlen; // proportional distance
-                                                                // along ray
-                    real n1 = STD::abs(glm::dot(x_rcvr_ray, rayn1)); // normal distance to
-                                                                     // ray
+                    // linear interpolation of q's.
+                    // proportional distance along ray
+                    real s = glm::dot(x_rcvr_ray, rayt) / rlen;
+                    // normal distance to ray
+                    real n1 = STD::abs(glm::dot(x_rcvr_ray, rayn1));
                     real n2 = DEBUG_LARGEVAL;
                     if constexpr(R3D) {
-                        n2 = STD::abs(glm::dot(x_rcvr_ray, rayn2)); // normal distance to
-                                                                    // ray
+                        // normal distance to ray
+                        n2 = STD::abs(glm::dot(x_rcvr_ray, rayn2));
                     }
                     InfluenceGeoCore<CFG, O3D, R3D>(
                         s, n1, n2, dq, dtau, itheta, inflray.ir, iz, is, point0, point1,
@@ -1488,8 +1497,8 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
                 real phaseInt = point1.Phase + inflray.phase;
                 ApplyContribution<CFG, O3D, false>(
                     uAllSources, cnst, w, inflray.omega, delay, phaseInt, RcvrDeclAngle,
-                    RL(0.0), 0, inflray.ir, iz, is, inflray, point1, Pos, Beam, eigen,
-                    arrinfo);
+                    RcvrAzimAngle, 0, inflray.ir, iz, is, inflray, point1, Pos, Beam,
+                    eigen, arrinfo);
             }
         }
 
@@ -1639,7 +1648,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ScalePressure(
                     factor = cnst / (real)STD::sqrt(STD::abs(r[ir]));
                 }
             }
-            for(int32_t irz = 0; irz < NRz; ++irz) { u[irz * Nr + ir] *= (float)factor; }
+            for(int32_t itheta = 0; itheta < Ntheta; ++itheta) {
+                for(int32_t irz = 0; irz < NRz; ++irz) {
+                    size_t addr = ((size_t)itheta * NRz + irz) * Nr + ir;
+                    u[addr] *= (float)factor;
+                }
+            }
         }
     }
 }

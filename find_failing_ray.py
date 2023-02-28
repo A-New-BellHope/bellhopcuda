@@ -26,13 +26,28 @@ import random
 import os
 import shutil
 
-if len(sys.argv) != 2:
-    print('Usage: python3 find_failing_ray.py munk3d_onebeam')
+if len(sys.argv) != 3:
+    print('Usage: python3 find_failing_ray.py (ray/tl)(2D/3D/Nx2D) munk_something')
     print('No path, no .env')
     sys.exit(1)
 
 testpath = 'test/in/'
-envfilename = testpath + sys.argv[1] + '.env'
+envfil = sys.argv[2]
+envfilename = testpath + envfil + '.env'
+if 'Nx2D' in sys.argv[1]:
+    dim = 4
+elif '3D' in sys.argv[1]:
+    dim = 3
+elif '2D' in sys.argv[1]:
+    dim = 2
+else:
+    raise RuntimeError('Invalid run type')
+if 'ray' in sys.argv[1]:
+    compare_script = 'compare_ray_2.py'
+elif 'tl' in sys.argv[1]:
+    compare_script = 'compare_shdfil.py'
+else:
+    raise RuntimeError('Invalid run type')
 alphathreesixtysweep = False
 betathreesixtysweep = True
 
@@ -41,7 +56,7 @@ def set_random_ray():
     alpha = beta = None
     with open(envfilename, 'r') as infile, open(tempfilename, 'w') as tempfile:
         for l in infile:
-            isalpha = 'nalpha' in l.lower()
+            isalpha = any(k in l.lower() for k in {'nalpha', 'nbeams'})
             isbeta = 'nbeta' in l.lower()
             assert not (isalpha and isbeta)
             if isalpha or isbeta:
@@ -76,15 +91,15 @@ def set_random_ray():
 
 while True:
     alpha, beta = set_random_ray()
-    shutil.copyfile(envfilename, 'test/cxx1/' + sys.argv[1] + '.env')
-    shutil.copyfile(envfilename, 'test/FORTRAN/' + sys.argv[1] + '.env')
-    if os.system('./bin/bellhopcxx -1 -3 test/cxx1/' + sys.argv[1]) != 0:
+    shutil.copyfile(envfilename, 'test/cxx1/' + envfil + '.env')
+    shutil.copyfile(envfilename, 'test/FORTRAN/' + envfil + '.env')
+    if os.system('./bin/bellhopcxx -1 -' + str(dim) + ' test/cxx1/' + envfil) != 0:
         print('bellhopcxx failed')
         sys.exit(3)
-    if os.system('../bellhop/Bellhop/bellhop3d.exe test/FORTRAN/' + sys.argv[1]) != 0:
-        print('BELLHOP3D failed')
+    if os.system('../bellhop/Bellhop/bellhop' + ('' if dim == 2 else '3d') + '.exe test/FORTRAN/' + envfil) != 0:
+        print('BELLHOP failed')
         sys.exit(4)
-    passed = os.system('python3 compare_shdfil.py ' + sys.argv[1]) == 0
+    passed = os.system('python3 ' + compare_script + ' ' + envfil + ' cxx1') == 0
     print('{} with alpha {} beta {}'.format('passed' if passed else 'failed', alpha, beta))
     if not passed:
         break

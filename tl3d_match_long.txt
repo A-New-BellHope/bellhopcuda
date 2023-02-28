@@ -1,24 +1,3 @@
-//
-// Coherent
-//
-// Hat Cartesian
-pwedge3d_rot
-KermitRooseveltLSCart
-DoubleSeamount3DHat
-KoreanSea_3D
-//
-//
-//
-// Gaussian Cartesian
-KR3dGaussian
-Munkslice3dGaussian
-TruncatedWedge3dGaussian_side
-//
-//
-//
-//
-//
-// Tested as long
 //100 minutes
 TruncatedWedge3dCart
 //80 minutes
@@ -27,3 +6,23 @@ KR3dGaussian
 TruncatedWedge3dGaussian_side
 //40 minutes
 TruncatedWedge3dHatRayCen
+//22 minutes
+TruncatedWedge3d
+//128 minutes
+Seamount3DHatcart
+//68 minutes
+DoubleSeamount3D
+//71 minutes
+pwedge3dCart
+//84 minutes
+pwedge_elastic_3dCart
+//196 minutes
+Seamount3DHatRaycen
+//16 minutes
+KermitRooseveltLSCart
+//62 minutes
+pwedge3d_rot
+//300 minutes
+pwedge3dRayCen
+//About 12 HOURS
+Seamount3DGaussian

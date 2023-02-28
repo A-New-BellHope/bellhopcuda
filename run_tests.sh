@@ -19,17 +19,24 @@
 #set -x
 
 if [[ -z $1 || -z $2 ]]; then
-    echo "Usage: ./run_tests.sh (ray/tl/eigen/arr)(3d) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore/nocompare]"
+    echo "Usage: ./run_tests.sh (ray/tl/eigen/arr)(2D/3D/Nx2D) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore/nocompare]"
     exit 1
 fi
 
-runtype=`echo $1 | sed 's/3d//g'`
-threedopt="-2"
-bhexec=bellhop.exe
-if [[ $1 == *3d ]]; then
+if [[ $1 == *Nx2D ]]; then
+    threedopt="-4"
+    bhexec=bellhop3d.exe
+elif [[ $1 == *3D ]]; then
     threedopt="-3"
     bhexec=bellhop3d.exe
+elif [[ $1 == *2D ]]; then
+    threedopt="-2"
+    bhexec=bellhop.exe
+else
+    echo "$1 is not a valid run type (must end with 2D/3D/Nx2D)"
+    exit 1
 fi
+runtype=`echo $1 | sed 's/Nx2D//g' | sed 's/3D//g' | sed 's/2D//g'`
 if [[ $runtype == "ray" || $runtype == "eigen" ]]; then
     comparepy=compare_ray_2.py
 elif [[ $runtype == "tl" ]]; then
@@ -37,7 +44,8 @@ elif [[ $runtype == "tl" ]]; then
 elif [[ $runtype == "arr" ]]; then
     comparepy=compare_arrivals.py
 else
-    echo "$runtype is not a valid run type (valid types are ray/tl/eigen/arr, optionally + 3d)"
+    echo "$1 is not a valid run type (must start with ray/tl/eigen/arr)"
+    exit 1
 fi
 
 if [[ $2 == *.txt ]]; then

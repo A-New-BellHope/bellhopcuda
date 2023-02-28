@@ -1,4 +1,0 @@
-KoreanSea_Nx2D_ray
-PerfectWedge2dray
-TaiwanNx2D_ray
-WeymouthNx2D_ray
