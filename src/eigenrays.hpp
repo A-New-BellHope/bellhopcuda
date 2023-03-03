@@ -41,12 +41,14 @@ HOST_DEVICE inline void RecordEigenHit(
     eigen->hits[mi].ibeta  = rinit.ibeta;
 }
 
-inline void InitEigenMode(EigenInfo *eigen)
+template<bool O3D, bool R3D> inline void InitEigenMode(
+    EigenInfo *eigen, const bhcParams<O3D, R3D> &params)
 {
+#warning TODO InitEigenMode
     constexpr uint32_t maxhits = 1000000u;
     eigen->neigen              = 0;
     eigen->memsize             = maxhits;
-    checkallocate(eigen->hits, maxhits);
+    trackallocate(params, "eigenray hits", eigen->hits, maxhits);
 }
 
 template<bool O3D, bool R3D> void PostProcessEigenrays(

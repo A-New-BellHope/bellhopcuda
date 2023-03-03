@@ -67,7 +67,7 @@ template<bool O3D, bool R3D, bool BEARING> inline void ReadRayAngles(
         }
     }
 
-    checkallocate(a.angles, bhc::max(3, a.n));
+    trackallocate(params, FuncName, a.angles, bhc::max(3, a.n));
 
     if(a.n > 2) a.angles[2] = FL(-999.9);
     LIST(ENVFile);
@@ -83,10 +83,12 @@ template<bool O3D, bool R3D, bool BEARING> inline void ReadRayAngles(
         if(params.Beam->RunType[5] == '2' && !IsRayRun(params.Beam)) {
             PRTFile << "\nReplacing beam take-off angles, beta, with receiver bearing "
                        "lines, theta\n";
-            checkdeallocate(a.angles);
+            trackdeallocate(params, a.angles);
 
             a.n = params.Pos->Ntheta;
-            checkallocate(a.angles, bhc::max(3, a.n));
+            trackallocate(
+                params, "beam angles replaced with receiver bearing angles", a.angles,
+                bhc::max(3, a.n));
             for(int32_t i = 0; i < a.n; ++i)
                 a.angles[i] = params.Pos->theta[i]; // a.n should = params.Pos->Ntheta
         }

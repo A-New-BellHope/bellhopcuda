@@ -357,7 +357,6 @@ struct ArrInfo {
     int32_t *NArr;
     int32_t *MaxNPerSource;
     int32_t MaxNArr;
-    size_t ArrMemSize;
     bool AllowMerging;
 };
 
@@ -453,10 +452,45 @@ template<bool R3D> struct InfluenceRayInfo {
 // Meta-structures
 ////////////////////////////////////////////////////////////////////////////////
 
+struct bhcInit {
+    /// Number of worker threads to run. -1 means "all logical cores".
+    int32_t numThreads = -1;
+    /// Maximum amount of memory (in bytes) this instance should use.
+    size_t maxMemory = 4ull * 1024ull * 1024ull * 1024ull; // 4 GiB
+    /// Index of the GPU to use (ignored if not in CUDA mode). This is the order
+    /// the GPUs are enumerated in CUDA, usually with the most powerful GPU
+    /// as index 0.
+    int gpuIndex = 0;
+    /// Relative path to environment file, without the .env extension. E.g.
+    /// path/to/MunkB_ray_rot (where path/to/MunkB_ray_rot.env and also path/to/
+    /// MunkB_ray_rot.ssp, path/to/MunkB_ray_rot.bty, etc. exist). The string
+    /// passed here will be copied internally and may be deleted by the caller
+    /// after bhc::setup() returns.
+    const char *FileRoot;
+    /**
+     * prtCallback, outputCallback: There are two different types of output
+     * messages which can be produced by BELLHOP(3D) and therefore bellhopcxx /
+     * bellhopcuda: outputs which form the PRTFile (print file *.prt), and
+     * outputs which are printed in the terminal (usually fatal error messages).
+     * Two callbacks are provided here to receive these messages; you may handle
+     * them or pass nullptr for either/both. If prtCallback is nullptr, a *.prt
+     * file will be created with the PRTFile outputs. If outputCallback is
+     * nullptr, these messages will be printed to standard output.
+     *
+     * If you are using multiple instances (multiple calls to setup with
+     * different params), any callback you pass for either of these must be
+     * thread-safe, as it may be called by multiple threads in parallel.
+     * Furthermore, if you are using multiple instances and you set prtCallback
+     * to nullptr so it writes PRTFiles, each instance must use a different
+     * FileRoot or there will be issues with the multiple instances trying to
+     * write to the same PRTFile.
+     */
+    void (*prtCallback)(const char *message) = nullptr;
+    /// See documentation for prtCallback above.
+    void (*outputCallback)(const char *message) = nullptr;
+};
+
 template<bool O3D, bool R3D> struct bhcParams {
-    /// Initialized to -1 meaning "one thread per logical core"; after setup
-    /// (but before run), can set to 1 or some other value.
-    int32_t maxThreads;
     char Title[80]; // Size determined by WriteHeader for TL
     real fT;
     BdryType *Bdry;

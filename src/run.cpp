@@ -67,15 +67,15 @@ template<bool O3D, bool R3D> inline void RunRayMode(
     ErrState errState;
     ResetErrState(&errState);
     GetInternal(params)->sharedJobID = 0;
-    uint32_t nthreads                = GetNumThreads(params.maxThreads);
+    uint32_t numThreads              = GetInternal(params)->numThreads;
     EXTWARN(
-        "%d threads, copy mode %s", nthreads,
+        "%d threads, copy mode %s", numThreads,
         IsRayCopyMode<O3D, R3D>(outputs.rayinfo) ? "true" : "false");
     std::vector<std::thread> threads;
-    for(uint32_t i = 0; i < nthreads; ++i)
+    for(uint32_t i = 0; i < numThreads; ++i)
         threads.push_back(std::thread(
             RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs), &errState));
-    for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
+    for(uint32_t i = 0; i < numThreads; ++i) threads[i].join();
     CheckReportErrors(GetInternal(params), &errState);
 }
 
@@ -94,7 +94,7 @@ template<bool O3D, bool R3D> bool run(
             sw.tock("RunRayMode");
         } else {
 #ifdef BHC_BUILD_CUDA
-            checkCudaErrors(cudaSetDevice(GetInternal(params)->m_gpu));
+            checkCudaErrors(cudaSetDevice(GetInternal(params)->gpuIndex));
 #endif
             RunFieldModesSelInfl(params, outputs);
             sw.tock("RunFieldModes");

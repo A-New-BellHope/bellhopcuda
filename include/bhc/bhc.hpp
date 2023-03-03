@@ -42,25 +42,8 @@ namespace bhc {
  * process by calling this (and the other functions below) with different params
  * and outputs; there are no global variables in the library.
  *
- * FileRoot: Relative path to environment file, without the .env extension. E.g.
- * path/to/MunkB_ray_rot (where path/to/MunkB_ray_rot.env and also path/to/
- * MunkB_ray_rot.ssp, path/to/MunkB_ray_rot.bty, etc. exist).
- *
- * prtCallback, outputCallback: There are two different types of output messages
- * which can be produced by BELLHOP(3D) and therefore bellhopcxx / bellhopcuda:
- * outputs which form the PRTFile (print file *.prt), and outputs which are
- * printed in the terminal (usually fatal error messages). Two callbacks are
- * provided here to receive these messages; you may handle them or pass nullptr
- * for either/both. If prtCallback is nullptr, a *.prt file will be created with
- * the PRTFile outputs. If outputCallback is nullptr, these messages will be
- * printed to standard output.
- *
- * If you are using multiple instances (multiple calls to setup with different
- * params), any callback you pass for either of these must be thread-safe, as it
- * may be called by multiple threads in parallel. Furthermore, if you are using
- * multiple instances and you set prtCallback to nullptr so it writes PRTFiles,
- * each instance must use a different FileRoot or there will be issues with the
- * multiple instances trying to write to the same PRTFile.
+ * init: Initialization parameters. See the documentation of each of the members
+ * of the struct for more info.
  *
  * params, outputs: Just create uninitialized structs and pass them in to be
  * initialized. You may modify params after setup.
@@ -73,25 +56,19 @@ namespace bhc {
  * O3D=true, R3D=true: 3D mode
  */
 template<bool O3D, bool R3D> bool setup(
-    const char *FileRoot, void (*prtCallback)(const char *message),
-    void (*outputCallback)(const char *message), bhcParams<O3D, R3D> &params,
-    bhcOutputs<O3D, R3D> &outputs);
+    const bhcInit &init, bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
 extern template BHC_API bool setup<false, false>(
-    const char *FileRoot, void (*prtCallback)(const char *message),
-    void (*outputCallback)(const char *message), bhcParams<false, false> &params,
+    const bhcInit &init, bhcParams<false, false> &params,
     bhcOutputs<false, false> &outputs);
 /// Nx2D or 2D-3D version, see template.
 extern template BHC_API bool setup<true, false>(
-    const char *FileRoot, void (*prtCallback)(const char *message),
-    void (*outputCallback)(const char *message), bhcParams<true, false> &params,
+    const bhcInit &init, bhcParams<true, false> &params,
     bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
 extern template BHC_API bool setup<true, true>(
-    const char *FileRoot, void (*prtCallback)(const char *message),
-    void (*outputCallback)(const char *message), bhcParams<true, true> &params,
-    bhcOutputs<true, true> &outputs);
+    const bhcInit &init, bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 /**
  * Runs the selected run type and places the results in the appropriate struct

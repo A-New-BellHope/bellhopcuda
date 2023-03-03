@@ -40,7 +40,8 @@ template<bool O3D, bool R3D> inline void ReadPat(bhcParams<O3D, R3D> &params)
         SBPFile.Read(beaminfo->NSBPPts);
         PRTFile << "Number of source beam pattern points " << beaminfo->NSBPPts << "\n";
 
-        checkallocate(beaminfo->SrcBmPat, beaminfo->NSBPPts * 2);
+        trackallocate(
+            params, "source beam pattern", beaminfo->SrcBmPat, beaminfo->NSBPPts * 2);
 
         PRTFile << "\n Angle (degrees)  Power (dB)\n" << std::setprecision(3);
 
@@ -52,7 +53,8 @@ template<bool O3D, bool R3D> inline void ReadPat(bhcParams<O3D, R3D> &params)
         }
     } else {
         beaminfo->NSBPPts = 2;
-        checkallocate(beaminfo->SrcBmPat, 2 * 2);
+        trackallocate(
+            params, "default/trivial source beam pattern", beaminfo->SrcBmPat, 2 * 2);
         beaminfo->SrcBmPat[0 * 2 + 0] = FL(-180.0);
         beaminfo->SrcBmPat[0 * 2 + 1] = FL(0.0);
         beaminfo->SrcBmPat[1 * 2 + 0] = FL(180.0);

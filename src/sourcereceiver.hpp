@@ -41,7 +41,8 @@ template<bool O3D, bool R3D> inline void ReadfreqVec(
         if(freqinfo->Nfreq <= 0) { EXTERR("Number of frequencies must be positive"); }
     }
 
-    checkallocate(freqinfo->freqVec, bhc::max(3, freqinfo->Nfreq));
+    trackallocate(
+        params, "source frequencies", freqinfo->freqVec, bhc::max(3, freqinfo->Nfreq));
 
     if(params.Bdry->Top.hs.Opt[5] == 'B') {
         PRTFile << "   Frequencies (Hz)\n";
@@ -77,7 +78,7 @@ template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
         EXTERR("ReadVector: Number of %s must be positive", Description.c_str());
     }
 
-    checkallocate(x, bhc::max(3, Nx));
+    trackallocate(params, Description.c_str(), x, bhc::max(3, Nx));
 
     PRTFile << "   " << Description << " (" << Units << ")\n";
     x[2] = FL(-999.9);
@@ -114,8 +115,8 @@ template<bool O3D, bool R3D> inline void ReadSxSy(
             params, params.Pos->NSy, params.Pos->Sy, "Source   y-coordinates, Sy", "km",
             ENVFile);
     } else {
-        checkallocate(params.Pos->Sx, 1);
-        checkallocate(params.Pos->Sy, 1);
+        trackallocate(params, "default/trivial source x-coordinates", params.Pos->Sx, 1);
+        trackallocate(params, "default/trivial source y-coordinates", params.Pos->Sy, 1);
         params.Pos->Sx[0] = FL(0.0);
         params.Pos->Sy[0] = FL(0.0);
     }
@@ -137,10 +138,10 @@ template<bool O3D, bool R3D> inline void ReadSzRz(
     ReadVector(params, Pos->NSz, Pos->Sz, "Source   z-coordinates, Sz", "m", ENVFile);
     ReadVector(params, Pos->NRz, Pos->Rz, "Receiver z-coordinates, Rz", "m", ENVFile);
 
-    checkallocate(Pos->ws, Pos->NSz);
-    checkallocate(Pos->iSz, Pos->NSz);
-    checkallocate(Pos->wr, Pos->NRz);
-    checkallocate(Pos->iRz, Pos->NRz);
+    trackallocate(params, "source depth auxiliary data", Pos->ws, Pos->NSz);
+    trackallocate(params, "source depth auxiliary data", Pos->iSz, Pos->NSz);
+    trackallocate(params, "receiver depth auxiliary data", Pos->wr, Pos->NRz);
+    trackallocate(params, "receiver depth auxiliary data", Pos->iRz, Pos->NRz);
 
     // *** Check for Sz/Rz in upper or lower halfspace ***
 
@@ -214,7 +215,7 @@ template<bool O3D, bool R3D> inline void ReadRcvrBearings(
 
     ReadVector(
         params, Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile);
-    checkallocate<vec2>(Pos->t_rcvr, Pos->Ntheta);
+    trackallocate(params, "receiver bearing sin/cos table", Pos->t_rcvr, Pos->Ntheta);
 
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);
 

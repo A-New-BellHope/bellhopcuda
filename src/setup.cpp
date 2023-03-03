@@ -35,17 +35,18 @@ template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
     if(num_gpus <= 0) {
         EXTERR("No CUDA GPUs found; is the driver installed and loaded?");
     }
+    int gpuIndex = GetInternal(params)->gpuIndex;
     cudaDeviceProp cudaProperties;
     for(int g = 0; g < num_gpus; ++g) {
         checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));
-        if(g == GetInternal(params)->m_gpu) {
+        if(g == gpuIndex) {
             EXTWARN(
                 "CUDA device: %s / compute %d.%d", cudaProperties.name,
                 cudaProperties.major, cudaProperties.minor);
         }
         /*
         EXTWARN("%s GPU %d: %s, compute SM %d.%d",
-            (g == GetInternal(params)->m_gpu) ? "-->" : "   "
+            (g == GetInternal(params)->gpuIndex) ? "-->" : "   "
             g, cudaProperties.name, cudaProperties.major, cudaProperties.minor);
         EXTWARN("      --Global/shared/constant memory: %lli, %d, %d",
             cudaProperties.totalGlobalMem,
@@ -59,25 +60,23 @@ template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
     }
 
     // Store properties about used GPU
-    checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, GetInternal(params)->m_gpu));
+    checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, gpuIndex));
     /*
     GetInternal(params)->d_warp       = cudaProperties.warpSize;
     GetInternal(params)->d_maxthreads = cudaProperties.maxThreadsPerBlock;
     */
     GetInternal(params)->d_multiprocs = cudaProperties.multiProcessorCount;
-    checkCudaErrors(cudaSetDevice(GetInternal(params)->m_gpu));
+    checkCudaErrors(cudaSetDevice(gpuIndex));
 }
 #endif
 
 constexpr bool Init_Inline = false;
 
 template<bool O3D, bool R3D> bool setup(
-    const char *FileRoot, void (*prtCallback)(const char *message),
-    void (*outputCallback)(const char *message), bhcParams<O3D, R3D> &params,
-    bhcOutputs<O3D, R3D> &outputs)
+    const bhcInit &init, bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     try {
-        params.internal = new bhcInternal(FileRoot, prtCallback, outputCallback);
+        params.internal = new bhcInternal(init);
 
         Stopwatch sw(GetInternal(params));
         sw.tick();
@@ -87,19 +86,19 @@ template<bool O3D, bool R3D> bool setup(
 #endif
 
         // Allocate main structs
-        params.Bdry     = allocate<BdryType>();
-        params.bdinfo   = allocate<BdryInfo<O3D>>();
-        params.refl     = allocate<ReflectionInfo>();
-        params.ssp      = allocate<SSPStructure>();
-        params.atten    = allocate<AttenInfo>();
-        params.Pos      = allocate<Position>();
-        params.Angles   = allocate<AnglesStructure>();
-        params.freqinfo = allocate<FreqInfo>();
-        params.Beam     = allocate<BeamStructure<O3D>>();
-        params.beaminfo = allocate<BeamInfo>();
-        outputs.rayinfo = allocate<RayInfo<O3D, R3D>>();
-        outputs.eigen   = allocate<EigenInfo>();
-        outputs.arrinfo = allocate<ArrInfo>();
+        trackallocate(params, "data structures", params.Bdry);
+        trackallocate(params, "data structures", params.bdinfo);
+        trackallocate(params, "data structures", params.refl);
+        trackallocate(params, "data structures", params.ssp);
+        trackallocate(params, "data structures", params.atten);
+        trackallocate(params, "data structures", params.Pos);
+        trackallocate(params, "data structures", params.Angles);
+        trackallocate(params, "data structures", params.freqinfo);
+        trackallocate(params, "data structures", params.Beam);
+        trackallocate(params, "data structures", params.beaminfo);
+        trackallocate(params, "data structures", outputs.rayinfo);
+        trackallocate(params, "data structures", outputs.eigen);
+        trackallocate(params, "data structures", outputs.arrinfo);
         HSInfo RecycledHS; // Values only initialized once--reused from top to ssp, and
                            // ssp to bot
 
@@ -139,8 +138,7 @@ template<bool O3D, bool R3D> bool setup(
         outputs.arrinfo->NArr       = nullptr;
 
         // Fill in default / "constructor" data
-        params.maxThreads = -1;
-        params.fT         = RL(1.0e20);
+        params.fT = RL(1.0e20);
         // Bdry: none
         if constexpr(O3D) {
             params.bdinfo->top.NPts.x = 2;
@@ -176,18 +174,17 @@ template<bool O3D, bool R3D> bool setup(
         params.Beam->epsMultiplier   = FL(1.0);
         memcpy(params.Beam->Type, "G S ", 4);
         // params.beaminfo: none
-        outputs.rayinfo->NPoints    = 0;
-        outputs.rayinfo->MaxPoints  = 0;
-        outputs.rayinfo->NRays      = 0;
-        outputs.eigen->neigen       = 0;
-        outputs.eigen->memsize      = 0;
-        outputs.arrinfo->MaxNArr    = 1;
-        outputs.arrinfo->ArrMemSize = (O3D ? 200000000 : 20000000) * sizeof(Arrival);
-        RecycledHS.alphaR           = FL(1500.0);
-        RecycledHS.betaR            = FL(0.0);
-        RecycledHS.alphaI           = FL(0.0);
-        RecycledHS.betaI            = FL(0.0);
-        RecycledHS.rho              = FL(1.0);
+        outputs.rayinfo->NPoints   = 0;
+        outputs.rayinfo->MaxPoints = 0;
+        outputs.rayinfo->NRays     = 0;
+        outputs.eigen->neigen      = 0;
+        outputs.eigen->memsize     = 0;
+        outputs.arrinfo->MaxNArr   = 1;
+        RecycledHS.alphaR          = FL(1500.0);
+        RecycledHS.betaR           = FL(0.0);
+        RecycledHS.alphaI          = FL(0.0);
+        RecycledHS.betaI           = FL(0.0);
+        RecycledHS.rho             = FL(1.0);
 
         if constexpr(!O3D && !R3D && Init_Inline) {
             // NPts, Sigma not used by BELLHOP
@@ -234,13 +231,20 @@ template<bool O3D, bool R3D> bool setup(
             params.Pos->NRz = 100;
             params.Pos->NRr = 500;
 
-            params.Pos->Sz  = allocate<float>(params.Pos->NSz);
-            params.Pos->ws  = allocate<float>(params.Pos->NSz);
-            params.Pos->iSz = allocate<int32_t>(params.Pos->NSz);
-            params.Pos->Rz  = allocate<float>(params.Pos->NRz);
-            params.Pos->wr  = allocate<float>(params.Pos->NRz);
-            params.Pos->iRz = allocate<int32_t>(params.Pos->NRz);
-            params.Pos->Rr  = allocate<float>(params.Pos->NRr);
+            trackallocate(
+                params, "unused inline arrays", params.Pos->Sz, params.Pos->NSz);
+            trackallocate(
+                params, "unused inline arrays", params.Pos->ws, params.Pos->NSz);
+            trackallocate(
+                params, "unused inline arrays", params.Pos->iSz, params.Pos->NSz);
+            trackallocate(
+                params, "unused inline arrays", params.Pos->Rz, params.Pos->NRz);
+            trackallocate(
+                params, "unused inline arrays", params.Pos->wr, params.Pos->NRz);
+            trackallocate(
+                params, "unused inline arrays", params.Pos->iRz, params.Pos->NRz);
+            trackallocate(
+                params, "unused inline arrays", params.Pos->Rr, params.Pos->NRr);
 
             params.Pos->Sz[0] = FL(50.0);
             // params.Pos->Rz = {0, 50, 100};
@@ -266,7 +270,7 @@ template<bool O3D, bool R3D> bool setup(
 
             // *** altimetry ***
 
-            params.bdinfo->top.bd      = allocate<BdryPtFull<false>>(2);
+            trackallocate(params, "unused inline arrays", params.bdinfo->top.bd, 2);
             params.bdinfo->top.bd[0].x = vec2(-bdry_big<false>::value(), RL(0.0));
             params.bdinfo->top.bd[1].x = vec2(bdry_big<false>::value(), RL(0.0));
 
@@ -274,19 +278,20 @@ template<bool O3D, bool R3D> bool setup(
 
             // *** bathymetry ***
 
-            params.bdinfo->bot.bd      = allocate<BdryPtFull<false>>(2);
+            trackallocate(params, "unused inline arrays", params.bdinfo->bot.bd, 2);
             params.bdinfo->bot.bd[0].x = vec2(-bdry_big<false>::value(), RL(5000.0));
             params.bdinfo->bot.bd[1].x = vec2(bdry_big<false>::value(), RL(5000.0));
 
             ComputeBdryTangentNormal<O3D>(&params.bdinfo->bot, false);
 
-            params.refl->bot.r    = allocate<ReflectionCoef>(1);
-            params.refl->top.r    = allocate<ReflectionCoef>(1);
+            trackallocate(params, "unused inline arrays", params.refl->bot.r, 1);
+            trackallocate(params, "unused inline arrays", params.refl->top.r, 1);
             params.refl->bot.NPts = params.refl->top.NPts = 1;
 
             // *** Source Beam Pattern ***
-            params.beaminfo->NSBPPts             = 2;
-            params.beaminfo->SrcBmPat            = allocate<real>(2 * 2);
+            params.beaminfo->NSBPPts = 2;
+            trackallocate(
+                params, "unused inline arrays", params.beaminfo->SrcBmPat, 2 * 2);
             params.beaminfo->SrcBmPat[0 * 2 + 0] = FL(-180.0);
             params.beaminfo->SrcBmPat[0 * 2 + 1] = FL(0.0);
             params.beaminfo->SrcBmPat[1 * 2 + 0] = FL(180.0);
@@ -311,30 +316,32 @@ template<bool O3D, bool R3D> bool setup(
             ReadPat<O3D, R3D>(params); // Source Beam Pattern
             if constexpr(!O3D) {
                 // dummy bearing angles
-                params.Pos->Ntheta   = 1;
-                params.Pos->theta    = allocate<float>(params.Pos->Ntheta);
+                params.Pos->Ntheta = 1;
+                trackallocate(
+                    params, "default arrays", params.Pos->theta, params.Pos->Ntheta);
                 params.Pos->theta[0] = FL(0.0);
-                params.Pos->t_rcvr   = allocate<vec2>(params.Pos->Ntheta);
+                trackallocate(
+                    params, "default arrays", params.Pos->t_rcvr, params.Pos->Ntheta);
             }
         }
 
         // LP: Moved from WriteHeader
         // receiver bearing angles
         if(params.Pos->theta == nullptr) {
-            params.Pos->Ntheta   = 1;
-            params.Pos->theta    = allocate<float>(1);
+            params.Pos->Ntheta = 1;
+            trackallocate(params, "default arrays", params.Pos->theta, 1);
             params.Pos->theta[0] = FL(0.0); // dummy bearing angle
-            params.Pos->t_rcvr   = allocate<vec2>(1);
+            trackallocate(params, "default arrays", params.Pos->t_rcvr, 1);
         }
         // source x-coordinates
         if(params.Pos->Sx == nullptr) {
-            params.Pos->Sx    = allocate<float>(1);
+            trackallocate(params, "default arrays", params.Pos->Sx, 1);
             params.Pos->Sx[0] = FL(0.0); // dummy x-coordinate
             params.Pos->NSx   = 1;
         }
         // source y-coordinates
         if(params.Pos->Sy == nullptr) {
-            params.Pos->Sy    = allocate<float>(1);
+            trackallocate(params, "default arrays", params.Pos->Sy, 1);
             params.Pos->Sy[0] = FL(0.0); // dummy y-coordinate
             params.Pos->NSy   = 1;
         }
@@ -363,77 +370,79 @@ template<bool O3D, bool R3D> bool setup(
 
 #if BHC_ENABLE_2D
 template bool BHC_API setup<false, false>(
-    const char *FileRoot, void (*prtCallback)(const char *message),
-    void (*outputCallback)(const char *message), bhcParams<false, false> &params,
+    const bhcInit &init, bhcParams<false, false> &params,
     bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API setup<true, false>(
-    const char *FileRoot, void (*prtCallback)(const char *message),
-    void (*outputCallback)(const char *message), bhcParams<true, false> &params,
+    const bhcInit &init, bhcParams<true, false> &params,
     bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API setup<true, true>(
-    const char *FileRoot, void (*prtCallback)(const char *message),
-    void (*outputCallback)(const char *message), bhcParams<true, true> &params,
-    bhcOutputs<true, true> &outputs);
+    const bhcInit &init, bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> void finalize(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    delete GetInternal(params);
-    params.internal = nullptr;
-
     // IMPORTANT--if changes are made here, make the same changes in setup
     // (i.e. setting the pointers to nullptr initially)
 
-    checkdeallocate(params.bdinfo->top.bd);
-    checkdeallocate(params.bdinfo->bot.bd);
-    checkdeallocate(params.refl->bot.r);
-    checkdeallocate(params.refl->top.r);
-    checkdeallocate(params.ssp->cMat);
-    checkdeallocate(params.ssp->czMat);
-    checkdeallocate(params.ssp->Seg.r);
-    checkdeallocate(params.ssp->Seg.x);
-    checkdeallocate(params.ssp->Seg.y);
-    checkdeallocate(params.ssp->Seg.z);
-    checkdeallocate(params.Pos->iSz);
-    checkdeallocate(params.Pos->iRz);
-    checkdeallocate(params.Pos->Sx);
-    checkdeallocate(params.Pos->Sy);
-    checkdeallocate(params.Pos->Sz);
-    checkdeallocate(params.Pos->Rr);
-    checkdeallocate(params.Pos->Rz);
-    checkdeallocate(params.Pos->ws);
-    checkdeallocate(params.Pos->wr);
-    checkdeallocate(params.Pos->theta);
-    checkdeallocate(params.Pos->t_rcvr);
-    checkdeallocate(params.Angles->alpha.angles);
-    checkdeallocate(params.Angles->beta.angles);
-    checkdeallocate(params.freqinfo->freqVec);
-    checkdeallocate(params.beaminfo->SrcBmPat);
-    checkdeallocate(outputs.rayinfo->raymem);
-    checkdeallocate(outputs.rayinfo->results);
-    checkdeallocate(outputs.uAllSources);
-    checkdeallocate(outputs.eigen->hits);
-    checkdeallocate(outputs.arrinfo->Arr);
-    checkdeallocate(outputs.arrinfo->NArr);
+    trackdeallocate(params, params.bdinfo->top.bd);
+    trackdeallocate(params, params.bdinfo->bot.bd);
+    trackdeallocate(params, params.refl->bot.r);
+    trackdeallocate(params, params.refl->top.r);
+    trackdeallocate(params, params.ssp->cMat);
+    trackdeallocate(params, params.ssp->czMat);
+    trackdeallocate(params, params.ssp->Seg.r);
+    trackdeallocate(params, params.ssp->Seg.x);
+    trackdeallocate(params, params.ssp->Seg.y);
+    trackdeallocate(params, params.ssp->Seg.z);
+    trackdeallocate(params, params.Pos->iSz);
+    trackdeallocate(params, params.Pos->iRz);
+    trackdeallocate(params, params.Pos->Sx);
+    trackdeallocate(params, params.Pos->Sy);
+    trackdeallocate(params, params.Pos->Sz);
+    trackdeallocate(params, params.Pos->Rr);
+    trackdeallocate(params, params.Pos->Rz);
+    trackdeallocate(params, params.Pos->ws);
+    trackdeallocate(params, params.Pos->wr);
+    trackdeallocate(params, params.Pos->theta);
+    trackdeallocate(params, params.Pos->t_rcvr);
+    trackdeallocate(params, params.Angles->alpha.angles);
+    trackdeallocate(params, params.Angles->beta.angles);
+    trackdeallocate(params, params.freqinfo->freqVec);
+    trackdeallocate(params, params.beaminfo->SrcBmPat);
+    trackdeallocate(params, outputs.rayinfo->raymem);
+    trackdeallocate(params, outputs.rayinfo->results);
+    trackdeallocate(params, outputs.uAllSources);
+    trackdeallocate(params, outputs.eigen->hits);
+    trackdeallocate(params, outputs.arrinfo->Arr);
+    trackdeallocate(params, outputs.arrinfo->NArr);
 
-    checkdeallocate(params.Bdry);
-    checkdeallocate(params.bdinfo);
-    checkdeallocate(params.refl);
-    checkdeallocate(params.ssp);
-    checkdeallocate(params.atten);
-    checkdeallocate(params.Pos);
-    checkdeallocate(params.Angles);
-    checkdeallocate(params.freqinfo);
-    checkdeallocate(params.Beam);
-    checkdeallocate(params.beaminfo);
-    checkdeallocate(outputs.rayinfo);
-    checkdeallocate(outputs.eigen);
-    checkdeallocate(outputs.arrinfo);
+    trackdeallocate(params, params.Bdry);
+    trackdeallocate(params, params.bdinfo);
+    trackdeallocate(params, params.refl);
+    trackdeallocate(params, params.ssp);
+    trackdeallocate(params, params.atten);
+    trackdeallocate(params, params.Pos);
+    trackdeallocate(params, params.Angles);
+    trackdeallocate(params, params.freqinfo);
+    trackdeallocate(params, params.Beam);
+    trackdeallocate(params, params.beaminfo);
+    trackdeallocate(params, outputs.rayinfo);
+    trackdeallocate(params, outputs.eigen);
+    trackdeallocate(params, outputs.arrinfo);
+
+    if(GetInternal(params)->usedMemory != 0) {
+        EXTWARN(
+            "Amount of memory leaked: %" PRIu64 " bytes",
+            GetInternal(params)->usedMemory);
+    }
+
+    delete GetInternal(params);
+    params.internal = nullptr;
 }
 
 #if BHC_ENABLE_2D

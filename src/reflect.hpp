@@ -118,7 +118,8 @@ template<bool O3D, bool R3D> inline void ReadReflectionCoefficient(
         PRTFile << "Number of points in bottom reflection coefficient = "
                 << refl->bot.NPts << "\n";
 
-        checkallocate(refl->bot.r, refl->bot.NPts);
+        trackallocate(
+            params, "bottom reflection coefficients", refl->bot.r, refl->bot.NPts);
 
         LIST(BRCFile);
         for(int32_t itheta = 0; itheta < refl->bot.NPts; ++itheta) {
@@ -128,7 +129,8 @@ template<bool O3D, bool R3D> inline void ReadReflectionCoefficient(
             refl->bot.r[itheta].phi *= DegRad; // convert to radians
         }
     } else { // should allocate something anyway, since variable is passed
-        checkallocate(refl->bot.r, 1);
+        trackallocate(
+            params, "default/trivial bottom reflection coefficients", refl->bot.r, 1);
     }
 
     // Optionally read in top reflection coefficient
@@ -149,7 +151,7 @@ template<bool O3D, bool R3D> inline void ReadReflectionCoefficient(
         PRTFile << "Number of points in top reflection coefficient = " << refl->top.NPts
                 << "\n";
 
-        checkallocate(refl->top.r, refl->top.NPts);
+        trackallocate(params, "top reflection coefficients", refl->top.r, refl->top.NPts);
 
         LIST(TRCFile);
         for(int32_t itheta = 0; itheta < refl->top.NPts; ++itheta) {
@@ -159,7 +161,8 @@ template<bool O3D, bool R3D> inline void ReadReflectionCoefficient(
             refl->top.r[itheta].phi *= DegRad; // convert to radians
         }
     } else { // should allocate something anyway, since variable is passed
-        checkallocate(refl->top.r, 1);
+        trackallocate(
+            params, "default/trivial top reflection coefficients", refl->top.r, 1);
     }
 
     // Optionally read in internal reflection coefficient data

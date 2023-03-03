@@ -75,9 +75,9 @@ template<bool O3D, bool R3D> void ReadQuad(bhcParams<O3D, R3D> &params)
         std::abort();
     }
 
-    checkallocate(ssp->cMat, ssp->NPts * ssp->Nr);
-    checkallocate(ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
-    checkallocate(ssp->Seg.r, ssp->Nr);
+    trackallocate(params, "quad SSP", ssp->cMat, ssp->NPts * ssp->Nr);
+    trackallocate(params, "quad SSP", ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
+    trackallocate(params, "quad SSP", ssp->Seg.r, ssp->Nr);
 
     LIST(SSPFile);
     SSPFile.Read(ssp->Seg.r, ssp->Nr);
@@ -127,7 +127,7 @@ template<bool O3D, bool R3D> void ReadHexahedral(bhcParams<O3D, R3D> &params)
     LIST(SSPFile);
     SSPFile.Read(ssp->Nx);
     PRTFile << "\nNumber of points in x = " << ssp->Nx << "\n";
-    checkallocate(ssp->Seg.x, ssp->Nx);
+    trackallocate(params, "hexahedral SSP grid", ssp->Seg.x, ssp->Nx);
     LIST(SSPFile);
     SSPFile.Read(ssp->Seg.x, ssp->Nx);
 
@@ -135,7 +135,7 @@ template<bool O3D, bool R3D> void ReadHexahedral(bhcParams<O3D, R3D> &params)
     LIST(SSPFile);
     SSPFile.Read(ssp->Ny);
     PRTFile << "\nNumber of points in y = " << ssp->Ny << "\n";
-    checkallocate(ssp->Seg.y, ssp->Ny);
+    trackallocate(params, "hexahedral SSP grid", ssp->Seg.y, ssp->Ny);
     LIST(SSPFile);
     SSPFile.Read(ssp->Seg.y, ssp->Ny);
 
@@ -143,7 +143,7 @@ template<bool O3D, bool R3D> void ReadHexahedral(bhcParams<O3D, R3D> &params)
     LIST(SSPFile);
     SSPFile.Read(ssp->Nz);
     PRTFile << "\nNumber of points in z = " << ssp->Nz << "\n";
-    checkallocate(ssp->Seg.z, ssp->Nz);
+    trackallocate(params, "hexahedral SSP grid", ssp->Seg.z, ssp->Nz);
     LIST(SSPFile);
     SSPFile.Read(ssp->Seg.z, ssp->Nz);
 
@@ -156,8 +156,11 @@ template<bool O3D, bool R3D> void ReadHexahedral(bhcParams<O3D, R3D> &params)
         EXTERR("ssp: Hexahedral: Number of SSP points in Z exceeds limit");
     }
 
-    checkallocate(ssp->cMat, ssp->Nx * ssp->Ny * ssp->Nz);
-    checkallocate(ssp->czMat, ssp->Nx * ssp->Ny * (ssp->Nz - 1));
+    trackallocate(
+        params, "hexahedral SSP values", ssp->cMat, ssp->Nx * ssp->Ny * ssp->Nz);
+    trackallocate(
+        params, "hexahedral SSP derivatives", ssp->czMat,
+        ssp->Nx * ssp->Ny * (ssp->Nz - 1));
 
     PRTFile << "\n";
     for(int32_t iz2 = 0; iz2 < ssp->Nz; ++iz2) {

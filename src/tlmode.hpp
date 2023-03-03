@@ -27,11 +27,13 @@ namespace bhc {
 /**
  * for a TL calculation, allocate space for the pressure matrix
  */
-inline void InitTLMode(cpxf *&uAllSources, const Position *Pos)
+template<bool O3D, bool R3D> inline void InitTLMode(
+    cpxf *&uAllSources, const bhcParams<O3D, R3D> &params)
 {
-    size_t n = (size_t)Pos->NSz * (size_t)Pos->NSx * (size_t)Pos->NSy
+    const Position *Pos = params.Pos;
+    size_t n            = (size_t)Pos->NSz * (size_t)Pos->NSx * (size_t)Pos->NSy
         * (size_t)Pos->Ntheta * (size_t)Pos->NRz_per_range * (size_t)Pos->NRr;
-    checkallocate(uAllSources, n);
+    trackallocate(params, "sound field / transmission loss", uAllSources, n);
     memset(uAllSources, 0, n * sizeof(cpxf));
 }
 

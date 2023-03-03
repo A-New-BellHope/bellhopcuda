@@ -86,13 +86,13 @@ template<bool O3D, bool R3D> void PostProcessEigenrays(
     ErrState errState;
     ResetErrState(&errState);
     GetInternal(params)->sharedJobID = 0;
-    uint32_t nthreads                = GetNumThreads(params.maxThreads);
+    uint32_t numThreads              = GetInternal(params)->numThreads;
     std::vector<std::thread> threads;
-    for(uint32_t i = 0; i < nthreads; ++i)
+    for(uint32_t i = 0; i < numThreads; ++i)
         threads.push_back(std::thread(
             EigenModePostWorker<O3D, R3D>, std::cref(params), std::ref(outputs),
             &errState));
-    for(uint32_t i = 0; i < nthreads; ++i) threads[i].join();
+    for(uint32_t i = 0; i < numThreads; ++i) threads[i].join();
     CheckReportErrors(GetInternal(params), &errState);
 
     PostProcessRays(params, outputs.rayinfo);

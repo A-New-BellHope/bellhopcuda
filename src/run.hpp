@@ -48,15 +48,13 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
 
     // Mode specific
     if(IsRayRun(params.Beam)) {
-        InitRayMode<O3D, R3D>(outputs.rayinfo, params, 0);
+        InitRayMode(outputs.rayinfo, params, 0);
     } else if(IsTLRun(params.Beam)) {
-        InitTLMode(outputs.uAllSources, params.Pos);
+        InitTLMode(outputs.uAllSources, params);
     } else if(IsEigenraysRun(params.Beam)) {
-        InitEigenMode(outputs.eigen);
+        InitEigenMode(outputs.eigen, params);
     } else if(IsArrivalsRun(params.Beam)) {
-        InitArrivalsMode(
-            outputs.arrinfo, params.maxThreads, O3D, params.Pos,
-            GetInternal(params)->PRTFile);
+        InitArrivalsMode(outputs.arrinfo, params);
     } else {
         EXTERR("Invalid RunType %c", params.Beam->RunType[0]);
     }

@@ -105,11 +105,12 @@ template<bool O3D, bool R3D> inline void WriteRay(
 template<bool O3D, bool R3D> void InitRayMode(
     RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, uint32_t neigen)
 {
+#warning TODO InitRayMode
     rayinfo->NRays     = neigen > 0 ? neigen : GetNumJobs<O3D>(params.Pos, params.Angles);
     rayinfo->MaxPoints = bhc::min((uint32_t)MaxN * (uint32_t)rayinfo->NRays, 100000000u);
     rayinfo->NPoints   = 0;
-    checkallocate(rayinfo->raymem, rayinfo->MaxPoints);
-    checkallocate(rayinfo->results, rayinfo->NRays);
+    trackallocate(params, "rays", rayinfo->raymem, rayinfo->MaxPoints);
+    trackallocate(params, "rays", rayinfo->results, rayinfo->NRays);
     // Clear because will check pointers
     memset(rayinfo->results, 0, rayinfo->NRays * sizeof(RayResult<O3D, R3D>));
 }

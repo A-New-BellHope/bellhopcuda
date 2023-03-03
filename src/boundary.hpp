@@ -229,8 +229,8 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
  * normals  (.n, .noden), and
  * curvatures (.kappa)
  */
-template<bool O3D> inline void ComputeBdryTangentNormal(
-    BdryInfoTopBot<O3D> *bd, bool isTop)
+template<bool O3D, bool R3D> inline void ComputeBdryTangentNormal(
+    const bhcParams<O3D, R3D> &params, BdryInfoTopBot<O3D> *bd, bool isTop)
 {
     typename TmplInt12<O3D>::type NPts = bd->NPts;
     vec3 tvec;
@@ -476,26 +476,18 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
             }
 
             // compute curvature in each segment
-            // LP: TODO: This allocation is not necessary, could just have two
-            // variables for current and next phi. Operating on the whole array can
-            // trigger compiler SIMD parallelism (AVX-512 etc.), but this is
-            // unlikely to happen for atan2, and this is in one-time setup code
-            // anyway.
-            real *phi = allocate<real>(NPts);
-            // this is the angle at each node
-            for(int32_t i = 0; i < NPts; ++i)
-                phi[i] = STD::atan2(bd->bd[i].Nodet[1], bd->bd[i].Nodet[0]);
-
+            if(NPts < 2) { EXTERR("Invalid value of NPts in ComputeBdryTangentNormal"); }
+            real curphi = STD::atan2(bd->bd[0].Nodet[1], bd->bd[0].Nodet[0]);
             for(int32_t ii = 0; ii < NPts - 1; ++ii) {
-                bd->bd[ii].kappa = (phi[ii + 1] - phi[ii]) / bd->bd[ii].Len; // this is
-                                                                             // curvature
-                                                                             // = dphi/ds
-                bd->bd[ii].Dxx = (bd->bd[ii + 1].Dx - bd->bd[ii].Dx) /       // second
-                                                                             // derivative
-                    (bd->bd[ii + 1].x[0] - bd->bd[ii].x[0]);
-                bd->bd[ii].Dss = bd->bd[ii].Dxx * CUBE(bd->bd[ii].t[0]); // derivative in
-                                                                         // direction of
-                                                                         // tangent
+                real nextphi
+                    = STD::atan2(bd->bd[ii + 1].Nodet[1], bd->bd[ii + 1].Nodet[0]);
+                // this is curvature = dphi/ds
+                bd->bd[ii].kappa = (nextphi - curphi) / bd->bd[ii].Len;
+                // second derivative
+                bd->bd[ii].Dxx = (bd->bd[ii + 1].Dx - bd->bd[ii].Dx)
+                    / (bd->bd[ii + 1].x[0] - bd->bd[ii].x[0]);
+                // derivative in direction of tangent
+                bd->bd[ii].Dss = bd->bd[ii].Dxx * CUBE(bd->bd[ii].t[0]);
                 // printf("kappa, Dss, Dxx %g %g %g %g %g %g %g\n", bd->bd[ii].kappa,
                 // bd->bd[ii].Dss, bd->bd[ii].Dxx,
                 //    FL(1.0) / ((FL(8.0) / SQ(FL(1000.0))) *
@@ -503,9 +495,8 @@ template<bool O3D> inline void ComputeBdryTangentNormal(
                 //    (FL(4.0) * CUBE(bd->bd[ii].x[1]) / FL(1000000.0)), bd->bd[ii].x[1]);
 
                 bd->bd[ii].kappa = bd->bd[ii].Dss; // over-ride kappa !!!!!
+                curphi           = nextphi;
             }
-
-            deallocate(phi);
         }
 
     } else {
@@ -590,7 +581,7 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
 
         if constexpr(O3D) {
             IGNORE_UNUSED(s_risesdrops);
-            real *Globalx, *Globaly;
+            real *Globalx = nullptr, *Globaly = nullptr;
 
             // x values
             LIST(BDRYFile);
@@ -598,7 +589,9 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x "
                     << bdinfotb->NPts.x << "\n";
 
-            Globalx    = allocate<real>(std::max(bdinfotb->NPts.x, 3));
+            trackallocate(
+                params, "temp arrays for altimetry/bathymetry", Globalx,
+                std::max(bdinfotb->NPts.x, 3));
             Globalx[2] = FL(-999.9);
             LIST(BDRYFile);
             BDRYFile.Read(Globalx, bdinfotb->NPts.x);
@@ -616,7 +609,9 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in y "
                     << bdinfotb->NPts.y << "\n";
 
-            Globaly    = allocate<real>(std::max(bdinfotb->NPts.y, 3));
+            trackallocate(
+                params, "temp arrays for altimetry/bathymetry", Globaly,
+                std::max(bdinfotb->NPts.y, 3));
             Globaly[2] = FL(-999.9);
             LIST(BDRYFile);
             BDRYFile.Read(Globaly, bdinfotb->NPts.y);
@@ -633,7 +628,9 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
             for(int32_t i = 0; i < bdinfotb->NPts.y; ++i) Globaly[i] *= FL(1000.0);
 
             // z values
-            checkallocate(bdinfotb->bd, bdinfotb->NPts.x * bdinfotb->NPts.y);
+            trackallocate(
+                params, s_altimetrybathymetry, bdinfotb->bd,
+                bdinfotb->NPts.x * bdinfotb->NPts.y);
 
             PRTFile << "\n";
             bool warnedNaN = false;
@@ -653,8 +650,8 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
                 }
             }
 
-            checkdeallocate(Globalx);
-            checkdeallocate(Globaly);
+            trackdeallocate(params, Globalx);
+            trackdeallocate(params, Globaly);
         } else {
             LIST(BDRYFile);
             BDRYFile.Read(bdinfotb->NPts);
@@ -663,7 +660,7 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
             bdinfotb->NPts += 2; // we'll be extending the s_altimetrybathymetry to
                                  // infinity to the left and right
 
-            checkallocate(bdinfotb->bd, bdinfotb->NPts);
+            trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, bdinfotb->NPts);
 
             // LP: BUG: Geoacoustics are supported for altimetry, but the
             // header for geoacoustics is only supported for bathymetry.
@@ -759,7 +756,7 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
         if constexpr(O3D) {
             bdinfotb->type[0] = 'R';
             bdinfotb->NPts    = int2(2, 2);
-            checkallocate(bdinfotb->bd, 2 * 2);
+            trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2 * 2);
 
             bdinfotb->bd[0].x = vec3(-BDRYBIG, -BDRYBIG, BdryDepth);
             bdinfotb->bd[1].x = vec3(-BDRYBIG, BDRYBIG, BdryDepth);
@@ -775,13 +772,13 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
 
             return; // LP: No ComputeBdryTangentNormal cause done manually here
         } else {
-            checkallocate(bdinfotb->bd, 2);
+            trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2);
             bdinfotb->bd[0].x = vec2(-BDRYBIG, BdryDepth);
             bdinfotb->bd[1].x = vec2(BDRYBIG, BdryDepth);
         }
     }
 
-    ComputeBdryTangentNormal<O3D>(bdinfotb, isTop);
+    ComputeBdryTangentNormal<O3D, R3D>(params, bdinfotb, isTop);
 
     if constexpr(!O3D) {
         // convert range-dependent geoacoustic parameters from user to program units

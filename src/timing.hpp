@@ -30,15 +30,15 @@ namespace bhc {
 
 void SetupThread();
 
-inline uint32_t GetNumThreads(int32_t maxThreads)
+inline uint32_t ModifyNumThreads(int32_t numThreads)
 {
-    if(maxThreads >= 1) return maxThreads;
-    maxThreads = std::thread::hardware_concurrency();
-    if(maxThreads < 1) maxThreads = 1;
+    if(numThreads >= 1) return numThreads;
+    numThreads = std::thread::hardware_concurrency();
+    if(numThreads < 1) numThreads = 1;
 #ifdef BHC_USE_HIGH_PRIORITY_THREADS
-    if(maxThreads > 1) --maxThreads; // Leave one core unused to avoid locking up system
+    if(numThreads > 1) --numThreads; // Leave one core unused to avoid locking up system
 #endif
-    return maxThreads;
+    return numThreads;
 }
 
 class Stopwatch {

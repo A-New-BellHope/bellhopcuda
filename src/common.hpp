@@ -423,6 +423,17 @@ static inline std::string trim_copy(std::string s)
     return s;
 }
 
+inline bool startswith(const std::string &source, const std::string &target)
+{
+    return source.rfind(target, 0) == 0;
+}
+
+inline bool endswith(const std::string &source, const std::string &target)
+{
+    size_t l = source.length() - target.length();
+    return source.find(source, l) == l;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Other components
 ////////////////////////////////////////////////////////////////////////////////
@@ -452,13 +463,16 @@ struct bhcInternal {
     PrintFileEmu PRTFile;
     std::string FileRoot;
     std::atomic<int32_t> sharedJobID;
-    int m_gpu, d_multiprocs; // d_warp, d_maxthreads
+    int gpuIndex, d_multiprocs; // d_warp, d_maxthreads
+    int32_t numThreads;
+    size_t maxMemory;
+    size_t usedMemory;
 
-    bhcInternal(
-        const char *FileRoot_, void (*prtCallback_)(const char *message),
-        void (*outputCallback_)(const char *message))
-        : outputCallback(outputCallback_), PRTFile(this, FileRoot_, prtCallback_),
-          FileRoot(FileRoot_), m_gpu(0)
+    bhcInternal(const bhcInit &init)
+        : outputCallback(init.outputCallback),
+          PRTFile(this, init.FileRoot, init.prtCallback), FileRoot(init.FileRoot),
+          gpuIndex(init.gpuIndex), numThreads(ModifyNumThreads(init.numThreads)),
+          maxMemory(init.maxMemory), usedMemory(0)
     {}
 };
 
@@ -472,40 +486,46 @@ template<bool O3D, bool R3D> inline bhcInternal *GetInternal(
 // CUDA memory
 ////////////////////////////////////////////////////////////////////////////////
 
-template<typename T> inline T *allocate(size_t n = 1)
+template<bool O3D, bool R3D, typename T> inline void trackdeallocate(
+    const bhcParams<O3D, R3D> &params, T *&ptr)
 {
-    T *ret;
+    if(ptr == nullptr) return;
+    // Size stored two 64-bit words before returned pointer. 16 byte aligned.
+    uint64_t *ptr2 = (uint64_t *)ptr;
+    ptr2 -= 2;
+    GetInternal(params)->usedMemory -= *ptr2;
 #ifdef BHC_BUILD_CUDA
-    checkCudaErrors(cudaMallocManaged(&ret, n * sizeof(T)));
+    checkCudaErrors(cudaFree(ptr2));
 #else
-    ret = (T *)malloc(n * sizeof(T));
-#endif
-#ifdef BHC_DEBUG
-    // Debugging: Fill memory with garbage data to help detect uninitialized vars
-    memset(ret, 0xFE, n * sizeof(T));
-#endif
-    return ret;
-}
-
-template<typename T> inline void deallocate(T *&ptr)
-{
-#ifdef BHC_BUILD_CUDA
-    checkCudaErrors(cudaFree(ptr));
-#else
-    free(ptr);
+    free(ptr2);
 #endif
     ptr = nullptr;
 }
 
-template<typename T> inline void checkdeallocate(T *&ptr)
+template<bool O3D, bool R3D, typename T> inline void trackallocate(
+    const bhcParams<O3D, R3D> &params, const char *description, T *&ptr, size_t n = 1)
 {
-    if(ptr != nullptr) deallocate(ptr);
-}
-
-template<typename T> inline void checkallocate(T *&ptr, size_t n = 1)
-{
-    if(ptr != nullptr) deallocate(ptr);
-    ptr = allocate<T>(n);
+    if(ptr != nullptr) trackdeallocate(params, ptr);
+    uint64_t *ptr2;
+    uint64_t s  = ((n * sizeof(T)) + 15) & ~15; // Round up to 16 byte aligned
+    uint64_t s2 = s + 16; // Total size to allocate, including size info
+    if(GetInternal(params)->usedMemory + s2 > GetInternal(params)->maxMemory) {
+        EXTERR(
+            "Insufficient memory to allocate %s, need more than %" PRIu64 " MiB",
+            description, (GetInternal(params)->usedMemory + s2) / (1024ull * 1024ull));
+    }
+#ifdef BHC_BUILD_CUDA
+    checkCudaErrors(cudaMallocManaged(&ptr2, s2));
+#else
+    ptr2 = (uint64_t *)malloc(s2);
+#endif
+    *ptr2 = s2;
+    GetInternal(params)->usedMemory += s2;
+    ptr = (T *)&ptr2[2];
+#ifdef BHC_DEBUG
+    // Debugging: Fill memory with garbage data to help detect uninitialized vars
+    memset(ptr, 0xFE, s);
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////

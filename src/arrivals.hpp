@@ -130,26 +130,33 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
     }
 }
 
-inline void InitArrivalsMode(
-    ArrInfo *arrinfo, int32_t maxThreads, bool ThreeD, const Position *Pos,
-    PrintFileEmu &PRTFile)
+template<bool O3D, bool R3D> inline void InitArrivalsMode(
+    ArrInfo *arrinfo, bhcParams<O3D, R3D> &params)
 {
-    arrinfo->AllowMerging = maxThreads == 1;
-    size_t nSrcsRcvrs     = Pos->NRz_per_range * Pos->NRr * Pos->NSz;
-    size_t nSrcs          = Pos->NSz;
-    if(ThreeD) {
-        nSrcsRcvrs *= Pos->Ntheta * Pos->NSx * Pos->NSy;
-        nSrcs *= Pos->NSx * Pos->NSy;
+    arrinfo->AllowMerging = GetInternal(params)->numThreads == 1;
+    size_t nSrcs          = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;
+    size_t nSrcsRcvrs     = nSrcs * params.Pos->Ntheta * params.Pos->NRr
+        * params.Pos->NRz_per_range;
+    int64_t remainingMemory = GetInternal(params)->maxMemory
+        - GetInternal(params)->usedMemory;
+    remainingMemory -= nSrcsRcvrs * sizeof(int32_t);
+    remainingMemory -= nSrcs * sizeof(int32_t);
+    remainingMemory -= 32 * 3; // Possible padding used for the three arrays
+    remainingMemory  = std::max(remainingMemory, (int64_t)0);
+    arrinfo->MaxNArr = remainingMemory / (nSrcsRcvrs * sizeof(Arrival));
+    if(arrinfo->MaxNArr == 0) {
+        EXTERR("Insufficient memory to allocate arrivals");
+    } else if(arrinfo->MaxNArr < 10) {
+        EXTWARN(
+            "Only enough memory to allocate up to %d arrivals per receiver",
+            arrinfo->MaxNArr);
     }
-    // LP: Having a minimum size is not great if the user specified a maximum
-    // amount of memory to use.
-    // const size_t MinNArr         = 10;
-    // arrinfo->MaxNArr = (int32_t)bhc::max(ArrivalsStorage / nReceivers, MinNArr);
-    arrinfo->MaxNArr = arrinfo->ArrMemSize / (nSrcsRcvrs * sizeof(Arrival));
-    PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr << " )\n";
-    checkallocate(arrinfo->Arr, nSrcsRcvrs * (size_t)arrinfo->MaxNArr);
-    checkallocate(arrinfo->NArr, nSrcsRcvrs);
-    checkallocate(arrinfo->MaxNPerSource, nSrcs);
+    GetInternal(params)->PRTFile << "\n( Maximum # of arrivals = " << arrinfo->MaxNArr
+                                 << " )\n";
+    trackallocate(
+        params, "arrivals", arrinfo->Arr, nSrcsRcvrs * (size_t)arrinfo->MaxNArr);
+    trackallocate(params, "arrivals", arrinfo->NArr, nSrcsRcvrs);
+    trackallocate(params, "arrivals", arrinfo->MaxNPerSource, nSrcs);
     memset(arrinfo->Arr, 0, nSrcsRcvrs * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
     memset(arrinfo->NArr, 0, nSrcsRcvrs * sizeof(int32_t));
     // MaxNPerSource does not have to be initialized
