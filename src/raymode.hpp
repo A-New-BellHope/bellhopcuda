@@ -66,27 +66,23 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     }
 }
 
-template<bool O3D, bool R3D> inline bool IsRayCopyMode(const RayInfo<O3D, R3D> *rayinfo)
-{
-    return (size_t)rayinfo->MaxPoints < (size_t)MaxN * (size_t)rayinfo->NRays;
-}
-
 template<bool O3D, bool R3D> inline bool RunRay(
-    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, rayPt<R3D> *localmem,
-    int32_t job, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState)
+    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t job,
+    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState)
 {
     if(job >= rayinfo->NRays) {
         RunError(errState, BHC_ERR_JOBNUM);
         return false;
     }
     rayPt<R3D> *ray;
-    if(IsRayCopyMode<O3D, R3D>(rayinfo)) {
-        ray = localmem;
+    if(rayinfo->isCopyMode) {
+        ray = &rayinfo->WorkRayMem[worker * rayinfo->MaxPointsPerRay];
     } else {
-        ray = &rayinfo->raymem[job * MaxN];
+        ray = &rayinfo->RayMem[job * rayinfo->MaxPointsPerRay];
     }
 #ifdef BHC_DEBUG
-    memset(ray, 0xFE, MaxN * sizeof(rayPt<R3D>)); // Set to garbage values for debugging
+    // Set to garbage values for debugging
+    memset(ray, 0xFE, rayinfo->MaxPointsPerRay * sizeof(rayPt<R3D>));
 #endif
 
     Origin<O3D, R3D> org;
@@ -133,15 +129,15 @@ template<bool O3D, bool R3D> inline bool RunRay(
     if(HasErrored(errState)) return false;
 
     bool ret = true;
-    if(IsRayCopyMode<O3D, R3D>(rayinfo)) {
-        uint32_t p = AtomicFetchAdd(&rayinfo->NPoints, (uint32_t)Nsteps);
-        if(p + Nsteps > rayinfo->MaxPoints) {
+    if(rayinfo->isCopyMode) {
+        uint32_t p = AtomicFetchAdd(&rayinfo->RayMemPoints, (uint32_t)Nsteps);
+        if(p + Nsteps > rayinfo->RayMemCapacity) {
             RunWarning(errState, BHC_WARN_RAYS_OUTOFMEMORY);
             rayinfo->results[job].ray = nullptr;
             ret                       = false;
         } else {
-            rayinfo->results[job].ray = &rayinfo->raymem[p];
-            memcpy(rayinfo->results[job].ray, localmem, Nsteps * sizeof(rayPt<R3D>));
+            rayinfo->results[job].ray = &rayinfo->RayMem[p];
+            memcpy(rayinfo->results[job].ray, ray, Nsteps * sizeof(rayPt<R3D>));
         }
     } else {
         rayinfo->results[job].ray = ray;

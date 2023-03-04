@@ -105,14 +105,43 @@ template<bool O3D, bool R3D> inline void WriteRay(
 template<bool O3D, bool R3D> void InitRayMode(
     RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, uint32_t neigen)
 {
-#warning TODO InitRayMode
-    rayinfo->NRays     = neigen > 0 ? neigen : GetNumJobs<O3D>(params.Pos, params.Angles);
-    rayinfo->MaxPoints = bhc::min((uint32_t)MaxN * (uint32_t)rayinfo->NRays, 100000000u);
-    rayinfo->NPoints   = 0;
-    trackallocate(params, "rays", rayinfo->raymem, rayinfo->MaxPoints);
-    trackallocate(params, "rays", rayinfo->results, rayinfo->NRays);
+    trackdeallocate(params, rayinfo->RayMem);
+    trackdeallocate(params, rayinfo->WorkRayMem);
+    rayinfo->NRays = neigen > 0 ? neigen : GetNumJobs<O3D>(params.Pos, params.Angles);
+    trackallocate(params, "ray metadata", rayinfo->results, rayinfo->NRays);
     // Clear because will check pointers
     memset(rayinfo->results, 0, rayinfo->NRays * sizeof(RayResult<O3D, R3D>));
+
+    rayinfo->MaxPointsPerRay = MaxN;
+    rayinfo->isCopyMode      = false;
+    size_t needtotalsize     = (size_t)rayinfo->NRays * (size_t)MaxN * sizeof(rayPt<R3D>);
+    if(GetInternal(params)->usedMemory + needtotalsize
+       <= GetInternal(params)->maxMemory) {
+        rayinfo->RayMemCapacity = (size_t)rayinfo->NRays * (size_t)MaxN;
+    } else if(GetInternal(params)->useRayCopyMode) {
+        trackallocate(
+            params, "work rays for copy mode", rayinfo->WorkRayMem,
+            GetInternal(params)->numThreads * MaxN);
+        rayinfo->RayMemCapacity = (GetInternal(params)->maxMemory
+                                   - GetInternal(params)->usedMemory)
+            / sizeof(rayPt<R3D>);
+        rayinfo->isCopyMode = true;
+    } else {
+        rayinfo->MaxPointsPerRay = (GetInternal(params)->maxMemory
+                                    - GetInternal(params)->usedMemory)
+            / ((size_t)rayinfo->NRays * sizeof(rayPt<R3D>));
+        if(rayinfo->MaxPointsPerRay == 0) {
+            EXTERR("Insufficient memory to allocate any rays at all");
+        } else if(rayinfo->MaxPointsPerRay < 500) {
+            EXTWARN(
+                "There is only enough memory to allocate %d points per ray",
+                rayinfo->MaxPointsPerRay);
+        }
+        rayinfo->RayMemCapacity = (size_t)rayinfo->NRays
+            * (size_t)rayinfo->MaxPointsPerRay;
+    }
+    trackallocate(params, "rays", rayinfo->RayMem, rayinfo->RayMemCapacity);
+    rayinfo->RayMemPoints = 0;
 }
 
 #if BHC_ENABLE_2D

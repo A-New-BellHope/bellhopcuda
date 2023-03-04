@@ -407,11 +407,14 @@ template<bool O3D, bool R3D> struct RayResult {
 };
 
 template<bool O3D, bool R3D> struct RayInfo {
-    rayPt<R3D> *raymem;
-    uint32_t NPoints;
-    uint32_t MaxPoints;
     RayResult<O3D, R3D> *results;
+    rayPt<R3D> *RayMem;
+    rayPt<R3D> *WorkRayMem;
+    size_t RayMemCapacity;
+    size_t RayMemPoints;
+    uint32_t MaxPointsPerRay;
     int32_t NRays;
+    bool isCopyMode;
 };
 
 struct RayInitInfo {
@@ -457,6 +460,12 @@ struct bhcInit {
     int32_t numThreads = -1;
     /// Maximum amount of memory (in bytes) this instance should use.
     size_t maxMemory = 4ull * 1024ull * 1024ull * 1024ull; // 4 GiB
+    /// If there is not enough memory to hold the requested number of rays
+    /// where each is maximum length, whether to solve this by reducing the
+    /// maximum length (false), or by using copy mode (true). Copy mode can fit
+    /// more ray data in memory but is slower. This only affects ray and
+    /// eigenray runs (no effect on TL or arrivals).
+    bool useRayCopyMode = false;
     /// Index of the GPU to use (ignored if not in CUDA mode). This is the order
     /// the GPUs are enumerated in CUDA, usually with the most powerful GPU
     /// as index 0.

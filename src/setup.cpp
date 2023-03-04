@@ -86,6 +86,19 @@ template<bool O3D, bool R3D> bool setup(
 #endif
 
         // Allocate main structs
+        params.Bdry     = nullptr;
+        params.bdinfo   = nullptr;
+        params.refl     = nullptr;
+        params.ssp      = nullptr;
+        params.atten    = nullptr;
+        params.Pos      = nullptr;
+        params.Angles   = nullptr;
+        params.freqinfo = nullptr;
+        params.Beam     = nullptr;
+        params.beaminfo = nullptr;
+        outputs.rayinfo = nullptr;
+        outputs.eigen   = nullptr;
+        outputs.arrinfo = nullptr;
         trackallocate(params, "data structures", params.Bdry);
         trackallocate(params, "data structures", params.bdinfo);
         trackallocate(params, "data structures", params.refl);
@@ -130,8 +143,9 @@ template<bool O3D, bool R3D> bool setup(
         params.Angles->beta.angles  = nullptr;
         params.freqinfo->freqVec    = nullptr;
         params.beaminfo->SrcBmPat   = nullptr;
-        outputs.rayinfo->raymem     = nullptr;
         outputs.rayinfo->results    = nullptr;
+        outputs.rayinfo->RayMem     = nullptr;
+        outputs.rayinfo->WorkRayMem = nullptr;
         outputs.uAllSources         = nullptr;
         outputs.eigen->hits         = nullptr;
         outputs.arrinfo->Arr        = nullptr;
@@ -174,17 +188,18 @@ template<bool O3D, bool R3D> bool setup(
         params.Beam->epsMultiplier   = FL(1.0);
         memcpy(params.Beam->Type, "G S ", 4);
         // params.beaminfo: none
-        outputs.rayinfo->NPoints   = 0;
-        outputs.rayinfo->MaxPoints = 0;
-        outputs.rayinfo->NRays     = 0;
-        outputs.eigen->neigen      = 0;
-        outputs.eigen->memsize     = 0;
-        outputs.arrinfo->MaxNArr   = 1;
-        RecycledHS.alphaR          = FL(1500.0);
-        RecycledHS.betaR           = FL(0.0);
-        RecycledHS.alphaI          = FL(0.0);
-        RecycledHS.betaI           = FL(0.0);
-        RecycledHS.rho             = FL(1.0);
+        outputs.rayinfo->RayMemCapacity  = 0;
+        outputs.rayinfo->RayMemPoints    = 0;
+        outputs.rayinfo->MaxPointsPerRay = 0;
+        outputs.rayinfo->NRays           = 0;
+        outputs.eigen->neigen            = 0;
+        outputs.eigen->memsize           = 0;
+        outputs.arrinfo->MaxNArr         = 1;
+        RecycledHS.alphaR                = FL(1500.0);
+        RecycledHS.betaR                 = FL(0.0);
+        RecycledHS.alphaI                = FL(0.0);
+        RecycledHS.betaI                 = FL(0.0);
+        RecycledHS.rho                   = FL(1.0);
 
         if constexpr(!O3D && !R3D && Init_Inline) {
             // NPts, Sigma not used by BELLHOP

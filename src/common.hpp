@@ -431,7 +431,7 @@ inline bool startswith(const std::string &source, const std::string &target)
 inline bool endswith(const std::string &source, const std::string &target)
 {
     size_t l = source.length() - target.length();
-    return source.find(source, l) == l;
+    return source.find(target, l) == l;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -467,12 +467,13 @@ struct bhcInternal {
     int32_t numThreads;
     size_t maxMemory;
     size_t usedMemory;
+    bool useRayCopyMode;
 
     bhcInternal(const bhcInit &init)
         : outputCallback(init.outputCallback),
           PRTFile(this, init.FileRoot, init.prtCallback), FileRoot(init.FileRoot),
           gpuIndex(init.gpuIndex), numThreads(ModifyNumThreads(init.numThreads)),
-          maxMemory(init.maxMemory), usedMemory(0)
+          maxMemory(init.maxMemory), usedMemory(0), useRayCopyMode(init.useRayCopyMode)
     {}
 };
 
@@ -507,8 +508,8 @@ template<bool O3D, bool R3D, typename T> inline void trackallocate(
 {
     if(ptr != nullptr) trackdeallocate(params, ptr);
     uint64_t *ptr2;
-    uint64_t s  = ((n * sizeof(T)) + 15) & ~15; // Round up to 16 byte aligned
-    uint64_t s2 = s + 16; // Total size to allocate, including size info
+    uint64_t s  = ((n * sizeof(T)) + 15ull) & ~15ull; // Round up to 16 byte aligned
+    uint64_t s2 = s + 16ull; // Total size to allocate, including size info
     if(GetInternal(params)->usedMemory + s2 > GetInternal(params)->maxMemory) {
         EXTERR(
             "Insufficient memory to allocate %s, need more than %" PRIu64 " MiB",
@@ -521,7 +522,7 @@ template<bool O3D, bool R3D, typename T> inline void trackallocate(
 #endif
     *ptr2 = s2;
     GetInternal(params)->usedMemory += s2;
-    ptr = (T *)&ptr2[2];
+    ptr = (T *)(ptr2 + 2);
 #ifdef BHC_DEBUG
     // Debugging: Fill memory with garbage data to help detect uninitialized vars
     memset(ptr, 0xFE, s);

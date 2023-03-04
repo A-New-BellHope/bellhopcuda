@@ -133,6 +133,9 @@ template<bool R3D> HOST_DEVICE inline void AddArr(
 template<bool O3D, bool R3D> inline void InitArrivalsMode(
     ArrInfo *arrinfo, bhcParams<O3D, R3D> &params)
 {
+    trackdeallocate(params, arrinfo->Arr);
+    trackdeallocate(params, arrinfo->NArr);
+    trackdeallocate(params, arrinfo->MaxNPerSource);
     arrinfo->AllowMerging = GetInternal(params)->numThreads == 1;
     size_t nSrcs          = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;
     size_t nSrcsRcvrs     = nSrcs * params.Pos->Ntheta * params.Pos->NRr

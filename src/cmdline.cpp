@@ -55,7 +55,7 @@ int main(int argc, char **argv)
                     std::cout << "Unknown command-line option \"" << s << "\"\n";
                     std::abort();
                 }
-                std::string key   = s.substr(0, equalspos - 1);
+                std::string key   = s.substr(0, equalspos);
                 std::string value = s.substr(equalspos + 1);
                 if(key == "-gpu") {
                     if(!bhc::isInt(value, false)) {
@@ -68,21 +68,21 @@ int main(int argc, char **argv)
                     size_t multiplier = 1u;
                     size_t base       = 1000u;
                     if(bhc::endswith(value, "B") || bhc::endswith(value, "b")) {
-                        value = value.substr(value.length() - 1);
+                        value = value.substr(0, value.length() - 1);
                     }
                     if(bhc::endswith(value, "i")) {
                         base  = 1024u;
-                        value = value.substr(value.length() - 1);
+                        value = value.substr(0, value.length() - 1);
                     }
                     if(bhc::endswith(value, "k") || bhc::endswith(value, "K")) {
                         multiplier = base;
-                        value      = value.substr(value.length() - 1);
+                        value      = value.substr(0, value.length() - 1);
                     } else if(bhc::endswith(value, "M")) {
                         multiplier = base * base;
-                        value      = value.substr(value.length() - 1);
+                        value      = value.substr(0, value.length() - 1);
                     } else if(bhc::endswith(value, "G")) {
                         multiplier = base * base * base;
-                        value      = value.substr(value.length() - 1);
+                        value      = value.substr(0, value.length() - 1);
                     }
                     if(!bhc::isInt(value, false)) {
                         std::cout << "Value \"" << value
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
                     }
                     init.maxMemory = multiplier * std::stoi(value);
                 } else {
-                    std::cout << "Unknown command-line option \"--" << key << "=" << value
+                    std::cout << "Unknown command-line option \"-" << key << "=" << value
                               << "\"\n";
                     std::abort();
                 }
