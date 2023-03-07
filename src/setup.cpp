@@ -118,38 +118,39 @@ template<bool O3D, bool R3D> bool setup(
         // Set pointers to null because we always check if they are not null (and
         // deallocate them if so) before allocating them
         // IMPORTANT--if changes are made here, make the same changes in finalize
-        params.bdinfo->top.bd       = nullptr;
-        params.bdinfo->bot.bd       = nullptr;
-        params.refl->bot.r          = nullptr;
-        params.refl->top.r          = nullptr;
-        params.ssp->cMat            = nullptr;
-        params.ssp->czMat           = nullptr;
-        params.ssp->Seg.r           = nullptr;
-        params.ssp->Seg.x           = nullptr;
-        params.ssp->Seg.y           = nullptr;
-        params.ssp->Seg.z           = nullptr;
-        params.Pos->iSz             = nullptr;
-        params.Pos->iRz             = nullptr;
-        params.Pos->Sx              = nullptr;
-        params.Pos->Sy              = nullptr;
-        params.Pos->Sz              = nullptr;
-        params.Pos->Rr              = nullptr;
-        params.Pos->Rz              = nullptr;
-        params.Pos->ws              = nullptr;
-        params.Pos->wr              = nullptr;
-        params.Pos->theta           = nullptr;
-        params.Pos->t_rcvr          = nullptr;
-        params.Angles->alpha.angles = nullptr;
-        params.Angles->beta.angles  = nullptr;
-        params.freqinfo->freqVec    = nullptr;
-        params.beaminfo->SrcBmPat   = nullptr;
-        outputs.rayinfo->results    = nullptr;
-        outputs.rayinfo->RayMem     = nullptr;
-        outputs.rayinfo->WorkRayMem = nullptr;
-        outputs.uAllSources         = nullptr;
-        outputs.eigen->hits         = nullptr;
-        outputs.arrinfo->Arr        = nullptr;
-        outputs.arrinfo->NArr       = nullptr;
+        params.bdinfo->top.bd          = nullptr;
+        params.bdinfo->bot.bd          = nullptr;
+        params.refl->bot.r             = nullptr;
+        params.refl->top.r             = nullptr;
+        params.ssp->cMat               = nullptr;
+        params.ssp->czMat              = nullptr;
+        params.ssp->Seg.r              = nullptr;
+        params.ssp->Seg.x              = nullptr;
+        params.ssp->Seg.y              = nullptr;
+        params.ssp->Seg.z              = nullptr;
+        params.Pos->iSz                = nullptr;
+        params.Pos->iRz                = nullptr;
+        params.Pos->Sx                 = nullptr;
+        params.Pos->Sy                 = nullptr;
+        params.Pos->Sz                 = nullptr;
+        params.Pos->Rr                 = nullptr;
+        params.Pos->Rz                 = nullptr;
+        params.Pos->ws                 = nullptr;
+        params.Pos->wr                 = nullptr;
+        params.Pos->theta              = nullptr;
+        params.Pos->t_rcvr             = nullptr;
+        params.Angles->alpha.angles    = nullptr;
+        params.Angles->beta.angles     = nullptr;
+        params.freqinfo->freqVec       = nullptr;
+        params.beaminfo->SrcBmPat      = nullptr;
+        outputs.rayinfo->results       = nullptr;
+        outputs.rayinfo->RayMem        = nullptr;
+        outputs.rayinfo->WorkRayMem    = nullptr;
+        outputs.uAllSources            = nullptr;
+        outputs.eigen->hits            = nullptr;
+        outputs.arrinfo->Arr           = nullptr;
+        outputs.arrinfo->NArr          = nullptr;
+        outputs.arrinfo->MaxNPerSource = nullptr;
 
         // Fill in default / "constructor" data
         params.fT = RL(1.0e20);
@@ -436,6 +437,7 @@ template<bool O3D, bool R3D> void finalize(
     trackdeallocate(params, outputs.eigen->hits);
     trackdeallocate(params, outputs.arrinfo->Arr);
     trackdeallocate(params, outputs.arrinfo->NArr);
+    trackdeallocate(params, outputs.arrinfo->MaxNPerSource);
 
     trackdeallocate(params, params.Bdry);
     trackdeallocate(params, params.bdinfo);

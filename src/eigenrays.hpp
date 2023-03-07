@@ -44,11 +44,21 @@ HOST_DEVICE inline void RecordEigenHit(
 template<bool O3D, bool R3D> inline void InitEigenMode(
     EigenInfo *eigen, const bhcParams<O3D, R3D> &params)
 {
-#warning TODO InitEigenMode
-    constexpr int32_t maxhits = 1000000;
-    eigen->neigen             = 0;
-    eigen->memsize            = maxhits;
-    trackallocate(params, "eigenray hits", eigen->hits, maxhits);
+    // Use 1 / hitsMemFraction of the available memory for eigenray hits
+    // (the rest for rays).
+    constexpr size_t hitsMemFraction = 500;
+    size_t mem     = GetInternal(params)->maxMemory - GetInternal(params)->usedMemory;
+    eigen->memsize = mem / (hitsMemFraction * sizeof(EigenHit));
+    if(eigen->memsize == 0) {
+        EXTERR("Insufficient memory to allocate any eigen hits at all");
+    } else if(eigen->memsize < 10000) {
+        EXTWARN(
+            "There is only enough memory to allocate %d eigen hits, using 1/%dth "
+            "of the total available memory for eigen hits",
+            eigen->memsize, hitsMemFraction);
+    }
+    trackallocate(params, "eigenray hits", eigen->hits, eigen->memsize);
+    eigen->neigen = 0;
 }
 
 template<bool O3D, bool R3D> void PostProcessEigenrays(
