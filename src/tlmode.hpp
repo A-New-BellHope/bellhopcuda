@@ -91,7 +91,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
     int32_t is            = 0; // index for a step along the ray
     int32_t Nsteps        = 0; // not actually needed in TL mode, debugging only
 
-    for(int32_t istep = 0; istep < MaxN - 1; ++istep) {
+    while(true) {
         if(HasErrored(errState)) break;
         bool twoSteps = RayUpdate<CFG, O3D, R3D>(
             point0, point1, point2, DistEndTop, DistEndBot, iSmallStepCtr, org, iSeg, bds,
@@ -117,7 +117,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
         }
         if(RayTerminate<O3D, R3D>(
                point0, Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
-               DistEndBot, org, bdinfo, Beam, errState))
+               DistEndBot, MaxN, org, bdinfo, Beam, errState))
             break;
     }
 

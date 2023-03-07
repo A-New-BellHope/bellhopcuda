@@ -103,7 +103,7 @@ template<bool O3D, bool R3D> inline void WriteRay(
  * neigen is 0 when not in eigenrays mode (i.e. in ray trace mode).
  */
 template<bool O3D, bool R3D> void InitRayMode(
-    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, uint32_t neigen)
+    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t neigen)
 {
     trackdeallocate(params, rayinfo->RayMem);
     trackdeallocate(params, rayinfo->WorkRayMem);
@@ -147,15 +147,15 @@ template<bool O3D, bool R3D> void InitRayMode(
 #if BHC_ENABLE_2D
 template void InitRayMode<false, false>(
     RayInfo<false, false> *rayinfo, const bhcParams<false, false> &params,
-    uint32_t neigen);
+    int32_t neigen);
 #endif
 #if BHC_ENABLE_NX2D
 template void InitRayMode<true, false>(
-    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, uint32_t neigen);
+    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, int32_t neigen);
 #endif
 #if BHC_ENABLE_3D
 template void InitRayMode<true, true>(
-    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, uint32_t neigen);
+    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, int32_t neigen);
 #endif
 
 template<bool O3D, bool R3D> void PostProcessRays(

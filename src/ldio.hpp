@@ -354,7 +354,7 @@ private:
     bool _abort_on_error;
     std::ifstream f;
     std::string lastitem;
-    uint32_t lastitemcount;
+    int32_t lastitemcount;
     int line;
     bool isafterslash, isafternewline;
 

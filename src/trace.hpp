@@ -392,8 +392,9 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
 template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const rayPt<R3D> &point, int32_t &Nsteps, int32_t is, const VEC23<O3D> &xs,
     const int32_t &iSmallStepCtr, real &DistBegTop, real &DistBegBot,
-    const real &DistEndTop, const real &DistEndBot, const Origin<O3D, R3D> &org,
-    const BdryInfo<O3D> *bdinfo, const BeamStructure<O3D> *Beam, ErrState *errState)
+    const real &DistEndTop, const real &DistEndBot, int32_t MaxPointsPerRay,
+    const Origin<O3D, R3D> &org, const BdryInfo<O3D> *bdinfo,
+    const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     bool leftbox, escapedboundaries, toomanysmallsteps;
     bool escaped0bdry, escapedNbdry;
@@ -466,7 +467,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
 #endif
         Nsteps = is + 1;
         return true;
-    } else if(is >= MaxN - 3) {
+    } else if(is >= MaxPointsPerRay - 3) {
         RunWarning(errState, BHC_WARN_ONERAY_OUTOFMEMORY);
         // printf("Warning in TraceRay: Insufficient storage for ray trajectory\n");
         Nsteps = is;

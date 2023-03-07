@@ -334,8 +334,8 @@ struct EigenHit {
 };
 
 struct EigenInfo {
-    uint32_t neigen;
-    uint32_t memsize;
+    int32_t neigen;
+    int32_t memsize;
     EigenHit *hits;
 };
 
@@ -412,7 +412,7 @@ template<bool O3D, bool R3D> struct RayInfo {
     rayPt<R3D> *WorkRayMem;
     size_t RayMemCapacity;
     size_t RayMemPoints;
-    uint32_t MaxPointsPerRay;
+    int32_t MaxPointsPerRay;
     int32_t NRays;
     bool isCopyMode;
 };

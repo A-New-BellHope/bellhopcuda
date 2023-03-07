@@ -591,7 +591,7 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
 
             trackallocate(
                 params, "temp arrays for altimetry/bathymetry", Globalx,
-                std::max(bdinfotb->NPts.x, 3));
+                bhc::max(bdinfotb->NPts.x, 3));
             Globalx[2] = FL(-999.9);
             LIST(BDRYFile);
             BDRYFile.Read(Globalx, bdinfotb->NPts.x);
@@ -611,7 +611,7 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
 
             trackallocate(
                 params, "temp arrays for altimetry/bathymetry", Globaly,
-                std::max(bdinfotb->NPts.y, 3));
+                bhc::max(bdinfotb->NPts.y, 3));
             Globaly[2] = FL(-999.9);
             LIST(BDRYFile);
             BDRYFile.Read(Globaly, bdinfotb->NPts.y);

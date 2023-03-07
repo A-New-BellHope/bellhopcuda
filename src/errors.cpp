@@ -122,7 +122,7 @@ void CheckReportErrors(bhcInternal *internal, const ErrState *errState)
     if(warning != 0) {
         ExternalWarning(
             internal, "%d warning(s) thrown of the following type(s):", warnCount);
-        for(uint32_t i = 0; i < BHC_WARN_MAX; ++i) {
+        for(int32_t i = 0; i < BHC_WARN_MAX; ++i) {
             if((warning & (1u << i))) {
                 ExternalWarning(internal, "%s", warningDescriptions[i]);
                 warning &= ~(1u << i);
@@ -137,7 +137,7 @@ void CheckReportErrors(bhcInternal *internal, const ErrState *errState)
     if(error != 0) {
         ExternalWarning(
             internal, "%d error(s) thrown of the following type(s):", errCount);
-        for(uint32_t i = 0; i < BHC_ERR_MAX; ++i) {
+        for(int32_t i = 0; i < BHC_ERR_MAX; ++i) {
             if((error & (1u << i))) {
                 ExternalWarning(internal, "%s", errorDescriptions[i]);
                 error &= ~(1u << i);

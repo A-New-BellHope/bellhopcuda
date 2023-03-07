@@ -429,8 +429,9 @@ template<bool O3D, bool R3D> void finalize(
     trackdeallocate(params, params.Angles->beta.angles);
     trackdeallocate(params, params.freqinfo->freqVec);
     trackdeallocate(params, params.beaminfo->SrcBmPat);
-    trackdeallocate(params, outputs.rayinfo->raymem);
     trackdeallocate(params, outputs.rayinfo->results);
+    trackdeallocate(params, outputs.rayinfo->RayMem);
+    trackdeallocate(params, outputs.rayinfo->WorkRayMem);
     trackdeallocate(params, outputs.uAllSources);
     trackdeallocate(params, outputs.eigen->hits);
     trackdeallocate(params, outputs.arrinfo->Arr);

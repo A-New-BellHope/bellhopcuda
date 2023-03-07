@@ -27,11 +27,11 @@ namespace bhc {
  * Main ray tracing function for ray path output mode.
  */
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
-    RayInitInfo &rinit, rayPt<R3D> *ray, int32_t &Nsteps, Origin<O3D, R3D> &org,
-    const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl,
-    const SSPStructure *ssp, const Position *Pos, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo,
-    ErrState *errState)
+    RayInitInfo &rinit, rayPt<R3D> *ray, int32_t &Nsteps, int32_t MaxPointsPerRay,
+    Origin<O3D, R3D> &org, const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo,
+    const ReflectionInfo *refl, const SSPStructure *ssp, const Position *Pos,
+    const AnglesStructure *Angles, const FreqInfo *freqinfo,
+    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, ErrState *errState)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     SSPSegState iSeg;
@@ -61,7 +61,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
         is += (twoSteps ? 2 : 1);
         if(RayTerminate<O3D, R3D>(
                ray[is], Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
-               DistEndBot, org, bdinfo, Beam, errState))
+               DistEndBot, MaxPointsPerRay, org, bdinfo, Beam, errState))
             break;
     }
 }
@@ -70,7 +70,7 @@ template<bool O3D, bool R3D> inline bool RunRay(
     RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState)
 {
-    if(job >= rayinfo->NRays) {
+    if(job >= rayinfo->NRays || worker >= GetInternal(params)->numThreads) {
         RunError(errState, BHC_ERR_JOBNUM);
         return false;
     }
@@ -78,7 +78,7 @@ template<bool O3D, bool R3D> inline bool RunRay(
     if(rayinfo->isCopyMode) {
         ray = &rayinfo->WorkRayMem[worker * rayinfo->MaxPointsPerRay];
     } else {
-        ray = &rayinfo->RayMem[job * rayinfo->MaxPointsPerRay];
+        ray = &rayinfo->RayMem[(size_t)job * rayinfo->MaxPointsPerRay];
     }
 #ifdef BHC_DEBUG
     // Set to garbage values for debugging
@@ -89,39 +89,39 @@ template<bool O3D, bool R3D> inline bool RunRay(
     char st = params.ssp->Type;
     if(st == 'N') {
         MainRayMode<CfgSel<'R', 'G', 'N'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
-            errState);
+            rinit, ray, Nsteps, rayinfo->MaxPointsPerRay, org, params.Bdry, params.bdinfo,
+            params.refl, params.ssp, params.Pos, params.Angles, params.freqinfo,
+            params.Beam, params.beaminfo, errState);
     } else if(st == 'C') {
         MainRayMode<CfgSel<'R', 'G', 'C'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
-            errState);
+            rinit, ray, Nsteps, rayinfo->MaxPointsPerRay, org, params.Bdry, params.bdinfo,
+            params.refl, params.ssp, params.Pos, params.Angles, params.freqinfo,
+            params.Beam, params.beaminfo, errState);
     } else if(st == 'S') {
         MainRayMode<CfgSel<'R', 'G', 'S'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
-            errState);
+            rinit, ray, Nsteps, rayinfo->MaxPointsPerRay, org, params.Bdry, params.bdinfo,
+            params.refl, params.ssp, params.Pos, params.Angles, params.freqinfo,
+            params.Beam, params.beaminfo, errState);
     } else if(st == 'P') {
         MainRayMode<CfgSel<'R', 'G', 'P'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
-            errState);
+            rinit, ray, Nsteps, rayinfo->MaxPointsPerRay, org, params.Bdry, params.bdinfo,
+            params.refl, params.ssp, params.Pos, params.Angles, params.freqinfo,
+            params.Beam, params.beaminfo, errState);
     } else if(st == 'Q') {
         MainRayMode<CfgSel<'R', 'G', 'Q'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
-            errState);
+            rinit, ray, Nsteps, rayinfo->MaxPointsPerRay, org, params.Bdry, params.bdinfo,
+            params.refl, params.ssp, params.Pos, params.Angles, params.freqinfo,
+            params.Beam, params.beaminfo, errState);
     } else if(st == 'H') {
         MainRayMode<CfgSel<'R', 'G', 'H'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
-            errState);
+            rinit, ray, Nsteps, rayinfo->MaxPointsPerRay, org, params.Bdry, params.bdinfo,
+            params.refl, params.ssp, params.Pos, params.Angles, params.freqinfo,
+            params.Beam, params.beaminfo, errState);
     } else if(st == 'A') {
         MainRayMode<CfgSel<'R', 'G', 'A'>, O3D, R3D>(
-            rinit, ray, Nsteps, org, params.Bdry, params.bdinfo, params.refl, params.ssp,
-            params.Pos, params.Angles, params.freqinfo, params.Beam, params.beaminfo,
-            errState);
+            rinit, ray, Nsteps, rayinfo->MaxPointsPerRay, org, params.Bdry, params.bdinfo,
+            params.refl, params.ssp, params.Pos, params.Angles, params.freqinfo,
+            params.Beam, params.beaminfo, errState);
     } else {
         RunError(errState, BHC_ERR_INVALID_SSP_TYPE);
         return false;
@@ -130,8 +130,8 @@ template<bool O3D, bool R3D> inline bool RunRay(
 
     bool ret = true;
     if(rayinfo->isCopyMode) {
-        uint32_t p = AtomicFetchAdd(&rayinfo->RayMemPoints, (uint32_t)Nsteps);
-        if(p + Nsteps > rayinfo->RayMemCapacity) {
+        size_t p = AtomicFetchAdd(&rayinfo->RayMemPoints, (size_t)Nsteps);
+        if(p + (size_t)Nsteps > rayinfo->RayMemCapacity) {
             RunWarning(errState, BHC_WARN_RAYS_OUTOFMEMORY);
             rayinfo->results[job].ray = nullptr;
             ret                       = false;
@@ -150,14 +150,14 @@ template<bool O3D, bool R3D> inline bool RunRay(
 }
 
 template<bool O3D, bool R3D> void InitRayMode(
-    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, uint32_t neigen);
+    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t neigen);
 extern template void InitRayMode<false, false>(
     RayInfo<false, false> *rayinfo, const bhcParams<false, false> &params,
-    uint32_t neigen);
+    int32_t neigen);
 extern template void InitRayMode<true, false>(
-    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, uint32_t neigen);
+    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, int32_t neigen);
 extern template void InitRayMode<true, true>(
-    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, uint32_t neigen);
+    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, int32_t neigen);
 
 template<bool O3D, bool R3D> void PostProcessRays(
     const bhcParams<O3D, R3D> &params, RayInfo<O3D, R3D> *rayinfo);

@@ -26,7 +26,7 @@ HOST_DEVICE inline void RecordEigenHit(
     int32_t itheta, int32_t ir, int32_t iz, int32_t is, const RayInitInfo &rinit,
     EigenInfo *eigen)
 {
-    uint32_t mi = AtomicFetchAdd(&eigen->neigen, 1u);
+    int32_t mi = AtomicFetchAdd(&eigen->neigen, 1);
     if(mi >= eigen->memsize) return;
     // printf("Eigenray hit %d ir %d iz %d isrc %d ialpha %d is %d\n",
     //     mi, ir, iz, isrc, ialpha, is);
@@ -45,9 +45,9 @@ template<bool O3D, bool R3D> inline void InitEigenMode(
     EigenInfo *eigen, const bhcParams<O3D, R3D> &params)
 {
 #warning TODO InitEigenMode
-    constexpr uint32_t maxhits = 1000000u;
-    eigen->neigen              = 0;
-    eigen->memsize             = maxhits;
+    constexpr int32_t maxhits = 1000000;
+    eigen->neigen             = 0;
+    eigen->memsize            = maxhits;
     trackallocate(params, "eigenray hits", eigen->hits, maxhits);
 }
 

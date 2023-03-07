@@ -30,7 +30,7 @@ namespace bhc {
 
 void SetupThread();
 
-inline uint32_t ModifyNumThreads(int32_t numThreads)
+inline int32_t ModifyNumThreads(int32_t numThreads)
 {
     if(numThreads >= 1) return numThreads;
     numThreads = std::thread::hardware_concurrency();

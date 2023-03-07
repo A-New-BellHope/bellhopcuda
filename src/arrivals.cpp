@@ -42,7 +42,7 @@ template<bool O3D, bool R3D> void PostProcessArrivals(
                                 // including those not written due to limited memory
                                 arrinfo->NArr[base] = narr = arrinfo->MaxNArr;
                             }
-                            maxn = std::max(maxn, narr);
+                            maxn = bhc::max(maxn, narr);
 
                             float factor;
                             if constexpr(R3D) {
