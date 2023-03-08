@@ -70,11 +70,12 @@ template<bool O3D, bool R3D> void PostProcessEigenrays(
 {
     InitRayMode<O3D, R3D>(outputs.rayinfo, params, outputs.eigen->neigen);
 
-    EXTWARN("%d eigenrays\n", (int)outputs.eigen->neigen);
     if(outputs.eigen->neigen > outputs.eigen->memsize) {
         EXTWARN(
             "Would have had %d eigenrays but only %d metadata fit in memory\n",
             outputs.eigen->neigen, outputs.eigen->memsize);
+    } else {
+        EXTWARN("%d eigenrays\n", (int)outputs.eigen->neigen);
     }
 
     ErrState errState;

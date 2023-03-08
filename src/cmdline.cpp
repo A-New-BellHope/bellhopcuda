@@ -31,6 +31,54 @@ template<bool O3D, bool R3D> int mainmain()
     return 0;
 }
 
+void showhelp(const char *argv0)
+{
+    std::cout
+        << BHC_PROGRAMNAME
+        " - C++/CUDA port of BELLHOP underwater acoustics simulator\n"
+        "\n"
+        "Copyright (C) 2021-2023 The Regents of the University of California\n"
+        "Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu\n"
+        "Based on BELLHOP, which is Copyright (C) 1983-2022 Michael B. Porter\n"
+        "GPL3 licensed, no warranty, see LICENSE or https://www.gnu.org/licenses/\n"
+        "\n"
+        "Usage: "
+        << argv0
+        << " [options] FileRoot\n"
+           "FileRoot is the absolute or relative path to the environment file, minus "
+           "the\n"
+           ".env file extension, e.g. test/in/MunkB_ray_rot .\n"
+           "All command-line options may be specified with one or two dashes, e.g.\n"
+           "-3 or --3 do the same thing. Furthermore, all command-line options have\n"
+           "multiple synonyms which do the same thing.\n"
+           "\n"
+           "-?, -h, -help: Shows this help message\n"
+           "-1, -singlethread: Use only one worker thread for CPU computation\n"
+#if BHC_DIM_ONLY == 0
+#if BHC_ENABLE_2D
+           "-2, -2D: Does a 2D run. The environment file must also be 2D\n"
+#endif
+#if BHC_ENABLE_3D
+           "-3, -3D: Does a 3D run. The environment file must also be 3D\n"
+#endif
+#if BHC_ENABLE_NX2D
+           "-4, -Nx2D, -2D3D, -2.5D: Does a Nx2D run. The environment file must also be "
+           "Nx2D\n"
+#endif
+#endif
+           "-copy, -raycopy: Sets the behavior when there is insufficient memory to\n"
+           "    allocate the requested number of full-size rays. See "
+           "bhcInit::useRayCopyMode\n"
+           "    in <bhc/structs.hpp> for more details\n"
+#if BHC_BUILD_CUDA
+           "-gpu=N, -device=N: Selects CUDA device N\n"
+#endif
+           "-mem=X, -memory=X: Sets the amount of memory " BHC_PROGRAMNAME
+           " should use.\n"
+           "    X may have a wide range of suffixes, examples: 16GiB, 8M, 100000kB\n"
+           "    non-examples: 4gI, 2m, 5.3G. Default: 4GiB\n";
+}
+
 int main(int argc, char **argv)
 {
     int dimmode = BHC_DIM_ONLY;
@@ -49,22 +97,29 @@ int main(int argc, char **argv)
                 dimmode = 4;
             } else if(s == "-3" || s == "-3D") {
                 dimmode = 3;
+            } else if(s == "-copy" || s == "-raycopy") {
+                init.useRayCopyMode = true;
+            } else if(s == "-?" || s == "-h" || s == "-help") {
+                showhelp(argv[0]);
+                return 0;
             } else {
                 size_t equalspos = s.find("=");
                 if(equalspos == std::string::npos) {
-                    std::cout << "Unknown command-line option \"" << s << "\"\n";
-                    std::abort();
+                    std::cout << "Unknown command-line option \"" << s << "\", try "
+                              << argv[0] << " --help\n";
+                    return 1;
                 }
                 std::string key   = s.substr(0, equalspos);
                 std::string value = s.substr(equalspos + 1);
-                if(key == "-gpu") {
+                if(key == "-gpu" || key == "-device") {
                     if(!bhc::isInt(value, false)) {
                         std::cout << "Value \"" << value
-                                  << "\" for --gpu argument is invalid\n";
-                        std::abort();
+                                  << "\" for --gpu argument is invalid, try " << argv[0]
+                                  << " --help\n";
+                        return 1;
                     }
                     init.gpuIndex = std::stoi(value);
-                } else if(key == "-mem" || key == "--memory") {
+                } else if(key == "-mem" || key == "-memory") {
                     size_t multiplier = 1u;
                     size_t base       = 1000u;
                     if(bhc::endswith(value, "B") || bhc::endswith(value, "b")) {
@@ -84,16 +139,24 @@ int main(int argc, char **argv)
                         multiplier = base * base * base;
                         value      = value.substr(0, value.length() - 1);
                     }
-                    if(!bhc::isInt(value, false)) {
+                    if(!bhc::isInt(value, false) || (base == 1024u && multiplier == 1u)) {
                         std::cout << "Value \"" << value
-                                  << "\" for --memory argument is invalid\n";
-                        std::abort();
+                                  << "\" for --memory argument is invalid, try "
+                                  << argv[0] << " --help\n";
+                        return 1;
                     }
                     init.maxMemory = multiplier * std::stoi(value);
+                    if(init.maxMemory < 8000000u) {
+                        std::cout << init.maxMemory
+                                  << " bytes is an unreasonably small "
+                                     "amount of memory to ask " BHC_PROGRAMNAME
+                                     " to limit itself to\n";
+                        return 1;
+                    }
                 } else {
                     std::cout << "Unknown command-line option \"-" << key << "=" << value
-                              << "\"\n";
-                    std::abort();
+                              << "\", try " << argv[0] << " --help\n";
+                    return 1;
                 }
             }
         } else {
@@ -102,13 +165,14 @@ int main(int argc, char **argv)
             } else {
                 std::cout << "Intepreting both \"" << FileRoot << "\" and \"" << s
                           << "\" as FileRoot, error\n";
-                std::abort();
+                return 1;
             }
         }
     }
     if(FileRoot.empty()) {
-        std::cout << "Must provide FileRoot as command-line parameter\n";
-        std::abort();
+        std::cout << "Must provide FileRoot as command-line parameter, try " << argv[0]
+                  << " --help\n";
+        return 1;
     }
     init.FileRoot = FileRoot.c_str();
 
@@ -121,7 +185,7 @@ int main(int argc, char **argv)
             std::cout << BHC_DIM_ONLY << "D";
         }
         std::cout << " runs\n";
-        std::abort();
+        return 1;
     }
 #else
     if(dimmode < 2 || dimmode > 4) {
@@ -154,5 +218,5 @@ int main(int argc, char **argv)
                      " was compiled with Nx2D support disabled\n";
 #endif
     }
-    std::abort();
+    return 1;
 }

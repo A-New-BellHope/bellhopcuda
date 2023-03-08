@@ -36,6 +36,11 @@ template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
         EXTERR("No CUDA GPUs found; is the driver installed and loaded?");
     }
     int gpuIndex = GetInternal(params)->gpuIndex;
+    if(gpuIndex >= num_gpus) {
+        EXTERR(
+            "You specified CUDA device %d, but there are only %d GPUs", gpuIndex,
+            num_gpus);
+    }
     cudaDeviceProp cudaProperties;
     for(int g = 0; g < num_gpus; ++g) {
         checkCudaErrors(cudaGetDeviceProperties(&cudaProperties, g));

@@ -76,8 +76,8 @@ template<bool O3D, bool R3D> void ReadQuad(bhcParams<O3D, R3D> &params)
     }
 
     trackallocate(params, "quad SSP", ssp->cMat, ssp->NPts * ssp->Nr);
-    trackallocate(params, "quad SSP", ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
-    trackallocate(params, "quad SSP", ssp->Seg.r, ssp->Nr);
+    trackallocate(params, "quad SSP derivatives", ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
+    trackallocate(params, "quad SSP ranges", ssp->Seg.r, ssp->Nr);
 
     LIST(SSPFile);
     SSPFile.Read(ssp->Seg.r, ssp->Nr);
