@@ -205,23 +205,24 @@ def compare_files(cxxf, forf):
     if errors > 0:
         sys.exit(1)
 
-if len(sys.argv) not in {2, 3}:
-    print('Usage: python3 compare_shdfil.py MunkB_Coh [cxx1/cxxmulti/cuda]')
-    print('No paths, no .shd')
-    sys.exit(1)
+if __name__ == "__main__":
+    if len(sys.argv) not in {2, 3}:
+        print('Usage: python3 compare_shdfil.py MunkB_Coh [cxx1/cxxmulti/cuda]')
+        print('No paths, no .shd')
+        sys.exit(1)
 
-shdfil = sys.argv[1]
-if len(sys.argv) == 3:
-    comparisons = [sys.argv[2]]
-else:
-    comparisons = ['cxx1', 'cxxmulti', 'cuda']
+    shdfil = sys.argv[1]
+    if len(sys.argv) == 3:
+        comparisons = [sys.argv[2]]
+    else:
+        comparisons = ['cxx1', 'cxxmulti', 'cuda']
 
-for c in comparisons:
-    with open('test/FORTRAN/{}.shd'.format(shdfil), 'rb') as forf:
-        cxxfile = 'test/{}/{}.shd'.format(c, shdfil)
-        try:
-            with open(cxxfile, 'rb') as cxxf:
-                print('TL / shade file comparison FORTRAN vs. {}:'.format(c))
-                compare_files(cxxf, forf)
-        except FileNotFoundError:
-            print('{} not found, skipping {}'.format(cxxfile, c))
+    for c in comparisons:
+        with open('test/FORTRAN/{}.shd'.format(shdfil), 'rb') as forf:
+            cxxfile = 'test/{}/{}.shd'.format(c, shdfil)
+            try:
+                with open(cxxfile, 'rb') as cxxf:
+                    print('TL / shade file comparison FORTRAN vs. {}:'.format(c))
+                    compare_files(cxxf, forf)
+            except FileNotFoundError:
+                print('{} not found, skipping {}'.format(cxxfile, c))
