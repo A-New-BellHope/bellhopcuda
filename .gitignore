@@ -12,6 +12,9 @@ test/cxx1/
 test/cxxmulti/
 test/cuda/
 test/FORTRAN/
+test/cxx1win/
+test/cxxmultiwin/
+test/cudawin/
 .vs/
 
 .DS_Store

@@ -379,16 +379,21 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
 
             // printf("%f %f %f %f %f\n", STD::abs(Refl), o.ccpx.real(), hs.cP, o.rho,
             // hs.rho);
+            // LP: Removed this code as it was obviously modified to do nothing
+            // (abs(anything) < 0 is always false), and users would likely be
+            // unpleasantly surprised if it did do what it was intended to do.
+            /*
             if constexpr(R3D) {
                 // Hack to make a wall (where the bottom slope is more than 80 degrees) be
                 // a perfect reflector
                 if(STD::abs(
                        RadDeg
-                       * STD::atan2(nBdry.z, glm::length(glm::vec2(nBdry.x, nBdry.y))))
+                       * STD::atan2(nBdry.z, glm::length(bhc::vec2(nBdry.x, nBdry.y))))
                    < 0) { // was 60 degrees
                     Refl = FL(1.0);
                 }
             }
+            */
         } else {
             cpx kx = omega * Tg; // wavenumber in direction parallel      to bathymetry
             cpx kz = omega * Th; // wavenumber in direction perpendicular to bathymetry
