@@ -205,22 +205,33 @@ template<bool O3D, bool R3D> void ReadRunType(
         // memcpy(PlotType, "rectilin  ", 10);
     }
 
-    switch(params.Beam->RunType[5]) {
-    case '2':
-        PRTFile << "N x 2D calculation (neglects horizontal refraction)\n";
+    bool defaulted2 = false;
+    if(params.Beam->RunType[5] != '2' && params.Beam->RunType[5] != '3') {
+        if constexpr(R3D) {
+            EXTERR("Environment file does not specify dimensionality, defaults to 2 "
+                   "(2D or Nx2D), but you are running " BHC_PROGRAMNAME " in 3D mode");
+        } else if constexpr(O3D) {
+            EXTWARN("Environment file does not specify dimensionality, defaults to 2 "
+                    "(2D or Nx2D), assuming this is Nx2D because that is what you're "
+                    "running");
+        }
+        params.Beam->RunType[5] = '2';
+        defaulted2              = true;
+    }
+    if(params.Beam->RunType[5] == '2') {
+        if(!defaulted2) {
+            PRTFile << "N x 2D calculation (neglects horizontal refraction)\n";
+        }
         if constexpr(R3D) {
             EXTERR("This is a 2D or Nx2D environment file, but you are "
                    "running " BHC_PROGRAMNAME " in 3D mode");
         }
-        break;
-    case '3':
+    } else {
         PRTFile << "3D calculation\n";
         if constexpr(!R3D) {
             EXTERR("This is a 3D environment file, but you are running " BHC_PROGRAMNAME
                    " in 2D or Nx2D mode");
         }
-        break;
-    default: params.Beam->RunType[5] = '2';
     }
 }
 
