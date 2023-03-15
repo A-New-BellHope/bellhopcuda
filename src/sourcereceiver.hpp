@@ -99,6 +99,14 @@ template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
     }
 }
 
+template<bool O3D, bool R3D> inline void DefaultSxSy(bhcParams<O3D, R3D> &params)
+{
+    trackallocate(params, "default/trivial source x-coordinates", params.Pos->Sx, 1);
+    trackallocate(params, "default/trivial source y-coordinates", params.Pos->Sy, 1);
+    params.Pos->Sx[0] = FL(0.0);
+    params.Pos->Sy[0] = FL(0.0);
+}
+
 /**
  * Read source x-y coordinates
  *
@@ -115,10 +123,21 @@ template<bool O3D, bool R3D> inline void ReadSxSy(
             params, params.Pos->NSy, params.Pos->Sy, "Source   y-coordinates, Sy", "km",
             ENVFile);
     } else {
-        trackallocate(params, "default/trivial source x-coordinates", params.Pos->Sx, 1);
-        trackallocate(params, "default/trivial source y-coordinates", params.Pos->Sy, 1);
-        params.Pos->Sx[0] = FL(0.0);
-        params.Pos->Sy[0] = FL(0.0);
+        DefaultSxSy<O3D, R3D>(params);
+    }
+}
+
+template<bool O3D, bool R3D> inline void DefaultSzRz(bhcParams<O3D, R3D> &params)
+{
+    params.Pos->NSz = 1;
+    trackallocate(params, "default source z-coordinates", params.Pos->Sz, 1);
+    params.Pos->Sz[0] = RL(567.8);
+
+    params.Pos->NRz = 11;
+    trackallocate(
+        params, "default receiver z-coordinates", params.Pos->Rz, params.Pos->NRz);
+    for(int32_t i = 0; i < params.Pos->NRz; ++i) {
+        params.Pos->Rz[i] = RL(500.0) * (real)i;
     }
 }
 
@@ -128,20 +147,17 @@ template<bool O3D, bool R3D> inline void ReadSxSy(
  *     sources and receivers are shifted to be within those limits
  */
 template<bool O3D, bool R3D> inline void ReadSzRz(
-    bhcParams<O3D, R3D> &params, real zMin, real zMax, LDIFile &ENVFile)
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
     Position *Pos         = params.Pos;
+    real zMin             = params.Bdry->Top.hs.Depth;
+    real zMax             = params.Bdry->Bot.hs.Depth;
 
     // bool monotonic; //LP: monotonic is a function, this is a name clash
 
     ReadVector(params, Pos->NSz, Pos->Sz, "Source   z-coordinates, Sz", "m", ENVFile);
     ReadVector(params, Pos->NRz, Pos->Rz, "Receiver z-coordinates, Rz", "m", ENVFile);
-
-    trackallocate(params, "source depth auxiliary data", Pos->ws, Pos->NSz);
-    trackallocate(params, "source depth auxiliary data", Pos->iSz, Pos->NSz);
-    trackallocate(params, "receiver depth auxiliary data", Pos->wr, Pos->NRz);
-    trackallocate(params, "receiver depth auxiliary data", Pos->iRz, Pos->NRz);
 
     // *** Check for Sz/Rz in upper or lower halfspace ***
 
@@ -192,6 +208,17 @@ template<bool O3D, bool R3D> inline void ReadSzRz(
     */
 }
 
+template<bool O3D, bool R3D> inline void DefaultRcvrRanges(bhcParams<O3D, R3D> &params)
+{
+    params.Pos->NRr = 10;
+    trackallocate(
+        params, "default receiver r-coordinates", params.Pos->Rr, params.Pos->NRr);
+    for(int32_t i = 0; i < params.Pos->NRr; ++i) {
+        params.Pos->Rr[i] = RL(5000.0) * (real)(i + 1);
+    }
+    Pos->Delta_r = Pos->Rr[Pos->NRr - 1] - Pos->Rr[Pos->NRr - 2];
+}
+
 template<bool O3D, bool R3D> inline void ReadRcvrRanges(
     bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
@@ -199,13 +226,25 @@ template<bool O3D, bool R3D> inline void ReadRcvrRanges(
 
     ReadVector(params, Pos->NRr, Pos->Rr, "Receiver r-coordinates, Rr", "km", ENVFile);
 
-    // calculate range spacing
+    // calculate range spacing TODO move to preprocessing
     Pos->Delta_r = FL(0.0);
     if(Pos->NRr != 1) Pos->Delta_r = Pos->Rr[Pos->NRr - 1] - Pos->Rr[Pos->NRr - 2];
 
     if(!monotonic(Pos->Rr, Pos->NRr)) {
         EXTERR("ReadRcvrRanges: Receiver ranges are not monotonically increasing");
     }
+}
+
+template<bool O3D, bool R3D> inline void DefaultRcvrBearings(bhcParams<O3D, R3D> &params)
+{
+    params.Pos->Ntheta = 5;
+    trackallocate(
+        params, "default receiver bearings", params.Pos->theta, params.Pos->Ntheta);
+    trackallocate(params, "receiver bearing sin/cos table", Pos->t_rcvr, Pos->Ntheta);
+    for(int32_t i = 0; i < params.Pos->Ntheta; ++i) {
+        params.Pos->theta[i] = RL(72.0) * (real)i;
+    }
+    Pos->Delta_theta = Pos->theta[Pos->Ntheta - 1] - Pos->theta[Pos->Ntheta - 2];
 }
 
 template<bool O3D, bool R3D> inline void ReadRcvrBearings(
@@ -215,11 +254,12 @@ template<bool O3D, bool R3D> inline void ReadRcvrBearings(
 
     ReadVector(
         params, Pos->Ntheta, Pos->theta, "Receiver bearings, theta", "degrees", ENVFile);
+    // TODO move this also to preprocessing
     trackallocate(params, "receiver bearing sin/cos table", Pos->t_rcvr, Pos->Ntheta);
 
     CheckFix360Sweep(Pos->theta, Pos->Ntheta);
 
-    // calculate angular spacing
+    // calculate angular spacing TODO move to preprocessing
     Pos->Delta_theta = FL(0.0);
     if(Pos->Ntheta != 1)
         Pos->Delta_theta = Pos->theta[Pos->Ntheta - 1] - Pos->theta[Pos->Ntheta - 2];

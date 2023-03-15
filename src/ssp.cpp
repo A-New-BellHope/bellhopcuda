@@ -206,7 +206,7 @@ void InitHexahedral(SSPStructure *ssp)
  * Update the SSP parameters. Safe to call multiple times with flags.
  * Be sure to flag ssp->dirty if you change the SSP externally.
  */
-template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params)
+template<bool O3D, bool R3D> void PreprocessSSP(bhcParams<O3D, R3D> &params)
 {
     SSPStructure *ssp = params.ssp;
 
@@ -214,7 +214,9 @@ template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params)
     ssp->dirty = false;
 
     if(ssp->Type == 'H') {
-        if constexpr(!O3D) { EXTERR("UpdateSSP: 3D profile not supported in 2D mode"); }
+        if constexpr(!O3D) {
+            EXTERR("PreprocessSSP: 3D profile not supported in 2D mode");
+        }
         // LP: ssp->c and ssp->cz are not well-defined in hexahedral mode, and
         // if the number of depths is changed (ssp->Nz vs. ssp->NPts), computing
         // them may read uninitialized data.
@@ -228,7 +230,8 @@ template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params)
             if(iz > 0) {
                 if(ssp->z[iz] <= ssp->z[iz - 1]) {
                     EXTERR(
-                        "UpdateSSP: The depths in the SSP must be monotone increasing "
+                        "PreprocessSSP: The depths in the SSP must be monotone "
+                        "increasing "
                         "(%f)",
                         ssp->z[iz]);
                 }
@@ -256,11 +259,11 @@ template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params)
         case 'P': // monotone PCHIP ACS profile option
             if constexpr(O3D) {
 #ifdef BHC_LIMIT_FEATURES
-                EXTERR("UpdateSSP: PCHIP is not supported in BELLHOP3D in "
+                EXTERR("PreprocessSSP: PCHIP is not supported in BELLHOP3D in "
                        "3D or Nx2D mode, but can be supported in " BHC_PROGRAMNAME
                        "if you turn off BHC_LIMIT_FEATURES");
 #else
-                EXTWARN("UpdateSSP: warning: PCHIP not supported in BELLHOP3D in "
+                EXTWARN("PreprocessSSP: warning: PCHIP not supported in BELLHOP3D in "
                         "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME);
 #endif
             }
@@ -268,105 +271,119 @@ template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params)
             break;
         case 'Q':
             if constexpr(O3D) {
-                EXTERR("UpdateSSP: 2D profile not supported in 3D or Nx2D mode");
+                EXTERR("PreprocessSSP: 2D profile not supported in 3D or Nx2D mode");
             }
             InitQuad(ssp);
             break;
-        default: EXTERR("UpdateSSP: Invalid profile option %c", ssp->Type);
+        default: EXTERR("PreprocessSSP: Invalid profile option %c", ssp->Type);
         }
     }
 }
 
 #if BHC_ENABLE_2D
-template void UpdateSSP<false, false>(bhcParams<false, false> &params);
+template void PreprocessSSP<false, false>(bhcParams<false, false> &params);
 #endif
 #if BHC_ENABLE_NX2D
-template void UpdateSSP<true, false>(bhcParams<true, false> &params);
+template void PreprocessSSP<true, false>(bhcParams<true, false> &params);
 #endif
 #if BHC_ENABLE_3D
-template void UpdateSSP<true, true>(bhcParams<true, true> &params);
+template void PreprocessSSP<true, true>(bhcParams<true, true> &params);
 #endif
+
+template<bool O3D, bool R3D> void DefaultSSP(bhcParams<O3D, R3D> &params)
+{
+    params.ssp->NPts  = 2;
+    params.ssp->z[0]  = RL(0.0);
+    params.ssp->z[1]  = RL(5000.0);
+    params.ssp->dirty = true;
+}
 
 /**
  * reads the SSP data from the environmental file and convert to Nepers/m
  */
-template<bool O3D, bool R3D> inline void ReadSSP(
+template<bool O3D, bool R3D> void ReadSSP(
     bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS)
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
+    // LP: Moved from ReadEnvironment.
+    LIST(ENVFile);
+    ENVFile.Read(NPts);
+    ENVFile.Read(Sigma);
+    ENVFile.Read(params.Bdry->Bot.hs.Depth);
+    PRTFile << "\n  Depth = " << std::setw(10) << std::setprecision(2)
+            << params.Bdry->Bot.hs.Depth << "  m\n";
+
+    if(params.ssp->Type == 'A') {
+        PRTFile << "Analytic SSP option\n";
+        params.ssp->NPts = 2;
+        params.ssp->z[0] = FL(0.0);
+        params.ssp->z[1] = params.Bdry->Bot.hs.Depth;
+        return;
+    }
 
     PRTFile << "\nSound speed profile:\n";
     PRTFile << "      z         alphaR      betaR     rho        alphaI     betaI\n";
     PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
 
-    params.ssp->NPts = 1;
+    params.ssp->NPts = 0;
 
-    for(int32_t iz = 0; iz < MaxSSP; ++iz) {
+    while(true) {
+        if(params.ssp->NPts >= MaxSSP) {
+            EXTERR("ReadSSP: Number of SSP points exceeds limit");
+            return;
+        }
+
         LIST_WARNLINE(ENVFile);
-        ENVFile.Read(params.ssp->z[iz]);
+        ENVFile.Read(params.ssp->z[params.ssp->NPts]);
         ENVFile.Read(RecycledHS.alphaR);
         ENVFile.Read(RecycledHS.betaR);
         ENVFile.Read(RecycledHS.rho);
         ENVFile.Read(RecycledHS.alphaI);
         ENVFile.Read(RecycledHS.betaI);
 
-        PRTFile << std::setprecision(2) << params.ssp->z[iz] << " " << RecycledHS.alphaR
-                << " " << RecycledHS.betaR << " " << RecycledHS.rho << " "
-                << std::setprecision(4) << RecycledHS.alphaI << " " << RecycledHS.betaI
-                << "\n";
-        params.ssp->rho[iz]    = RecycledHS.rho;
-        params.ssp->alphaR[iz] = RecycledHS.alphaR;
-        params.ssp->alphaI[iz] = RecycledHS.alphaI;
+        PRTFile << std::setprecision(2) << params.ssp->z[params.ssp->NPts] << " "
+                << RecycledHS.alphaR << " " << RecycledHS.betaR << " " << RecycledHS.rho
+                << " " << std::setprecision(4) << RecycledHS.alphaI << " "
+                << RecycledHS.betaI << "\n";
+        params.ssp->rho[params.ssp->NPts]    = RecycledHS.rho;
+        params.ssp->alphaR[params.ssp->NPts] = RecycledHS.alphaR;
+        params.ssp->alphaI[params.ssp->NPts] = RecycledHS.alphaI;
+
+        ++params.ssp->NPts;
 
         // Did we read the last point?
         // LP: FLT_EPSILON is not a typo
-        if(std::abs(params.ssp->z[iz] - params.Bdry->Bot.hs.Depth)
+        if(std::abs(params.ssp->z[params.ssp->NPts - 1] - params.Bdry->Bot.hs.Depth)
            < FL(100.0) * FLT_EPSILON) {
-            params.ssp->Nz = params.ssp->NPts;
-            if(params.ssp->NPts == 1) {
-                EXTERR("ReadSSP: The SSP must have at least 2 points");
-            }
-
-            if(params.ssp->Type == 'Q') {
-                // read in extra SSP data for 2D
-                ReadQuad(params);
-            } else if(params.ssp->Type == 'H') {
-                // read in extra SSP data for 3D
-                ReadHexahedral(params);
-            }
-
-            return;
+            break;
         }
-
-        ++params.ssp->NPts;
     }
 
-    // Fall through means too many points in the profile
-    EXTERR("ReadSSP: Number of SSP points exceeds limit");
-}
+    params.ssp->Nz = params.ssp->NPts;
+    if(params.ssp->NPts < 2) { EXTERR("ReadSSP: The SSP must have at least 2 points"); }
 
-template<bool O3D, bool R3D> void InitializeSSP(
-    bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS)
-{
-    if(params.ssp->Type == 'A') {
-        // nothing to do for analytic
-        return;
+    if(params.ssp->Type == 'Q') {
+        // read in extra SSP data for 2D
+        ReadQuad(params);
+    } else if(params.ssp->Type == 'H') {
+        // read in extra SSP data for 3D
+        ReadHexahedral(params);
     }
 
-    ReadSSP(params, ENVFile, RecycledHS);
     params.ssp->dirty = true;
 }
 
 #if BHC_ENABLE_2D
-template void InitializeSSP<false, false>(
+template void ReadSSP<false, false>(
     bhcParams<false, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
 #endif
 #if BHC_ENABLE_NX2D
-template void InitializeSSP<true, false>(
+template void ReadSSP<true, false>(
     bhcParams<true, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
 #endif
 #if BHC_ENABLE_3D
-template void InitializeSSP<true, true>(
+template void ReadSSP<true, true>(
     bhcParams<true, true> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
 #endif
 

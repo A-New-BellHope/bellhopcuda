@@ -75,8 +75,6 @@ template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
 }
 #endif
 
-constexpr bool Init_Inline = false;
-
 template<bool O3D, bool R3D> bool setup(
     const bhcInit &init, bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
@@ -117,8 +115,6 @@ template<bool O3D, bool R3D> bool setup(
         trackallocate(params, "data structures", outputs.rayinfo);
         trackallocate(params, "data structures", outputs.eigen);
         trackallocate(params, "data structures", outputs.arrinfo);
-        HSInfo RecycledHS; // Values only initialized once--reused from top to ssp, and
-                           // ssp to bot
 
         // Set pointers to null because we always check if they are not null (and
         // deallocate them if so) before allocating them
@@ -133,15 +129,11 @@ template<bool O3D, bool R3D> bool setup(
         params.ssp->Seg.x              = nullptr;
         params.ssp->Seg.y              = nullptr;
         params.ssp->Seg.z              = nullptr;
-        params.Pos->iSz                = nullptr;
-        params.Pos->iRz                = nullptr;
         params.Pos->Sx                 = nullptr;
         params.Pos->Sy                 = nullptr;
         params.Pos->Sz                 = nullptr;
         params.Pos->Rr                 = nullptr;
         params.Pos->Rz                 = nullptr;
-        params.Pos->ws                 = nullptr;
-        params.Pos->wr                 = nullptr;
         params.Pos->theta              = nullptr;
         params.Pos->t_rcvr             = nullptr;
         params.Angles->alpha.angles    = nullptr;
@@ -201,149 +193,25 @@ template<bool O3D, bool R3D> bool setup(
         outputs.eigen->neigen            = 0;
         outputs.eigen->memsize           = 0;
         outputs.arrinfo->MaxNArr         = 1;
-        RecycledHS.alphaR                = FL(1500.0);
-        RecycledHS.betaR                 = FL(0.0);
-        RecycledHS.alphaI                = FL(0.0);
-        RecycledHS.betaI                 = FL(0.0);
-        RecycledHS.rho                   = FL(1.0);
 
-        if constexpr(!O3D && !R3D && Init_Inline) {
-            // NPts, Sigma not used by BELLHOP
-            std::string TempTitle = BHC_PROGRAMNAME
-                "- Calibration case with envfil passed as parameters";
-            size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
-            memcpy(params.Title, TempTitle.c_str(), l);
-            params.Title[l]        = 0;
-            params.freqinfo->freq0 = FL(250.0);
-            // NMedia variable is not used by BELLHOP
-
-            // *** Boundary information (type of boundary condition and, if a halfspace,
-            // then halfspace info)
-
-            memcpy(params.ssp->AttenUnit, "W", 2); // LP: not a typo--one character string
-                                                   // assigned to two
-            params.Bdry->Top.hs.bc    = 'V';
-            params.Bdry->Top.hs.Depth = FL(0.0);
-            params.Bdry->Bot.hs.Depth = FL(100.0);
-            memcpy(params.Bdry->Bot.hs.Opt, "A_", 2);
-            params.Bdry->Bot.hs.bc = 'A';
-            // compressional wave speed
-            params.Bdry->Bot.hs.cP
-                = crci(params, RL(1.0e20), RL(1590.0), RL(0.5), params.ssp->AttenUnit);
-            // shear         wave speed
-            params.Bdry->Bot.hs.cS
-                = crci(params, RL(1.0e20), RL(0.0), RL(0.0), params.ssp->AttenUnit);
-            params.Bdry->Bot.hs.rho = FL(1.2);
-
-            // *** sound speed in the water column ***
-
-            params.ssp->Type  = 'C'; // interpolation method for SSP
-            params.ssp->NPts  = 2;   // number of SSP points
-            params.ssp->z[0]  = FL(0.0);
-            params.ssp->z[1]  = FL(100.0);
-            params.ssp->c[0]  = FL(1500.0);
-            params.ssp->c[1]  = FL(1500.0);
-            params.ssp->cz[0] = FL(0.0);
-            params.ssp->cz[1] = FL(0.0); // user should really not have to supply this ...
-
-            // *** source and receiver positions ***
-
-            params.Pos->NSz = 1;
-            params.Pos->NRz = 100;
-            params.Pos->NRr = 500;
-
+        ReadEnvironment<O3D, R3D>(params);
+        ReadBoundary<O3D, R3D>(
+            params, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
+            &params.bdinfo->top, true); // AlTImetry
+        ReadBoundary<O3D, R3D>(
+            params, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
+            &params.bdinfo->bot, false);             // BaThYmetry
+        ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
+        params.beaminfo->SBPFlag = params.Beam->RunType[2];
+        ReadPat<O3D, R3D>(params); // Source Beam Pattern
+        if constexpr(!O3D) {
+            // dummy bearing angles
+            params.Pos->Ntheta = 1;
             trackallocate(
-                params, "unused inline arrays", params.Pos->Sz, params.Pos->NSz);
+                params, "default arrays", params.Pos->theta, params.Pos->Ntheta);
+            params.Pos->theta[0] = FL(0.0);
             trackallocate(
-                params, "unused inline arrays", params.Pos->ws, params.Pos->NSz);
-            trackallocate(
-                params, "unused inline arrays", params.Pos->iSz, params.Pos->NSz);
-            trackallocate(
-                params, "unused inline arrays", params.Pos->Rz, params.Pos->NRz);
-            trackallocate(
-                params, "unused inline arrays", params.Pos->wr, params.Pos->NRz);
-            trackallocate(
-                params, "unused inline arrays", params.Pos->iRz, params.Pos->NRz);
-            trackallocate(
-                params, "unused inline arrays", params.Pos->Rr, params.Pos->NRr);
-
-            params.Pos->Sz[0] = FL(50.0);
-            // params.Pos->Rz = {0, 50, 100};
-            // params.Pos->Rr = {1000, 2000, 3000, 4000, 5000}; // meters !!!
-            for(int32_t jj = 0; jj < params.Pos->NRz; ++jj) params.Pos->Rz[jj] = jj;
-            for(int32_t jj = 0; jj < params.Pos->NRr; ++jj)
-                params.Pos->Rr[jj] = FL(10.0) * jj;
-
-            memcpy(params.Beam->RunType, "C      ", 7);
-            memcpy(params.Beam->Type, "G   ", 4);
-            params.Beam->deltas = FL(0.0);
-            params.Beam->Box.y  = FL(101.0);
-            params.Beam->Box.x  = FL(5100.0); // meters
-
-            params.Angles->alpha.n = 1789;
-            // params.Angles->alpha.angles = {-80, -70, -60, -50, -40, -30, -20, -10, 0,
-            // 10, 20, 30, 40, 50, 60, 70, 80}; // -89 89
-            for(int32_t jj = 0; jj < params.Angles->alpha.n; ++jj) {
-                params.Angles->alpha.angles[jj] = (FL(180.0) / params.Angles->alpha.n)
-                        * (real)jj
-                    - FL(90.0);
-            }
-
-            // *** altimetry ***
-
-            trackallocate(params, "unused inline arrays", params.bdinfo->top.bd, 2);
-            params.bdinfo->top.bd[0].x = vec2(-bdry_big<false>::value(), RL(0.0));
-            params.bdinfo->top.bd[1].x = vec2(bdry_big<false>::value(), RL(0.0));
-
-            ComputeBdryTangentNormal<O3D>(&params.bdinfo->top, true);
-
-            // *** bathymetry ***
-
-            trackallocate(params, "unused inline arrays", params.bdinfo->bot.bd, 2);
-            params.bdinfo->bot.bd[0].x = vec2(-bdry_big<false>::value(), RL(5000.0));
-            params.bdinfo->bot.bd[1].x = vec2(bdry_big<false>::value(), RL(5000.0));
-
-            ComputeBdryTangentNormal<O3D>(&params.bdinfo->bot, false);
-
-            trackallocate(params, "unused inline arrays", params.refl->bot.r, 1);
-            trackallocate(params, "unused inline arrays", params.refl->top.r, 1);
-            params.refl->bot.NPts = params.refl->top.NPts = 1;
-
-            // *** Source Beam Pattern ***
-            params.beaminfo->NSBPPts = 2;
-            trackallocate(
-                params, "unused inline arrays", params.beaminfo->SrcBmPat, 2 * 2);
-            params.beaminfo->SrcBmPat[0 * 2 + 0] = FL(-180.0);
-            params.beaminfo->SrcBmPat[0 * 2 + 1] = FL(0.0);
-            params.beaminfo->SrcBmPat[1 * 2 + 0] = FL(180.0);
-            params.beaminfo->SrcBmPat[1 * 2 + 1] = FL(0.0);
-            for(int32_t i = 0; i < 2; ++i)
-                params.beaminfo->SrcBmPat[i * 2 + 1] = STD::pow(
-                    FL(10.0), params.beaminfo->SrcBmPat[i * 2 + 1] / FL(20.0)); // convert
-                                                                                // dB to
-                                                                                // linear
-                                                                                // scale
-                                                                                // !!!
-        } else {
-            ReadEnvironment<O3D, R3D>(params, RecycledHS);
-            ReadBoundary<O3D, R3D>(
-                params, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
-                &params.bdinfo->top, true); // AlTImetry
-            ReadBoundary<O3D, R3D>(
-                params, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
-                &params.bdinfo->bot, false);             // BaThYmetry
-            ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
-            params.beaminfo->SBPFlag = params.Beam->RunType[2];
-            ReadPat<O3D, R3D>(params); // Source Beam Pattern
-            if constexpr(!O3D) {
-                // dummy bearing angles
-                params.Pos->Ntheta = 1;
-                trackallocate(
-                    params, "default arrays", params.Pos->theta, params.Pos->Ntheta);
-                params.Pos->theta[0] = FL(0.0);
-                trackallocate(
-                    params, "default arrays", params.Pos->t_rcvr, params.Pos->Ntheta);
-            }
+                params, "default arrays", params.Pos->t_rcvr, params.Pos->Ntheta);
         }
 
         // LP: Moved from WriteHeader

@@ -470,10 +470,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     }
 }
 
-template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params);
-extern template void UpdateSSP<false, false>(bhcParams<false, false> &params);
-extern template void UpdateSSP<true, false>(bhcParams<true, false> &params);
-extern template void UpdateSSP<true, true>(bhcParams<true, true> &params);
+template<bool O3D, bool R3D> void PreprocessSSP(bhcParams<O3D, R3D> &params);
+extern template void PreprocessSSP<false, false>(bhcParams<false, false> &params);
+extern template void PreprocessSSP<true, false>(bhcParams<true, false> &params);
+extern template void PreprocessSSP<true, true>(bhcParams<true, true> &params);
 
 template<bool O3D, bool R3D> void InitializeSSP(
     bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS);

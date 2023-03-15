@@ -25,6 +25,22 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+template<bool O3D, bool R3D> inline void PreprocessTopOpt(bhcParams<O3D, R3D> &params)
+{
+    params.ssp->Type         = params.Bdry->Top.hs.Opt[0];
+    params.Bdry->Top.hs.bc   = params.Bdry->Top.hs.Opt[1];
+    params.ssp->AttenUnit[0] = params.Bdry->Top.hs.Opt[2];
+    params.ssp->AttenUnit[1] = params.Bdry->Top.hs.Opt[3];
+}
+
+template<bool O3D, bool R3D> inline void DefaultTopOpt(bhcParams<O3D, R3D> &params)
+{
+    // SSP (clinear), top bc (vacuum), atten units (dB/wavelength),
+    // add vol atten (none), altimetry (none), dev mode (off)
+    memcpy(params.Bdry->Top.hs.Opt, "CVW - ", 6);
+    PreprocessTopOpt<O3D, R3D>(params);
+}
+
 /**
  * LP: Read top halfspace options; 4 out of the 6 entries are general program
  * options.
@@ -34,15 +50,11 @@ template<bool O3D, bool R3D> inline void ReadTopOpt(
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
-    memcpy(params.Bdry->Top.hs.Opt, "      ", 6); // initialize to blanks
     LIST(ENVFile);
-    ENVFile.Read(params.Bdry->Top.hs.Opt, 6);
+    ENVFile.Read(params.Bdry->Top.hs.Opt, 6); // LP: LDIFile fills rest with ' '
     PRTFile << "\n";
 
-    params.ssp->Type         = params.Bdry->Top.hs.Opt[0];
-    params.Bdry->Top.hs.bc   = params.Bdry->Top.hs.Opt[1];
-    params.ssp->AttenUnit[0] = params.Bdry->Top.hs.Opt[2];
-    params.ssp->AttenUnit[1] = params.Bdry->Top.hs.Opt[3];
+    PreprocessTopOpt<O3D, R3D>(params);
 
     // SSP approximation options
 
@@ -149,10 +161,55 @@ template<bool O3D, bool R3D> inline void ReadTopOpt(
     }
 }
 
+template<bool O3D, bool R3D> inline void PreprocessTopOpt(bhcParams<O3D, R3D> &params)
+{
+    params.Bdry->Bot.hs.bc = params.Bdry->Bot.hs.Opt[0];
+}
+
+template<bool O3D, bool R3D> inline void DefaultBotOpt(bhcParams<O3D, R3D> &params)
+{
+    memcpy(params.Bdry->Bot.hs.Opt, "R-    ", 6);
+    PreprocessBotOpt<O3D, R3D>(params);
+}
+
+template<bool O3D, bool R3D> inline void ReadBotOpt(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
+{
+    real Sigma;
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
+    LIST(ENVFile);
+    ENVFile.Read(params.Bdry->Bot.hs.Opt, 6); // LP: LDIFile fills rest with ' '
+    ENVFile.Read(Sigma);
+    PRTFile << "\n RMS roughness = " << std::setw(10) << std::setprecision(3) << Sigma
+            << "\n";
+
+    switch(params.Bdry->Bot.hs.Opt[1]) {
+    case '~':
+    case '*': PRTFile << "    Bathymetry file selected\n"; break;
+    case '-':
+    case '_':
+    case ' ': break;
+    default:
+        EXTERR(
+            "Unknown bottom option letter in second position: Bdry->Bot.hs.Opt[1] == "
+            "'%c'",
+            params.Bdry->Bot.hs.Opt[1]);
+    }
+
+    PreprocessBotOpt<O3D, R3D>(params);
+}
+
+template<bool O3D, bool R3D> inline void DefaultRunType(bhcParams<O3D, R3D> &params)
+{
+    // RunType, infl/beam type, ignored, point source, rectilinear grid, dim, ignored
+    memcpy(params.Beam->RunType, R3D ? "CG RR3 " : "CG RR2 ", 7);
+}
+
 /**
  * Read the RunType variable and echo with explanatory information to the print file
  */
-template<bool O3D, bool R3D> void ReadRunType(
+template<bool O3D, bool R3D> inline void ReadRunType(
     bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
@@ -235,44 +292,174 @@ template<bool O3D, bool R3D> void ReadRunType(
     }
 }
 
-template<bool O3D, bool R3D> void ReadEnvironment(
-    bhcParams<O3D, R3D> &params, HSInfo &RecycledHS)
+template<bool O3D, bool R3D> inline void DefaultBoundaryCond(
+    bhcParams<O3D, R3D> &params, HSInfo &hs)
 {
-    // const real c0 = FL(1500.0); //LP: unused
-    int32_t NPts, NMedia;
-    real ZMin, ZMax;
-    cpx ccpx;
-    real Sigma, Depth;
+    hs.cP = hs.cS = hs.rho = FL(0.0);
+}
 
-    bhcInternal *internal = GetInternal(params);
-    PrintFileEmu &PRTFile = internal->PRTFile;
-    BdryType *Bdry        = params.Bdry;
+/**
+ * LP: Formerly TopBot
+ * Handles top and bottom boundary conditions
+ * params.freqinfo->freq0: center / nominal frequency (wideband not supported)
+ */
+template<bool O3D, bool R3D> inline void ReadBoundaryCond(
+    bhcParams<O3D, R3D> &params, HSInfo &hs, LDIFile &ENVFile, HSInfo &RecycledHS,
+    bool isTop)
+{
+    real Mz, vr, alpha2_f; // values related to grain size
+    real zTemp;
 
-    PRTFile << BHC_PROGRAMNAME << (R3D ? "3D" : O3D ? "Nx2D" : "") << "\n\n";
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
-    // Open the environmental file
-    LDIFile ENVFile(GetInternal(params), internal->FileRoot + ".env");
-    if(!ENVFile.Good()) {
-        PRTFile << "ENVFile = " << internal->FileRoot << ".env\n";
-        EXTERR(BHC_PROGRAMNAME
-               " - ReadEnvironment: Unable to open the environmental file");
+    // LP: Moved from ReadEnvironment.
+    if(isTop && hs.bc == 'A') {
+        PRTFile << "      z         alphaR      betaR     rho        alphaI     betaI\n";
+        PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
     }
 
+    // Echo to PRTFile user's choice of boundary condition
+
+    switch(hs.bc) {
+    case 'V': PRTFile << "    VACUUM\n"; break;
+    case 'R': PRTFile << "    Perfectly RIGID\n"; break;
+    case 'A': PRTFile << "    ACOUSTO-ELASTIC half-space\n"; break;
+    case 'G': PRTFile << "    Grain size to define half-space\n"; break;
+    case 'F': PRTFile << "    FILE used for reflection loss\n"; break;
+    case 'W': PRTFile << "    Writing an IFL file\n"; break;
+    case 'P': PRTFile << "    reading PRECALCULATED IFL\n"; break;
+    default: EXTERR("TopBot: Unknown boundary condition type");
+    }
+
+    // ****** Read in BC parameters depending on particular choice ******
+
+    hs.cP = hs.cS = hs.rho = FL(0.0);
+
+    if(hs.bc == 'A') { // *** Half-space properties ***
+        zTemp = FL(0.0);
+        LIST(ENVFile);
+        ENVFile.Read(zTemp);
+        ENVFile.Read(RecycledHS.alphaR);
+        ENVFile.Read(RecycledHS.betaR);
+        ENVFile.Read(RecycledHS.rho);
+        ENVFile.Read(RecycledHS.alphaI);
+        ENVFile.Read(RecycledHS.betaI);
+        PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " " << std::setw(10)
+                << RecycledHS.alphaR << " " << std::setw(10) << RecycledHS.betaR << " "
+                << std::setw(6) << RecycledHS.rho << " " << std::setprecision(4)
+                << std::setw(10) << RecycledHS.alphaI << " " << std::setw(10)
+                << RecycledHS.betaI << "\n";
+        // dummy parameters for a layer with a general power law for attenuation
+        // these are not in play because the AttenUnit for this is not allowed yet
+        // freq0         = freq;
+        params.fT = FL(1000.0);
+
+        hs.cP = crci(
+            params, zTemp, RecycledHS.alphaR, RecycledHS.alphaI, params.ssp->AttenUnit);
+        hs.cS = crci(
+            params, zTemp, RecycledHS.betaR, RecycledHS.betaI, params.ssp->AttenUnit);
+        // printf("%g %g %g %g %c%c %g\n", zTemp, RecycledHS.alphaR,
+        // RecycledHS.alphaI, params.freqinfo->freq0,
+        //     params.ssp->AttenUnit[0], params.ssp->AttenUnit[1], params.fT);
+        // printf("cp computed to (%g,%g)\n", hs.cP.real(), hs.cP.imag());
+
+        hs.rho = RecycledHS.rho;
+    } else if(hs.bc == 'G') { // *** Grain size (formulas from UW-APL HF Handbook)
+
+        // These formulas are from the UW-APL Handbook
+        // The code is taken from older Matlab and is unnecesarily verbose
+        // vr   is the sound speed ratio
+        // rho is the density ratio
+        LIST(ENVFile);
+        ENVFile.Read(zTemp);
+        ENVFile.Read(Mz);
+        PRTFile << std::setprecision(2) << std::setw(10) << zTemp << " " << std::setw(10)
+                << Mz << "\n";
+
+        if(Mz >= FL(-1.0) && Mz < FL(1.0)) {
+            vr             = FL(0.002709) * SQ(Mz) - FL(0.056452) * Mz + FL(1.2778);
+            RecycledHS.rho = FL(0.007797) * SQ(Mz) - FL(0.17057) * Mz + FL(2.3139);
+        } else if(Mz >= FL(1.0) && Mz < FL(5.3)) {
+            vr = FL(-0.0014881) * CUBE(Mz) + FL(0.0213937) * SQ(Mz) - FL(0.1382798) * Mz
+                + FL(1.3425);
+            RecycledHS.rho = FL(-0.0165406) * CUBE(Mz) + FL(0.2290201) * SQ(Mz)
+                - FL(1.1069031) * Mz + FL(3.0455);
+        } else {
+            vr             = FL(-0.0024324) * Mz + FL(1.0019);
+            RecycledHS.rho = FL(-0.0012973) * Mz + FL(1.1565);
+        }
+
+        if(Mz >= FL(-1.0) && Mz < FL(0.0)) {
+            alpha2_f = FL(0.4556);
+        } else if(Mz >= FL(0.0) && Mz < FL(2.6)) {
+            alpha2_f = FL(0.4556) + FL(0.0245) * Mz;
+        } else if(Mz >= FL(2.6) && Mz < FL(4.5)) {
+            alpha2_f = FL(0.1978) + FL(0.1245) * Mz;
+        } else if(Mz >= FL(4.5) && Mz < FL(6.0)) {
+            alpha2_f = FL(8.0399) - FL(2.5228) * Mz + FL(0.20098) * SQ(Mz);
+        } else if(Mz >= FL(6.0) && Mz < FL(9.5)) {
+            alpha2_f = FL(0.9431) - FL(0.2041) * Mz + FL(0.0117) * SQ(Mz);
+        } else {
+            alpha2_f = FL(0.0601);
+        }
+
+        // params.ssp->AttenUnit = 'L';  // loss parameter
+        // !! following uses a reference sound speed of 1500 ???
+        // !! should be sound speed in the water, just above the sediment
+        // the term vr / 1000 converts vr to units of m per ms
+        RecycledHS.alphaR = vr * FL(1500.0);
+        RecycledHS.alphaI = alpha2_f * (vr / FL(1000.0)) * FL(1500.0) * STD::log(FL(10.0))
+            / (FL(40.0) * REAL_PI); // loss parameter Sect. IV., Eq. (4) of handbook
+
+        hs.cP  = crci(params, zTemp, RecycledHS.alphaR, RecycledHS.alphaI, {'L', ' '});
+        hs.cS  = FL(0.0);
+        hs.rho = RecycledHS.rho;
+    }
+}
+
+template<bool O3D, bool R3D> inline void SetTitle(
+    bhcParams<O3D, R3D> &params, const std::string &TempTitle)
+{
+    size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
+    memcpy(params.Title, TempTitle.c_str(), l);
+    params.Title[l] = 0;
+}
+
+template<bool O3D, bool R3D> inline void ReadTitle(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
+{
     // Prepend model name to title
     std::string TempTitle;
     LIST(ENVFile);
     ENVFile.Read(TempTitle);
     TempTitle = BHC_PROGRAMNAME "- " + TempTitle;
     PRTFile << TempTitle << "\n";
-    size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
-    memcpy(params.Title, TempTitle.c_str(), l);
-    params.Title[l] = 0;
+    SetTitle<O3D, R3D>(params, TempTitle);
+}
 
+template<bool O3D, bool R3D> inline void DefaultTitle(bhcParams<O3D, R3D> &params)
+{
+    SetTitle<O3D, R3D>(params, BHC_PROGRAMNAME "- no env file");
+}
+
+template<bool O3D, bool R3D> inline void ReadFreq0(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
+{
     LIST(ENVFile);
     ENVFile.Read(params.freqinfo->freq0);
     PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);
     PRTFile << " frequency = " << std::setw(11) << params.freqinfo->freq0 << " Hz\n";
+}
 
+template<bool O3D, bool R3D> inline void DefaultFreq0(bhcParams<O3D, R3D> &params)
+{
+    params.freqinfo->freq0 = RL(50.0);
+}
+
+template<bool O3D, bool R3D> inline void ReadNMedia(
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
+{
+    int32_t NMedia;
     LIST(ENVFile);
     ENVFile.Read(NMedia);
     PRTFile << "Dummy parameter NMedia = " << NMedia << "\n";
@@ -280,80 +467,73 @@ template<bool O3D, bool R3D> void ReadEnvironment(
         EXTWARN("ReadEnvironment: Only one medium or layer is allowed in BELLHOP; "
                 "sediment layers must be handled using a reflection coefficient");
     }
+}
 
+template<bool O3D, bool R3D> inline void TopDepthFromSSP(bhcParams<O3D, R3D> &params)
+{
+    // Depth of top boundary is taken from first SSP point
+    // LP: Must be here, used later in env setup.
+    Bdry->Top.hs.Depth = params.ssp->z[0];
+    // [mbp:] bottom depth should perhaps be set the same way?
+    // TODO some preprocessing to check that SSP bounds equal Top/Bot bounds
+}
+
+template<bool O3D, bool R3D> void DefaultEnvironment(bhcParams<O3D, R3D> &params)
+{
+    DefaultTitle<O3D, R3D>(params);
+    DefaultFreq0<O3D, R3D>(params);
+    DefaultTopOpt<O3D, R3D>(params);
+    DefaultBoundaryCond<O3D, R3D>(params, params.Bdry->Top.hs);
+    DefaultSSP<O3D, R3D>(params);
+    TopDepthFromSSP<O3D, R3D>(params);
+    DefaultBotOpt<O3D, R3D>(params);
+    DefaultBoundaryCond<O3D, R3D>(params, params.Bdry->Bot.hs);
+    DefaultSxSy<O3D, R3D>(params);
+    DefaultSzRz<O3D, R3D>(params);
+    DefaultRcvrRanges(params, ENVFile);
+    if constexpr(O3D) DefaultRcvrBearings(params, ENVFile);
+}
+
+template<bool O3D, bool R3D> void ReadEnvironment(bhcParams<O3D, R3D> &params)
+{
+    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
+    // Values only initialized once--reused from top to ssp, and ssp to bot
+    HSInfo RecycledHS;
+    RecycledHS.alphaR = FL(1500.0);
+    RecycledHS.betaR  = FL(0.0);
+    RecycledHS.alphaI = FL(0.0);
+    RecycledHS.betaI  = FL(0.0);
+    RecycledHS.rho    = FL(1.0);
+
+    PRTFile << BHC_PROGRAMNAME << (R3D ? "3D" : O3D ? "Nx2D" : "") << "\n\n";
+
+    // Open the environmental file
+    LDIFile ENVFile(GetInternal(params), GetInternal(params)->FileRoot + ".env");
+    if(!ENVFile.Good()) {
+        PRTFile << "ENVFile = " << GetInternal(params)->FileRoot << ".env\n";
+        EXTERR(BHC_PROGRAMNAME
+               " - ReadEnvironment: Unable to open the environmental file");
+    }
+
+    ReadTitle<O3D, R3D>(params, ENVFile);
+    ReadFreq0<O3D, R3D>(params, ENVFile);
+    ReadNMedia<O3D, R3D>(params, ENVFile);
     ReadTopOpt<O3D, R3D>(params, ENVFile);
-
-    // *** Top BC ***
-
-    if(Bdry->Top.hs.bc == 'A') {
-        PRTFile << "      z         alphaR      betaR     rho        alphaI     betaI\n";
-        PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
-    }
-
-    TopBot<O3D, R3D>(params, Bdry->Top.hs, ENVFile, RecycledHS);
-
-    // ****** Read in ocean SSP data ******
-
-    LIST(ENVFile);
-    ENVFile.Read(NPts);
-    ENVFile.Read(Sigma);
-    ENVFile.Read(Bdry->Bot.hs.Depth);
-    PRTFile << "\n  Depth = " << std::setw(10) << std::setprecision(2)
-            << Bdry->Bot.hs.Depth << "  m\n";
-
-    if(Bdry->Top.hs.Opt[0] == 'A') {
-        PRTFile << "Analytic SSP option\n";
-        // following is hokey, should be set in Analytic routine
-        params.ssp->NPts = 2;
-        params.ssp->z[0] = FL(0.0);
-        params.ssp->z[1] = Bdry->Bot.hs.Depth;
-    } else {
-        InitializeSSP<O3D, R3D>(params, ENVFile, RecycledHS);
-    }
-
-    Bdry->Top.hs.Depth = params.ssp->z[0]; // Depth of top boundary is taken from first
-                                           // SSP point
-    // bottom depth should perhaps be set the same way?
-
-    // *** Bottom BC ***
-    memcpy(Bdry->Bot.hs.Opt, "      ", 6); // initialize to blanks
-    LIST(ENVFile);
-    ENVFile.Read(Bdry->Bot.hs.Opt, 6);
-    ENVFile.Read(Sigma);
-    PRTFile << "\n RMS roughness = " << std::setw(10) << std::setprecision(3) << Sigma
-            << "\n";
-
-    switch(Bdry->Bot.hs.Opt[1]) {
-    case '~':
-    case '*': PRTFile << "    Bathymetry file selected\n"; break;
-    case '-':
-    case '_':
-    case ' ': break;
-    default:
-        EXTERR(
-            "Unknown bottom option letter in second position: Bdr->Bot.hs.Opt[1] == '%c'",
-            Bdry->Bot.hs.Opt[1]);
-    }
-
-    Bdry->Bot.hs.bc = Bdry->Bot.hs.Opt[0];
-    TopBot<O3D, R3D>(params, Bdry->Bot.hs, ENVFile, RecycledHS);
-
-    // *** source and receiver locations ***
-
+    ReadBoundaryCond<O3D, R3D>(params, params.Bdry->Top.hs, ENVFile, RecycledHS, true);
+    ReadSSP<O3D, R3D>(params, ENVFile, RecycledHS);
+    TopDepthFromSSP<O3D, R3D>(params);
+    ReadBotOpt<O3D, R3D>(params, ENVFile);
+    ReadBoundaryCond<O3D, R3D>(params, params.Bdry->Bot.hs, ENVFile, RecycledHS, false);
     ReadSxSy<O3D, R3D>(params, ENVFile);
-
-    ZMin = Bdry->Top.hs.Depth;
-    ZMax = Bdry->Bot.hs.Depth;
-    // not sure why I had this
-    // ReadSzRz(params, ZMin + FL(100.0) * spacing(ZMin),
-    //     ZMax - FL(100.0) * spacing(ZMax), ENVFile);
-    ReadSzRz(params, ZMin, ZMax, ENVFile);
+    ReadSzRz<O3D, R3D>(params, ENVFile);
     ReadRcvrRanges(params, ENVFile);
     if constexpr(O3D) ReadRcvrBearings(params, ENVFile);
+
     ReadfreqVec(params, ENVFile);
     ReadRunType<O3D, R3D>(params, ENVFile);
 
-    Depth = ZMax - ZMin; // water depth
+    real Depth = params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth; // water depth
     ReadRayAngles<O3D, R3D, false>(params, Depth, ENVFile, params.Angles->alpha);
     if constexpr(O3D) {
         ReadRayAngles<O3D, R3D, true>(params, Depth, ENVFile, params.Angles->beta);

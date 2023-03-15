@@ -27,13 +27,12 @@ namespace bhc {
 class PrintFileEmu {
 public:
     PrintFileEmu(
-        bhcInternal *internal, const char *FileRoot,
+        bhcInternal *internal, const std::string &FileRoot,
         void (*prtCallback)(const char *message))
         : callback(nullptr)
     {
         if(prtCallback == nullptr) {
-            std::string s(FileRoot);
-            ofs.open(s + ".prt");
+            ofs.open(FileRoot + ".prt");
             if(!ofs.good()) {
                 ExternalError(internal, "Could not open print file: %s.prt", FileRoot);
             }

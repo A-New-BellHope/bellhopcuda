@@ -33,7 +33,7 @@ template<bool O3D, bool R3D> inline void InitSelectedMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     // this is always called from run_* so update intermediate params
-    UpdateSSP<O3D, R3D>(params);
+    PreprocessSSP<O3D, R3D>(params);
 
     // Common
     int32_t ns = params.Pos->NSx * params.Pos->NSy * params.Pos->NSz;

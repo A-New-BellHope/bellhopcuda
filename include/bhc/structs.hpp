@@ -259,12 +259,13 @@ struct Position {
     int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
     int32_t NRz_per_range;
     real Delta_r, Delta_theta;
-    int32_t *iSz, *iRz;
+    // int32_t *iSz, *iRz; // LP: Not used.
     // LP: These are really floats, not reals.
-    float *Sx, *Sy, *Sz;      // Source x, y, z coordinates
-    float *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
-    float *theta;             // Receiver bearings
-    vec2 *t_rcvr;             // Receiver directions (cos(theta), sin(theta))
+    float *Sx, *Sy, *Sz; // Source x, y, z coordinates
+    float *Rr, *Rz;      // Receiver r, z coordinates
+    // float *ws, *wr; // weights for interpolation LP: Not used.
+    float *theta; // Receiver bearings
+    vec2 *t_rcvr; // Receiver directions (cos(theta), sin(theta))
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -470,12 +471,18 @@ struct bhcInit {
     /// the GPUs are enumerated in CUDA, usually with the most powerful GPU
     /// as index 0.
     int gpuIndex = 0;
-    /// Relative path to environment file, without the .env extension. E.g.
-    /// path/to/MunkB_ray_rot (where path/to/MunkB_ray_rot.env and also path/to/
-    /// MunkB_ray_rot.ssp, path/to/MunkB_ray_rot.bty, etc. exist). The string
-    /// passed here will be copied internally and may be deleted by the caller
-    /// after bhc::setup() returns.
-    const char *FileRoot;
+    /**
+     * If not null: Relative path to environment file, without the .env
+     * extension. E.g. path/to/MunkB_ray_rot (where path/to/MunkB_ray_rot.env
+     * and also path/to/MunkB_ray_rot.ssp, path/to/MunkB_ray_rot.bty, etc.
+     * exist). The string passed here will be copied internally and may be
+     * deleted by the caller after bhc::setup() returns.
+
+     * If null: Sets up the environment with some very basic defaults.
+     * prtCallback must not be null, as in this case a real *.prt file cannot be
+     * created. bhc::writeout() also cannot be used.
+     */
+    const char *FileRoot = nullptr;
     /**
      * prtCallback, outputCallback: There are two different types of output
      * messages which can be produced by BELLHOP(3D) and therefore bellhopcxx /

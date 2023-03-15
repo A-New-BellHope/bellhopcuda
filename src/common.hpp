@@ -460,20 +460,25 @@ namespace bhc {
 
 struct bhcInternal {
     void (*outputCallback)(const char *message);
-    PrintFileEmu PRTFile;
     std::string FileRoot;
+    PrintFileEmu PRTFile;
     std::atomic<int32_t> sharedJobID;
     int gpuIndex, d_multiprocs; // d_warp, d_maxthreads
     int32_t numThreads;
     size_t maxMemory;
     size_t usedMemory;
     bool useRayCopyMode;
+    bool noEnvFil;
 
     bhcInternal(const bhcInit &init)
         : outputCallback(init.outputCallback),
-          PRTFile(this, init.FileRoot, init.prtCallback), FileRoot(init.FileRoot),
-          gpuIndex(init.gpuIndex), numThreads(ModifyNumThreads(init.numThreads)),
-          maxMemory(init.maxMemory), usedMemory(0), useRayCopyMode(init.useRayCopyMode)
+          FileRoot(
+              init.FileRoot == nullptr ? "error_incorrect_use_of_" BHC_PROGRAMNAME
+                                       : init.FileRoot),
+          PRTFile(this, this->FileRoot, init.prtCallback), gpuIndex(init.gpuIndex),
+          numThreads(ModifyNumThreads(init.numThreads)), maxMemory(init.maxMemory),
+          usedMemory(0), useRayCopyMode(init.useRayCopyMode),
+          noEnvFil(init.FileRoot == nullptr)
     {}
 };
 
