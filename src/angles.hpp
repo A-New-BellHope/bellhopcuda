@@ -22,16 +22,33 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+template<bool O3D, bool R3D, bool BEARING> inline void DefaultRayAngles(
+    bhcParams<O3D, R3D> &params, AngleInfo &a)
+{
+    const char *const FuncName = BEARING ? "DefaultRayBearingAngles"
+                                         : "DefaultRayElevationAngles";
+    a.n                        = BEARING ? 5 : 11;
+    trackallocate(params, FuncName, a.angles, a.n);
+    for(int32_t i = 0; i < a.n; ++i) {
+        if constexpr(BEARING) {
+            a.angles[i] = (float)(i * 360) / (float)(a.n);
+        } else {
+            a.angles[i] = ((float)i / (float)a.n) + RL(40.0) - RL(20.0);
+        }
+    }
+}
+
 /**
  * LP: RunType now passed as part of Beam.
  */
 template<bool O3D, bool R3D, bool BEARING> inline void ReadRayAngles(
-    bhcParams<O3D, R3D> &params, real Depth, LDIFile &ENVFile, AngleInfo &a)
+    bhcParams<O3D, R3D> &params, LDIFile &ENVFile, AngleInfo &a)
 {
     constexpr real c0          = FL(1500.0);
     const char *const FuncName = BEARING ? "ReadRayBearingAngles"
                                          : "ReadRayElevationAngles";
 
+    real Depth = params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth; // water depth
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
     if(params.Bdry->Top.hs.Opt[5] == 'I') {
@@ -80,6 +97,7 @@ template<bool O3D, bool R3D, bool BEARING> inline void ReadRayAngles(
 
     if constexpr(BEARING) {
         // Nx2D CASE: beams must lie on rcvr radials--- replace beta with theta
+        TODO(); // move to preprocessing? Need to echo correct ones below
         if(params.Beam->RunType[5] == '2' && !IsRayRun(params.Beam)) {
             PRTFile << "\nReplacing beam take-off angles, beta, with receiver bearing "
                        "lines, theta\n";
@@ -115,10 +133,12 @@ template<bool O3D, bool R3D, bool BEARING> inline void ReadRayAngles(
         }
     }
 
+    TODO(); // flag for in radians, move to preprocess
     // LP: This and the d computation below was in setup / BellhopCore for alpha,
     // but here for beta.
     for(int32_t i = 0; i < a.n; ++i) a.angles[i] *= DegRad; // convert to radians
 
+    TODO(); // move to preprocess
     a.d = FL(0.0);
     if(a.n != 1)
         a.d = (a.angles[a.n - 1] - a.angles[0]) / (a.n - 1); // angular spacing between

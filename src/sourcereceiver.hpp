@@ -21,6 +21,14 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+template<bool O3D, bool R3D> inline void DefaultfreqVec(bhcParams<O3D, R3D> &params)
+{
+    params.freqinfo->Nfreq = 1;
+    trackallocate(
+        params, "default source frequencies", freqinfo->freqVec, params.freqinfo->Nfreq);
+    freqinfo->freqVec[0] = freqinfo->freq0;
+}
+
 /**
  * Optionally reads a vector of source frequencies for a broadband run
  * If the broadband option is not selected, then the input freq (a scalar) is stored in
@@ -29,8 +37,9 @@ namespace bhc {
 template<bool O3D, bool R3D> inline void ReadfreqVec(
     bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
 {
-    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-    FreqInfo *freqinfo    = params.freqinfo;
+    PrintFileEmu &PRTFile  = GetInternal(params)->PRTFile;
+    FreqInfo *freqinfo     = params.freqinfo;
+    params.freqinfo->Nfreq = 1;
 
     if(params.Bdry->Top.hs.Opt[5] == 'B') {
         LIST(ENVFile);
@@ -54,76 +63,6 @@ template<bool O3D, bool R3D> inline void ReadfreqVec(
         EchoVector(freqinfo->freqVec, freqinfo->Nfreq, PRTFile);
     } else {
         freqinfo->freqVec[0] = freqinfo->freq0;
-    }
-}
-
-/**
- * Read a vector x
- * Description is something like 'receiver ranges'
- * Units       is something like 'km'
- */
-template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
-    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, std::string Description,
-    std::string Units, LDIFile &ENVFile)
-{
-    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-
-    PRTFile << "\n_______________________________________________________________________"
-               "___\n\n";
-    LIST(ENVFile);
-    ENVFile.Read(Nx);
-    PRTFile << "   Number of " << Description << " = " << Nx << "\n";
-
-    if(Nx <= 0) {
-        EXTERR("ReadVector: Number of %s must be positive", Description.c_str());
-    }
-
-    trackallocate(params, Description.c_str(), x, bhc::max(3, Nx));
-
-    PRTFile << "   " << Description << " (" << Units << ")\n";
-    x[2] = FL(-999.9);
-    LIST(ENVFile);
-    ENVFile.Read(x, Nx);
-
-    SubTab(x, Nx);
-    Sort(x, Nx);
-    EchoVector(x, Nx, PRTFile, 10, "   ");
-
-    PRTFile << "\n";
-
-    // Vectors in km should be converted to m for internal use
-    trim(Units);
-    if(Units.length() >= 2) {
-        if(Units.substr(0, 2) == "km")
-            for(int32_t i = 0; i < Nx; ++i) x[i] *= FL(1000.0);
-    }
-}
-
-template<bool O3D, bool R3D> inline void DefaultSxSy(bhcParams<O3D, R3D> &params)
-{
-    trackallocate(params, "default/trivial source x-coordinates", params.Pos->Sx, 1);
-    trackallocate(params, "default/trivial source y-coordinates", params.Pos->Sy, 1);
-    params.Pos->Sx[0] = FL(0.0);
-    params.Pos->Sy[0] = FL(0.0);
-}
-
-/**
- * Read source x-y coordinates
- *
- * ThreeD: flag indicating whether this is a 3D run
- */
-template<bool O3D, bool R3D> inline void ReadSxSy(
-    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
-{
-    if constexpr(O3D) {
-        ReadVector(
-            params, params.Pos->NSx, params.Pos->Sx, "Source   x-coordinates, Sx", "km",
-            ENVFile);
-        ReadVector(
-            params, params.Pos->NSy, params.Pos->Sy, "Source   y-coordinates, Sy", "km",
-            ENVFile);
-    } else {
-        DefaultSxSy<O3D, R3D>(params);
     }
 }
 

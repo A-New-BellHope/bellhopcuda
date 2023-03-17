@@ -27,6 +27,8 @@ template<bool O3D, bool R3D> inline void ReadPat(bhcParams<O3D, R3D> &params)
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
     BeamInfo *beaminfo    = params.beaminfo;
 
+    params.beaminfo->SBPFlag = params.Beam->RunType[2];
+
     if(beaminfo->SBPFlag == '*') {
         PRTFile << "\n______________________________\nUsing source beam pattern file\n";
 
@@ -87,6 +89,33 @@ template<bool O3D, int DIM> inline HOST_DEVICE bool IsOutsideBeamBoxDim(
     return STD::abs(x[DIM] - BeamBoxCenter<O3D>(xs)[DIM]) >= Beam->Box[DIM];
 }
 
+template<bool O3D, bool R3D> inline void PreprocessBeamInfo(bhcParams<O3D, R3D> &params)
+{
+    Beam->Type[3] = Beam->RunType[6]; // selects beam shift option
+    Beam->Type[0] = Beam->RunType[1];
+}
+
+template<bool O3D, bool R3D> inline void DefaultBeamInfo(bhcParams<O3D, R3D> &params)
+{
+    BeamStructure<O3D> *Beam = params.Beam;
+
+    PreprocessBeamInfo<O3D, R3D>(params);
+
+    Beam->deltas = RL(1000.0);
+    if constexpr(O3D) {
+        Beam->Box.x = Beam->Box.y = RL(101000.0);
+        Beam->Box.z               = RL(6000.0);
+    } else {
+        Beam->Box.y = RL(6000.0);
+        Beam->Box.x = RL(101000.0);
+    }
+    Beam->epsMultiplier = FL(1.0);
+    Beam->rLoop         = RL(1.0);
+    Beam->Nimage        = 1;
+    Beam->iBeamWindow   = 4;
+    Beam->Component     = 'P';
+}
+
 /**
  * Limits for tracing beams
  */
@@ -96,9 +125,13 @@ template<bool O3D, bool R3D> inline void ReadBeamInfo(
     PrintFileEmu &PRTFile    = GetInternal(params)->PRTFile;
     BeamStructure<O3D> *Beam = params.Beam;
 
+    PreprocessBeamInfo<O3D, R3D>(params);
+
+    params.Beam->epsMultiplier = FL(1.0);
+
+    LIST(ENVFile);
+    ENVFile.Read(Beam->deltas);
     if constexpr(O3D) {
-        LIST(ENVFile);
-        ENVFile.Read(Beam->deltas);
         ENVFile.Read(Beam->Box.x);
         ENVFile.Read(Beam->Box.y);
         ENVFile.Read(Beam->Box.z);
@@ -109,12 +142,12 @@ template<bool O3D, bool R3D> inline void ReadBeamInfo(
             Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth)
                 / FL(10.0); // Automatic step size selection
     } else {
-        LIST(ENVFile);
-        ENVFile.Read(Beam->deltas);
-        ENVFile.Read(Beam->Box.y);
+        ENVFile.Read(Beam->Box.y); // LP: z then r
         ENVFile.Read(Beam->Box.x);
     }
 
+    PRTFile << "\n_______________________________________________________________________"
+               "___\n\n";
     PRTFile << std::setprecision(4);
     PRTFile << "\n Step length,       deltas = " << std::setw(11) << Beam->deltas
             << " m\n\n";
@@ -136,8 +169,6 @@ template<bool O3D, bool R3D> inline void ReadBeamInfo(
 
     // *** Beam characteristics ***
 
-    Beam->Type[3] = Beam->RunType[6]; // selects beam shift option
-
     if(Beam->Type[3] == 'S') {
         PRTFile << "Beam shift in effect\n";
     } else {
@@ -149,7 +180,6 @@ template<bool O3D, bool R3D> inline void ReadBeamInfo(
         // Curvature change can cause overflow in grazing case
         // Suppress by setting BeamType( 3 : 3 ) = 'Z'
 
-        Beam->Type[0] = Beam->RunType[1];
         if(IsGeometricInfl(Beam) || IsSGBInfl(Beam)) {
             NULLSTATEMENT;
         } else if(IsCervenyInfl(Beam)) {

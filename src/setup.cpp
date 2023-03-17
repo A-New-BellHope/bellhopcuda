@@ -119,18 +119,17 @@ template<bool O3D, bool R3D> bool setup(
         // Set pointers to null because we always check if they are not null (and
         // deallocate them if so) before allocating them
         // IMPORTANT--if changes are made here, make the same changes in finalize
-        params.bdinfo->top.bd          = nullptr;
-        params.bdinfo->bot.bd          = nullptr;
-        params.refl->bot.r             = nullptr;
-        params.refl->top.r             = nullptr;
-        params.ssp->cMat               = nullptr;
-        params.ssp->czMat              = nullptr;
-        params.ssp->Seg.r              = nullptr;
-        params.ssp->Seg.x              = nullptr;
-        params.ssp->Seg.y              = nullptr;
-        params.ssp->Seg.z              = nullptr;
-        params.Pos->Sx                 = nullptr;
-        params.Pos->Sy                 = nullptr;
+        params.bdinfo->top.bd = nullptr;
+        params.bdinfo->bot.bd = nullptr;
+        params.refl->bot.r    = nullptr;
+        params.refl->top.r    = nullptr;
+        params.ssp->cMat      = nullptr;
+        params.ssp->czMat     = nullptr;
+        params.ssp->Seg.r     = nullptr;
+        params.ssp->Seg.x     = nullptr;
+        params.ssp->Seg.y     = nullptr;
+        params.ssp->Seg.z     = nullptr;
+
         params.Pos->Sz                 = nullptr;
         params.Pos->Rr                 = nullptr;
         params.Pos->Rz                 = nullptr;
@@ -182,8 +181,6 @@ template<bool O3D, bool R3D> bool setup(
         // indexed when it is used.
         params.Angles->alpha.iSingle = 0;
         params.Angles->beta.iSingle  = 0;
-        params.freqinfo->Nfreq       = 1;
-        params.Beam->epsMultiplier   = FL(1.0);
         memcpy(params.Beam->Type, "G S ", 4);
         // params.beaminfo: none
         outputs.rayinfo->RayMemCapacity  = 0;
@@ -202,8 +199,7 @@ template<bool O3D, bool R3D> bool setup(
             params, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
             &params.bdinfo->bot, false);             // BaThYmetry
         ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
-        params.beaminfo->SBPFlag = params.Beam->RunType[2];
-        ReadPat<O3D, R3D>(params); // Source Beam Pattern
+        ReadPat<O3D, R3D>(params);                   // Source Beam Pattern
         if constexpr(!O3D) {
             // dummy bearing angles
             params.Pos->Ntheta = 1;
@@ -221,18 +217,6 @@ template<bool O3D, bool R3D> bool setup(
             trackallocate(params, "default arrays", params.Pos->theta, 1);
             params.Pos->theta[0] = FL(0.0); // dummy bearing angle
             trackallocate(params, "default arrays", params.Pos->t_rcvr, 1);
-        }
-        // source x-coordinates
-        if(params.Pos->Sx == nullptr) {
-            trackallocate(params, "default arrays", params.Pos->Sx, 1);
-            params.Pos->Sx[0] = FL(0.0); // dummy x-coordinate
-            params.Pos->NSx   = 1;
-        }
-        // source y-coordinates
-        if(params.Pos->Sy == nullptr) {
-            trackallocate(params, "default arrays", params.Pos->Sy, 1);
-            params.Pos->Sy[0] = FL(0.0); // dummy y-coordinate
-            params.Pos->NSy   = 1;
         }
 
         if(params.Beam->deltas == FL(0.0)) {

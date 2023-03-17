@@ -490,8 +490,13 @@ template<bool O3D, bool R3D> void DefaultEnvironment(bhcParams<O3D, R3D> &params
     DefaultBoundaryCond<O3D, R3D>(params, params.Bdry->Bot.hs);
     DefaultSxSy<O3D, R3D>(params);
     DefaultSzRz<O3D, R3D>(params);
-    DefaultRcvrRanges(params, ENVFile);
-    if constexpr(O3D) DefaultRcvrBearings(params, ENVFile);
+    DefaultRcvrRanges<O3D, R3D>(params);
+    if constexpr(O3D) DefaultRcvrBearings<O3D, R3D>(params);
+    DefaultfreqVec<O3D, R3D>(params);
+    DefaultRunType<O3D, R3D>(params);
+    DefaultRayAngles<O3D, R3D, false>(params, params.Angles->alpha);
+    if constexpr(O3D) DefaultRayAngles<O3D, R3D, true>(params, params.Angles->beta);
+    DefaultBeamInfo<O3D, R3D>(params);
 }
 
 template<bool O3D, bool R3D> void ReadEnvironment(bhcParams<O3D, R3D> &params)
@@ -527,22 +532,12 @@ template<bool O3D, bool R3D> void ReadEnvironment(bhcParams<O3D, R3D> &params)
     ReadBoundaryCond<O3D, R3D>(params, params.Bdry->Bot.hs, ENVFile, RecycledHS, false);
     ReadSxSy<O3D, R3D>(params, ENVFile);
     ReadSzRz<O3D, R3D>(params, ENVFile);
-    ReadRcvrRanges(params, ENVFile);
-    if constexpr(O3D) ReadRcvrBearings(params, ENVFile);
-
-    ReadfreqVec(params, ENVFile);
+    ReadRcvrRanges<O3D, R3D>(params, ENVFile);
+    if constexpr(O3D) ReadRcvrBearings<O3D, R3D>(params, ENVFile);
+    ReadfreqVec<O3D, R3D>(params, ENVFile);
     ReadRunType<O3D, R3D>(params, ENVFile);
-
-    real Depth = params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth; // water depth
-    ReadRayAngles<O3D, R3D, false>(params, Depth, ENVFile, params.Angles->alpha);
-    if constexpr(O3D) {
-        ReadRayAngles<O3D, R3D, true>(params, Depth, ENVFile, params.Angles->beta);
-    }
-
-    PRTFile << "\n_______________________________________________________________________"
-               "___\n\n";
-
-    // LP: Moved to separate function for clarity and modularity.
+    ReadRayAngles<O3D, R3D, false>(params, ENVFile, params.Angles->alpha);
+    if constexpr(O3D) ReadRayAngles<O3D, R3D, true>(params, ENVFile, params.Angles->beta);
     ReadBeamInfo<O3D, R3D>(params, ENVFile);
 }
 
