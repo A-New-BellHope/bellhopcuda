@@ -200,98 +200,6 @@ template<bool O3D, bool R3D> inline void ReadBotOpt(
     PreprocessBotOpt<O3D, R3D>(params);
 }
 
-template<bool O3D, bool R3D> inline void DefaultRunType(bhcParams<O3D, R3D> &params)
-{
-    // RunType, infl/beam type, ignored, point source, rectilinear grid, dim, ignored
-    memcpy(params.Beam->RunType, R3D ? "CG RR3 " : "CG RR2 ", 7);
-}
-
-/**
- * Read the RunType variable and echo with explanatory information to the print file
- */
-template<bool O3D, bool R3D> inline void ReadRunType(
-    bhcParams<O3D, R3D> &params, LDIFile &ENVFile)
-{
-    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-
-    LIST(ENVFile);
-    ENVFile.Read(params.Beam->RunType, 7);
-    PRTFile << "\n";
-
-    switch(params.Beam->RunType[0]) {
-    case 'R': PRTFile << "Ray trace run\n"; break;
-    case 'E': PRTFile << "Eigenray trace run\n"; break;
-    case 'I': PRTFile << "Incoherent TL calculation\n"; break;
-    case 'S': PRTFile << "Semi-coherent TL calculation\n"; break;
-    case 'C': PRTFile << "Coherent TL calculation\n"; break;
-    case 'A': PRTFile << "Arrivals calculation, ASCII  file output\n"; break;
-    case 'a': PRTFile << "Arrivals calculation, binary file output\n"; break;
-    default: EXTERR("ReadEnvironment: Unknown RunType selected");
-    }
-
-    switch(params.Beam->RunType[1]) {
-    case 'C': PRTFile << "Cartesian beams\n"; break;
-    case 'R': PRTFile << "Ray centered beams\n"; break;
-    case 'S': PRTFile << "Simple gaussian beams\n"; break;
-    case 'b': PRTFile << "Geometric gaussian beams in ray-centered coordinates\n"; break;
-    case 'B': PRTFile << "Geometric gaussian beams in Cartesian coordinates\n"; break;
-    case 'g': PRTFile << "Geometric hat beams in ray-centered coordinates\n"; break;
-    default:
-        params.Beam->RunType[1] = 'G';
-        PRTFile << "Geometric hat beams in Cartesian coordinates\n";
-    }
-
-    switch(params.Beam->RunType[3]) {
-    case 'X': PRTFile << "Line source (Cartesian coordinates)\n"; break;
-    default:
-        params.Beam->RunType[3] = 'R';
-        PRTFile << "Point source (cylindrical coordinates)\n";
-    }
-
-    switch(params.Beam->RunType[4]) {
-    case 'I':
-        PRTFile << "Irregular grid: Receivers at Rr[:] x Rz[:]\n";
-        if(params.Pos->NRz != params.Pos->NRr)
-            EXTWARN("ReadEnvironment: Irregular grid option selected with NRz not "
-                    "equal to Nr");
-        // memcpy(PlotType, "irregular ", 10);
-        break;
-    default:
-        PRTFile << "Rectilinear receiver grid: Receivers at Rr[:] x Rz[:]\n";
-        params.Beam->RunType[4] = 'R';
-        // memcpy(PlotType, "rectilin  ", 10);
-    }
-
-    bool defaulted2 = false;
-    if(params.Beam->RunType[5] != '2' && params.Beam->RunType[5] != '3') {
-        if constexpr(R3D) {
-            EXTERR("Environment file does not specify dimensionality, defaults to 2 "
-                   "(2D or Nx2D), but you are running " BHC_PROGRAMNAME " in 3D mode");
-        } else if constexpr(O3D) {
-            EXTWARN("Environment file does not specify dimensionality, defaults to 2 "
-                    "(2D or Nx2D), assuming this is Nx2D because that is what you're "
-                    "running");
-        }
-        params.Beam->RunType[5] = '2';
-        defaulted2              = true;
-    }
-    if(params.Beam->RunType[5] == '2') {
-        if(!defaulted2) {
-            PRTFile << "N x 2D calculation (neglects horizontal refraction)\n";
-        }
-        if constexpr(R3D) {
-            EXTERR("This is a 2D or Nx2D environment file, but you are "
-                   "running " BHC_PROGRAMNAME " in 3D mode");
-        }
-    } else {
-        PRTFile << "3D calculation\n";
-        if constexpr(!R3D) {
-            EXTERR("This is a 3D environment file, but you are running " BHC_PROGRAMNAME
-                   " in 2D or Nx2D mode");
-        }
-    }
-}
-
 template<bool O3D, bool R3D> inline void DefaultBoundaryCond(
     bhcParams<O3D, R3D> &params, HSInfo &hs)
 {
@@ -488,14 +396,16 @@ template<bool O3D, bool R3D> void DefaultEnvironment(bhcParams<O3D, R3D> &params
     TopDepthFromSSP<O3D, R3D>(params);
     DefaultBotOpt<O3D, R3D>(params);
     DefaultBoundaryCond<O3D, R3D>(params, params.Bdry->Bot.hs);
+
     DefaultSxSy<O3D, R3D>(params);
     DefaultSzRz<O3D, R3D>(params);
     DefaultRcvrRanges<O3D, R3D>(params);
-    if constexpr(O3D) DefaultRcvrBearings<O3D, R3D>(params);
+    DefaultRcvrBearings<O3D, R3D>(params);
     DefaultfreqVec<O3D, R3D>(params);
     DefaultRunType<O3D, R3D>(params);
-    DefaultRayAngles<O3D, R3D, false>(params, params.Angles->alpha);
-    if constexpr(O3D) DefaultRayAngles<O3D, R3D, true>(params, params.Angles->beta);
+    DefaultRayAnglesElevation<O3D, R3D>(params);
+    DefaultRayAnglesBearing<O3D, R3D>(params);
+
     DefaultBeamInfo<O3D, R3D>(params);
 }
 
@@ -530,14 +440,16 @@ template<bool O3D, bool R3D> void ReadEnvironment(bhcParams<O3D, R3D> &params)
     TopDepthFromSSP<O3D, R3D>(params);
     ReadBotOpt<O3D, R3D>(params, ENVFile);
     ReadBoundaryCond<O3D, R3D>(params, params.Bdry->Bot.hs, ENVFile, RecycledHS, false);
+
     ReadSxSy<O3D, R3D>(params, ENVFile);
     ReadSzRz<O3D, R3D>(params, ENVFile);
     ReadRcvrRanges<O3D, R3D>(params, ENVFile);
-    if constexpr(O3D) ReadRcvrBearings<O3D, R3D>(params, ENVFile);
+    ReadRcvrBearings<O3D, R3D>(params, ENVFile);
     ReadfreqVec<O3D, R3D>(params, ENVFile);
     ReadRunType<O3D, R3D>(params, ENVFile);
-    ReadRayAngles<O3D, R3D, false>(params, ENVFile, params.Angles->alpha);
-    if constexpr(O3D) ReadRayAngles<O3D, R3D, true>(params, ENVFile, params.Angles->beta);
+    ReadRayAnglesElevation<O3D, R3D>(params, ENVFile);
+    ReadRayAnglesBearing<O3D, R3D>(params, ENVFile);
+
     ReadBeamInfo<O3D, R3D>(params, ENVFile);
 }
 

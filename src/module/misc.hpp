@@ -30,6 +30,7 @@ template<bool O3D, bool R3D, typename REAL> inline void ReadVector2(
     LIST(ENVFile);
     ENVFile.Read(Nx);
     trackallocate(params, Description.c_str(), x, bhc::max(3, Nx));
+    x[1] = FL(-999.9);
     x[2] = FL(-999.9);
     LIST(ENVFile);
     ENVFile.Read(x, Nx);
@@ -45,7 +46,7 @@ template<bool O3D, bool R3D, typename REAL> inline void ValidateVector2(
     }
     if(!monotonic(x, Nx)) {
         EXTERR(
-            "ValidateVector2: %s must be monotonically increasing", Description.c_str());
+            "ValidateVector2: %s are not monotonically increasing", Description.c_str());
     }
 }
 
@@ -54,8 +55,8 @@ template<bool O3D, bool R3D, typename REAL> inline void ValidateVector2(
  * Units       is something like 'km'
  */
 template<bool O3D, bool R3D, typename REAL> inline void EchoVector2(
-    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, std::string Description,
-    std::string Units)
+    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, REAL multiplier,
+    std::string Description, std::string Units)
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
@@ -63,14 +64,12 @@ template<bool O3D, bool R3D, typename REAL> inline void EchoVector2(
                "___\n\n";
     PRTFile << "   Number of " << Description << " = " << Nx << "\n";
     PRTFile << "   " << Description << " (" << Units << ")\n";
-    EchoVector(x, Nx, PRTFile, 10, "   ");
+    EchoVector(x, Nx, multiplier, PRTFile, 10, "   ");
     PRTFile << "\n";
 }
 
-template<typename REAL> inline void CheckToMeters2(int32_t &Nx, REAL *&x, bool &inMeters)
+template<typename REAL> inline void ToMeters2(int32_t &Nx, REAL *&x)
 {
-    if(inMeters) return;
-    inMeters = true;
     for(int32_t i = 0; i < Nx; ++i) x[i] *= FL(1000.0);
 }
 

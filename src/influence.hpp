@@ -525,11 +525,6 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D, R3D> &p
     } else {
         EXTERR("Invalid Run Type");
     }
-
-    for(int32_t i = 0; i < params.Pos->Ntheta; ++i) {
-        real theta            = DegRad * params.Pos->theta[i];
-        params.Pos->t_rcvr[i] = vec2(STD::cos(theta), STD::sin(theta));
-    }
 }
 
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(

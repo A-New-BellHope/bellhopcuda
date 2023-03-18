@@ -119,25 +119,16 @@ template<bool O3D, bool R3D> bool setup(
         // Set pointers to null because we always check if they are not null (and
         // deallocate them if so) before allocating them
         // IMPORTANT--if changes are made here, make the same changes in finalize
-        params.bdinfo->top.bd = nullptr;
-        params.bdinfo->bot.bd = nullptr;
-        params.refl->bot.r    = nullptr;
-        params.refl->top.r    = nullptr;
-        params.ssp->cMat      = nullptr;
-        params.ssp->czMat     = nullptr;
-        params.ssp->Seg.r     = nullptr;
-        params.ssp->Seg.x     = nullptr;
-        params.ssp->Seg.y     = nullptr;
-        params.ssp->Seg.z     = nullptr;
-
-        params.Pos->Sz                 = nullptr;
-        params.Pos->Rr                 = nullptr;
-        params.Pos->Rz                 = nullptr;
-        params.Pos->theta              = nullptr;
-        params.Pos->t_rcvr             = nullptr;
-        params.Angles->alpha.angles    = nullptr;
-        params.Angles->beta.angles     = nullptr;
-        params.freqinfo->freqVec       = nullptr;
+        params.bdinfo->top.bd          = nullptr;
+        params.bdinfo->bot.bd          = nullptr;
+        params.refl->bot.r             = nullptr;
+        params.refl->top.r             = nullptr;
+        params.ssp->cMat               = nullptr;
+        params.ssp->czMat              = nullptr;
+        params.ssp->Seg.r              = nullptr;
+        params.ssp->Seg.x              = nullptr;
+        params.ssp->Seg.y              = nullptr;
+        params.ssp->Seg.z              = nullptr;
         params.beaminfo->SrcBmPat      = nullptr;
         outputs.rayinfo->results       = nullptr;
         outputs.rayinfo->RayMem        = nullptr;
@@ -168,19 +159,6 @@ template<bool O3D, bool R3D> bool setup(
         params.atten->Salinity = FL(35.0);
         params.atten->pH       = FL(8.0);
         params.atten->z_bar    = FL(0.0);
-        params.Pos->NSx        = 1;
-        params.Pos->NSy        = 1;
-        params.Pos->NSz        = 1;
-        params.Pos->NRz        = 1;
-        params.Pos->NRr        = 1;
-        params.Pos->Ntheta     = 1;
-        params.Angles->alpha.n = 0;
-        params.Angles->beta.n  = 1;
-        // LP: not a typo; this is an index, one less than the start of the array,
-        // which in Fortran (and in the env file!) is 0. This gets converted to 0-
-        // indexed when it is used.
-        params.Angles->alpha.iSingle = 0;
-        params.Angles->beta.iSingle  = 0;
         memcpy(params.Beam->Type, "G S ", 4);
         // params.beaminfo: none
         outputs.rayinfo->RayMemCapacity  = 0;
@@ -200,24 +178,6 @@ template<bool O3D, bool R3D> bool setup(
             &params.bdinfo->bot, false);             // BaThYmetry
         ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
         ReadPat<O3D, R3D>(params);                   // Source Beam Pattern
-        if constexpr(!O3D) {
-            // dummy bearing angles
-            params.Pos->Ntheta = 1;
-            trackallocate(
-                params, "default arrays", params.Pos->theta, params.Pos->Ntheta);
-            params.Pos->theta[0] = FL(0.0);
-            trackallocate(
-                params, "default arrays", params.Pos->t_rcvr, params.Pos->Ntheta);
-        }
-
-        // LP: Moved from WriteHeader
-        // receiver bearing angles
-        if(params.Pos->theta == nullptr) {
-            params.Pos->Ntheta = 1;
-            trackallocate(params, "default arrays", params.Pos->theta, 1);
-            params.Pos->theta[0] = FL(0.0); // dummy bearing angle
-            trackallocate(params, "default arrays", params.Pos->t_rcvr, 1);
-        }
 
         if(params.Beam->deltas == FL(0.0)) {
             // Automatic step size selection
@@ -272,20 +232,6 @@ template<bool O3D, bool R3D> void finalize(
     trackdeallocate(params, params.ssp->Seg.x);
     trackdeallocate(params, params.ssp->Seg.y);
     trackdeallocate(params, params.ssp->Seg.z);
-    trackdeallocate(params, params.Pos->iSz);
-    trackdeallocate(params, params.Pos->iRz);
-    trackdeallocate(params, params.Pos->Sx);
-    trackdeallocate(params, params.Pos->Sy);
-    trackdeallocate(params, params.Pos->Sz);
-    trackdeallocate(params, params.Pos->Rr);
-    trackdeallocate(params, params.Pos->Rz);
-    trackdeallocate(params, params.Pos->ws);
-    trackdeallocate(params, params.Pos->wr);
-    trackdeallocate(params, params.Pos->theta);
-    trackdeallocate(params, params.Pos->t_rcvr);
-    trackdeallocate(params, params.Angles->alpha.angles);
-    trackdeallocate(params, params.Angles->beta.angles);
-    trackdeallocate(params, params.freqinfo->freqVec);
     trackdeallocate(params, params.beaminfo->SrcBmPat);
     trackdeallocate(params, outputs.rayinfo->results);
     trackdeallocate(params, outputs.rayinfo->RayMem);
@@ -295,7 +241,6 @@ template<bool O3D, bool R3D> void finalize(
     trackdeallocate(params, outputs.arrinfo->Arr);
     trackdeallocate(params, outputs.arrinfo->NArr);
     trackdeallocate(params, outputs.arrinfo->MaxNPerSource);
-
     trackdeallocate(params, params.Bdry);
     trackdeallocate(params, params.bdinfo);
     trackdeallocate(params, params.refl);

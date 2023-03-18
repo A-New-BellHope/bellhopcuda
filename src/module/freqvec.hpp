@@ -23,37 +23,36 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 /**
- * source x-y coordinates
+ * Optionally reads a vector of source frequencies for a broadband run
+ * If the broadband option is not selected, then the input freq (a scalar) is stored in
+ * the frequency vector
  */
-template<bool O3D, bool R3D> class SxSy : public ParamsModule {
+template<bool O3D, bool R3D> class FreqVec : public ParamsModule {
 public:
-    SxSy() {}
-    virtual ~SxSy() {}
+    FreqVec() {}
+    virtual ~FreqVec() {}
 
     virtual void Init(bhcParams<O3D, R3D> &params) const
     {
-        params.Pos->Sx = nullptr;
-        params.Pos->Sy = nullptr;
+        params.freqinfo->freqVec = nullptr;
     }
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const
     {
-        params.Pos->SxSyInKm = true;
-        params.Pos->NSx      = 1;
-        params.Pos->NSy      = 1;
+        params.freqinfo->Nfreq = 1;
     }
     virtual void Default(bhcParams<O3D, R3D> &params) const
     {
-        trackallocate(params, "default/trivial source x-coordinates", params.Pos->Sx, 1);
-        trackallocate(params, "default/trivial source y-coordinates", params.Pos->Sy, 1);
-        params.Pos->Sx[0] = FL(0.0); // dummy x-coordinate
-        params.Pos->Sy[0] = FL(0.0); // dummy y-coordinate
+        trackallocate(
+            params, "default source frequencies", freqinfo->freqVec,
+            params.freqinfo->Nfreq);
+        freqinfo->freqVec[0] = freqinfo->freq0;
     }
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
     {
-        if constexpr(O3D) {
-            ReadVector2(params, params.Pos->NSx, params.Pos->Sx, ENVFile);
-            ReadVector2(params, params.Pos->NSy, params.Pos->Sy, ENVFile);
+        if(params.Bdry->Top.hs.Opt[5] == 'B') {
+            ReadVector2(
+                params, params.freqinfo->Nfreq, params.freqinfo->freqVec, ENVFile);
         } else {
             Default(params);
         }
@@ -61,31 +60,18 @@ public:
     virtual void Validate(const bhcParams<O3D, R3D> &params) const
     {
         ValidateVector2(
-            params, params.Pos->NSx, params.Pos->Sx, "Source   x-coordinates, Sx");
-        ValidateVector2(
-            params, params.Pos->NSy, params.Pos->Sy, "Source   y-coordinates, Sy");
+            params, params.freqinfo->Nfreq, params.freqinfo->freqVec, "frequencies");
     }
     virtual void Echo(const bhcParams<O3D, R3D> &params) const
     {
         Preprocess(params);
         EchoVector2(
-            params, params.Pos->NSx, params.Pos->Sx, RL(0.001),
-            "Source   x-coordinates, Sx", "km");
-        EchoVector2(
-            params, params.Pos->NSy, params.Pos->Sy, RL(0.001),
-            "Source   y-coordinates, Sy", "km");
-    }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const
-    {
-        if(!params.Pos->SxSyInKm) return;
-        ToMeters2(params.Pos->NSx, params.Pos->Sx);
-        ToMeters2(params.Pos->NSy, params.Pos->Sy);
-        params.Pos->SxSyInKm = false;
+            params, params.freqinfo->Nfreq, params.freqinfo->freqVec, RL(1.0),
+            "Frequencies", "Hz");
     }
     virtual void Finalize(bhcParams<O3D, R3D> &params) const
     {
-        trackdeallocate(params, params.Pos->Sx);
-        trackdeallocate(params, params.Pos->Sy);
+        trackdeallocate(params, params.freqinfo->freqVec);
     }
 };
 
