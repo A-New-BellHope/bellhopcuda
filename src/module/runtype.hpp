@@ -30,7 +30,7 @@ public:
     RunType() {}
     virtual ~RunType() {}
 
-    void Default(bhcParams<O3D, R3D> &params) const
+    virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         // RunType, infl/beam type, ignored, point source, rectilinear grid, dim, ignored
         memcpy(params.Beam->RunType, "CG RR  ", 7);
@@ -40,12 +40,13 @@ public:
             params.Beam->RunType[5] = '2';
         }
     }
-    void Read(bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
+    virtual void Read(
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.Beam->RunType, 7);
     }
-    void Validate(const bhcParams<O3D, R3D> &params) const
+    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         switch(params.Beam->RunType[0]) {
         case 'R': break;
@@ -103,7 +104,7 @@ public:
                 "Unknown dimensionality %c in environment file", params.Beam->RunType[5]);
         }
     }
-    void Echo(const bhcParams<O3D, R3D> &params) const
+    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "\n";

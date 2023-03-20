@@ -30,18 +30,18 @@ public:
     SxSy() {}
     virtual ~SxSy() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const
+    virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
         params.Pos->Sx = nullptr;
         params.Pos->Sy = nullptr;
     }
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const
+    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
         params.Pos->SxSyInKm = true;
         params.Pos->NSx      = 1;
         params.Pos->NSy      = 1;
     }
-    virtual void Default(bhcParams<O3D, R3D> &params) const
+    virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         trackallocate(params, "default/trivial source x-coordinates", params.Pos->Sx, 1);
         trackallocate(params, "default/trivial source y-coordinates", params.Pos->Sy, 1);
@@ -49,7 +49,7 @@ public:
         params.Pos->Sy[0] = FL(0.0); // dummy y-coordinate
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         if constexpr(O3D) {
             ReadVector2(params, params.Pos->NSx, params.Pos->Sx, ENVFile);
@@ -58,14 +58,14 @@ public:
             Default(params);
         }
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const
+    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         ValidateVector2(
             params, params.Pos->NSx, params.Pos->Sx, "Source   x-coordinates, Sx");
         ValidateVector2(
             params, params.Pos->NSy, params.Pos->Sy, "Source   y-coordinates, Sy");
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const
+    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
         EchoVector2(
@@ -75,14 +75,14 @@ public:
             params, params.Pos->NSy, params.Pos->Sy, RL(0.001),
             "Source   y-coordinates, Sy", "km");
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const
+    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         if(!params.Pos->SxSyInKm) return;
         ToMeters2(params.Pos->NSx, params.Pos->Sx);
         ToMeters2(params.Pos->NSy, params.Pos->Sy);
         params.Pos->SxSyInKm = false;
     }
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const
+    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         trackdeallocate(params, params.Pos->Sx);
         trackdeallocate(params, params.Pos->Sy);

@@ -112,8 +112,13 @@ struct HSInfo {
     char Opt[6];
 };
 
+struct HSExtra {
+    real zTemp, Mz;
+};
+
 struct BdryPtSmall {
     HSInfo hs;
+    HSExtra hsx;
 };
 
 /**

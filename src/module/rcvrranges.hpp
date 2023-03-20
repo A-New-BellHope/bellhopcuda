@@ -30,9 +30,15 @@ public:
     RcvrRanges() {}
     virtual ~RcvrRanges() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const { params.Pos->Rr = nullptr; }
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const { params.Pos->NRr = 1; }
-    virtual void Default(bhcParams<O3D, R3D> &params) const
+    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    {
+        params.Pos->Rr = nullptr;
+    }
+    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    {
+        params.Pos->NRr = 1;
+    }
+    virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         params.Pos->NRr = 10;
         trackallocate(
@@ -42,22 +48,22 @@ public:
         }
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         ReadVector2(params, params.Pos->NRr, params.Pos->Rr, ENVFile);
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const
+    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         ValidateVector2(params, params.Pos->NRr, params.Pos->Rr, "Receiver ranges");
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const
+    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
         EchoVector2(
             params, params.Pos->NRr, params.Pos->Rr, RL(0.001),
             "Receiver r-coordinates, Rr", "km");
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const
+    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         if(params.Pos->RrInKm) {
             ToMeters2(params.Pos->NRr, params.Pos->Rr);
@@ -68,7 +74,7 @@ public:
         Pos->Delta_r = FL(0.0);
         if(Pos->NRr >= 2) Pos->Delta_r = Pos->Rr[Pos->NRr - 1] - Pos->Rr[Pos->NRr - 2];
     }
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const
+    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         trackdeallocate(params, params.Pos->Rr);
     }

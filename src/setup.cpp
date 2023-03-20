@@ -140,7 +140,6 @@ template<bool O3D, bool R3D> bool setup(
         outputs.arrinfo->MaxNPerSource = nullptr;
 
         // Fill in default / "constructor" data
-        params.fT = RL(1.0e20);
         // Bdry: none
         if constexpr(O3D) {
             params.bdinfo->top.NPts.x = 2;
@@ -170,27 +169,6 @@ template<bool O3D, bool R3D> bool setup(
         outputs.arrinfo->MaxNArr         = 1;
 
         ReadEnvironment<O3D, R3D>(params);
-        ReadBoundary<O3D, R3D>(
-            params, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
-            &params.bdinfo->top, true); // AlTImetry
-        ReadBoundary<O3D, R3D>(
-            params, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
-            &params.bdinfo->bot, false);             // BaThYmetry
-        ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
-        ReadPat<O3D, R3D>(params);                   // Source Beam Pattern
-
-        if(params.Beam->deltas == FL(0.0)) {
-            // Automatic step size selection
-            params.Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth)
-                / FL(10.0);
-            if constexpr(!O3D) {
-                GetInternal(params)->PRTFile
-                    << "\n Step length,       deltas = " << params.Beam->deltas
-                    << " m (automatically selected)\n";
-            }
-        }
-
-        GetInternal(params)->PRTFile << "\n";
 
         sw.tock("setup");
     } catch(const std::exception &e) {

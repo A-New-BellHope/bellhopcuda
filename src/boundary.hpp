@@ -518,22 +518,30 @@ template<bool O3D, bool R3D> inline void ComputeBdryTangentNormal(
     }
 }
 
-template<bool O3D, bool R3D> inline void ReadBoundary(
-    bhcParams<O3D, R3D> &params, char BdryDefMode, real BdryDepth,
-    BdryInfoTopBot<O3D> *bdinfotb, bool isTop)
+bool IsFile(bhcParams<O3D, R3D> &params)
 {
-    const char *s_atibty              = isTop ? "ati" : "bty";
-    const char *s_ATIBTY              = isTop ? "ATI" : "BTY";
-    const char *s_altimetrybathymetry = isTop ? "altimetry" : "bathymetry";
-    const char *s_AltimetryBathymetry = isTop ? "Altimetry" : "Bathymetry";
-    const char *s_topbottom           = isTop ? "top" : "bottom";
-    const char *s_risesdrops = isTop ? "rises above highest" : "drops below lowest";
+    char BdryDefMode;
+    if constexpr(ISTOP)
+        BdryDefMode = TODO;
+    else
+        BdryDefMode = TODO;
+    return BdryDefMode == '~' || BdryDefMode == '*';
+}
+
+template<bool O3D, bool R3D> inline void ReadBoundary(
+    bhcParams<O3D, R3D> &params, real BdryDepth, BdryInfoTopBot<O3D> *bdinfotb,
+    bool isTop)
+{
+    const char *s_atibty              = ISTOP ? "ati" : "bty";
+    const char *s_ATIBTY              = ISTOP ? "ATI" : "BTY";
+    const char *s_altimetrybathymetry = ISTOP ? "altimetry" : "bathymetry";
+    const char *s_AltimetryBathymetry = ISTOP ? "Altimetry" : "Bathymetry";
+    const char *s_topbottom           = ISTOP ? "top" : "bottom";
+    const char *s_risesdrops = ISTOP ? "rises above highest" : "drops below lowest";
 
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
-    switch(BdryDefMode) {
-    case '~':
-    case '*': {
+    if(IsFile(params)) {
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using " << s_topbottom << "-" << s_altimetrybathymetry << " file\n";
@@ -750,52 +758,52 @@ template<bool O3D, bool R3D> inline void ReadBoundary(
                     s_ATIBTY, s_AltimetryBathymetry);
             }
         }
+    }
+    break;
+default:
+    if constexpr(O3D) {
+        bdinfotb->type[0] = 'R';
+        bdinfotb->NPts    = int2(2, 2);
+        trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2 * 2);
 
-    } break;
-    default:
-        if constexpr(O3D) {
-            bdinfotb->type[0] = 'R';
-            bdinfotb->NPts    = int2(2, 2);
-            trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2 * 2);
+        bdinfotb->bd[0].x = vec3(-BDRYBIG, -BDRYBIG, BdryDepth);
+        bdinfotb->bd[1].x = vec3(-BDRYBIG, BDRYBIG, BdryDepth);
+        bdinfotb->bd[2].x = vec3(BDRYBIG, -BDRYBIG, BdryDepth);
+        bdinfotb->bd[3].x = vec3(BDRYBIG, BDRYBIG, BdryDepth);
 
-            bdinfotb->bd[0].x = vec3(-BDRYBIG, -BDRYBIG, BdryDepth);
-            bdinfotb->bd[1].x = vec3(-BDRYBIG, BDRYBIG, BdryDepth);
-            bdinfotb->bd[2].x = vec3(BDRYBIG, -BDRYBIG, BdryDepth);
-            bdinfotb->bd[3].x = vec3(BDRYBIG, BDRYBIG, BdryDepth);
+        real defaultnz = isTop ? FL(-1.0) : FL(1.0);
+        for(int32_t i = 0; i < 4; ++i) {
+            bdinfotb->bd[i].t  = vec3(FL(1.0), FL(0.0), FL(0.0));
+            bdinfotb->bd[i].n1 = vec3(FL(0.0), FL(0.0), defaultnz);
+            bdinfotb->bd[i].n2 = vec3(FL(0.0), FL(0.0), defaultnz);
+        }
 
-            real defaultnz = isTop ? FL(-1.0) : FL(1.0);
-            for(int32_t i = 0; i < 4; ++i) {
-                bdinfotb->bd[i].t  = vec3(FL(1.0), FL(0.0), FL(0.0));
-                bdinfotb->bd[i].n1 = vec3(FL(0.0), FL(0.0), defaultnz);
-                bdinfotb->bd[i].n2 = vec3(FL(0.0), FL(0.0), defaultnz);
-            }
+        return; // LP: No ComputeBdryTangentNormal cause done manually here
+    } else {
+        trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2);
+        bdinfotb->bd[0].x = vec2(-BDRYBIG, BdryDepth);
+        bdinfotb->bd[1].x = vec2(BDRYBIG, BdryDepth);
+    }
+}
 
-            return; // LP: No ComputeBdryTangentNormal cause done manually here
-        } else {
-            trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2);
-            bdinfotb->bd[0].x = vec2(-BDRYBIG, BdryDepth);
-            bdinfotb->bd[1].x = vec2(BDRYBIG, BdryDepth);
+ComputeBdryTangentNormal<O3D, R3D>(params, bdinfotb, isTop);
+
+if constexpr(!O3D) {
+    // convert range-dependent geoacoustic parameters from user to program units
+    // LP: Moved from setup.
+    if(bdinfotb->type[1] == 'L') {
+        for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg) {
+            // compressional wave speed
+            bdinfotb->bd[iSeg].hs.cP = crci(
+                params, RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
+                bdinfotb->bd[iSeg].hs.alphaI, {'W', ' '});
+            // shear         wave speed
+            bdinfotb->bd[iSeg].hs.cS = crci(
+                params, RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR,
+                bdinfotb->bd[iSeg].hs.betaI, {'W', ' '});
         }
     }
-
-    ComputeBdryTangentNormal<O3D, R3D>(params, bdinfotb, isTop);
-
-    if constexpr(!O3D) {
-        // convert range-dependent geoacoustic parameters from user to program units
-        // LP: Moved from setup.
-        if(bdinfotb->type[1] == 'L') {
-            for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg) {
-                // compressional wave speed
-                bdinfotb->bd[iSeg].hs.cP = crci(
-                    params, RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
-                    bdinfotb->bd[iSeg].hs.alphaI, {'W', ' '});
-                // shear         wave speed
-                bdinfotb->bd[iSeg].hs.cS = crci(
-                    params, RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR,
-                    bdinfotb->bd[iSeg].hs.betaI, {'W', ' '});
-            }
-        }
-    }
+}
 }
 
 } // namespace bhc

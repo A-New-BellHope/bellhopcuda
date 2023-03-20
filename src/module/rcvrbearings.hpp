@@ -30,13 +30,16 @@ public:
     RcvrBearings() {}
     virtual ~RcvrBearings() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const
+    virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
         params.Pos->theta  = nullptr;
         params.Pos->t_rcvr = nullptr;
     }
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const { params.Pos->Ntheta = 1; }
-    virtual void Default(bhcParams<O3D, R3D> &params) const
+    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    {
+        params.Pos->Ntheta = 1;
+    }
+    virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         if constexpr(O3D) { params.Pos->Ntheta = 5; }
         trackallocate(
@@ -46,7 +49,7 @@ public:
         }
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         if constexpr(O3D) {
             ReadVector2(params, params.Pos->Ntheta, params.Pos->theta, ENVFile);
@@ -55,19 +58,19 @@ public:
             Default(params);
         }
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const
+    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         ValidateVector2(
             params, params.Pos->Ntheta, params.Pos->theta, "Receiver bearings, theta");
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const
+    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
         EchoVector2(
             params, params.Pos->Ntheta, params.Pos->theta, RadDeg,
             "Receiver bearings, theta", "degrees");
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const
+    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         // calculate angular spacing
         Pos->Delta_theta = FL(0.0);
@@ -80,7 +83,7 @@ public:
             params.Pos->t_rcvr[i] = vec2(STD::cos(theta), STD::sin(theta));
         }
     }
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const
+    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         trackdeallocate(params, params.Pos->theta);
         trackdeallocate(params, params.Pos->t_rcvr);

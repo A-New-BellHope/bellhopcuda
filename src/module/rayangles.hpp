@@ -47,7 +47,7 @@ public:
     /**
      * automatically estimate n to use
      */
-    void EstimateNumAngles(bhcParams<O3D, R3D> &params, AngleInfo &a)
+    void EstimateNumAngles(bhcParams<O3D, R3D> &params, AngleInfo &a) const
     {
         if(IsRayRun(params.Beam)) {
             a.n = 50; // For a ray trace plot, we don't want too many rays ...
@@ -71,12 +71,12 @@ public:
         }
     }
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const
+    virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         a.angles     = nullptr;
     }
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const
+    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         if constexpr(BEARING) {
@@ -90,7 +90,7 @@ public:
         a.iSingle   = 0;
         a.InDegrees = true;
     }
-    virtual void Default(bhcParams<O3D, R3D> &params) const
+    virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         if constexpr(BEARING) {
@@ -110,7 +110,7 @@ public:
         }
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         AngleInfo &a = GetAngle(params);
 
@@ -130,7 +130,7 @@ public:
         Sort(a.angles, a.n);
         CheckFix360Sweep(a.angles, a.n);
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const
+    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         ValidateVector2(params, a.n, a.angles, GetFuncName());
@@ -142,7 +142,7 @@ public:
             EXTERR("%s: Selected beam, iSingle not in [1, a.n]", GetFuncName());
         }
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const
+    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         Preprocess(params);
@@ -157,7 +157,7 @@ public:
         PRTFile << "   Beam take-off angles (degrees)\n";
         EchoVector(a.angles, a.n, RadDeg, PRTFile);
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const
+    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         if constexpr(BEARING && O3D && !R3D) {
@@ -187,7 +187,7 @@ public:
         a.d = FL(0.0);
         if(a.n != 1) a.d = (a.angles[a.n - 1] - a.angles[0]) / (a.n - 1);
     }
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const
+    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         trackdeallocate(params, a.angles);
