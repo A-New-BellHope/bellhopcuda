@@ -81,6 +81,8 @@ struct SSPStructure {
     char Type;
     char AttenUnit[2];
     real alphaR[MaxSSP], alphaI[MaxSSP];
+    // LP: Not actually used, but echoed, so with new system need to store them
+    real betaR[MaxSSP], betaI[MaxSSP];
     bool dirty; // reset and update derived params
 };
 
@@ -114,6 +116,7 @@ struct HSInfo {
 
 struct HSExtra {
     real zTemp, Mz;
+    real Sigma; // Read and echoed but never used
 };
 
 struct BdryPtSmall {
@@ -254,6 +257,7 @@ struct AttenInfo {
     bioStructure bio[MaxBioLayers];
     real t, Salinity, pH, z_bar, fg; // Francois-Garrison volume attenuation; temperature,
                                      // salinity, ...
+    int32_t NMedia;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

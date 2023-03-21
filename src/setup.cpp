@@ -123,12 +123,6 @@ template<bool O3D, bool R3D> bool setup(
         params.bdinfo->bot.bd          = nullptr;
         params.refl->bot.r             = nullptr;
         params.refl->top.r             = nullptr;
-        params.ssp->cMat               = nullptr;
-        params.ssp->czMat              = nullptr;
-        params.ssp->Seg.r              = nullptr;
-        params.ssp->Seg.x              = nullptr;
-        params.ssp->Seg.y              = nullptr;
-        params.ssp->Seg.z              = nullptr;
         params.beaminfo->SrcBmPat      = nullptr;
         outputs.rayinfo->results       = nullptr;
         outputs.rayinfo->RayMem        = nullptr;
@@ -153,7 +147,6 @@ template<bool O3D, bool R3D> bool setup(
         memcpy(params.bdinfo->top.type, "LS", 2);
         memcpy(params.bdinfo->bot.type, "LS", 2);
         // params.refl: none
-        params.ssp->dirty      = false;
         params.atten->t        = FL(20.0);
         params.atten->Salinity = FL(35.0);
         params.atten->pH       = FL(8.0);
@@ -204,12 +197,6 @@ template<bool O3D, bool R3D> void finalize(
     trackdeallocate(params, params.bdinfo->bot.bd);
     trackdeallocate(params, params.refl->bot.r);
     trackdeallocate(params, params.refl->top.r);
-    trackdeallocate(params, params.ssp->cMat);
-    trackdeallocate(params, params.ssp->czMat);
-    trackdeallocate(params, params.ssp->Seg.r);
-    trackdeallocate(params, params.ssp->Seg.x);
-    trackdeallocate(params, params.ssp->Seg.y);
-    trackdeallocate(params, params.ssp->Seg.z);
     trackdeallocate(params, params.beaminfo->SrcBmPat);
     trackdeallocate(params, outputs.rayinfo->results);
     trackdeallocate(params, outputs.rayinfo->RayMem);

@@ -420,7 +420,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         }
     } else if constexpr(CFG::ssp::Is2D()) {
         if constexpr(O3D) {
-            // Should already have been checked in InitializeSSP
+            // Should already have been checked in SSP::Validate
             RunError(errState, BHC_ERR_TEMPLATE);
             o_proc.ccpx  = cpx(NAN, NAN);
             o_proc.gradc = vec3(NAN, NAN, NAN);
@@ -469,19 +469,5 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         o = o_proc;
     }
 }
-
-template<bool O3D, bool R3D> void PreprocessSSP(bhcParams<O3D, R3D> &params);
-extern template void PreprocessSSP<false, false>(bhcParams<false, false> &params);
-extern template void PreprocessSSP<true, false>(bhcParams<true, false> &params);
-extern template void PreprocessSSP<true, true>(bhcParams<true, true> &params);
-
-template<bool O3D, bool R3D> void InitializeSSP(
-    bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
-extern template void InitializeSSP<false, false>(
-    bhcParams<false, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
-extern template void InitializeSSP<true, false>(
-    bhcParams<true, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
-extern template void InitializeSSP<true, true>(
-    bhcParams<true, true> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
 
 } // namespace bhc

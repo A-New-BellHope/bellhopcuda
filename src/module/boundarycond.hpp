@@ -32,14 +32,24 @@ public:
     BoundaryCond() {}
     virtual ~BoundaryCond() {}
 
+    BdryPtSmall &GetBdry(bhcParams<O3D, R3D> &params) const
+    {
+        if constexpr(ISTOP) return params.Bdry->Top;
+        return params.Bdry->Bot;
+    }
+
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
+        HSInfo &hs = GetBdry(params).hs;
         hs.cP = hs.cS = hs.rho = FL(0.0);
         params.fT              = RL(1.0e20);
     }
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
+        HSInfo &hs   = GetBdry(params).hs;
+        HSExtra &hsx = GetBdry(params).hsx;
+
         // ****** Read in BC parameters depending on particular choice ******
 
         if(hs.bc == 'A') { // *** Half-space properties ***
@@ -73,7 +83,7 @@ public:
     }
     virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
-        switch(hs.bc) {
+        switch(GetBdry(params).hs.bc) {
         case 'V': break;
         case 'R': break;
         case 'A': break;
@@ -87,6 +97,9 @@ public:
     virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+        HSInfo &hs            = GetBdry(params).hs;
+        HSExtra &hsx          = GetBdry(params).hsx;
+
         Preprocess(params);
 
         // Echo to PRTFile user's choice of boundary condition
@@ -118,11 +131,14 @@ public:
             PRTFile << std::setw(10) << hs.betaI << "\n";
         } else if(hs.bc == 'G') { // *** Grain size (formulas from UW-APL HF Handbook)
             PRTFile << std::setprecision(2) << std::setw(10) << hsx.zTemp << " ";
-            PRTFile << std::setw(10) << Mz << "\n";
+            PRTFile << std::setw(10) << hsx.Mz << "\n";
         }
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
+        HSInfo &hs   = GetBdry(params).hs;
+        HSExtra &hsx = GetBdry(params).hsx;
+
         if(hs.bc == 'A') { // *** Half-space properties ***
             hs.cP = crci(params, hsx.zTemp, hs.alphaR, hs.alphaI, params.ssp->AttenUnit);
             hs.cS = crci(params, hsx.zTemp, hs.betaR, hs.betaI, params.ssp->AttenUnit);
@@ -138,29 +154,29 @@ public:
             // vr   is the sound speed ratio
             // rho is the density ratio
 
-            if(Mz >= FL(-1.0) && Mz < FL(1.0)) {
-                vr     = FL(0.002709) * SQ(Mz) - FL(0.056452) * Mz + FL(1.2778);
-                hs.rho = FL(0.007797) * SQ(Mz) - FL(0.17057) * Mz + FL(2.3139);
-            } else if(Mz >= FL(1.0) && Mz < FL(5.3)) {
-                vr = FL(-0.0014881) * CUBE(Mz) + FL(0.0213937) * SQ(Mz)
-                    - FL(0.1382798) * Mz + FL(1.3425);
-                hs.rho = FL(-0.0165406) * CUBE(Mz) + FL(0.2290201) * SQ(Mz)
-                    - FL(1.1069031) * Mz + FL(3.0455);
+            if(hsx.Mz >= FL(-1.0) && hsx.Mz < FL(1.0)) {
+                vr     = FL(0.002709) * SQ(hsx.Mz) - FL(0.056452) * hsx.Mz + FL(1.2778);
+                hs.rho = FL(0.007797) * SQ(hsx.Mz) - FL(0.17057) * hsx.Mz + FL(2.3139);
+            } else if(hsx.Mz >= FL(1.0) && hsx.Mz < FL(5.3)) {
+                vr = FL(-0.0014881) * CUBE(hsx.Mz) + FL(0.0213937) * SQ(hsx.Mz)
+                    - FL(0.1382798) * hsx.Mz + FL(1.3425);
+                hs.rho = FL(-0.0165406) * CUBE(hsx.Mz) + FL(0.2290201) * SQ(hsx.Mz)
+                    - FL(1.1069031) * hsx.Mz + FL(3.0455);
             } else {
-                vr     = FL(-0.0024324) * Mz + FL(1.0019);
-                hs.rho = FL(-0.0012973) * Mz + FL(1.1565);
+                vr     = FL(-0.0024324) * hsx.Mz + FL(1.0019);
+                hs.rho = FL(-0.0012973) * hsx.Mz + FL(1.1565);
             }
 
-            if(Mz >= FL(-1.0) && Mz < FL(0.0)) {
+            if(hsx.Mz >= FL(-1.0) && hsx.Mz < FL(0.0)) {
                 alpha2_f = FL(0.4556);
-            } else if(Mz >= FL(0.0) && Mz < FL(2.6)) {
-                alpha2_f = FL(0.4556) + FL(0.0245) * Mz;
-            } else if(Mz >= FL(2.6) && Mz < FL(4.5)) {
-                alpha2_f = FL(0.1978) + FL(0.1245) * Mz;
-            } else if(Mz >= FL(4.5) && Mz < FL(6.0)) {
-                alpha2_f = FL(8.0399) - FL(2.5228) * Mz + FL(0.20098) * SQ(Mz);
-            } else if(Mz >= FL(6.0) && Mz < FL(9.5)) {
-                alpha2_f = FL(0.9431) - FL(0.2041) * Mz + FL(0.0117) * SQ(Mz);
+            } else if(hsx.Mz >= FL(0.0) && hsx.Mz < FL(2.6)) {
+                alpha2_f = FL(0.4556) + FL(0.0245) * hsx.Mz;
+            } else if(hsx.Mz >= FL(2.6) && hsx.Mz < FL(4.5)) {
+                alpha2_f = FL(0.1978) + FL(0.1245) * hsx.Mz;
+            } else if(hsx.Mz >= FL(4.5) && hsx.Mz < FL(6.0)) {
+                alpha2_f = FL(8.0399) - FL(2.5228) * hsx.Mz + FL(0.20098) * SQ(hsx.Mz);
+            } else if(hsx.Mz >= FL(6.0) && hsx.Mz < FL(9.5)) {
+                alpha2_f = FL(0.9431) - FL(0.2041) * hsx.Mz + FL(0.0117) * SQ(hsx.Mz);
             } else {
                 alpha2_f = FL(0.0601);
             }
@@ -178,5 +194,8 @@ public:
         }
     }
 };
+
+template<bool O3D, bool R3D> using BoundaryCondTop = BoundaryCond<O3D, R3D, true>;
+template<bool O3D, bool R3D> using BoundaryCondBot = BoundaryCond<O3D, R3D, false>;
 
 } // namespace bhc
