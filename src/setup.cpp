@@ -119,8 +119,6 @@ template<bool O3D, bool R3D> bool setup(
         // Set pointers to null because we always check if they are not null (and
         // deallocate them if so) before allocating them
         // IMPORTANT--if changes are made here, make the same changes in finalize
-        params.bdinfo->top.bd          = nullptr;
-        params.bdinfo->bot.bd          = nullptr;
         params.refl->bot.r             = nullptr;
         params.refl->top.r             = nullptr;
         params.beaminfo->SrcBmPat      = nullptr;
@@ -135,17 +133,6 @@ template<bool O3D, bool R3D> bool setup(
 
         // Fill in default / "constructor" data
         // Bdry: none
-        if constexpr(O3D) {
-            params.bdinfo->top.NPts.x = 2;
-            params.bdinfo->top.NPts.y = 2;
-            params.bdinfo->bot.NPts.x = 2;
-            params.bdinfo->bot.NPts.y = 2;
-        } else {
-            params.bdinfo->top.NPts = 2;
-            params.bdinfo->bot.NPts = 2;
-        }
-        memcpy(params.bdinfo->top.type, "LS", 2);
-        memcpy(params.bdinfo->bot.type, "LS", 2);
         // params.refl: none
         params.atten->t        = FL(20.0);
         params.atten->Salinity = FL(35.0);
@@ -193,8 +180,6 @@ template<bool O3D, bool R3D> void finalize(
     // IMPORTANT--if changes are made here, make the same changes in setup
     // (i.e. setting the pointers to nullptr initially)
 
-    trackdeallocate(params, params.bdinfo->top.bd);
-    trackdeallocate(params, params.bdinfo->bot.bd);
     trackdeallocate(params, params.refl->bot.r);
     trackdeallocate(params, params.refl->top.r);
     trackdeallocate(params, params.beaminfo->SrcBmPat);

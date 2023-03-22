@@ -686,19 +686,22 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(
 
 template<typename REAL> inline void EchoVector(
     REAL *v, int32_t Nv, PrintFileEmu &PRTFile, int32_t NEcho = 10,
-    const char *ExtraSpaces = "")
+    const char *ExtraSpaces = "", REAL multiplier = RL(1.0), int32_t stridereals = 1,
+    int32_t offset = 0)
 {
     CHECK_REAL_T();
     PRTFile << std::setprecision(6) << ExtraSpaces;
     for(int32_t i = 0, r = 0; i < bhc::min(Nv, NEcho); ++i) {
-        PRTFile << std::setw(14) << v[i] << " ";
+        PRTFile << std::setw(14) << (multiplier * v[i * stridereals + offset]) << " ";
         ++r;
         if(r == 5) {
             r = 0;
             PRTFile << "\n" << ExtraSpaces;
         }
     }
-    if(Nv > NEcho) PRTFile << "... " << std::setw(14) << v[Nv - 1];
+    if(Nv > NEcho)
+        PRTFile << "... " << std::setw(14)
+                << (multiplier * v[(Nv - 1) * stridereals + offset]);
     PRTFile << "\n";
     /*
     PRTFile << std::setprecision(12);

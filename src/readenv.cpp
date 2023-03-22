@@ -84,13 +84,9 @@ template<bool O3D, bool R3D> void ReadEnvironment(bhcParams<O3D, R3D> &params)
     ReadRayAnglesElevation<O3D, R3D>(params, ENVFile);
     ReadRayAnglesBearing<O3D, R3D>(params, ENVFile);
     ReadBeamInfo<O3D, R3D>(params, ENVFile);
+    ReadAltimetry<O3D, R3D>(params, ENVFile);
+    ReadBathymetry<O3D, R3D>(params, ENVFile);
 
-    ReadBoundary<O3D, R3D>(
-        params, params.Bdry->Top.hs.Opt[4], params.Bdry->Top.hs.Depth,
-        &params.bdinfo->top, true); // AlTImetry
-    ReadBoundary<O3D, R3D>(
-        params, params.Bdry->Bot.hs.Opt[1], params.Bdry->Bot.hs.Depth,
-        &params.bdinfo->bot, false);             // BaThYmetry
     ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
     ReadPat<O3D, R3D>(params);                   // Source Beam Pattern
 

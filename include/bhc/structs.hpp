@@ -163,6 +163,7 @@ template<bool O3D> struct BdryPtFull : public BdryPtFullExtras<O3D>,
     real Len; // 2D: length of a segment / 3D: length of tangent (temporary variable to
               // normalize tangent)
 };
+template<bool O3D> constexpr int32_t BdryStride = sizeof(BdryPtFull<O3D>) / sizeof(real);
 
 template<bool O3D> struct BdryInfoTopBot {
     IORI2<O3D> NPts;

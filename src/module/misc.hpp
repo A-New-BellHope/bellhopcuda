@@ -64,7 +64,7 @@ template<bool O3D, bool R3D, typename REAL> inline void EchoVector2(
                "___\n\n";
     PRTFile << "   Number of " << Description << " = " << Nx << "\n";
     PRTFile << "   " << Description << " (" << Units << ")\n";
-    EchoVector(x, Nx, multiplier, PRTFile, 10, "   ");
+    EchoVector(x, Nx, PRTFile, 10, "   ", multiplier);
     PRTFile << "\n";
 }
 

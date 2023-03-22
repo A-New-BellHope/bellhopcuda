@@ -50,8 +50,8 @@ public:
         ssp->Nr = ssp->Nx = ssp->Ny = 0;
         ssp->Nz                     = ssp->NPts;
 
-        ssp->dirty  = true;
-        ssp->xyInKm = false;
+        ssp->dirty     = true;
+        ssp->rangeInKm = false;
     }
 
     virtual void Read(
@@ -102,7 +102,7 @@ public:
 
         if(ssp->Type == 'Q') {
             // read in extra SSP data for 2D
-            ssp->xyInKm = true;
+            ssp->rangeInKm = true;
 
             LDIFile SSPFile(GetInternal(params), GetInternal(params)->FileRoot + ".ssp");
             LIST(SSPFile);
@@ -122,7 +122,7 @@ public:
             }
         } else if(ssp->Type == 'H') {
             // read in extra SSP data for 3D
-            ssp->xyInKm = true;
+            ssp->rangeInKm = true;
 
             // Read the 3D SSP matrix
             LDIFile SSPFile(GetInternal(params), GetInternal(params)->FileRoot + ".ssp");
@@ -306,7 +306,7 @@ public:
     {
         SSPStructure *ssp = params.ssp;
 
-        if(ssp->xyInKm) {
+        if(ssp->rangeInKm) {
             // convert km to m
             if(ssp->Type == 'Q') {
                 ToMeters2(ssp->Nr, ssp->Seg.r);
@@ -314,7 +314,7 @@ public:
                 ToMeters2(ssp->Nx, ssp->Seg.x);
                 ToMeters2(ssp->Ny, ssp->Seg.y);
             }
-            ssp->xyInKm = false;
+            ssp->rangeInKm = false;
         }
 
         if(!ssp->dirty) return;
