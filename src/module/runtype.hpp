@@ -20,7 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
  * Read the RunType variable and echo with explanatory information to the print file
@@ -158,4 +158,4 @@ public:
     }
 };
 
-} // namespace bhc
+}} // namespace bhc::module

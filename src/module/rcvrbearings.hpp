@@ -20,11 +20,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
-/**
- * source x-y coordinates
- */
 template<bool O3D, bool R3D> class RcvrBearings : public ParamsModule {
 public:
     RcvrBearings() {}
@@ -90,4 +87,4 @@ public:
     }
 };
 
-} // namespace bhc
+}} // namespace bhc::module

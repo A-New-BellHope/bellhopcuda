@@ -20,10 +20,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
- *
+ * Templated to become Altimetry or Bathymetry
  */
 template<bool O3D, bool R3D, bool ISTOP> class Boundary {
 public:
@@ -32,27 +32,28 @@ public:
 
     virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
-        BdryInfoTopBot<O3D> *bdinfo = GetBdryInfoTopBot(params);
-        bdinfo->bd                  = nullptr;
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        bdinfotb->bd                  = nullptr;
     }
 
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
-        BdryInfoTopBot<O3D> *bdinfo = GetBdryInfoTopBot(params);
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         if constexpr(O3D) {
-            bdinfo->NPts.x = 2;
-            bdinfo->NPts.y = 2;
+            bdinfotb->NPts.x = 2;
+            bdinfotb->NPts.y = 2;
         } else {
-            bdinfo->NPts = 2;
+            bdinfotb->NPts = 2;
         }
-        memcpy(bdinfo->type, "LS", 2);
-        bdinfo->rangeInKm = true;
-        bdinfo->dirty     = true;
+        memcpy(bdinfotb->type, "LS", 2);
+        bdinfotb->rangeInKm = true;
+        bdinfotb->dirty     = true;
     }
 
     virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
-        BdryInfoTopBot<O3D> *bdinfo = GetBdryInfoTopBot(params);
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+
         if constexpr(O3D) {
             bdinfotb->type[0] = 'R';
             bdinfotb->NPts    = int2(2, 2);
@@ -69,15 +70,12 @@ public:
                 bdinfotb->bd[i].n1 = vec3(FL(0.0), FL(0.0), defaultnz);
                 bdinfotb->bd[i].n2 = vec3(FL(0.0), FL(0.0), defaultnz);
             }
-
-            TODO();
-            return; // LP: No ComputeBdryTangentNormal cause done manually here
+            bdinfotb->dirty = false; // LP: No ComputeBdryTangentNormal cause done
+                                     // manually here
         } else {
             trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2);
             bdinfotb->bd[0].x = vec2(-BDRYBIG, BdryDepth(params));
             bdinfotb->bd[1].x = vec2(BDRYBIG, BdryDepth(params));
-
-            TODO(); // must do ComputeBdryTangentNormal
         }
     }
 
@@ -89,8 +87,8 @@ public:
             return;
         }
 
-        BdryInfoTopBot<O3D> *bdinfo = GetBdryInfoTopBot(params);
-        PrintFileEmu &PRTFile       = GetInternal(params)->PRTFile;
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
 
         LDIFile
             BDRYFile(GetInternal(params), GetInternal(params)->FileRoot + "." + s_atibty);
@@ -102,7 +100,7 @@ public:
 
         LIST(BDRYFile);
         BDRYFile.Read(bdinfotb->type, O3D ? 1 : 2);
-        if constexpr(O3D) bdinfotb->type[1] = ' ';
+        SetupPost(params);
 
         if constexpr(O3D) {
             real *Globalx = nullptr, *Globaly = nullptr;
@@ -176,9 +174,15 @@ public:
         }
     }
 
+    virtual void SetupPost(const bhcParams<O3D, R3D> &params) const override
+    {
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        if constexpr(O3D) bdinfotb->type[1] = ' ';
+    }
+
     virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
-        BdryInfoTopBot<O3D> *bdinfo = GetBdryInfoTopBot(params);
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
 
         switch(bdinfotb->type[0]) {
         case 'R':
@@ -199,6 +203,11 @@ public:
         }
 
         if constexpr(O3D) {
+            if(bdinfotb->type[1] != ' ') {
+                EXTERR(
+                    "Read%s: %s option (type[1]) must be ' ' in Nx2D/3D mode\n", s_ATIBTY,
+                    s_altimetrybathymetry);
+            }
             if(!monotonic(
                    &bdinfotb->bd[0].x.x, bdinfotb->NPts.x,
                    bdinfotb->NPts.y * BdryStride<O3D>, 0)) {
@@ -251,8 +260,8 @@ public:
 
     virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
-        BdryInfoTopBot<O3D> *bdinfo = GetBdryInfoTopBot(params);
-        PrintFileEmu &PRTFile       = GetInternal(params)->PRTFile;
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
 
         Preprocess(params);
 
@@ -334,8 +343,10 @@ public:
 
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
-        if(params.bdinfo.rangeInKm) {
-            params.bdinfo.rangeInKm = false;
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+
+        if(bdinfotb->rangeInKm) {
+            bdinfotb->rangeInKm = false;
             // convert km to m
             if constexpr(O3D) {
                 for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
@@ -351,8 +362,8 @@ public:
             }
         }
 
-        if(!params.bdinfo.dirty) return;
-        params.bdinfo.dirty = false;
+        if(!bdinfotb->dirty) return;
+        bdinfotb->dirty = false;
 
         ComputeBdryTangentNormal<O3D, R3D>(params, bdinfotb, isTop);
 
@@ -375,8 +386,8 @@ public:
 
     virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
-        trackdeallocate(params, params.bdinfo->top.bd);
-        trackdeallocate(params, params.bdinfo->bot.bd);
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        trackdeallocate(params, bdinfotb->bd);
     }
 
 private:
@@ -505,11 +516,8 @@ private:
 
                     if(ix < NPts.x - 1 && iy < NPts.y - 1) {
                         // xx term
-                        bd->bd[(ix)*NPts.y + iy].phi_xx = STD::atan2(n.z, n.x); // this is
-                                                                                // the
-                                                                                // angle
-                                                                                // at each
-                                                                                // node
+                        // this is the angle at each node
+                        bd->bd[(ix)*NPts.y + iy].phi_xx = STD::atan2(n.z, n.x);
 
                         // xy term
                         tvec = bd->bd[(ix + 1) * NPts.y + iy + 1].x
@@ -521,11 +529,8 @@ private:
                             = STD::atan2(n.z, n.x * tvec.x + n.y * tvec.y);
 
                         // yy term
-                        bd->bd[(ix)*NPts.y + iy].phi_yy = STD::atan2(n.z, n.y); // this is
-                                                                                // the
-                                                                                // angle
-                                                                                // at each
-                                                                                // node
+                        // this is the angle at each node
+                        bd->bd[(ix)*NPts.y + iy].phi_yy = STD::atan2(n.z, n.y);
                     }
 
                     bd->bd[(ix)*NPts.y + iy].Noden_unscaled = n;
@@ -534,12 +539,6 @@ private:
             }
 
         } else {
-            // LP: Moved "The boundary is also extended with a constant depth to
-            // infinity to cover cases where the ray exits the domain defined by the
-            // user" to ReadBoundary. The only place this is called other than there
-            // is in the Init_Inline setup, which is never used and the results end
-            // up the same anyway.
-
             // compute tangent and outward-pointing normal to each bottom segment
             // tBdry[0][:] = xBdry[0][1:NPts-1] - xBdry[0][0:NPts-2]
             // tBdry[1][:] = xBdry[1][1:NPts-1] - xBdry[1][0:NPts-2]
@@ -642,20 +641,20 @@ private:
                 // LP: Last row and column data is uninitialized; make sure it is never
                 // used.
                 for(int32_t ix = 0; ix < NPts.x; ++ix) {
-                    bd->bd[ix * NPts.y + (NPts.y - 1)].z_xx     = DEBUG_LARGEVAL;
-                    bd->bd[ix * NPts.y + (NPts.y - 1)].z_xy     = 2 * DEBUG_LARGEVAL;
-                    bd->bd[ix * NPts.y + (NPts.y - 1)].z_yy     = 3 * DEBUG_LARGEVAL;
-                    bd->bd[ix * NPts.y + (NPts.y - 1)].kappa_xx = 4 * DEBUG_LARGEVAL;
-                    bd->bd[ix * NPts.y + (NPts.y - 1)].kappa_xy = 5 * DEBUG_LARGEVAL;
-                    bd->bd[ix * NPts.y + (NPts.y - 1)].kappa_yy = 6 * DEBUG_LARGEVAL;
+                    bd->bd[ix * NPts.y + (NPts.y - 1)].z_xx     = NAN;
+                    bd->bd[ix * NPts.y + (NPts.y - 1)].z_xy     = NAN;
+                    bd->bd[ix * NPts.y + (NPts.y - 1)].z_yy     = NAN;
+                    bd->bd[ix * NPts.y + (NPts.y - 1)].kappa_xx = NAN;
+                    bd->bd[ix * NPts.y + (NPts.y - 1)].kappa_xy = NAN;
+                    bd->bd[ix * NPts.y + (NPts.y - 1)].kappa_yy = NAN;
                 }
                 for(int32_t iy = 0; iy < NPts.y; ++iy) {
-                    bd->bd[(NPts.x - 1) * NPts.y + iy].z_xx     = DEBUG_LARGEVAL;
-                    bd->bd[(NPts.x - 1) * NPts.y + iy].z_xy     = 2 * DEBUG_LARGEVAL;
-                    bd->bd[(NPts.x - 1) * NPts.y + iy].z_yy     = 3 * DEBUG_LARGEVAL;
-                    bd->bd[(NPts.x - 1) * NPts.y + iy].kappa_xx = 4 * DEBUG_LARGEVAL;
-                    bd->bd[(NPts.x - 1) * NPts.y + iy].kappa_xy = 5 * DEBUG_LARGEVAL;
-                    bd->bd[(NPts.x - 1) * NPts.y + iy].kappa_yy = 6 * DEBUG_LARGEVAL;
+                    bd->bd[(NPts.x - 1) * NPts.y + iy].z_xx     = NAN;
+                    bd->bd[(NPts.x - 1) * NPts.y + iy].z_xy     = NAN;
+                    bd->bd[(NPts.x - 1) * NPts.y + iy].z_yy     = NAN;
+                    bd->bd[(NPts.x - 1) * NPts.y + iy].kappa_xx = NAN;
+                    bd->bd[(NPts.x - 1) * NPts.y + iy].kappa_xy = NAN;
+                    bd->bd[(NPts.x - 1) * NPts.y + iy].kappa_yy = NAN;
                 }
 
             } else {
@@ -729,4 +728,4 @@ private:
 template<bool O3D, bool R3D> using Altimetry  = Boundary<O3D, R3D, true>;
 template<bool O3D, bool R3D> using Bathymetry = Boundary<O3D, R3D, false>;
 
-} // namespace bhc
+}} // namespace bhc::module

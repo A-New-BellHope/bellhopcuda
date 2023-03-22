@@ -119,9 +119,7 @@ template<bool O3D, bool R3D> bool setup(
         // Set pointers to null because we always check if they are not null (and
         // deallocate them if so) before allocating them
         // IMPORTANT--if changes are made here, make the same changes in finalize
-        params.refl->bot.r             = nullptr;
-        params.refl->top.r             = nullptr;
-        params.beaminfo->SrcBmPat      = nullptr;
+
         outputs.rayinfo->results       = nullptr;
         outputs.rayinfo->RayMem        = nullptr;
         outputs.rayinfo->WorkRayMem    = nullptr;
@@ -134,11 +132,7 @@ template<bool O3D, bool R3D> bool setup(
         // Fill in default / "constructor" data
         // Bdry: none
         // params.refl: none
-        params.atten->t        = FL(20.0);
-        params.atten->Salinity = FL(35.0);
-        params.atten->pH       = FL(8.0);
-        params.atten->z_bar    = FL(0.0);
-        memcpy(params.Beam->Type, "G S ", 4);
+
         // params.beaminfo: none
         outputs.rayinfo->RayMemCapacity  = 0;
         outputs.rayinfo->RayMemPoints    = 0;
@@ -179,10 +173,6 @@ template<bool O3D, bool R3D> void finalize(
 {
     // IMPORTANT--if changes are made here, make the same changes in setup
     // (i.e. setting the pointers to nullptr initially)
-
-    trackdeallocate(params, params.refl->bot.r);
-    trackdeallocate(params, params.refl->top.r);
-    trackdeallocate(params, params.beaminfo->SrcBmPat);
     trackdeallocate(params, outputs.rayinfo->results);
     trackdeallocate(params, outputs.rayinfo->RayMem);
     trackdeallocate(params, outputs.rayinfo->WorkRayMem);

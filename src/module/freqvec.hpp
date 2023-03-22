@@ -20,7 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
  * Optionally reads a vector of source frequencies for a broadband run
@@ -75,4 +75,4 @@ public:
     }
 };
 
-} // namespace bhc
+}} // namespace bhc::module

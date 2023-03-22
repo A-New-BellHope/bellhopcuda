@@ -20,11 +20,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
-/**
- *
- */
 template<bool O3D, bool R3D> class Title {
 public:
     Title() {}
@@ -58,4 +55,4 @@ public:
     }
 };
 
-} // namespace bhc
+}} // namespace bhc::module

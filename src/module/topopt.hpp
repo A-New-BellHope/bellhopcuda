@@ -20,7 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
  * LP: Read top halfspace options; 4 out of the 6 entries are general program
@@ -215,4 +215,4 @@ public:
     }
 };
 
-} // namespace bhc
+}} // namespace bhc::module

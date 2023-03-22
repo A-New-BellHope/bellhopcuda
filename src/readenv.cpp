@@ -25,26 +25,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-template<bool O3D, bool R3D> void DefaultEnvironment(bhcParams<O3D, R3D> &params)
-{
-    DefaultTitle<O3D, R3D>(params);
-    DefaultFreq0<O3D, R3D>(params);
-    DefaultTopOpt<O3D, R3D>(params);
-    BoundaryCondTop<O3D, R3D>(params);
-    DefaultSSP<O3D, R3D>(params);
-    DefaultBotOpt<O3D, R3D>(params);
-    BoundaryCondBot<O3D, R3D>(params);
-    DefaultSxSy<O3D, R3D>(params);
-    DefaultSzRz<O3D, R3D>(params);
-    DefaultRcvrRanges<O3D, R3D>(params);
-    DefaultRcvrBearings<O3D, R3D>(params);
-    DefaultfreqVec<O3D, R3D>(params);
-    DefaultRunType<O3D, R3D>(params);
-    DefaultRayAnglesElevation<O3D, R3D>(params);
-    DefaultRayAnglesBearing<O3D, R3D>(params);
-    DefaultBeamInfo<O3D, R3D>(params);
-}
-
 template<bool O3D, bool R3D> void ReadEnvironment(bhcParams<O3D, R3D> &params)
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
@@ -86,9 +66,8 @@ template<bool O3D, bool R3D> void ReadEnvironment(bhcParams<O3D, R3D> &params)
     ReadBeamInfo<O3D, R3D>(params, ENVFile);
     ReadAltimetry<O3D, R3D>(params, ENVFile);
     ReadBathymetry<O3D, R3D>(params, ENVFile);
-
-    ReadReflectionCoefficient<O3D, R3D>(params); // (top and bottom)
-    ReadPat<O3D, R3D>(params);                   // Source Beam Pattern
+    ReadReflectionCoefficient<O3D, R3D>(params); //
+    ReadPat<O3D, R3D>(params);                   //
 
     GetInternal(params)->PRTFile << "\n";
 }

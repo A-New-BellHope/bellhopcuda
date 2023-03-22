@@ -20,7 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
  * Limits for tracing beams
@@ -39,6 +39,7 @@ public:
 
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
+        memcpy(params.Beam->Type, "G S ", 4);
         MoveBeamType(params);
 
         Beam->rangeInKm  = true;
@@ -208,4 +209,4 @@ public:
     }
 };
 
-} // namespace bhc
+}} // namespace bhc::module

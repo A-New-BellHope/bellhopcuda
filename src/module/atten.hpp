@@ -18,24 +18,22 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
-#include "runtype.hpp"
+#include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
-template<bool O3D> inline HOST_DEVICE VEC23<O3D> BeamBoxCenter(const VEC23<O3D> &xs)
-{
-    VEC23<O3D> ret = xs;
-    // box is centered at z=0
-    DEP(ret) = RL(0.0);
-    return ret;
-}
+template<bool O3D, bool R3D> class Atten {
+public:
+    Atten() {}
+    virtual ~Atten() {}
 
-template<bool O3D, int DIM> inline HOST_DEVICE bool IsOutsideBeamBoxDim(
-    const VEC23<O3D> &x, const BeamStructure<O3D> *Beam, const VEC23<O3D> &xs)
-{
-    static_assert(DIM >= 0 && DIM <= ZDIM<O3D>(), "Invalid use of IsOutsideBoxDim!");
-    // LP: In 2D, source range is always 0.
-    return STD::abs(x[DIM] - BeamBoxCenter<O3D>(xs)[DIM]) >= Beam->Box[DIM];
-}
+    virtual void SetupPre(bhcParams<O3D, R3D> &params) const
+    {
+        params.atten->t        = FL(20.0);
+        params.atten->Salinity = FL(35.0);
+        params.atten->pH       = FL(8.0);
+        params.atten->z_bar    = FL(0.0);
+    }
+};
 
-} // namespace bhc
+}} // namespace bhc::module

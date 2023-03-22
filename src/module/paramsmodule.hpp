@@ -20,7 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "misc.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
  * Child classes are responsible for the initialization, defaults, reading,
@@ -62,4 +62,4 @@ private:
     ParamsModule() {}
 };
 
-} // namespace bhc
+}} // namespace bhc::module

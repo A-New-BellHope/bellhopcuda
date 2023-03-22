@@ -20,7 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
  * source and receiver z-coordinates (depths)
@@ -128,4 +128,4 @@ public:
     }
 };
 
-} // namespace bhc
+}} // namespace bhc::module

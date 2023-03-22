@@ -20,10 +20,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
- * source x-y coordinates
+ *
  */
 template<bool O3D, bool R3D, bool BEARING> class RayAngles : public ParamsModule {
 public:
@@ -197,4 +197,4 @@ public:
 template<bool O3D, bool R3D> using RayAnglesElevation = RayAngles<O3D, R3D, false>;
 template<bool O3D, bool R3D> using RayAnglesBearing   = RayAngles<O3D, R3D, true>;
 
-} // namespace bhc
+}} // namespace bhc::module

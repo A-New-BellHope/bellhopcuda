@@ -20,7 +20,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include "paramsmodule.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
  * LP: Formerly TopBot
@@ -198,4 +198,4 @@ public:
 template<bool O3D, bool R3D> using BoundaryCondTop = BoundaryCond<O3D, R3D, true>;
 template<bool O3D, bool R3D> using BoundaryCondBot = BoundaryCond<O3D, R3D, false>;
 
-} // namespace bhc
+}} // namespace bhc::module
