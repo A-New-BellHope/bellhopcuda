@@ -55,7 +55,7 @@ template void RayModeWorker<true, true>(
     ErrState *errState);
 #endif
 
-template<bool O3D, bool R3D> inline void RunRayMode(
+template<bool O3D, bool R3D> void RunRayMode(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     ErrState errState;
@@ -70,99 +70,217 @@ template<bool O3D, bool R3D> inline void RunRayMode(
     CheckReportErrors(GetInternal(params), &errState);
 }
 
-template<bool O3D, bool R3D> bool run(
+#if BHC_ENABLE_2D
+template void RunRayMode<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template void RunRayMode<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template void RunRayMode<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    try {
-        Stopwatch sw(GetInternal(params));
-        sw.tick();
-        InitSelectedMode<O3D, R3D>(params, outputs);
-        sw.tock("InitSelectedMode");
-
-        sw.tick();
-        if(IsRayRun(params.Beam)) {
-            RunRayMode(params, outputs);
-            sw.tock("RunRayMode");
-        } else {
-#ifdef BHC_BUILD_CUDA
-            checkCudaErrors(cudaSetDevice(GetInternal(params)->gpuIndex));
+    char st = params.ssp->Type;
+    if(st == 'N') {
+#ifdef BHC_SSP_ENABLE_N2LINEAR
+        RunFieldModesImpl<CfgSel<RT, IT, 'N'>, O3D, R3D>(params, outputs);
+#else
+        EXTERR("N2-linear SSP (ssp->Type == 'N') was not enabled at compile time!");
 #endif
-            RunFieldModesSelInfl(params, outputs);
-            sw.tock("RunFieldModes");
-        }
-
-        sw.tick();
-        if(IsRayRun(params.Beam)) {
-            bhc::PostProcessRays<O3D, R3D>(params, outputs.rayinfo);
-        } else if(IsTLRun(params.Beam)) {
-            bhc::PostProcessTL<O3D, R3D>(params, outputs);
-        } else if(IsEigenraysRun(params.Beam)) {
-            bhc::PostProcessEigenrays<O3D, R3D>(params, outputs);
-        } else if(IsArrivalsRun(params.Beam)) {
-            bhc::PostProcessArrivals<O3D, R3D>(params, outputs.arrinfo);
+    } else if(st == 'C') {
+#ifdef BHC_SSP_ENABLE_CLINEAR
+        RunFieldModesImpl<CfgSel<RT, IT, 'C'>, O3D, R3D>(params, outputs);
+#else
+        EXTERR("C-linear SSP (ssp->Type == 'C') was not enabled at compile time!");
+#endif
+    } else if(st == 'S') {
+#ifdef BHC_SSP_ENABLE_CUBIC
+        RunFieldModesImpl<CfgSel<RT, IT, 'S'>, O3D, R3D>(params, outputs);
+#else
+        EXTERR("Cubic spline SSP (ssp->Type == 'S') was not enabled at compile time!");
+#endif
+    } else if(st == 'P') {
+#ifdef BHC_SSP_ENABLE_PCHIP
+#ifdef BHC_LIMIT_FEATURES
+        if constexpr(!O3D) {
+#endif
+            RunFieldModesImpl<CfgSel<RT, IT, 'P'>, O3D, R3D>(params, outputs);
+#ifdef BHC_LIMIT_FEATURES
         } else {
-            EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
+            EXTERR("Nx2D or 3D PCHIP SSP not supported"
+                   "because BHC_LIMIT_FEATURES enabled!");
         }
-        sw.tock("PostProcess");
-
-    } catch(const std::exception &e) {
-        EXTWARN("Exception caught in bhc::run(): %s\n", e.what());
-        return false;
+#endif
+#else
+        EXTERR("PCHIP SSP (ssp->Type == 'P') was not enabled at compile time!");
+#endif
+    } else if(st == 'Q') {
+#ifdef BHC_SSP_ENABLE_QUAD
+        if constexpr(!O3D) {
+            RunFieldModesImpl<CfgSel<RT, IT, 'Q'>, O3D, R3D>(params, outputs);
+        } else {
+            EXTERR("Quad SSP not supported in Nx2D or 3D mode!");
+        }
+#else
+        EXTERR("Quad SSP (ssp->Type == 'Q') was not enabled at compile time!");
+#endif
+    } else if(st == 'H') {
+#ifdef BHC_SSP_ENABLE_HEXAHEDRAL
+        if constexpr(O3D) {
+            RunFieldModesImpl<CfgSel<RT, IT, 'H'>, O3D, R3D>(params, outputs);
+        } else {
+            EXTERR("Hexahedral SSP not supported in 2D mode!");
+        }
+#else
+        EXTERR("Hexahedral SSP (ssp->Type == 'H') was not enabled at compile time!");
+#endif
+    } else if(st == 'A') {
+#ifdef BHC_SSP_ENABLE_ANALYTIC
+        RunFieldModesImpl<CfgSel<RT, IT, 'A'>, O3D, R3D>(params, outputs);
+#else
+        EXTERR("Analytic SSP (ssp->Type == 'A') was not enabled at compile time!");
+#endif
+    } else {
+        EXTERR("Invalid ssp->Type %c!", st);
     }
-
-    return true;
 }
 
-#if BHC_ENABLE_2D
-template bool BHC_API
-run<false, false>(bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
-#endif
-#if BHC_ENABLE_NX2D
-template bool BHC_API
-run<true, false>(bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
-#endif
-#if BHC_ENABLE_3D
-template bool BHC_API
-run<true, true>(bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
-#endif
-
-template<bool O3D, bool R3D> bool writeout(
-    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs)
+template<char IT, bool O3D, bool R3D> inline void RunFieldModesSelRun(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    try {
-        Stopwatch sw(GetInternal(params));
-        sw.tick();
-        if(IsRayRun(params.Beam)) {
-            bhc::WriteOutRays<O3D, R3D>(params, outputs.rayinfo);
-        } else if(IsTLRun(params.Beam)) {
-            bhc::WriteOutTL<O3D, R3D>(params, outputs);
-        } else if(IsEigenraysRun(params.Beam)) {
-            bhc::WriteOutEigenrays<O3D, R3D>(params, outputs);
-        } else if(IsArrivalsRun(params.Beam)) {
-            bhc::WriteOutArrivals<O3D, R3D>(params, outputs.arrinfo);
+    char rt = params.Beam->RunType[0];
+    if(rt == 'C' || rt == 'S' || rt == 'I') {
+#ifdef BHC_RUN_ENABLE_TL
+        RunFieldModesSelSSP<'C', IT, O3D, R3D>(params, outputs);
+#else
+        EXTERR("Transmission loss runs (Beam->RunType[0] == 'C', 'S', or 'I') "
+               "were not enabled at compile time!");
+#endif
+    } else if(rt == 'E') {
+#ifdef BHC_RUN_ENABLE_EIGENRAYS
+        if constexpr(InflType<IT>::IsCerveny()) {
+            EXTERR("Cerveny influence does not support eigenrays!");
         } else {
-            EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
+            RunFieldModesSelSSP<'E', IT, O3D, R3D>(params, outputs);
         }
-        sw.tock("writeout");
-    } catch(const std::exception &e) {
-        EXTWARN("Exception caught in bhc::writeout(): %s\n", e.what());
-        return false;
+#else
+        EXTERR("Eigenrays runs (Beam->RunType[0] == 'E') "
+               "were not enabled at compile time!");
+#endif
+    } else if(rt == 'A' || rt == 'a') {
+#ifdef BHC_RUN_ENABLE_ARRIVALS
+        if constexpr(InflType<IT>::IsCerveny()) {
+            EXTERR("Cerveny influence does not support arrivals!");
+        } else {
+            RunFieldModesSelSSP<'A', IT, O3D, R3D>(params, outputs);
+        }
+#else
+        EXTERR("Arrivals runs (Beam->RunType[0] == 'A' or 'a') "
+               "were not enabled at compile time!");
+#endif
+    } else if(rt == 'R') {
+        EXTERR("Internal error, ray run 'R' is not a field mode!");
+    } else {
+        EXTERR("Invalid Beam->RunType[0] %c!", rt);
     }
+}
 
-    return true;
+template<bool O3D, bool R3D> inline void RunFieldModesSelInfl(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+#ifdef BHC_BUILD_CUDA
+    checkCudaErrors(cudaSetDevice(GetInternal(params)->gpuIndex));
+#endif
+    char it = params.Beam->Type[0];
+    if(it == 'R') {
+#ifdef BHC_INFL_ENABLE_CERVENY_RAYCEN
+        if constexpr(!R3D) {
+            RunFieldModesSelRun<'R', O3D, R3D>(params, outputs);
+        } else {
+            EXTERR("Cerveny ray-centered influence (Beam->Type[0] == 'R') "
+                   "is not supported in 3D mode!");
+        }
+#else
+        EXTERR("Cerveny ray-centered influence (Beam->Type[0] == 'R') "
+               "was not enabled at compile time!");
+#endif
+    } else if(it == 'C') {
+#ifdef BHC_INFL_ENABLE_CERVENY_CART
+        if constexpr(!R3D) {
+#ifdef BHC_LIMIT_FEATURES
+            if constexpr(!O3D) {
+#endif
+                RunFieldModesSelRun<'C', O3D, R3D>(params, outputs);
+#ifdef BHC_LIMIT_FEATURES
+            } else {
+                EXTERR("Nx2D Cerveny Cartesian influence (Beam->Type[0] == 'C') "
+                       "is not supported because BHC_LIMIT_FEATURES is enabled!");
+            }
+#endif
+        } else {
+            EXTERR("Cerveny Cartesian influence (Beam->Type[0] == 'C') "
+                   "is not supported in 3D mode!");
+        }
+#else
+        EXTERR("Cerveny Cartesian influence (Beam->Type[0] == 'C') "
+               "was not enabled at compile time!");
+#endif
+    } else if(it == 'G' || it == '^' || it == ' ' || it == 'B') {
+#ifdef BHC_INFL_ENABLE_GEOM_CART
+        RunFieldModesSelRun<'G', O3D, R3D>(params, outputs);
+#else
+        EXTERR("Geometric Cartesian influence (Beam->Type[0] == 'G', '^', ' ' "
+               "hat / 'B' Gaussian) was not enabled at compile time!");
+#endif
+    } else if(it == 'g' || it == 'b') {
+#ifdef BHC_INFL_ENABLE_GEOM_RAYCEN
+#ifdef BHC_LIMIT_FEATURES
+        if(it == 'b') {
+            if constexpr(!O3D) {
+                EXTERR("2D Gaussian RayCen (Beam->Type[0] == 'b') "
+                       "is not supported because BHC_LIMIT_FEATURES is enabled!");
+            }
+        }
+#endif
+        RunFieldModesSelRun<'g', O3D, R3D>(params, outputs);
+#else
+        EXTERR("Geometric ray-centered influence (Beam->Type[0] == 'g' hat / "
+               "'b' Gaussian) was not enabled at compile time!");
+#endif
+    } else if(it == 'S') {
+#ifdef BHC_INFL_ENABLE_SGB
+        if constexpr(!R3D) {
+            RunFieldModesSelRun<'S', O3D, R3D>(params, outputs);
+        } else {
+            EXTERR("Simple Gaussian beams influence (Beam->Type[0] == 'S') "
+                   "is not supported in 3D mode!");
+        }
+#else
+        EXTERR("Simple Gaussian beams influence (Beam->Type[0] == 'S') "
+               "was not enabled at compile time!");
+#endif
+    } else {
+        EXTERR("Invalid Beam->Type[0] %c!", it);
+    }
 }
 
 #if BHC_ENABLE_2D
-template BHC_API bool writeout<false, false>(
-    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
+template void RunFieldModesSelInfl<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
-template BHC_API bool writeout<true, false>(
-    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
+template void RunFieldModesSelInfl<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
-template BHC_API bool writeout<true, true>(
-    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
+template void RunFieldModesSelInfl<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 } // namespace bhc

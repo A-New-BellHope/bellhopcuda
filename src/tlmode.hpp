@@ -25,37 +25,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 /**
- * for a TL calculation, allocate space for the pressure matrix
- */
-template<bool O3D, bool R3D> inline void InitTLMode(
-    cpxf *&uAllSources, const bhcParams<O3D, R3D> &params)
-{
-    const Position *Pos = params.Pos;
-    size_t n            = (size_t)Pos->NSz * (size_t)Pos->NSx * (size_t)Pos->NSy
-        * (size_t)Pos->Ntheta * (size_t)Pos->NRz_per_range * (size_t)Pos->NRr;
-    trackallocate(params, "sound field / transmission loss", uAllSources, n);
-    memset(uAllSources, 0, n * sizeof(cpxf));
-}
-
-template<bool O3D, bool R3D> void PostProcessTL(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
-extern template void PostProcessTL<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
-extern template void PostProcessTL<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
-extern template void PostProcessTL<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
-
-template<bool O3D, bool R3D> void WriteOutTL(
-    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs);
-extern template void WriteOutTL<false, false>(
-    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
-extern template void WriteOutTL<true, false>(
-    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
-extern template void WriteOutTL<true, true>(
-    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
-
-/**
  * Main ray tracing function for TL, eigen, and arrivals runs.
  */
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(

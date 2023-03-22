@@ -121,6 +121,11 @@ public:
         EchoVector2(
             params, params.Pos->NRz, params.Pos->Rz, "Receiver z-coordinates, Rz", "m");
     }
+    virtual void Preprocess(bhcParams<O3D, R3D> &params) const
+    {
+        // irregular or rectilinear grid
+        params.Pos->NRz_per_range = IsIrregularGrid(params.Beam) ? 1 : params.Pos->NRz;
+    }
     virtual void Finalize(bhcParams<O3D, R3D> &params) const
     {
         trackdeallocate(params, params.Pos->Sz);

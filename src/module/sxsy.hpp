@@ -60,6 +60,12 @@ public:
     }
     virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
+        if(params.Pos->NSx * params.Pos->NSy * params.Pos->NSz <= 0) {
+            EXTERR(
+                "Invalid number of sources: %d x %d y %d z", params.Pos->NSx,
+                params.Pos->NSy, params.Pos->NSz);
+        }
+
         ValidateVector2(
             params, params.Pos->NSx, params.Pos->Sx, "Source   x-coordinates, Sx");
         ValidateVector2(

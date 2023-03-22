@@ -68,7 +68,7 @@ template void EigenModePostWorker<true, true>(
 template<bool O3D, bool R3D> void PostProcessEigenrays(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    InitRayMode<O3D, R3D>(outputs.rayinfo, params, outputs.eigen->neigen);
+    InitRayMode<O3D, R3D>(outputs.rayinfo, params, );
 
     if(outputs.eigen->neigen > outputs.eigen->memsize) {
         EXTWARN(

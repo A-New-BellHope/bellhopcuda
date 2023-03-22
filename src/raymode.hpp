@@ -149,32 +149,4 @@ template<bool O3D, bool R3D> inline bool RunRay(
     return ret;
 }
 
-template<bool O3D, bool R3D> void InitRayMode(
-    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t neigen);
-extern template void InitRayMode<false, false>(
-    RayInfo<false, false> *rayinfo, const bhcParams<false, false> &params,
-    int32_t neigen);
-extern template void InitRayMode<true, false>(
-    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, int32_t neigen);
-extern template void InitRayMode<true, true>(
-    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, int32_t neigen);
-
-template<bool O3D, bool R3D> void PostProcessRays(
-    const bhcParams<O3D, R3D> &params, RayInfo<O3D, R3D> *rayinfo);
-extern template void PostProcessRays<false, false>(
-    const bhcParams<false, false> &params, RayInfo<false, false> *rayinfo);
-extern template void PostProcessRays<true, false>(
-    const bhcParams<true, false> &params, RayInfo<true, false> *rayinfo);
-extern template void PostProcessRays<true, true>(
-    const bhcParams<true, true> &params, RayInfo<true, true> *rayinfo);
-
-template<bool O3D, bool R3D> void WriteOutRays(
-    const bhcParams<O3D, R3D> &params, const RayInfo<O3D, R3D> *rayinfo);
-extern template void WriteOutRays<false, false>(
-    const bhcParams<false, false> &params, const RayInfo<false, false> *rayinfo);
-extern template void WriteOutRays<true, false>(
-    const bhcParams<true, false> &params, const RayInfo<true, false> *rayinfo);
-extern template void WriteOutRays<true, true>(
-    const bhcParams<true, true> &params, const RayInfo<true, true> *rayinfo);
-
 } // namespace bhc

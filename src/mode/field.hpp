@@ -18,16 +18,28 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common.hpp"
+#include "misc.hpp"
 
-namespace bhc {
+namespace bhc { namespace mode {
 
-template<bool O3D, bool R3D> void ReadEnvironment(
-    bhcParams<O3D, R3D> &params, HSInfo &RecycledHS);
-extern template void ReadEnvironment<false, false>(
-    bhcParams<false, false> &params, HSInfo &RecycledHS);
-extern template void ReadEnvironment<true, false>(
-    bhcParams<true, false> &params, HSInfo &RecycledHS);
-extern template void ReadEnvironment<true, true>(
-    bhcParams<true, true> &params, HSInfo &RecycledHS);
+/**
+ * Parent class for field modes (TL, eigen, arr).
+ */
+template<bool O3D, bool R3D> class Field : public ModeModule {
+public:
+    Field() {}
+    virtual ~Field() {}
 
-} // namespace bhc
+    virtual void Preprocess(
+        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    {
+        PreRun_Influence<O3D, R3D>(params);
+    }
+
+    virtual void Run(bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    {
+        RunFieldModesSelInfl<O3D, R3D>(params, outputs);
+    }
+};
+
+}} // namespace bhc::mode

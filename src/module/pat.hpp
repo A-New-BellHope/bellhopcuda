@@ -106,6 +106,8 @@ public:
             real dB = FL(20.0) * STD::log10(beaminfo->SrcBmPat[2 * i + 1]);
             PRTFile << beaminfo->SrcBmPat[2 * i] << " " << dB << "\n";
         }
+
+        PRTFile << "\n";
     }
 
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const

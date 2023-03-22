@@ -27,10 +27,10 @@ namespace bhc { namespace module {
  *
  * flag set to 'F' if refl. coef. is to be read from a File
  */
-template<bool O3D, bool R3D, bool ISTOP> class ReflectionCoefficient {
+template<bool O3D, bool R3D, bool ISTOP> class ReflCoef {
 public:
-    ReflectionCoefficient() {}
-    virtual ~ReflectionCoefficient() {}
+    ReflCoef() {}
+    virtual ~ReflCoef() {}
 
     virtual void Init(bhcParams<O3D, R3D> &params) const
     {
@@ -141,7 +141,7 @@ private:
     constexpr const char *s_RC        = ISTOP ? "TRC" : "BRC";
 };
 
-template<bool O3D, bool R3D> using TRC = ReflectionCoefficient<O3D, R3D, true>;
-template<bool O3D, bool R3D> using BRC = ReflectionCoefficient<O3D, R3D, false>;
+template<bool O3D, bool R3D> using TRC = ReflCoef<O3D, R3D, true>;
+template<bool O3D, bool R3D> using BRC = ReflCoef<O3D, R3D, false>;
 
 }} // namespace bhc::module
