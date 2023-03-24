@@ -17,10 +17,25 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
-#include "misc.hpp"
+#include "../common_setup.hpp"
+#include "outputsmodule.hpp"
 
 namespace bhc { namespace mode {
+
+template<typename CFG, bool O3D, bool R3D> void FieldModesWorker(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, ErrState *errState);
+
+template<typename CFG, bool O3D, bool R3D> void RunFieldModesImpl(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+
+template<bool O3D, bool R3D> void RunFieldModesSelInfl(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+extern template void RunFieldModesSelInfl<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+extern template void RunFieldModesSelInfl<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+extern template void RunFieldModesSelInfl<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 /**
  * Parent class for field modes (TL, eigen, arr).

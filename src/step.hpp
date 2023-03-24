@@ -17,11 +17,8 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
-#include "runtype.hpp"
+#include "common_run.hpp"
 #include "ssp.hpp"
-#include "boundary.hpp"
-#include "beams.hpp"
 
 namespace bhc {
 

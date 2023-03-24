@@ -16,9 +16,10 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "@CMAKE_SOURCE_DIR@/src/run.hpp"
+#include "@CMAKE_SOURCE_DIR@/src/mode/field.hpp"
+#include "@CMAKE_SOURCE_DIR@/src/trace.hpp"
 
-namespace bhc {
+namespace bhc { namespace mode {
 
 #define NUM_THREADS 256
 #define LAUNCH_BOUNDS __launch_bounds__(NUM_THREADS, 1)
@@ -62,4 +63,4 @@ template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     checkCudaErrors(cudaFree(errState));
 }
 
-} // namespace bhc
+}} // namespace bhc::mode

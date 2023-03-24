@@ -17,12 +17,29 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
-#include "misc.hpp"
-
-#include "run.hpp"
+#include "../common_setup.hpp"
+#include "outputsmodule.hpp"
 
 namespace bhc { namespace mode {
+
+extern template bool RunRay<false, false>(
+    RayInfo<false, false> *rayinfo, const bhcParams<false, false> &params, int32_t job,
+    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
+extern template bool RunRay<true, false>(
+    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, int32_t job,
+    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
+extern template bool RunRay<true, true>(
+    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, int32_t job,
+    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
+
+template<bool O3D, bool R3D> void RunRayMode(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+extern template void RunRayMode<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+extern template void RunRayMode<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+extern template void RunRayMode<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> class Ray : public ModeModule {
 public:
@@ -122,6 +139,9 @@ public:
     }
 
 private:
+    // LP: These are small enough that it's not really necessary to compile
+    // them separately.
+
     template<bool O3D, bool R3D> inline void OpenRAYFile(
         LDOFile &RAYFile, std::string FileRoot, const bhcParams<O3D, R3D> &params)
     {

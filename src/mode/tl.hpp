@@ -17,14 +17,10 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
-#include "misc.hpp"
+#include "../common_setup.hpp"
+#include "field.hpp"
 
 namespace bhc { namespace mode {
-
-// LP: These are compiled separately rather than just putting the source in the
-// mode::TL class methods to reduce the amount of code which has to be compiled
-// as part of api.cpp.
 
 template<bool O3D, bool R3D> void PostProcessTL(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
@@ -59,6 +55,7 @@ public:
     {
         Field::Preprocess(params);
 
+        trackdeallocate(params, outputs.uAllSources); // Free if previously run
         // for a TL calculation, allocate space for the pressure matrix
         const Position *Pos = params.Pos;
         size_t n            = (size_t)Pos->NSz * (size_t)Pos->NSx * (size_t)Pos->NSy

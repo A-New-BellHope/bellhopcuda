@@ -17,10 +17,11 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
-#include "runtype.hpp"
+#include "common_run.hpp"
 #include "step.hpp"
 #include "reflect.hpp"
+#include "boundary.hpp"
+#include "influence.hpp"
 
 namespace bhc {
 
@@ -217,9 +218,9 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
 
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)) {
         RunWarning(errState, BHC_WARN_SOURCE_OUTSIDE_BOUNDARIES);
-        // printf("Terminating the ray trace because the source is on or outside the "
-        //           "boundaries\n");
-        // /*
+#ifdef STEP_DEBUGGING
+        printf("Terminating the ray trace because the source is on or outside the "
+               "boundaries\n");
         if(DistBegTop <= FL(0.0)) {
             if constexpr(R3D) {
                 printf(
@@ -259,7 +260,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
                     bds.bot.n.y, DistBegBot);
             }
         }
-        // */
+#endif
         return false; // source must be within the medium
     }
 
@@ -477,6 +478,118 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     DistBegTop = DistEndTop;
     DistBegBot = DistEndBot;
     return false;
+}
+
+/**
+ * Main ray tracing function for ray path output mode.
+ */
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
+    RayInitInfo &rinit, rayPt<R3D> *ray, int32_t &Nsteps, int32_t MaxPointsPerRay,
+    Origin<O3D, R3D> &org, const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo,
+    const ReflectionInfo *refl, const SSPStructure *ssp, const Position *Pos,
+    const AnglesStructure *Angles, const FreqInfo *freqinfo,
+    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, ErrState *errState)
+{
+    real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
+    SSPSegState iSeg;
+    VEC23<O3D> xs, gradc;
+    BdryState<O3D> bds;
+    BdryType Bdry;
+
+    if(!RayInit<CFG, O3D, R3D>(
+           rinit, xs, ray[0], gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
+           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo, errState)) {
+        Nsteps = 1;
+        return;
+    }
+
+    int32_t iSmallStepCtr = 0;
+    int32_t is            = 0; // index for a step along the ray
+
+    while(true) {
+        if(HasErrored(errState)) break;
+        bool twoSteps = RayUpdate<CFG, O3D, R3D>(
+            ray[is], ray[is + 1], ray[is + 2], DistEndTop, DistEndBot, iSmallStepCtr, org,
+            iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
+        if(Nsteps >= 0 && is >= Nsteps) {
+            Nsteps = is + 2;
+            break;
+        }
+        is += (twoSteps ? 2 : 1);
+        if(RayTerminate<O3D, R3D>(
+               ray[is], Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
+               DistEndBot, MaxPointsPerRay, org, bdinfo, Beam, errState))
+            break;
+    }
+}
+
+/**
+ * Main ray tracing function for TL, eigen, and arrivals runs.
+ */
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
+    RayInitInfo &rinit, cpxf *uAllSources, const BdryType *ConstBdry,
+    const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl, const SSPStructure *ssp,
+    const Position *Pos, const AnglesStructure *Angles, const FreqInfo *freqinfo,
+    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, EigenInfo *eigen,
+    const ArrInfo *arrinfo, ErrState *errState)
+{
+    real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
+    SSPSegState iSeg;
+    VEC23<O3D> xs, gradc;
+    BdryState<O3D> bds;
+    BdryType Bdry;
+    Origin<O3D, R3D> org;
+
+    rayPt<R3D> point0, point1, point2;
+    point2.c = NAN; // Silence incorrect g++ warning about maybe uninitialized;
+    // it is always set when doing two steps, and not used otherwise
+    InfluenceRayInfo<R3D> inflray;
+
+    if(!RayInit<CFG, O3D, R3D>(
+           rinit, xs, point0, gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
+           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo, errState)) {
+        return;
+    }
+
+    Init_Influence<CFG, O3D, R3D>(
+        inflray, point0, rinit, gradc, Pos, org, ssp, iSeg, Angles, freqinfo, Beam,
+        errState);
+
+    int32_t iSmallStepCtr = 0;
+    int32_t is            = 0; // index for a step along the ray
+    int32_t Nsteps        = 0; // not actually needed in TL mode, debugging only
+
+    while(true) {
+        if(HasErrored(errState)) break;
+        bool twoSteps = RayUpdate<CFG, O3D, R3D>(
+            point0, point1, point2, DistEndTop, DistEndBot, iSmallStepCtr, org, iSeg, bds,
+            Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
+        if(!Step_Influence<CFG, O3D, R3D>(
+               point0, point1, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg, Pos,
+               Beam, eigen, arrinfo, errState)) {
+#ifdef STEP_DEBUGGING
+            printf("Step_Influence terminated ray\n");
+#endif
+            break;
+        }
+        ++is;
+        if(twoSteps) {
+            if(!Step_Influence<CFG, O3D, R3D>(
+                   point1, point2, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg,
+                   Pos, Beam, eigen, arrinfo, errState))
+                break;
+            point0 = point2;
+            ++is;
+        } else {
+            point0 = point1;
+        }
+        if(RayTerminate<O3D, R3D>(
+               point0, Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
+               DistEndBot, MaxN, org, bdinfo, Beam, errState))
+            break;
+    }
+
+    // printf("Nsteps %d\n", Nsteps);
 }
 
 } // namespace bhc

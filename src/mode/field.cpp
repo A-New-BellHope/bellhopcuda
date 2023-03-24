@@ -16,72 +16,12 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "run.hpp"
+#include "field.hpp"
+#include "../common_run.hpp"
 
 #include <vector>
 
 namespace bhc {
-
-template<bool O3D, bool R3D> void RayModeWorker(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, int32_t worker,
-    ErrState *errState)
-{
-    SetupThread();
-    while(true) {
-        int32_t job    = GetInternal(params)->sharedJobID++;
-        int32_t Nsteps = -1;
-        RayInitInfo rinit;
-        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
-        if(!RunRay<O3D, R3D>(
-               outputs.rayinfo, params, job, worker, rinit, Nsteps, errState)) {
-            break;
-        }
-    }
-}
-
-#if BHC_ENABLE_2D
-template void RayModeWorker<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    int32_t worker, ErrState *errState);
-#endif
-#if BHC_ENABLE_NX2D
-template void RayModeWorker<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
-    int32_t worker, ErrState *errState);
-#endif
-#if BHC_ENABLE_3D
-template void RayModeWorker<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, int32_t worker,
-    ErrState *errState);
-#endif
-
-template<bool O3D, bool R3D> void RunRayMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
-{
-    ErrState errState;
-    ResetErrState(&errState);
-    GetInternal(params)->sharedJobID = 0;
-    int32_t numThreads               = GetInternal(params)->numThreads;
-    std::vector<std::thread> threads;
-    for(int32_t i = 0; i < numThreads; ++i)
-        threads.push_back(std::thread(
-            RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs), i, &errState));
-    for(int32_t i = 0; i < numThreads; ++i) threads[i].join();
-    CheckReportErrors(GetInternal(params), &errState);
-}
-
-#if BHC_ENABLE_2D
-template void RunRayMode<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
-#endif
-#if BHC_ENABLE_NX2D
-template void RunRayMode<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
-#endif
-#if BHC_ENABLE_3D
-template void RunRayMode<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
-#endif
 
 template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)

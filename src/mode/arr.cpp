@@ -16,10 +16,9 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "arrivals.hpp"
-#include "runtype.hpp"
+#include "arr.hpp"
 
-namespace bhc {
+namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void PostProcessArrivals(
     const bhcParams<O3D, R3D> &params, ArrInfo *arrinfo)
@@ -246,4 +245,4 @@ template void WriteOutArrivals<true, true>(
     const bhcParams<true, true> &params, const ArrInfo *arrinfo);
 #endif
 
-} // namespace bhc
+}} // namespace bhc::mode

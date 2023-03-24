@@ -17,14 +17,11 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
+#include "../common_setup.hpp"
 #include "paramsmodule.hpp"
 
 namespace bhc { namespace module {
 
-/**
- *
- */
 template<bool O3D, bool R3D> class NMedia {
 public:
     NMedia() {}

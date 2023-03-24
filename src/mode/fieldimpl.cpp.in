@@ -16,12 +16,13 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "@CMAKE_SOURCE_DIR@/src/run.hpp"
+#include "@CMAKE_SOURCE_DIR@/src/mode/field.hpp"
+#include "@CMAKE_SOURCE_DIR@/src/trace.hpp"
 
 #include <thread>
 #include <vector>
 
-namespace bhc {
+namespace bhc { namespace mode {
 
 using GENCFG = CfgSel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@>;
 
@@ -59,4 +60,4 @@ template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     CheckReportErrors(GetInternal(params), &errState);
 }
 
-} // namespace bhc
+}} // namespace bhc::mode

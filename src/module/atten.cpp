@@ -16,9 +16,9 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "attenuation.hpp"
+#include "atten.hpp"
 
-namespace bhc {
+namespace bhc { namespace module {
 
 /**
  * Francois Garrison formulas for attenuation
@@ -210,4 +210,4 @@ template cpx crci<true, true>(
     const char (&AttenUnit)[2]);
 #endif
 
-} // namespace bhc
+}} // namespace bhc::module

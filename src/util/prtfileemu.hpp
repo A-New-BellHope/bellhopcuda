@@ -19,10 +19,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 #ifndef _BHC_INCLUDING_COMPONENTS_
-#error "Must be included from common.hpp!"
+#error "Must be included from common_setup.hpp!"
 #endif
 
 namespace bhc {
+
+struct bhcInternal;
 
 class PrintFileEmu {
 public:

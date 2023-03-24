@@ -17,7 +17,10 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
+
+#ifndef _BHC_INCLUDING_COMPONENTS_
+#error "Must be included from common_run.hpp!"
+#endif
 
 namespace bhc {
 

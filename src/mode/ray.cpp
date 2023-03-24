@@ -16,57 +16,14 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#pragma once
-#include "common.hpp"
-#include "trace.hpp"
-#include "jobs.hpp"
+#include "ray.hpp"
+#include "../trace.hpp"
+
+#include <vector>
 
 namespace bhc {
 
-/**
- * Main ray tracing function for ray path output mode.
- */
-template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
-    RayInitInfo &rinit, rayPt<R3D> *ray, int32_t &Nsteps, int32_t MaxPointsPerRay,
-    Origin<O3D, R3D> &org, const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo,
-    const ReflectionInfo *refl, const SSPStructure *ssp, const Position *Pos,
-    const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, ErrState *errState)
-{
-    real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
-    SSPSegState iSeg;
-    VEC23<O3D> xs, gradc;
-    BdryState<O3D> bds;
-    BdryType Bdry;
-
-    if(!RayInit<CFG, O3D, R3D>(
-           rinit, xs, ray[0], gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
-           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo, errState)) {
-        Nsteps = 1;
-        return;
-    }
-
-    int32_t iSmallStepCtr = 0;
-    int32_t is            = 0; // index for a step along the ray
-
-    while(true) {
-        if(HasErrored(errState)) break;
-        bool twoSteps = RayUpdate<CFG, O3D, R3D>(
-            ray[is], ray[is + 1], ray[is + 2], DistEndTop, DistEndBot, iSmallStepCtr, org,
-            iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
-        if(Nsteps >= 0 && is >= Nsteps) {
-            Nsteps = is + 2;
-            break;
-        }
-        is += (twoSteps ? 2 : 1);
-        if(RayTerminate<O3D, R3D>(
-               ray[is], Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
-               DistEndBot, MaxPointsPerRay, org, bdinfo, Beam, errState))
-            break;
-    }
-}
-
-template<bool O3D, bool R3D> inline bool RunRay(
+template<bool O3D, bool R3D> bool RunRay(
     RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState)
 {
@@ -148,5 +105,82 @@ template<bool O3D, bool R3D> inline bool RunRay(
 
     return ret;
 }
+
+#if BHC_ENABLE_2D
+template bool RunRay<false, false>(
+    RayInfo<false, false> *rayinfo, const bhcParams<false, false> &params, int32_t job,
+    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
+#endif
+#if BHC_ENABLE_NX2D
+template bool RunRay<true, false>(
+    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, int32_t job,
+    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
+#endif
+#if BHC_ENABLE_3D
+template bool RunRay<true, true>(
+    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, int32_t job,
+    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
+#endif
+
+template<bool O3D, bool R3D> void RayModeWorker(
+    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, int32_t worker,
+    ErrState *errState)
+{
+    SetupThread();
+    while(true) {
+        int32_t job    = GetInternal(params)->sharedJobID++;
+        int32_t Nsteps = -1;
+        RayInitInfo rinit;
+        if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
+        if(!RunRay<O3D, R3D>(
+               outputs.rayinfo, params, job, worker, rinit, Nsteps, errState)) {
+            break;
+        }
+    }
+}
+
+#if BHC_ENABLE_2D
+template void RayModeWorker<false, false>(
+    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
+    int32_t worker, ErrState *errState);
+#endif
+#if BHC_ENABLE_NX2D
+template void RayModeWorker<true, false>(
+    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
+    int32_t worker, ErrState *errState);
+#endif
+#if BHC_ENABLE_3D
+template void RayModeWorker<true, true>(
+    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, int32_t worker,
+    ErrState *errState);
+#endif
+
+template<bool O3D, bool R3D> void RunRayMode(
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    ErrState errState;
+    ResetErrState(&errState);
+    GetInternal(params)->sharedJobID = 0;
+    int32_t numThreads               = GetInternal(params)->numThreads;
+    std::vector<std::thread> threads;
+    for(int32_t i = 0; i < numThreads; ++i)
+        threads.push_back(std::thread(
+            RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs), i, &errState));
+    for(int32_t i = 0; i < numThreads; ++i) threads[i].join();
+    CheckReportErrors(GetInternal(params), &errState);
+}
+
+#if BHC_ENABLE_2D
+template void RunRayMode<false, false>(
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template void RunRayMode<true, false>(
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template void RunRayMode<true, true>(
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+#endif
 
 } // namespace bhc

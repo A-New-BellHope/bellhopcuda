@@ -16,9 +16,8 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "eigenrays.hpp"
-#include "raymode.hpp"
-#include "run.hpp"
+#include "eigen.hpp"
+#include "../common_run.hpp"
 
 #include <vector>
 
@@ -68,7 +67,8 @@ template void EigenModePostWorker<true, true>(
 template<bool O3D, bool R3D> void PostProcessEigenrays(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    InitRayMode<O3D, R3D>(outputs.rayinfo, params, );
+    Ray<O3D, R3D> raymode;
+    raymode.Preprocess(params, outputs);
 
     if(outputs.eigen->neigen > outputs.eigen->memsize) {
         EXTWARN(
@@ -90,7 +90,7 @@ template<bool O3D, bool R3D> void PostProcessEigenrays(
     for(int32_t i = 0; i < numThreads; ++i) threads[i].join();
     CheckReportErrors(GetInternal(params), &errState);
 
-    PostProcessRays(params, outputs.rayinfo);
+    raymode.Postprocess(params, outputs);
 }
 
 #if BHC_ENABLE_2D
