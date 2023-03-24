@@ -22,7 +22,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class RcvrRanges : public ParamsModule {
+template<bool O3D, bool R3D> class RcvrRanges : public ParamsModule<O3D, R3D> {
 public:
     RcvrRanges() {}
     virtual ~RcvrRanges() {}
@@ -47,23 +47,22 @@ public:
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
-        ReadVector2(params, params.Pos->NRr, params.Pos->Rr, ENVFile);
+        ReadVector(params, params.Pos->NRr, params.Pos->Rr, ENVFile, Description2);
     }
     virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
-        ValidateVector2(params, params.Pos->NRr, params.Pos->Rr, "Receiver ranges");
+        ValidateVector(params, params.Pos->NRr, params.Pos->Rr, Description2);
     }
     virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
-        EchoVector2(
-            params, params.Pos->NRr, params.Pos->Rr, RL(0.001),
-            "Receiver r-coordinates, Rr", "km");
+        EchoVectorWDescr(
+            params, params.Pos->NRr, params.Pos->Rr, RL(0.001), Description, Units);
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         if(params.Pos->RrInKm) {
-            ToMeters2(params.Pos->NRr, params.Pos->Rr);
+            ToMeters(params.Pos->NRr, params.Pos->Rr);
             params.Pos->RrInKm = false;
         }
 
@@ -75,6 +74,11 @@ public:
     {
         trackdeallocate(params, params.Pos->Rr);
     }
+
+private:
+    constexpr const char *Description  = "Receiver r-coordinates, Rr";
+    constexpr const char *Description2 = "Receiver ranges";
+    constexpr const char *Units        = "km";
 };
 
 }} // namespace bhc::module

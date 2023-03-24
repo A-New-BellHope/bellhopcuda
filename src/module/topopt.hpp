@@ -26,7 +26,7 @@ namespace bhc { namespace module {
  * LP: Read top halfspace options; 4 out of the 6 entries are general program
  * options.
  */
-template<bool O3D, bool R3D> class TopOpt {
+template<bool O3D, bool R3D> class TopOpt : public ParamsModule<O3D, R3D> {
 public:
     TopOpt() {}
     virtual ~TopOpt() {}

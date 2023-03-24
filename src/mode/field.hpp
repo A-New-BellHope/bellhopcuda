@@ -18,7 +18,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "../common_setup.hpp"
-#include "outputsmodule.hpp"
+#include "modemodule.hpp"
+#include "../influence.hpp"
 
 namespace bhc { namespace mode {
 
@@ -40,7 +41,7 @@ extern template void RunFieldModesSelInfl<true, true>(
 /**
  * Parent class for field modes (TL, eigen, arr).
  */
-template<bool O3D, bool R3D> class Field : public ModeModule {
+template<bool O3D, bool R3D> class Field : public ModeModule<O3D, R3D> {
 public:
     Field() {}
     virtual ~Field() {}

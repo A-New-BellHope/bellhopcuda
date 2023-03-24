@@ -22,7 +22,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class SSP {
+template<bool O3D, bool R3D> class SSP : public ParamsModule<O3D, R3D> {
 public:
     SSP() {}
     virtual ~SSP() {}
@@ -309,10 +309,10 @@ public:
         if(ssp->rangeInKm) {
             // convert km to m
             if(ssp->Type == 'Q') {
-                ToMeters2(ssp->Nr, ssp->Seg.r);
+                ToMeters(ssp->Nr, ssp->Seg.r);
             } else if(ssp->Type == 'H') {
-                ToMeters2(ssp->Nx, ssp->Seg.x);
-                ToMeters2(ssp->Ny, ssp->Seg.y);
+                ToMeters(ssp->Nx, ssp->Seg.x);
+                ToMeters(ssp->Ny, ssp->Seg.y);
             }
             ssp->rangeInKm = false;
         }

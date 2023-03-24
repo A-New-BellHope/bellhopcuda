@@ -25,7 +25,7 @@ namespace bhc { namespace module {
 /**
  * Templated to become Altimetry or Bathymetry
  */
-template<bool O3D, bool R3D, bool ISTOP> class Boundary {
+template<bool O3D, bool R3D, bool ISTOP> class Boundary : public ParamsModule<O3D, R3D> {
 public:
     Boundary() {}
     virtual ~Boundary() {}

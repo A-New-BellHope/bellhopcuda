@@ -27,7 +27,7 @@ namespace bhc { namespace module {
  * If the broadband option is not selected, then the input freq (a scalar) is stored in
  * the frequency vector
  */
-template<bool O3D, bool R3D> class FreqVec : public ParamsModule {
+template<bool O3D, bool R3D> class FreqVec : public ParamsModule<O3D, R3D> {
 public:
     FreqVec() {}
     virtual ~FreqVec() {}
@@ -43,36 +43,40 @@ public:
     virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         trackallocate(
-            params, "default source frequencies", freqinfo->freqVec,
-            params.freqinfo->Nfreq);
+            params, "default frequencies", freqinfo->freqVec, params.freqinfo->Nfreq);
         freqinfo->freqVec[0] = freqinfo->freq0;
     }
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         if(params.Bdry->Top.hs.Opt[5] == 'B') {
-            ReadVector2(
-                params, params.freqinfo->Nfreq, params.freqinfo->freqVec, ENVFile);
+            ReadVector(
+                params, params.freqinfo->Nfreq, params.freqinfo->freqVec, ENVFile,
+                Description);
         } else {
             Default(params);
         }
     }
     virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
-        ValidateVector2(
-            params, params.freqinfo->Nfreq, params.freqinfo->freqVec, "frequencies");
+        ValidateVector(
+            params, params.freqinfo->Nfreq, params.freqinfo->freqVec, Description);
     }
     virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
-        EchoVector2(
+        EchoVectorWDescr(
             params, params.freqinfo->Nfreq, params.freqinfo->freqVec, RL(1.0),
-            "Frequencies", "Hz");
+            Description, Units);
     }
     virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         trackdeallocate(params, params.freqinfo->freqVec);
     }
+
+private:
+    constexpr const char *Description = "Frequencies";
+    constexpr const char *Units       = "Hz";
 };
 
 }} // namespace bhc::module

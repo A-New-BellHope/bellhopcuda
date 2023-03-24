@@ -32,7 +32,7 @@ extern template void PostProcessEigenrays<true, false>(
 extern template void PostProcessEigenrays<true, true>(
     const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
-template<bool O3D, bool R3D> class Eigen : public Field {
+template<bool O3D, bool R3D> class Eigen : public Field<O3D, R3D> {
 public:
     Eigen() {}
     virtual ~Eigen() {}
@@ -47,7 +47,7 @@ public:
     virtual void Preprocess(
         bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
-        Field::Preprocess(params);
+        Field<O3D, R3D>::Preprocess(params, outputs);
 
         EigenInfo *eigen = outputs.eigen;
         trackdeallocate(params, eigen->hits); // Free memory if previously run
@@ -81,7 +81,8 @@ public:
         raymode.Writeout(params, outputs);
     }
 
-    virtual void Finalize(bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(
+        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         trackdeallocate(params, outputs.eigen->hits);
     }

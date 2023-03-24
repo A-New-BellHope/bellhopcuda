@@ -25,7 +25,7 @@ namespace bhc { namespace module {
 /**
  * Limits for tracing beams
  */
-template<bool O3D, bool R3D> class BeamInfo {
+template<bool O3D, bool R3D> class BeamInfo : public ParamsModule<O3D, R3D> {
 public:
     BeamInfo() {}
     virtual ~BeamInfo() {}

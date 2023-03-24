@@ -25,7 +25,7 @@ namespace bhc { namespace module {
 /**
  *
  */
-template<bool O3D, bool R3D> class Freq0 {
+template<bool O3D, bool R3D> class Freq0 : public ParamsModule<O3D, R3D> {
 public:
     Freq0() {}
     virtual ~Freq0() {}

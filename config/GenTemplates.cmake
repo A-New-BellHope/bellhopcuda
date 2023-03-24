@@ -101,7 +101,7 @@ function(gen_templates_inner EXTENSION SOURCE_LIST_INNER_VAR)
                 set(OUT_FILENAME "field_${DIM_NAME}_${RUN_NAME}_${INFL_NAME}_${SSP_NAME}.${EXTENSION}")
                 set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/gen_templates/${OUT_FILENAME}")
                 configure_file(
-                    "${CMAKE_SOURCE_DIR}/src/runfieldmodesimpl.${EXTENSION}.in"
+                    "${CMAKE_SOURCE_DIR}/src/mode/fieldimpl.${EXTENSION}.in"
                     "${OUT_FILE}"
                 )
                 list(APPEND SOURCE_LIST_INNER "${OUT_FILE}")

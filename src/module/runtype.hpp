@@ -25,7 +25,7 @@ namespace bhc { namespace module {
 /**
  * Read the RunType variable and echo with explanatory information to the print file
  */
-template<bool O3D, bool R3D> class RunType {
+template<bool O3D, bool R3D> class RunType : public ParamsModule<O3D, R3D> {
 public:
     RunType() {}
     virtual ~RunType() {}

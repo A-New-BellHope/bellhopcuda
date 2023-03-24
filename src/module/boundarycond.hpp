@@ -27,7 +27,8 @@ namespace bhc { namespace module {
  * Handles top and bottom boundary conditions
  * params.freqinfo->freq0: center / nominal frequency (wideband not supported)
  */
-template<bool O3D, bool R3D, bool ISTOP> class BoundaryCond {
+template<bool O3D, bool R3D, bool ISTOP> class BoundaryCond
+    : public ParamsModule<O3D, R3D> {
 public:
     BoundaryCond() {}
     virtual ~BoundaryCond() {}

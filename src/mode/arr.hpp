@@ -40,7 +40,7 @@ extern template void WriteOutArrivals<true, false>(
 extern template void WriteOutArrivals<true, true>(
     const bhcParams<true, true> &params, const ArrInfo *arrinfo);
 
-template<bool O3D, bool R3D> class Arr : public Field {
+template<bool O3D, bool R3D> class Arr : public Field<O3D, R3D> {
 public:
     Arr() {}
     virtual ~Arr() {}
@@ -56,7 +56,8 @@ public:
     virtual void Preprocess(
         bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
-        Field::Preprocess(params);
+        Field<O3D, R3D>::Preprocess(params, outputs);
+        ArrInfo *arrinfo = outputs.arrinfo;
 
         trackdeallocate(params, arrinfo->Arr);
         trackdeallocate(params, arrinfo->NArr);
@@ -102,7 +103,8 @@ public:
         WriteOutArrivals<O3D, R3D>(params, outputs.arrinfo);
     }
 
-    virtual void Finalize(bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(
+        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         trackdeallocate(params, outputs.arrinfo->Arr);
         trackdeallocate(params, outputs.arrinfo->NArr);

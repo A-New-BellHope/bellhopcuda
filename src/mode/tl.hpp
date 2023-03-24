@@ -40,7 +40,7 @@ extern template void WriteOutTL<true, false>(
 extern template void WriteOutTL<true, true>(
     const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
 
-template<bool O3D, bool R3D> class TL : public Field {
+template<bool O3D, bool R3D> class TL : public Field<O3D, R3D> {
 public:
     TL() {}
     virtual ~TL() {}
@@ -53,7 +53,7 @@ public:
     virtual void Preprocess(
         bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
-        Field::Preprocess(params);
+        Field<O3D, R3D>::Preprocess(params, outputs);
 
         trackdeallocate(params, outputs.uAllSources); // Free if previously run
         // for a TL calculation, allocate space for the pressure matrix
@@ -76,7 +76,8 @@ public:
         WriteOutTL<O3D, R3D>(params, outputs);
     }
 
-    virtual void Finalize(bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(
+        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         trackdeallocate(params, outputs.uAllSources);
     }

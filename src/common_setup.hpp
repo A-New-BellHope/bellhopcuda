@@ -20,6 +20,115 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "common.hpp"
 
+// More includes below.
+#define _BHC_INCLUDING_COMPONENTS_ 1
+#include "util/errors.hpp"
+#undef _BHC_INCLUDING_COMPONENTS_
+
+namespace bhc {
+
+////////////////////////////////////////////////////////////////////////////////
+// String manipulation
+////////////////////////////////////////////////////////////////////////////////
+
+inline bool isInt(std::string str, bool allowNegative = true)
+{
+    if(str.empty()) return false;
+    for(size_t i = 0; i < str.length(); ++i) {
+        if(str[i] == '-') {
+            if(i != 0 || !allowNegative || str.length() == 1) return false;
+            continue;
+        } else if(str[i] >= '0' && str[i] <= '9') {
+            continue;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+inline bool isReal(std::string str)
+{
+    if(str.empty()) return false;
+    char *ptr;
+    strtod(str.c_str(), &ptr);
+    return (*ptr) == '\0';
+}
+
+inline std::ostream &operator<<(std::ostream &s, const cpx &v)
+{
+    s << "(" << v.real() << "," << v.imag() << ")";
+    return s;
+}
+
+inline std::ostream &operator<<(std::ostream &s, const vec2 &v)
+{
+    s << v.x << " " << v.y;
+    return s;
+}
+
+HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
+{
+    printf(
+        "%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n", label, m[0][0], m[1][0],
+        m[0][1], m[1][1]);
+}
+
+// Courtesy Evan Teran, https://stackoverflow.com/a/217605
+// trim from start (in place)
+static inline void ltrim(std::string &s)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+                return !std::isspace(ch);
+            }));
+}
+// trim from end (in place)
+static inline void rtrim(std::string &s)
+{
+    s.erase(
+        std::find_if(
+            s.rbegin(), s.rend(), [](unsigned char ch) { return !std::isspace(ch); })
+            .base(),
+        s.end());
+}
+// trim from both ends (in place)
+static inline void trim(std::string &s)
+{
+    ltrim(s);
+    rtrim(s);
+}
+// trim from start (copying)
+static inline std::string ltrim_copy(std::string s)
+{
+    ltrim(s);
+    return s;
+}
+// trim from end (copying)
+static inline std::string rtrim_copy(std::string s)
+{
+    rtrim(s);
+    return s;
+}
+// trim from both ends (copying)
+static inline std::string trim_copy(std::string s)
+{
+    trim(s);
+    return s;
+}
+
+inline bool startswith(const std::string &source, const std::string &target)
+{
+    return source.rfind(target, 0) == 0;
+}
+
+inline bool endswith(const std::string &source, const std::string &target)
+{
+    size_t l = source.length() - target.length();
+    return source.find(target, l) == l;
+}
+
+} // namespace bhc
+
 #define _BHC_INCLUDING_COMPONENTS_ 1
 #include "util/prtfileemu.hpp"
 #include "util/ldio.hpp"
@@ -31,6 +140,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {
+
+////////////////////////////////////////////////////////////////////////////////
+// Internal
+////////////////////////////////////////////////////////////////////////////////
 
 struct bhcInternal {
     void (*outputCallback)(const char *message);
@@ -109,97 +222,8 @@ template<bool O3D, bool R3D, typename T> inline void trackallocate(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// String manipulation
+// Vector input related
 ////////////////////////////////////////////////////////////////////////////////
-
-inline bool isInt(std::string str, bool allowNegative = true)
-{
-    if(str.empty()) return false;
-    for(size_t i = 0; i < str.length(); ++i) {
-        if(str[i] == '-') {
-            if(i != 0 || !allowNegative || str.length() == 1) return false;
-            continue;
-        } else if(str[i] >= '0' && str[i] <= '9') {
-            continue;
-        } else {
-            return false;
-        }
-    }
-    return true;
-}
-
-inline bool isReal(std::string str)
-{
-    if(str.empty()) return false;
-    char *ptr;
-    strtod(str.c_str(), &ptr);
-    return (*ptr) == '\0';
-}
-
-inline std::ostream &operator<<(std::ostream &s, const cpx &v)
-{
-    s << "(" << v.real() << "," << v.imag() << ")";
-    return s;
-}
-
-inline std::ostream &operator<<(std::ostream &s, const vec2 &v)
-{
-    s << v.x << " " << v.y;
-    return s;
-}
-
-// Courtesy Evan Teran, https://stackoverflow.com/a/217605
-// trim from start (in place)
-static inline void ltrim(std::string &s)
-{
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
-                return !std::isspace(ch);
-            }));
-}
-// trim from end (in place)
-static inline void rtrim(std::string &s)
-{
-    s.erase(
-        std::find_if(
-            s.rbegin(), s.rend(), [](unsigned char ch) { return !std::isspace(ch); })
-            .base(),
-        s.end());
-}
-// trim from both ends (in place)
-static inline void trim(std::string &s)
-{
-    ltrim(s);
-    rtrim(s);
-}
-// trim from start (copying)
-static inline std::string ltrim_copy(std::string s)
-{
-    ltrim(s);
-    return s;
-}
-// trim from end (copying)
-static inline std::string rtrim_copy(std::string s)
-{
-    rtrim(s);
-    return s;
-}
-// trim from both ends (copying)
-static inline std::string trim_copy(std::string s)
-{
-    trim(s);
-    return s;
-}
-
-inline bool startswith(const std::string &source, const std::string &target)
-{
-    return source.rfind(target, 0) == 0;
-}
-
-inline bool endswith(const std::string &source, const std::string &target)
-{
-    size_t l = source.length() - target.length();
-    return source.find(target, l) == l;
-}
 
 template<typename T> inline void Sort(T *arr, size_t n) { std::sort(arr, arr + n); }
 template<> inline void Sort(cpx *arr, size_t n)
@@ -260,37 +284,9 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(
         --n;
 }
 
-template<typename REAL> inline void EchoVector(
-    REAL *v, int32_t Nv, PrintFileEmu &PRTFile, int32_t NEcho = 10,
-    const char *ExtraSpaces = "", REAL multiplier = RL(1.0), int32_t stridereals = 1,
-    int32_t offset = 0)
+template<typename REAL> inline void ToMeters(int32_t &Nx, REAL *&x)
 {
-    CHECK_REAL_T();
-    PRTFile << std::setprecision(6) << ExtraSpaces;
-    for(int32_t i = 0, r = 0; i < bhc::min(Nv, NEcho); ++i) {
-        PRTFile << std::setw(14) << (multiplier * v[i * stridereals + offset]) << " ";
-        ++r;
-        if(r == 5) {
-            r = 0;
-            PRTFile << "\n" << ExtraSpaces;
-        }
-    }
-    if(Nv > NEcho)
-        PRTFile << "... " << std::setw(14)
-                << (multiplier * v[(Nv - 1) * stridereals + offset]);
-    PRTFile << "\n";
-    /*
-    PRTFile << std::setprecision(12);
-    for(int32_t i=0; i<Nv; ++i) PRTFile << std::setw(20) << v[i] << "\n";
-    PRTFile << "\n";
-    */
-}
-
-HOST_DEVICE inline void PrintMatrix(const mat2x2 &m, const char *label)
-{
-    printf(
-        "%s: /%12.7e %12.7e\\\n       \\%12.7e %12.7e/\n", label, m[0][0], m[1][0],
-        m[0][1], m[1][1]);
+    for(int32_t i = 0; i < Nx; ++i) x[i] *= FL(1000.0);
 }
 
 /**
@@ -337,12 +333,13 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 /**
  * Read a vector x
  */
-template<bool O3D, bool R3D, typename REAL> inline void ReadVector2(
-    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, LDIFile &ENVFile)
+template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
+    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, LDIFile &ENVFile,
+    const char *Description)
 {
     LIST(ENVFile);
     ENVFile.Read(Nx);
-    trackallocate(params, Description.c_str(), x, bhc::max(3, Nx));
+    trackallocate(params, Description, x, bhc::max(3, Nx));
     x[1] = FL(-999.9);
     x[2] = FL(-999.9);
     LIST(ENVFile);
@@ -351,25 +348,49 @@ template<bool O3D, bool R3D, typename REAL> inline void ReadVector2(
     Sort(x, Nx);
 }
 
-template<bool O3D, bool R3D, typename REAL> inline void ValidateVector2(
-    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, std::string Description)
+template<bool O3D, bool R3D, typename REAL> inline void ValidateVector(
+    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, const char *Description)
 {
-    if(Nx <= 0) {
-        EXTERR("ValidateVector2: Number of %s must be positive", Description.c_str());
-    }
+    if(Nx <= 0) { EXTERR("ValidateVector: Number of %s must be positive", Description); }
     if(!monotonic(x, Nx)) {
-        EXTERR(
-            "ValidateVector2: %s are not monotonically increasing", Description.c_str());
+        EXTERR("ValidateVector: %s are not monotonically increasing", Description);
     }
 }
 
+template<typename REAL> inline void EchoVector(
+    REAL *v, int32_t Nv, PrintFileEmu &PRTFile, int32_t NEcho = 10,
+    const char *ExtraSpaces = "", REAL multiplier = RL(1.0), int32_t stridereals = 1,
+    int32_t offset = 0)
+{
+    CHECK_REAL_T();
+    PRTFile << std::setprecision(6) << ExtraSpaces;
+    for(int32_t i = 0, r = 0; i < bhc::min(Nv, NEcho); ++i) {
+        PRTFile << std::setw(14) << (multiplier * v[i * stridereals + offset]) << " ";
+        ++r;
+        if(r == 5) {
+            r = 0;
+            PRTFile << "\n" << ExtraSpaces;
+        }
+    }
+    if(Nv > NEcho)
+        PRTFile << "... " << std::setw(14)
+                << (multiplier * v[(Nv - 1) * stridereals + offset]);
+    PRTFile << "\n";
+    /*
+    PRTFile << std::setprecision(12);
+    for(int32_t i=0; i<Nv; ++i) PRTFile << std::setw(20) << v[i] << "\n";
+    PRTFile << "\n";
+    */
+}
+
 /**
+ * LP: Echo vector with description
  * Description is something like 'receiver ranges'
  * Units       is something like 'km'
  */
-template<bool O3D, bool R3D, typename REAL> inline void EchoVector2(
+template<bool O3D, bool R3D, typename REAL> inline void EchoVectorWDescr(
     bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, REAL multiplier,
-    std::string Description, std::string Units)
+    const char *Description, const char *Units)
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
@@ -379,11 +400,6 @@ template<bool O3D, bool R3D, typename REAL> inline void EchoVector2(
     PRTFile << "   " << Description << " (" << Units << ")\n";
     EchoVector(x, Nx, PRTFile, 10, "   ", multiplier);
     PRTFile << "\n";
-}
-
-template<typename REAL> inline void ToMeters2(int32_t &Nx, REAL *&x)
-{
-    for(int32_t i = 0; i < Nx; ++i) x[i] *= FL(1000.0);
 }
 
 } // namespace bhc

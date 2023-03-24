@@ -62,41 +62,60 @@ set(common_includes
 )
 
 set(common_source
-    angles.hpp
-    arrivals.cpp
+    mode/arr.cpp
+    mode/arr.hpp
+    mode/eigen.cpp
+    mode/eigen.hpp
+    mode/field.cpp
+    mode/field.hpp
+    mode/modemodule.hpp
+    mode/ray.cpp
+    mode/ray.hpp
+    mode/tl.cpp
+    mode/tl.hpp
+    module/atten.cpp
+    module/atten.hpp
+    module/beaminfo.hpp
+    module/botopt.hpp
+    module/boundarycond.hpp
+    module/boundary.hpp
+    module/freq0.hpp
+    module/freqvec.hpp
+    module/nmedia.hpp
+    module/paramsmodule.hpp
+    module/pat.hpp
+    module/rayangles.hpp
+    module/rcvrbearings.hpp
+    module/rcvrranges.hpp
+    module/reflcoef.hpp
+    module/runtype.hpp
+    module/ssp.hpp
+    module/sxsy.hpp
+    module/szrz.hpp
+    module/title.hpp
+    module/topopt.hpp
+    util/atomics.hpp
+    util/bino.hpp
+    util/errors.cpp
+    util/errors.hpp
+    util/ldio.hpp
+    util/prtfileemu.hpp
+    util/timing.cpp
+    util/timing.hpp
+    util/UtilsCUDA.cuh
+    api.cpp
     arrivals.hpp
-    atomics.hpp
-    attenuation.cpp
-    attenuation.hpp
-    beams.hpp
-    bino.hpp
     boundary.hpp
     common.hpp
+    common_run.hpp
+    common_setup.hpp
     curves.hpp
-    eigenrays.cpp
     eigenrays.hpp
-    errors.cpp
-    errors.hpp
     influence.hpp
-    jobs.hpp
-    ldio.hpp
-    prtfileemu.hpp
-    raymode.cpp
-    raymode.hpp
-    readenv.cpp
-    readenv.hpp
     reflect.hpp
-    run.cpp
-    run.hpp
-    setup.cpp
-    sourcereceiver.hpp
-    ssp.cpp
+    runtype.hpp
     ssp.hpp
     step.hpp
-    timing.cpp
-    timing.hpp
-    tlmode.cpp
-    tlmode.hpp
     trace.hpp
 )
 

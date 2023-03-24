@@ -27,7 +27,7 @@ namespace bhc { namespace module {
  *
  * flag set to 'F' if refl. coef. is to be read from a File
  */
-template<bool O3D, bool R3D, bool ISTOP> class ReflCoef {
+template<bool O3D, bool R3D, bool ISTOP> class ReflCoef : public ParamsModule<O3D, R3D> {
 public:
     ReflCoef() {}
     virtual ~ReflCoef() {}

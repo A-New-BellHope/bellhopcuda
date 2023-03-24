@@ -22,7 +22,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class RcvrBearings : public ParamsModule {
+template<bool O3D, bool R3D> class RcvrBearings : public ParamsModule<O3D, R3D> {
 public:
     RcvrBearings() {}
     virtual ~RcvrBearings() {}
@@ -49,7 +49,8 @@ public:
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         if constexpr(O3D) {
-            ReadVector2(params, params.Pos->Ntheta, params.Pos->theta, ENVFile);
+            ReadVector(
+                params, params.Pos->Ntheta, params.Pos->theta, ENVFile, Description);
             CheckFix360Sweep(Pos->theta, Pos->Ntheta);
         } else {
             Default(params);
@@ -57,15 +58,13 @@ public:
     }
     virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
-        ValidateVector2(
-            params, params.Pos->Ntheta, params.Pos->theta, "Receiver bearings, theta");
+        ValidateVector(params, params.Pos->Ntheta, params.Pos->theta, Description);
     }
     virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
-        EchoVector2(
-            params, params.Pos->Ntheta, params.Pos->theta, RadDeg,
-            "Receiver bearings, theta", "degrees");
+        EchoVectorWDescr(
+            params, params.Pos->Ntheta, params.Pos->theta, RadDeg, Description, Units);
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
@@ -85,6 +84,10 @@ public:
         trackdeallocate(params, params.Pos->theta);
         trackdeallocate(params, params.Pos->t_rcvr);
     }
+
+private:
+    constexpr const char *Description = "Receiver bearings, theta";
+    constexpr const char *Units       = "degrees";
 };
 
 }} // namespace bhc::module

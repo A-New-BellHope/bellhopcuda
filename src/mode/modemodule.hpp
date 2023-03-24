@@ -45,11 +45,12 @@ public:
         bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {}
     /// Deallocate memory.
-    virtual void Finalize(bhcOutputs<O3D, R3D> &outputs) const {}
+    virtual void Finalize(
+        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    {}
 
 private:
     ModeModule() {}
 };
 
-}}
-} // namespace bhc::module
+}} // namespace bhc::mode

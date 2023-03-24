@@ -26,6 +26,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
+struct bhcInternal;
+
 struct ErrState {
     STD::atomic<uint32_t> error, warning, errCount, warnCount;
 };

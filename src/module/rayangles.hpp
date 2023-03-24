@@ -22,7 +22,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D, bool BEARING> class RayAngles : public ParamsModule {
+template<bool O3D, bool R3D, bool BEARING> class RayAngles
+    : public ParamsModule<O3D, R3D> {
 public:
     RayAngles() {}
     virtual ~RayAngles() {}
@@ -130,7 +131,7 @@ public:
     virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
-        ValidateVector2(params, a.n, a.angles, GetFuncName());
+        ValidateVector(params, a.n, a.angles, GetFuncName());
 
         if(a.n > 1 && a.angles[a.n - 1] == a.angles[0]) {
             EXTERR("%s: First and last beam take-off angle are identical", GetFuncName());

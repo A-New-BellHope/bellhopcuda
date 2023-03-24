@@ -18,7 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "../common_setup.hpp"
-#include "outputsmodule.hpp"
+#include "modemodule.hpp"
 
 namespace bhc { namespace mode {
 
@@ -41,7 +41,7 @@ extern template void RunRayMode<true, false>(
 extern template void RunRayMode<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
-template<bool O3D, bool R3D> class Ray : public ModeModule {
+template<bool O3D, bool R3D> class Ray : public ModeModule<O3D, R3D> {
 public:
     Ray() {}
     virtual ~Ray() {}
@@ -131,7 +131,8 @@ public:
         }
     }
 
-    virtual void Finalize(bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(
+        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         trackdeallocate(params, outputs.rayinfo->results);
         trackdeallocate(params, outputs.rayinfo->RayMem);

@@ -24,7 +24,7 @@ namespace bhc { namespace module {
 /**
  * Source Beam Pattern
  */
-template<bool O3D, bool R3D> class Pat {
+template<bool O3D, bool R3D> class Pat : public ParamsModule<O3D, R3D> {
 public:
     Pat() {}
     virtual ~Pat() {}

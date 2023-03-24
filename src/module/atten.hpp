@@ -35,7 +35,7 @@ extern template cpx crci<true, true>(
     const bhcParams<true, true> &params, real z, real c, real alpha,
     const char (&AttenUnit)[2]);
 
-template<bool O3D, bool R3D> class Atten {
+template<bool O3D, bool R3D> class Atten : public ParamsModule<O3D, R3D> {
 public:
     Atten() {}
     virtual ~Atten() {}

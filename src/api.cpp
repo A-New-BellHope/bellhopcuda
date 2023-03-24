@@ -39,7 +39,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "module/reflcoef.hpp"
 #include "module/pat.hpp"
 
-#include "mode/outputsmodule.hpp"
+#include "mode/modemodule.hpp"
 #include "mode/ray.hpp"
 #include "mode/field.hpp"
 #include "mode/tl.hpp"
@@ -108,14 +108,14 @@ namespace mode {
 
 template<bool O3D, bool R3D> class ModesList {
 public:
-    OutputsList()
+    ModesList()
     {
         modes.push_back(new Ray<O3D, R3D>());
         modes.push_back(new TL<O3D, R3D>());
         modes.push_back(new Eigen<O3D, R3D>());
         modes.push_back(new Arr<O3D, R3D>());
     }
-    ~OutputsList()
+    ~ModesList()
     {
         for(auto *mode : modes) delete mode;
     }

@@ -25,7 +25,7 @@ namespace bhc { namespace module {
 /**
  * source and receiver z-coordinates (depths)
  */
-template<bool O3D, bool R3D> class SzRz : public ParamsModule {
+template<bool O3D, bool R3D> class SzRz : public ParamsModule<O3D, R3D> {
 public:
     SzRz() {}
     virtual ~SzRz() {}
@@ -55,8 +55,8 @@ public:
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
     {
-        ReadVector2(params, params.Pos->NSz, params.Pos->Sz, ENVFile);
-        ReadVector2(params, params.Pos->NRz, params.Pos->Rz, ENVFile);
+        ReadVector(params, params.Pos->NSz, params.Pos->Sz, ENVFile, DescriptionS);
+        ReadVector(params, params.Pos->NRz, params.Pos->Rz, ENVFile, DescriptionR);
     }
     virtual void Validate(const bhcParams<O3D, R3D> &params) const
     {
@@ -111,15 +111,13 @@ public:
                 << "Warning in ReadSzRz : Receiver below or too near the bottom bdry has "
                    "been moved up\n";
 
-        ValidateVector2(params, Pos->NSz, Pos->Sz, "Source   z-coordinates, Sz");
-        ValidateVector2(params, Pos->NRz, Pos->Rz, "Receiver z-coordinates, Rz");
+        ValidateVector(params, Pos->NSz, Pos->Sz, DescriptionS);
+        ValidateVector(params, Pos->NRz, Pos->Rz, DescriptionR);
     }
     virtual void Echo(const bhcParams<O3D, R3D> &params) const
     {
-        EchoVector2(
-            params, params.Pos->NSz, params.Pos->Sz, "Source   z-coordinates, Sz", "m");
-        EchoVector2(
-            params, params.Pos->NRz, params.Pos->Rz, "Receiver z-coordinates, Rz", "m");
+        EchoVectorWDescr(params, params.Pos->NSz, params.Pos->Sz, DescriptionS, Units);
+        EchoVectorWDescr(params, params.Pos->NRz, params.Pos->Rz, DescriptionR, Units);
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const
     {
@@ -131,6 +129,11 @@ public:
         trackdeallocate(params, params.Pos->Sz);
         trackdeallocate(params, params.Pos->Rz);
     }
+
+private:
+    constexpr const char *DescriptionS = "Source   z-coordinates, Sz";
+    constexpr const char *DescriptionR = "Receiver z-coordinates, Rz";
+    constexpr const char *Units        = "m";
 };
 
 }} // namespace bhc::module
