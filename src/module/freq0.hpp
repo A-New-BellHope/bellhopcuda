@@ -42,6 +42,7 @@ public:
     }
     virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
+        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);
         PRTFile << " frequency = " << std::setw(11) << params.freqinfo->freq0 << " Hz\n";
     }

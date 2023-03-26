@@ -21,7 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <vector>
 
-namespace bhc {
+namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> bool RunRay(
     RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t job,
@@ -183,4 +183,4 @@ template void RunRayMode<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
-} // namespace bhc
+}} // namespace bhc::mode

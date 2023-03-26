@@ -75,8 +75,8 @@ public:
     }
 
 private:
-    constexpr const char *Description = "Frequencies";
-    constexpr const char *Units       = "Hz";
+    constexpr static const char *Description = "Frequencies";
+    constexpr static const char *Units       = "Hz";
 };
 
 }} // namespace bhc::module

@@ -22,6 +22,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace mode {
 
+template<bool O3D, bool R3D> bool RunRay(
+    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t job,
+    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 extern template bool RunRay<false, false>(
     RayInfo<false, false> *rayinfo, const bhcParams<false, false> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
@@ -112,22 +115,24 @@ public:
     virtual void Postprocess(
         bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
+        RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
         for(int r = 0; r < rayinfo->NRays; ++r) {
             RayResult<O3D, R3D> *res = &rayinfo->results[r];
             if(res->ray == nullptr) continue;
-            CompressRay<O3D, R3D>(res, params.Bdry);
+            CompressRay(res, params.Bdry);
         }
     }
 
     virtual void Writeout(
         bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
+        RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
         LDOFile RAYFile;
-        OpenRAYFile<O3D, R3D>(RAYFile, GetInternal(params)->FileRoot, params);
+        OpenRAYFile(RAYFile, GetInternal(params)->FileRoot, params);
         for(int r = 0; r < rayinfo->NRays; ++r) {
             const RayResult<O3D, R3D> *res = &rayinfo->results[r];
             if(res->ray == nullptr) continue;
-            WriteRay<O3D, R3D>(RAYFile, res);
+            WriteRay(RAYFile, res);
         }
     }
 
@@ -143,8 +148,8 @@ private:
     // LP: These are small enough that it's not really necessary to compile
     // them separately.
 
-    template<bool O3D, bool R3D> inline void OpenRAYFile(
-        LDOFile &RAYFile, std::string FileRoot, const bhcParams<O3D, R3D> &params)
+    inline void OpenRAYFile(
+        LDOFile &RAYFile, std::string FileRoot, const bhcParams<O3D, R3D> &params) const
     {
         if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)) {
             EXTERR("OpenRAYFile not in ray trace or eigenrays mode");
@@ -166,8 +171,7 @@ private:
      * The 2D version is for ray traces in (r,z) coordinates
      * The 3D version is for ray traces in (x,y,z) coordinates
      */
-    template<bool O3D, bool R3D> inline void CompressRay(
-        RayResult<O3D, R3D> *res, const BdryType *Bdry)
+    inline void CompressRay(RayResult<O3D, R3D> *res, const BdryType *Bdry) const
     {
         // this is the maximum length of the ray vector that is written out
         constexpr int32_t MaxNRayPoints = 500000;
@@ -206,8 +210,7 @@ private:
     /**
      * Write to RAYFile.
      */
-    template<bool O3D, bool R3D> inline void WriteRay(
-        LDOFile &RAYFile, const RayResult<O3D, R3D> *res)
+    inline void WriteRay(LDOFile &RAYFile, const RayResult<O3D, R3D> *res) const
     {
         // take-off angle of this ray [LP: 2D: degrees, 3D: radians]
         real alpha0 = res->SrcDeclAngle;

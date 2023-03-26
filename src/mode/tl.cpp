@@ -17,8 +17,9 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #include "tl.hpp"
+#include "../trace.hpp"
 
-namespace bhc {
+namespace bhc { namespace mode {
 
 /**
  * Write header to disk file
@@ -251,4 +252,4 @@ template void WriteOutTL<true, true>(
     const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
 #endif
 
-} // namespace bhc
+}} // namespace bhc::mode

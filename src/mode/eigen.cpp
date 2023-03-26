@@ -21,7 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <vector>
 
-namespace bhc {
+namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void EigenModePostWorker(
     const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, int32_t worker,
@@ -65,7 +65,7 @@ template void EigenModePostWorker<true, true>(
 #endif
 
 template<bool O3D, bool R3D> void PostProcessEigenrays(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     Ray<O3D, R3D> raymode;
     raymode.Preprocess(params, outputs);
@@ -95,15 +95,15 @@ template<bool O3D, bool R3D> void PostProcessEigenrays(
 
 #if BHC_ENABLE_2D
 template void PostProcessEigenrays<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void PostProcessEigenrays<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void PostProcessEigenrays<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
-} // namespace bhc
+}} // namespace bhc::mode

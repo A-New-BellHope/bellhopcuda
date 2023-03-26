@@ -92,7 +92,8 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(
 }
 
 template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCurvature(
-    const ReflCurvature<O3D> &rcurv, const Origin<O3D, R3D> &org, bool isTop)
+    const ReflCurvature<O3D> &rcurv, const Origin<O3D, R3D> &org,
+    [[maybe_unused]] bool isTop)
 {
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
     if constexpr(O3D && !R3D) {
@@ -107,7 +108,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCur
         if(isTop) rcurv_out.kappa = -rcurv_out.kappa;
         return rcurv_out;
     } else {
-        IGNORE_UNUSED(isTop);
         return rcurv;
     }
 }
@@ -125,7 +125,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCur
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     const rayPt<R3D> &oldPoint, rayPt<R3D> &newPoint, const HSInfo &hs, bool isTop,
     VEC23<R3D> tBdry, const VEC23<O3D> &nBdry, const ReflCurvature<O3D> &rcurv, real freq,
-    const ReflectionInfoTopBot &rtb, const BeamStructure<O3D> *Beam,
+    const ReflectionInfoTopBot &rtb, [[maybe_unused]] const BeamStructure<O3D> *Beam,
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     ErrState *errState)
 {
@@ -167,8 +167,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     newPoint.tau = oldPoint.tau;
 
     if constexpr(R3D) {
-        IGNORE_UNUSED(Beam);
-
         vec3 rayt, rayn1, rayn2, rayt_tilde, rayn1_tilde, rayn2_tilde;
         CalcTangent_Normals(
             oldPoint, o.ccpx.real(), nBdry, rayt, rayn1, rayn2, RL(-1.0)); // incident

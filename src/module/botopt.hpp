@@ -22,9 +22,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-/**
- *
- */
 template<bool O3D, bool R3D> class BotOpt : public ParamsModule<O3D, R3D> {
 public:
     BotOpt() {}

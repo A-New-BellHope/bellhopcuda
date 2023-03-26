@@ -530,10 +530,10 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D, R3D> &p
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influence(
     InfluenceRayInfo<R3D> &inflray, const rayPt<R3D> &point0, RayInitInfo &rinit,
     const VEC23<O3D> &gradc, const Position *Pos, const Origin<O3D, R3D> &org,
-    const SSPStructure *ssp, SSPSegState &iSeg, const AnglesStructure *Angles,
-    const FreqInfo *freqinfo, const BeamStructure<O3D> *Beam, ErrState *errState)
+    [[maybe_unused]] const SSPStructure *ssp, SSPSegState &iSeg,
+    const AnglesStructure *Angles, const FreqInfo *freqinfo,
+    const BeamStructure<O3D> *Beam, ErrState *errState)
 {
-    if constexpr(R3D) IGNORE_UNUSED(ssp);
     bool isGaussian = IsGaussianGeomInfl(Beam);
 
     inflray.init  = rinit;
@@ -657,11 +657,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyRayCen(
     const rayPt<false> &point0, const rayPt<false> &point1,
-    InfluenceRayInfo<false> &inflray, int32_t is, cpxf *uAllSources, const BdryType *Bdry,
-    const Position *Pos, const BeamStructure<O3D> *Beam, ErrState *errState)
+    InfluenceRayInfo<false> &inflray, [[maybe_unused]] int32_t is, cpxf *uAllSources,
+    const BdryType *Bdry, const Position *Pos, const BeamStructure<O3D> *Beam,
+    ErrState *errState)
 {
-    IGNORE_UNUSED(is);
-
     cpx eps0, eps1, pB0, pB1, qB0, qB1, gamma0, gamma1;
     // need to add logic related to NRz_per_range
 
@@ -901,8 +900,8 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceCervenyCa
  * ray-centered, hat / Gaussian
  */
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoCore(
-    real s, real n1, real n2, const V2M2<R3D> &dq, const cpx &dtau, int32_t itheta,
-    int32_t ir, int32_t iz, int32_t is, const rayPt<R3D> &point0,
+    real s, real n1, [[maybe_unused]] real n2, const V2M2<R3D> &dq, const cpx &dtau,
+    int32_t itheta, int32_t ir, int32_t iz, int32_t is, const rayPt<R3D> &point0,
     const rayPt<R3D> &point1, real RcvrDeclAngle, real RcvrAzimAngle,
     const InfluenceRayInfo<R3D> &inflray, cpxf *uAllSources, const Position *Pos,
     const BeamStructure<O3D> *Beam, EigenInfo *eigen, const ArrInfo *arrinfo)
@@ -920,8 +919,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
     }
     real qFinal = QScalar(qInterp);
 
-    real n1prime, n2prime;  // LP: equal to n1 in 2D, rotated & normalized in 3D (were a,
-                            // b)
+    real n1prime; // LP: equal to n1 in 2D, rotated & normalized in 3D (were a, b)
+    [[maybe_unused]] real n2prime;
     real sigma, sigma_orig; // beam radius
     real beamCoordDist;
     if constexpr(R3D) {
@@ -974,8 +973,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
         AdjustSigma<CFG, O3D, R3D>(sigma, point0, point1, inflray, Beam);
 
         beamCoordDist = n1prime = n1;
-        IGNORE_UNUSED(n2);
-        IGNORE_UNUSED(n2prime);
     }
 #ifdef INFL_DEBUGGING_IR
     if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
@@ -1049,13 +1046,10 @@ Step_InfluenceGeoRayCen(
     V2M2<R3D> dq = point1.q - point0.q;
     cpx dtau     = point1.tau - point0.tau;
 
-    vec3 e1xe2A, e1xe2B;
+    [[maybe_unused]] vec3 e1xe2A, e1xe2B;
     if constexpr(R3D) {
         e1xe2A = point0.c * point0.t;
         e1xe2B = point1.c * point1.t;
-    } else {
-        IGNORE_UNUSED(e1xe2A);
-        IGNORE_UNUSED(e1xe2B);
     }
 
     VEC23<R3D> rayn1, rayn2; // LP: rayn1 was rn, zn in 2D
@@ -1087,18 +1081,11 @@ Step_InfluenceGeoRayCen(
     for(int32_t iz = 0; iz < Pos->NRz_per_range; ++iz) {
         real zR = Pos->Rz[iz];
 
-        vec3 xtA, xtB, xtxe1A, xtxe1B, xtxe2A, xtxe2B;
+        [[maybe_unused]] vec3 xtA, xtB, xtxe1A, xtxe1B, xtxe2A, xtxe2B;
         if constexpr(R3D) {
             Compute_RayCenCross(
                 xtA, xtxe1A, xtxe2A, point0.x, inflray.rayn1, inflray.rayn2, zR, inflray);
             Compute_RayCenCross(xtB, xtxe1B, xtxe2B, point1.x, rayn1, rayn2, zR, inflray);
-        } else {
-            IGNORE_UNUSED(xtA);
-            IGNORE_UNUSED(xtxe1A);
-            IGNORE_UNUSED(xtxe2A);
-            IGNORE_UNUSED(xtB);
-            IGNORE_UNUSED(xtxe1B);
-            IGNORE_UNUSED(xtxe2B);
         }
 
         int32_t itheta = -1;
@@ -1257,12 +1244,12 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
     // printf("is rA rB %d %20.17f %20.17f\n", is, rA, rB);
 
     // LP: Ray normals
-    VEC23<R3D> rayn1, rayn2; // LP: e1, e2 in 3D; rayn, (none) in 2D
+    VEC23<R3D> rayn1;                  // LP: e1 in 3D, rayn in 2D
+    [[maybe_unused]] VEC23<R3D> rayn2; // LP: e2 in 3D
     if constexpr(R3D) {
         RayNormal_unit(rayt, point1.phi, rayn1, rayn2);
     } else {
         rayn1 = vec2(-rayt.y, rayt.x); // unit normal to ray
-        IGNORE_UNUSED(rayn2);
     }
     real RcvrDeclAngle, RcvrAzimAngle;
     ReceiverAngles<R3D>(RcvrDeclAngle, RcvrAzimAngle, rayt, inflray);
@@ -1276,8 +1263,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
     IncPhaseIfCaustic<R3D>(inflray, phaseq, true);
     inflray.qOld = phaseq;
 
-    real L_diag;     // LP: 3D
-    real zmin, zmax; // LP: 2D here, 3D later
+    [[maybe_unused]] real L_diag; // LP: 3D
+    real zmin, zmax;              // LP: 2D here, 3D later
     // beam window: kills beams outside exp(RL(-0.5) * SQ(ibwin))
     if constexpr(R3D) {
         // beamwidths / LP: Variable values don't carry over to per-receiver beamwidth
@@ -1307,7 +1294,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
             zmin = -REAL_MAX;
             zmax = REAL_MAX;
         }
-        IGNORE_UNUSED(L_diag);
     }
 
     // compute beam influence for this segment of the ray
@@ -1317,7 +1303,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
         // which direction the ray goes, we only have to check this side.
         if(Pos->Rr[inflray.ir] >= bhc::min(rA, rB)
            && Pos->Rr[inflray.ir] < bhc::max(rA, rB)) {
-            int32_t itheta = -1;
+            [[maybe_unused]] int32_t itheta = -1;
             do {
                 VEC23<R3D> x_rcvr;
 
@@ -1375,7 +1361,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                     //     printf("step ir itheta %d %d %d\n", is, inflray.ir, itheta);
                     // }
                 } else {
-                    IGNORE_UNUSED(itheta);
                     x_rcvr.x = Pos->Rr[inflray.ir];
                 }
 
@@ -1514,16 +1499,11 @@ template<typename CFG, bool O3D> HOST_DEVICE inline bool Step_InfluenceSGB(
  */
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influence(
     const rayPt<R3D> &point0, const rayPt<R3D> &point1, InfluenceRayInfo<R3D> &inflray,
-    int32_t is, cpxf *uAllSources, const BdryType *Bdry, const Origin<O3D, R3D> &org,
-    const SSPStructure *ssp, SSPSegState &iSeg, const Position *Pos,
-    const BeamStructure<O3D> *Beam, EigenInfo *eigen, const ArrInfo *arrinfo,
-    ErrState *errState)
+    int32_t is, cpxf *uAllSources, [[maybe_unused]] const BdryType *Bdry,
+    const Origin<O3D, R3D> &org, [[maybe_unused]] const SSPStructure *ssp,
+    SSPSegState &iSeg, const Position *Pos, const BeamStructure<O3D> *Beam,
+    EigenInfo *eigen, const ArrInfo *arrinfo, ErrState *errState)
 {
-    if constexpr(R3D) {
-        IGNORE_UNUSED(Bdry);
-        IGNORE_UNUSED(ssp);
-    }
-
     // See PreRun_Influence, make sure these remain in sync.
     if constexpr(CFG::infl::IsCerveny()) {
         if constexpr(R3D) {
@@ -1579,8 +1559,9 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
  * contributions from different rays/beams.
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline void ScalePressure(
-    real Dalpha, real Dbeta, real c, cpx epsilon1, cpx epsilon2, float *r, cpxf *u,
-    int32_t Ntheta, int32_t NRz, int32_t Nr, real freq, const BeamStructure<O3D> *Beam)
+    real Dalpha, [[maybe_unused]] real Dbeta, real c, [[maybe_unused]] cpx epsilon1,
+    [[maybe_unused]] cpx epsilon2, float *r, cpxf *u, int32_t Ntheta, int32_t NRz,
+    int32_t Nr, real freq, const BeamStructure<O3D> *Beam)
 {
     real cnst;
     cpx cnst3d;
@@ -1607,9 +1588,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ScalePressure(
             cnst3d = cpx(FL(1.0), FL(0.0)); // LP: set but not used
         }
     } else {
-        IGNORE_UNUSED(Dbeta);
-        IGNORE_UNUSED(epsilon1);
-        IGNORE_UNUSED(epsilon2);
         if(IsCervenyInfl(Beam)) {
             cnst = -Dalpha * STD::sqrt(freq) / c;
         } else {

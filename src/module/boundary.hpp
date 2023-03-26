@@ -288,7 +288,6 @@ public:
         }
 
         if constexpr(O3D) {
-            IGNORE_UNUSED(s_risesdrops);
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x "
                     << bdinfotb->NPts.x << "\n";
             EchoVector(
@@ -415,13 +414,15 @@ private:
             return &params.bdinfo->bot;
     }
 
-    constexpr const char *s_atibty              = ISTOP ? "ati" : "bty";
-    constexpr const char *s_ATIBTY              = ISTOP ? "ATI" : "BTY";
-    constexpr const char *s_altimetrybathymetry = ISTOP ? "altimetry" : "bathymetry";
-    constexpr const char *s_AltimetryBathymetry = ISTOP ? "Altimetry" : "Bathymetry";
-    constexpr const char *s_topbottom           = ISTOP ? "top" : "bottom";
-    constexpr const char *s_risesdrops          = ISTOP ? "rises above highest"
-                                                        : "drops below lowest";
+    constexpr static const char *s_atibty              = ISTOP ? "ati" : "bty";
+    constexpr static const char *s_ATIBTY              = ISTOP ? "ATI" : "BTY";
+    constexpr static const char *s_altimetrybathymetry = ISTOP ? "altimetry"
+                                                               : "bathymetry";
+    constexpr static const char *s_AltimetryBathymetry = ISTOP ? "Altimetry"
+                                                               : "Bathymetry";
+    constexpr static const char *s_topbottom           = ISTOP ? "top" : "bottom";
+    constexpr static const char *s_risesdrops          = ISTOP ? "rises above highest"
+                                                               : "drops below lowest";
 
     /**
      * Does some pre-processing on the boundary points to pre-compute segment
@@ -431,7 +432,7 @@ private:
      * curvatures (.kappa)
      */
     template<bool O3D, bool R3D> inline void ComputeBdryTangentNormal(
-        const bhcParams<O3D, R3D> &params, BdryInfoTopBot<O3D> *bd, bool isTop)
+        const bhcParams<O3D, R3D> &params, BdryInfoTopBot<O3D> *bd, bool isTop) const
     {
         typename TmplInt12<O3D>::type NPts = bd->NPts;
         vec3 tvec;

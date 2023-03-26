@@ -46,6 +46,7 @@ public:
     }
     virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
+        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "Dummy parameter NMedia = " << params.atten->NMedia << "\n";
     }
 };

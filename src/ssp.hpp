@@ -24,13 +24,14 @@ namespace bhc {
 
 #define SSP_2D_FN_ARGS \
     const vec2 &x, const vec2 &t, SSPOutputs<false> &o, const SSPStructure *ssp, \
-        SSPSegState &iSeg, ErrState *errState
+        SSPSegState &iSeg, [[maybe_unused]] ErrState *errState
 #define SSP_3D_FN_ARGS \
     const vec3 &x, const vec3 &t, SSPOutputs<true> &o, const SSPStructure *ssp, \
         SSPSegState &iSeg, ErrState *errState
 #define SSP_TEMPL_FN_ARGS \
-    const VEC23<O3D> &x, const VEC23<O3D> &t, SSPOutputs<O3D> &o, \
-        const SSPStructure *ssp, SSPSegState &iSeg, ErrState *errState
+    const VEC23<O3D> &x, [[maybe_unused]] const VEC23<O3D> &t, SSPOutputs<O3D> &o, \
+        [[maybe_unused]] const SSPStructure *ssp, SSPSegState &iSeg, \
+        [[maybe_unused]] ErrState *errState
 
 HOST_DEVICE inline void UpdateSSPSegment(
     real x, real t, const real *array, int32_t n, int32_t &iSeg)
@@ -62,7 +63,6 @@ HOST_DEVICE inline real LinInterpDensity(
  */
 HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
 {
-    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     real w = LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -80,7 +80,6 @@ HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
  */
 HOST_DEVICE inline void cLinear(SSP_2D_FN_ARGS)
 {
-    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -133,7 +132,6 @@ HOST_DEVICE inline void cPCHIP(SSP_2D_FN_ARGS)
  */
 HOST_DEVICE inline void cCubic(SSP_2D_FN_ARGS)
 {
-    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -310,10 +308,6 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
 
 template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
 {
-    IGNORE_UNUSED(t);
-    IGNORE_UNUSED(ssp);
-    IGNORE_UNUSED(errState);
-
     iSeg.z  = 0;
     real c0 = FL(1500.0);
     o.rho   = FL(1.0);

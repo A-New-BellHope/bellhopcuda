@@ -27,7 +27,7 @@ public:
     SSP() {}
     virtual ~SSP() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const
+    virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -39,7 +39,7 @@ public:
         ssp->Seg.z = nullptr;
     }
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const
+    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -55,7 +55,7 @@ public:
     }
 
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -173,7 +173,7 @@ public:
         // [mbp:] bottom depth should perhaps be set the same way?
     }
 
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const
+    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -243,7 +243,7 @@ public:
         }
     }
 
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const
+    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp     = params.ssp;
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
@@ -302,7 +302,7 @@ public:
         }
     }
 
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const
+    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -406,7 +406,7 @@ public:
         }
     }
 
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const
+    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 

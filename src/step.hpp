@@ -18,6 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "common_run.hpp"
+#include "boundary.hpp"
 #include "ssp.hpp"
 
 namespace bhc {

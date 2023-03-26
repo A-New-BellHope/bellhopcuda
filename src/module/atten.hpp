@@ -40,13 +40,14 @@ public:
     Atten() {}
     virtual ~Atten() {}
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const
+    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
         params.atten->t        = FL(20.0);
         params.atten->Salinity = FL(35.0);
         params.atten->pH       = FL(8.0);
         params.atten->z_bar    = FL(0.0);
     }
+    virtual void Default(bhcParams<O3D, R3D> &) const override {}
 };
 
 }} // namespace bhc::module

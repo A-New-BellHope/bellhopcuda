@@ -33,18 +33,13 @@ public:
     BoundaryCond() {}
     virtual ~BoundaryCond() {}
 
-    BdryPtSmall &GetBdry(bhcParams<O3D, R3D> &params) const
-    {
-        if constexpr(ISTOP) return params.Bdry->Top;
-        return params.Bdry->Bot;
-    }
-
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
         HSInfo &hs = GetBdry(params).hs;
         hs.cP = hs.cS = hs.rho = FL(0.0);
         params.fT              = RL(1.0e20);
     }
+    virtual void Default(bhcParams<O3D, R3D> &params) const override {}
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
@@ -193,6 +188,13 @@ public:
             hs.cP = crci(params, hsx.zTemp, hs.alphaR, hs.alphaI, {'L', ' '});
             hs.cS = FL(0.0);
         }
+    }
+
+private:
+    BdryPtSmall &GetBdry(bhcParams<O3D, R3D> &params) const
+    {
+        if constexpr(ISTOP) return params.Bdry->Top;
+        return params.Bdry->Bot;
     }
 };
 

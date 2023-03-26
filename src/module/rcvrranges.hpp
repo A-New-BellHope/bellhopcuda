@@ -76,9 +76,9 @@ public:
     }
 
 private:
-    constexpr const char *Description  = "Receiver r-coordinates, Rr";
-    constexpr const char *Description2 = "Receiver ranges";
-    constexpr const char *Units        = "km";
+    constexpr static const char *Description  = "Receiver r-coordinates, Rr";
+    constexpr static const char *Description2 = "Receiver ranges";
+    constexpr static const char *Units        = "km";
 };
 
 }} // namespace bhc::module

@@ -18,7 +18,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 #include "../common_setup.hpp"
-#include "misc.hpp"
+#include "paramsmodule.hpp"
 
 namespace bhc { namespace module {
 
@@ -32,13 +32,13 @@ public:
     ReflCoef() {}
     virtual ~ReflCoef() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const
+    virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         refltb->r                    = nullptr;
     }
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const
+    virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         // LP: Original version allocates a size 1 array but never initializes
@@ -48,7 +48,7 @@ public:
     }
 
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         if(!IsFile(params)) {
@@ -78,7 +78,7 @@ public:
         refl->AnglesInDegrees = true;
     }
 
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const
+    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         if constexpr(!ISTOP) {
             // Optionally read in internal reflection coefficient data
@@ -89,9 +89,10 @@ public:
         }
     }
 
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const
+    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         if(!IsFile(params)) return;
+        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using tabulated " << s_topbottom << " reflection coef.\n";
@@ -99,7 +100,7 @@ public:
                 << " reflection coefficient = " << refl->bot.NPts << "\n";
     }
 
-    virtual void PostProcess(const bhcParams<O3D, R3D> &params) const
+    virtual void PostProcess(const bhcParams<O3D, R3D> &params) const override
     {
         if(!IsFile(params)) return;
 
@@ -112,7 +113,7 @@ public:
         }
     }
 
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const
+    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         trackdeallocate(params, refltb->r);
@@ -135,10 +136,10 @@ private:
             opt = params.Bdry->Bot.hs.Opt[0];
         return opt == 'F';
     }
-    constexpr const char *s_topbottom = ISTOP ? "top   " : "bottom";
-    constexpr const char *s_TopBottom = ISTOP ? "Top" : "Bottom";
-    constexpr const char *s_extension = ISTOP ? ".trc" : ".brc";
-    constexpr const char *s_RC        = ISTOP ? "TRC" : "BRC";
+    constexpr static const char *s_topbottom = ISTOP ? "top   " : "bottom";
+    constexpr static const char *s_TopBottom = ISTOP ? "Top" : "Bottom";
+    constexpr static const char *s_extension = ISTOP ? ".trc" : ".brc";
+    constexpr static const char *s_RC        = ISTOP ? "TRC" : "BRC";
 };
 
 template<bool O3D, bool R3D> using TRC = ReflCoef<O3D, R3D, true>;

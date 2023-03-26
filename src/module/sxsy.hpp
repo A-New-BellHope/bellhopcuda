@@ -91,9 +91,9 @@ public:
     }
 
 private:
-    constexpr const char *DescriptionX = "Source   x-coordinates, Sx";
-    constexpr const char *DescriptionY = "Source   y-coordinates, Sy";
-    constexpr const char *Units        = "km";
+    constexpr static const char *DescriptionX = "Source   x-coordinates, Sx";
+    constexpr static const char *DescriptionY = "Source   y-coordinates, Sy";
+    constexpr static const char *Units        = "km";
 };
 
 }} // namespace bhc::module

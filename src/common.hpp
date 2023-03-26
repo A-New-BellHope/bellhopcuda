@@ -121,10 +121,6 @@ namespace bhc {
     do { \
         NULLSTATEMENT; \
     } while(false)
-#define IGNORE_UNUSED(x) \
-    do { \
-        (void)x; \
-    } while(false)
 
 // bail() to be used for debugging only, not normal error reporting.
 #ifdef __CUDA_ARCH__
@@ -339,6 +335,70 @@ HOST_DEVICE inline double RealBitsAddInt(double r, int32_t i)
     std::memcpy(&x, &k, 8);
     return x;
 #endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Indexing
+////////////////////////////////////////////////////////////////////////////////
+
+template<bool O3D> HOST_DEVICE inline int32_t GetNumJobs(
+    const Position *Pos, const AnglesStructure *Angles)
+{
+    int32_t ret = 1;
+    if(Angles->alpha.iSingle == 0) ret *= Angles->alpha.n;
+    if constexpr(O3D) {
+        if(Angles->beta.iSingle == 0) ret *= Angles->beta.n;
+        ret *= Pos->NSy;
+        ret *= Pos->NSx;
+    }
+    ret *= Pos->NSz;
+    return ret;
+}
+
+/**
+ * Returns whether the job should continue.
+ * `is` changed to `isrc` because `is` is used for steps
+ */
+template<bool O3D> HOST_DEVICE inline bool GetJobIndices(
+    RayInitInfo &rinit, int32_t job, const Position *Pos, const AnglesStructure *Angles)
+{
+    if(Angles->alpha.iSingle >= 1) {
+        // iSingle is 1-indexed because how defined in env file
+        rinit.ialpha = Angles->alpha.iSingle - 1;
+    } else {
+        rinit.ialpha = job % Angles->alpha.n;
+        job /= Angles->alpha.n;
+    }
+    if constexpr(O3D) {
+        if(Angles->beta.iSingle >= 1) {
+            rinit.ibeta = Angles->beta.iSingle - 1;
+        } else {
+            rinit.ibeta = job % Angles->beta.n;
+            job /= Angles->beta.n;
+        }
+        rinit.isy = job % Pos->NSy;
+        job /= Pos->NSy;
+        rinit.isx = job % Pos->NSx;
+        job /= Pos->NSx;
+    } else {
+        rinit.isx = rinit.isy = rinit.ibeta = 0;
+    }
+    rinit.isz = job;
+    return (rinit.isz < Pos->NSz);
+}
+
+HOST_DEVICE inline size_t GetFieldAddr(
+    int32_t isx, int32_t isy, int32_t isz, int32_t itheta, int32_t id, int32_t ir,
+    const Position *Pos)
+{
+    // clang-format off
+    return (((((size_t)isz
+        * (size_t)Pos->NSx + (size_t)isx)
+        * (size_t)Pos->NSy + (size_t)isy)
+        * (size_t)Pos->Ntheta + (size_t)itheta)
+        * (size_t)Pos->NRz_per_range + (size_t)id)
+        * (size_t)Pos->NRr + (size_t)ir;
+    // clang-format on
 }
 
 } // namespace bhc

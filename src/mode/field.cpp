@@ -21,7 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <vector>
 
-namespace bhc {
+namespace bhc { namespace mode {
 
 template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(
     bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
@@ -223,4 +223,4 @@ template void RunFieldModesSelInfl<true, true>(
     bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
-} // namespace bhc
+}} // namespace bhc::mode

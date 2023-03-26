@@ -30,13 +30,6 @@ public:
     BeamInfo() {}
     virtual ~BeamInfo() {}
 
-    virtual void MoveBeamType(bhcParams<O3D, R3D> &params) const override
-    {
-        BeamStructure<O3D> *Beam = params.Beam;
-        Beam->Type[3]            = Beam->RunType[6]; // selects beam shift option
-        Beam->Type[0]            = Beam->RunType[1];
-    }
-
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
         memcpy(params.Beam->Type, "G S ", 4);
@@ -206,6 +199,14 @@ public:
                 / FL(10.0);
             Beam->autoDeltas = true;
         }
+    }
+
+private:
+    void MoveBeamType(bhcParams<O3D, R3D> &params) const
+    {
+        BeamStructure<O3D> *Beam = params.Beam;
+        Beam->Type[3]            = Beam->RunType[6]; // selects beam shift option
+        Beam->Type[0]            = Beam->RunType[1];
     }
 };
 

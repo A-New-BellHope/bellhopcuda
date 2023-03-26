@@ -29,18 +29,18 @@ public:
     Pat() {}
     virtual ~Pat() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const
+    virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
         params.beaminfo->SrcBmPat = nullptr;
     }
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const
+    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
         params.beaminfo->SBPFlag = params.Beam->RunType[2];
         params.beaminfo->SBPIndB = true;
     }
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const
+    virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         BeamInfo *beaminfo = params.beaminfo;
         beaminfo->NSBPPts  = 2;
@@ -53,7 +53,7 @@ public:
     }
 
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         BeamInfo *beaminfo = params.beaminfo;
         if(beaminfo->SBPFlag != '*') {
@@ -78,7 +78,7 @@ public:
         }
     }
 
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const
+    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         BeamInfo *beaminfo = params.beaminfo;
         if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)) {
@@ -86,7 +86,7 @@ public:
         }
     }
 
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const
+    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         BeamInfo *beaminfo    = params.beaminfo;
@@ -109,7 +109,7 @@ public:
         PRTFile << "\n";
     }
 
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const
+    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         BeamInfo *beaminfo = params.beaminfo;
         if(beaminfo->SBPIndB) {
@@ -121,7 +121,7 @@ public:
         }
     }
 
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const
+    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         trackdeallocate(params, params.beaminfo->SrcBmPat);
     }

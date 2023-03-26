@@ -49,14 +49,13 @@ template<bool O3D> HOST_DEVICE inline void Distances(
  * before the Nx2D/3D split, so it is only dependent on the ocean's dimensionality.
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
-    int32_t isx, int32_t isy, int32_t isz, real alpha, SSPSegState &iSeg,
+    int32_t isx, int32_t isy, int32_t isz, [[maybe_unused]] real alpha, SSPSegState &iSeg,
     const Position *Pos, const SSPStructure *ssp, ErrState *errState, VEC23<O3D> &xs,
     VEC23<O3D> &tinit)
 {
     if constexpr(O3D) {
         xs    = vec3(Pos->Sx[isx], Pos->Sy[isy], Pos->Sz[isz]);
         tinit = vec3(FL(0.0), FL(0.0), FL(1.0));
-        IGNORE_UNUSED(alpha);
     } else {
         xs    = vec2(FL(0.0), Pos->Sz[isz]); // x-y [LP: r-z] coordinate of the source
         tinit = vec2(STD::cos(alpha), STD::sin(alpha));
@@ -394,7 +393,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const rayPt<R3D> &point, int32_t &Nsteps, int32_t is, const VEC23<O3D> &xs,
     const int32_t &iSmallStepCtr, real &DistBegTop, real &DistBegBot,
     const real &DistEndTop, const real &DistEndBot, int32_t MaxPointsPerRay,
-    const Origin<O3D, R3D> &org, const BdryInfo<O3D> *bdinfo,
+    const Origin<O3D, R3D> &org, [[maybe_unused]] const BdryInfo<O3D> *bdinfo,
     const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     bool leftbox, escapedboundaries, toomanysmallsteps;
@@ -426,7 +425,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         escapedboundaries = escaped0bdry || escapedNbdry;
         toomanysmallsteps = iSmallStepCtr > 50;
     } else {
-        IGNORE_UNUSED(bdinfo);
         leftbox = IsOutsideBeamBoxDim<false, 0>(point.x, Beam, xs)
             || IsOutsideBeamBoxDim<false, 1>(point.x, Beam, xs);
         escaped0bdry = escapedNbdry = false;

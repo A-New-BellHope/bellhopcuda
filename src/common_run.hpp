@@ -29,70 +29,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 ////////////////////////////////////////////////////////////////////////////////
-// Indexing
-////////////////////////////////////////////////////////////////////////////////
-
-template<bool O3D> HOST_DEVICE inline int32_t GetNumJobs(
-    const Position *Pos, const AnglesStructure *Angles)
-{
-    int32_t ret = 1;
-    if(Angles->alpha.iSingle == 0) ret *= Angles->alpha.n;
-    if constexpr(O3D) {
-        if(Angles->beta.iSingle == 0) ret *= Angles->beta.n;
-        ret *= Pos->NSy;
-        ret *= Pos->NSx;
-    }
-    ret *= Pos->NSz;
-    return ret;
-}
-
-/**
- * Returns whether the job should continue.
- * `is` changed to `isrc` because `is` is used for steps
- */
-template<bool O3D> HOST_DEVICE inline bool GetJobIndices(
-    RayInitInfo &rinit, int32_t job, const Position *Pos, const AnglesStructure *Angles)
-{
-    if(Angles->alpha.iSingle >= 1) {
-        // iSingle is 1-indexed because how defined in env file
-        rinit.ialpha = Angles->alpha.iSingle - 1;
-    } else {
-        rinit.ialpha = job % Angles->alpha.n;
-        job /= Angles->alpha.n;
-    }
-    if constexpr(O3D) {
-        if(Angles->beta.iSingle >= 1) {
-            rinit.ibeta = Angles->beta.iSingle - 1;
-        } else {
-            rinit.ibeta = job % Angles->beta.n;
-            job /= Angles->beta.n;
-        }
-        rinit.isy = job % Pos->NSy;
-        job /= Pos->NSy;
-        rinit.isx = job % Pos->NSx;
-        job /= Pos->NSx;
-    } else {
-        rinit.isx = rinit.isy = rinit.ibeta = 0;
-    }
-    rinit.isz = job;
-    return (rinit.isz < Pos->NSz);
-}
-
-HOST_DEVICE inline size_t GetFieldAddr(
-    int32_t isx, int32_t isy, int32_t isz, int32_t itheta, int32_t id, int32_t ir,
-    const Position *Pos)
-{
-    // clang-format off
-    return (((((size_t)isz
-        * (size_t)Pos->NSx + (size_t)isx)
-        * (size_t)Pos->NSy + (size_t)isy)
-        * (size_t)Pos->Ntheta + (size_t)itheta)
-        * (size_t)Pos->NRz_per_range + (size_t)id)
-        * (size_t)Pos->NRr + (size_t)ir;
-    // clang-format on
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Beam box
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -318,7 +254,7 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanT(
  */
 template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
     const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t,
-    const int32_t &snapDim, ErrState *errState)
+    [[maybe_unused]] const int32_t &snapDim, ErrState *errState)
 {
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
     if constexpr(O3D && !R3D) {
@@ -367,7 +303,6 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
         RunWarning(errState, BHC_WARN_OCEANTORAYX_GAVEUP);
         return ret;
     } else {
-        IGNORE_UNUSED(snapDim);
         return x;
     }
 }

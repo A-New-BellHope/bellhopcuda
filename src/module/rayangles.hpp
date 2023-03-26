@@ -28,47 +28,6 @@ public:
     RayAngles() {}
     virtual ~RayAngles() {}
 
-    const char *GetFuncName() const
-    {
-        if constexpr(BEARING)
-            return "RayAnglesBearing";
-        else
-            return "RayAnglesElevation";
-    }
-    AngleInfo &GetAngle(bhcParams<O3D, R3D> &params) const
-    {
-        if constexpr(BEARING)
-            return params.Angles->beta;
-        else
-            return params.Angles->alpha;
-    }
-    /**
-     * automatically estimate n to use
-     */
-    void EstimateNumAngles(bhcParams<O3D, R3D> &params, AngleInfo &a) const
-    {
-        if(IsRayRun(params.Beam)) {
-            a.n = 50; // For a ray trace plot, we don't want too many rays ...
-        } else {
-            // you're letting ME choose? OK: ideas based on an isospeed ocean
-            // limit based on phase of adjacent beams at maximum range
-            a.n = bhc::max(
-                (int)((BEARING ? FL(0.1) : FL(0.3)) * params.Pos->Rr[params.Pos->NRr - 1] 
-                * params.freqinfo->freq0 / c0),
-                300);
-
-            if constexpr(!BEARING) {
-                // limit based on having beams that are thin with respect to the water
-                // depth assumes also a full 360 degree angular spread of rays Should
-                // check which Depth is used here, in case where there is a variable
-                // bathymetry
-                real d_theta_recommended = STD::atan(
-                    Depth / (FL(10.0) * params.Pos->Rr[params.Pos->NRr - 1]));
-                a.n = bhc::max((int)(REAL_PI / d_theta_recommended), a.n);
-            }
-        }
-    }
-
     virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
@@ -93,13 +52,13 @@ public:
         AngleInfo &a = GetAngle(params);
         if constexpr(BEARING) {
             if constexpr(O3D) { a.n = 5; }
-            trackallocate(params, GetFuncName(), a.angles, a.n);
+            trackallocate(params, FuncName, a.angles, a.n);
             for(int32_t i = 0; i < a.n; ++i) {
                 a.angles[i] = (float)(i * 360) / (float)(a.n);
             }
         } else {
             EstimateNumAngles(params, a);
-            trackallocate(params, GetFuncName(), a.angles, a.n);
+            trackallocate(params, FuncName, a.angles, a.n);
             if(a.n < 3) EXTERR("Internal error in default RayAnglesElevation setup");
             a.angles[0] = RL(-20.0);
             a.angles[1] = RL(20.0);
@@ -119,7 +78,7 @@ public:
             ENVFile.Read(a.iSingle);
         }
         if(a.n == 0) { EstimateNumAngles(params, a); }
-        trackallocate(params, GetFuncName(), a.angles, bhc::max(3, a.n));
+        trackallocate(params, FuncName, a.angles, bhc::max(3, a.n));
 
         if(a.n > 2) a.angles[2] = FL(-999.9);
         LIST(ENVFile);
@@ -131,13 +90,13 @@ public:
     virtual void Validate(const bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
-        ValidateVector(params, a.n, a.angles, GetFuncName());
+        ValidateVector(params, a.n, a.angles, FuncName);
 
         if(a.n > 1 && a.angles[a.n - 1] == a.angles[0]) {
-            EXTERR("%s: First and last beam take-off angle are identical", GetFuncName());
+            EXTERR("%s: First and last beam take-off angle are identical", FuncName);
         }
         if(params.Bdry->Top.hs.Opt[5] == 'I' && (a.iSingle < 1 || a.iSingle > a.n)) {
-            EXTERR("%s: Selected beam, iSingle not in [1, a.n]", GetFuncName());
+            EXTERR("%s: Selected beam, iSingle not in [1, a.n]", FuncName);
         }
     }
     virtual void Echo(const bhcParams<O3D, R3D> &params) const override
@@ -189,6 +148,44 @@ public:
     {
         AngleInfo &a = GetAngle(params);
         trackdeallocate(params, a.angles);
+    }
+
+private:
+    constexpr static const char *FuncName = BEARING ? "RayAnglesBearing"
+                                                    : "RayAnglesElevation";
+
+    inline AngleInfo &GetAngle(bhcParams<O3D, R3D> &params) const
+    {
+        if constexpr(BEARING)
+            return params.Angles->beta;
+        else
+            return params.Angles->alpha;
+    }
+    /**
+     * automatically estimate n to use
+     */
+    inline void EstimateNumAngles(bhcParams<O3D, R3D> &params, AngleInfo &a) const
+    {
+        if(IsRayRun(params.Beam)) {
+            a.n = 50; // For a ray trace plot, we don't want too many rays ...
+        } else {
+            // you're letting ME choose? OK: ideas based on an isospeed ocean
+            // limit based on phase of adjacent beams at maximum range
+            a.n = bhc::max(
+                (int)((BEARING ? FL(0.1) : FL(0.3)) * params.Pos->Rr[params.Pos->NRr - 1] 
+                * params.freqinfo->freq0 / c0),
+                300);
+
+            if constexpr(!BEARING) {
+                // limit based on having beams that are thin with respect to the water
+                // depth assumes also a full 360 degree angular spread of rays Should
+                // check which Depth is used here, in case where there is a variable
+                // bathymetry
+                real d_theta_recommended = STD::atan(
+                    Depth / (FL(10.0) * params.Pos->Rr[params.Pos->NRr - 1]));
+                a.n = bhc::max((int)(REAL_PI / d_theta_recommended), a.n);
+            }
+        }
     }
 };
 

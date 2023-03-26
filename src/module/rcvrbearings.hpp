@@ -86,8 +86,8 @@ public:
     }
 
 private:
-    constexpr const char *Description = "Receiver bearings, theta";
-    constexpr const char *Units       = "degrees";
+    constexpr static const char *Description = "Receiver bearings, theta";
+    constexpr static const char *Units       = "degrees";
 };
 
 }} // namespace bhc::module

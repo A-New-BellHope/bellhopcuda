@@ -24,13 +24,13 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void PostProcessEigenrays(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
 extern template void PostProcessEigenrays<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
 extern template void PostProcessEigenrays<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
 extern template void PostProcessEigenrays<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> class Eigen : public Field<O3D, R3D> {
 public:
