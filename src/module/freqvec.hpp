@@ -65,9 +65,12 @@ public:
     }
     virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
-        EchoVectorWDescr(
-            params, params.freqinfo->freqVec, params.freqinfo->Nfreq, RL(1.0),
-            Description, Units);
+        if(params.freqinfo->Nfreq != 1
+           || params.freqinfo->freqVec[0] != params.freqinfo->freq0) {
+            EchoVectorWDescr(
+                params, params.freqinfo->freqVec, params.freqinfo->Nfreq, RL(1.0),
+                Description, Units);
+        }
     }
     virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {

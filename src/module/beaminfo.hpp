@@ -79,7 +79,7 @@ public:
         // *** Beam characteristics ***
 
         // no worry about the beam type if this is a ray trace run
-        if(!IsRayRun(Beam)) return;
+        if(IsRayRun(Beam)) return;
 
         // Curvature change can cause overflow in grazing case
         // Suppress by setting BeamType[2] = 'Z'
@@ -150,13 +150,23 @@ public:
                     << (Beam->Box.x * RL(0.001)) << "km\n";
         }
 
+        // write info to prt file
+        const char *tag = IsCervenyInfl(Beam) ? GetBeamWidthTag(Beam)
+                                              : GetBeamTypeTag<O3D, R3D>(Beam);
+        PRTFile << "\n" << tag << "\n";
+        // LP: The first two aren't available here (only in run), and the third
+        // is echoed below anyway.
+        // PRTFile << "halfwidth  = " << halfwidth << "\n";
+        // PRTFile << "epsilonOpt = " << epsilonOpt << "\n";
+        // PRTFile << "EpsMult    = " << Beam->epsMultiplier << "\n\n";
+
         if(Beam->Type[3] == 'S') {
             PRTFile << "Beam shift in effect\n";
         } else {
             PRTFile << "No beam shift in effect\n";
         }
 
-        if(IsRayRun(Beam)) {
+        if(!IsRayRun(Beam)) {
             if(IsCervenyInfl(Beam)) {
                 PRTFile << "\n\nType of beam = " << Beam->Type[0] << "\n";
                 switch(Beam->Type[2]) {

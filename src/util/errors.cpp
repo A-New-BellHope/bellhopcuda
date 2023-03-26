@@ -97,7 +97,7 @@ static const char *const warningDescriptions[BHC_WARN_MAX] = {
     "BHC_WARN_CERVENY_WIDTH_BUGGY: Cerveny beamwidth Cerveny beams are not propery "
     "implemented in BELLHOP(3D), PickEpsilon results will be nonsense",
     "BHC_WARN_INVALID_WIDTH_BUGGY: BELLHOP(3D) does not properly handle Cerveny "
-    "beams with an invalid beam with type; PickEpsilon results will be nonsense",
+    "beams with an invalid beam width type; PickEpsilon results will be nonsense",
     "BHC_WARN_BEAMTYPE_CARETSPACE: BELLHOP(3D) does not properly handle hat Cartesian "
     "runs defined as '^' or ' ' in PickEpsilon",
     "BHC_WARN_INVALID_TYPE_BUGGY: BELLHOP(3D) does not properly handle beams with "

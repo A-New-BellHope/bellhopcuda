@@ -58,14 +58,22 @@ public:
     }
     virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
-        ValidateVector(params, params.Pos->theta, params.Pos->Ntheta, Description);
+        if constexpr(!O3D) {
+            if(params.Pos->Ntheta != 1 || params.Pos->theta[0] != RL(0.0)) {
+                EXTERR("Invalid receiver bearings setup for 2D");
+            }
+        } else {
+            ValidateVector(params, params.Pos->theta, params.Pos->Ntheta, Description);
+        }
     }
     virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
-        Preprocess(params);
-        EchoVectorWDescr(
-            params, params.Pos->theta, params.Pos->Ntheta, (float)RadDeg, Description,
-            Units);
+        if constexpr(O3D) {
+            Preprocess(params);
+            EchoVectorWDescr(
+                params, params.Pos->theta, params.Pos->Ntheta, (float)RadDeg, Description,
+                Units);
+        }
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {

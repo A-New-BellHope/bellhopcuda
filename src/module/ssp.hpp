@@ -266,12 +266,12 @@ public:
         PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
 
         for(int32_t i = 0; i < ssp->NPts; ++i) {
-            PRTFile << std::setprecision(2) << ssp->z[ssp->NPts] << " ";
-            PRTFile << ssp->alphaR << " ";
-            PRTFile << ssp->betaR << " ";
-            PRTFile << ssp->rho << " ";
-            PRTFile << std::setprecision(4) << ssp->alphaI << " ";
-            PRTFile << ssp->betaI << "\n";
+            PRTFile << std::setprecision(2) << ssp->z[i] << " ";
+            PRTFile << ssp->alphaR[i] << " ";
+            PRTFile << ssp->betaR[i] << " ";
+            PRTFile << ssp->rho[i] << " ";
+            PRTFile << std::setprecision(4) << ssp->alphaI[i] << " ";
+            PRTFile << ssp->betaI[i] << "\n";
         }
 
         switch(ssp->Type) {

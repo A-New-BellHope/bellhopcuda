@@ -101,7 +101,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         rinit.beta         = Angles->beta.angles[rinit.ibeta];
         rinit.SrcAzimAngle = RadDeg * rinit.beta; // take-off azimuthal   angle in degrees
     } else {
-        rinit.beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
+        rinit.beta = rinit.SrcAzimAngle = NAN;
     }
 
     iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;

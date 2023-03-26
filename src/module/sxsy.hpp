@@ -65,17 +65,25 @@ public:
                 "Invalid number of sources: %d x %d y %d z", params.Pos->NSx,
                 params.Pos->NSy, params.Pos->NSz);
         }
-
-        ValidateVector(params, params.Pos->Sx, params.Pos->NSx, DescriptionX);
-        ValidateVector(params, params.Pos->Sy, params.Pos->NSy, DescriptionY);
+        if constexpr(!O3D) {
+            if(params.Pos->NSx != 1 || params.Pos->NSy != 1
+               || params.Pos->Sx[0] != RL(0.0) || params.Pos->Sy[0] != RL(0.0)) {
+                EXTERR("Invalid Sx/Sy setup for 2D case");
+            }
+        } else {
+            ValidateVector(params, params.Pos->Sx, params.Pos->NSx, DescriptionX);
+            ValidateVector(params, params.Pos->Sy, params.Pos->NSy, DescriptionY);
+        }
     }
     virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
-        Preprocess(params);
-        EchoVectorWDescr(
-            params, params.Pos->Sx, params.Pos->NSx, FL(0.001), DescriptionX, Units);
-        EchoVectorWDescr(
-            params, params.Pos->Sy, params.Pos->NSy, FL(0.001), DescriptionY, Units);
+        if constexpr(O3D) {
+            Preprocess(params);
+            EchoVectorWDescr(
+                params, params.Pos->Sx, params.Pos->NSx, FL(0.001), DescriptionX, Units);
+            EchoVectorWDescr(
+                params, params.Pos->Sy, params.Pos->NSy, FL(0.001), DescriptionY, Units);
+        }
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {

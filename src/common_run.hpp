@@ -22,8 +22,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
 #include "util/atomics.hpp"
-#include "util/errors.hpp"
-#include "runtype.hpp"
 #undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {

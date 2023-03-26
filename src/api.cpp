@@ -252,9 +252,9 @@ template<bool O3D, bool R3D> bool setup(
             HSInfo RecycledHS;
             RecycledHS.alphaR = FL(1500.0);
             RecycledHS.betaR  = FL(0.0);
+            RecycledHS.rho    = FL(1.0);
             RecycledHS.alphaI = FL(0.0);
             RecycledHS.betaI  = FL(0.0);
-            RecycledHS.rho    = FL(1.0);
 
             PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
             PRTFile << BHC_PROGRAMNAME << (R3D ? "3D" : O3D ? "Nx2D" : "") << "\n\n";

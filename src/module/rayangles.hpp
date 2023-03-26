@@ -72,53 +72,64 @@ public:
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
-        AngleInfo &a = GetAngle(params);
+        if constexpr(BEARING && !O3D) {
+            Default(params);
+        } else {
+            AngleInfo &a = GetAngle(params);
+            LIST(ENVFile);
+            ENVFile.Read(a.n);
+            if(params.Bdry->Top.hs.Opt[5] == 'I') {
+                // option to trace a single beam
+                ENVFile.Read(a.iSingle);
+            }
+            if(a.n == 0) EstimateNumAngles(params);
+            trackallocate(params, FuncName, a.angles, bhc::max(3, a.n));
 
-        LIST(ENVFile);
-        ENVFile.Read(a.n);
-        if(params.Bdry->Top.hs.Opt[5] == 'I') {
-            // option to trace a single beam
-            ENVFile.Read(a.iSingle);
+            if(a.n > 2) a.angles[2] = FL(-999.9);
+            LIST(ENVFile);
+            ENVFile.Read(a.angles, a.n);
+            SubTab(a.angles, a.n);
+            Sort(a.angles, a.n);
+            CheckFix360Sweep(a.angles, a.n);
         }
-        if(a.n == 0) EstimateNumAngles(params);
-        trackallocate(params, FuncName, a.angles, bhc::max(3, a.n));
-
-        if(a.n > 2) a.angles[2] = FL(-999.9);
-        LIST(ENVFile);
-        ENVFile.Read(a.angles, a.n);
-        SubTab(a.angles, a.n);
-        Sort(a.angles, a.n);
-        CheckFix360Sweep(a.angles, a.n);
     }
 
     virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
-        ValidateVector(params, a.angles, a.n, FuncName);
+        if constexpr(BEARING && !O3D) {
+            if(a.n != 1 || a.angles[0] != RL(0.0)) {
+                EXTERR("Invalid beam bearing angles setup for 2D");
+            }
+        } else {
+            ValidateVector(params, a.angles, a.n, FuncName);
 
-        if(a.n > 1 && a.angles[a.n - 1] == a.angles[0]) {
-            EXTERR("%s: First and last beam take-off angle are identical", FuncName);
-        }
-        if(params.Bdry->Top.hs.Opt[5] == 'I' && (a.iSingle < 1 || a.iSingle > a.n)) {
-            EXTERR("%s: Selected beam, iSingle not in [1, a.n]", FuncName);
+            if(a.n > 1 && a.angles[a.n - 1] == a.angles[0]) {
+                EXTERR("%s: First and last beam take-off angle are identical", FuncName);
+            }
+            if(params.Bdry->Top.hs.Opt[5] == 'I' && (a.iSingle < 1 || a.iSingle > a.n)) {
+                EXTERR("%s: Selected beam, iSingle not in [1, a.n]", FuncName);
+            }
         }
     }
 
     virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
-        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-        AngleInfo &a          = GetAngle(params);
-        Preprocess(params);
-        if constexpr(!BEARING) {
-            PRTFile
-                << "_____________________________________________________________________"
-                   "_____\n";
+        if constexpr(!BEARING || O3D) {
+            PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+            AngleInfo &a          = GetAngle(params);
+            Preprocess(params);
+            if constexpr(!BEARING) {
+                PRTFile << "_____________________________________________________________"
+                           "________"
+                           "_____\n";
+            }
+            PRTFile << "\n   Number of beams in " << (BEARING ? "bearing  " : "elevation")
+                    << "   = " << a.n << "\n";
+            if(a.iSingle > 0) PRTFile << "Trace only beam number " << a.iSingle << "\n";
+            PRTFile << "   Beam take-off angles (degrees)\n";
+            EchoVector(a.angles, a.n, PRTFile, 10, "", RadDeg);
         }
-        PRTFile << "\n   Number of beams in " << (BEARING ? "bearing  " : "elevation")
-                << "   = " << a.n << "\n";
-        if(a.iSingle > 0) PRTFile << "Trace only beam number " << a.iSingle << "\n";
-        PRTFile << "   Beam take-off angles (degrees)\n";
-        EchoVector(a.angles, a.n, PRTFile, 10, "", RadDeg);
     }
 
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override

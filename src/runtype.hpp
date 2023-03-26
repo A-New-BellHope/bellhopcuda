@@ -19,7 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 #ifndef _BHC_INCLUDING_COMPONENTS_
-#error "Must be included from common_run.hpp!"
+#error "Must be included from common.hpp!"
 #endif
 
 namespace bhc {

@@ -21,9 +21,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 
 // More includes below.
-#define _BHC_INCLUDING_COMPONENTS_ 1
-#include "util/errors.hpp"
-#undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {
 

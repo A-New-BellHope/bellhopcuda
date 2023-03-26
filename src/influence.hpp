@@ -147,7 +147,7 @@ template<bool R3D> HOST_DEVICE inline void RayNormalRayCen(
     } else {
         // ray normal based on tangent with c(s) scaling
         rayn1 = vec2(point.t.y, -point.t.x) * point.c;
-        rayn2 = vec2(DEBUG_LARGEVAL, DEBUG_LARGEVAL);
+        rayn2 = vec2(NAN, NAN);
     }
 }
 
@@ -211,9 +211,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
     const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     // LP: BUG: Multiple codepaths do not set epsilonOpt, would lead to UB if
-    // set up that way in env file. Instead, here they are set to debug values.
-    real halfwidth        = R3D ? RL(0.0) : DEBUG_LARGEVAL;
-    cpx epsilonOpt        = cpx(DEBUG_LARGEVAL, DEBUG_LARGEVAL);
+    // set up that way in env file. Instead, here they are set to NaN.
+    real halfwidth        = R3D ? RL(0.0) : NAN;
+    cpx epsilonOpt        = cpx(NAN, NAN);
     bool defaultHalfwidth = true, defaultEps = true, zeroEps = false;
     if(IsCervenyInfl(Beam)) {
         defaultHalfwidth = defaultEps = false;
@@ -263,17 +263,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
         }
         epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
     }
-
-    /*
-    // On first call write info to prt file
-    static bool INIFlag = true;
-    if(INIFlag){
-        const char *tag = IsCervenyInfl(Beam) ? GetBeamWidthTag(Beam) :
-    GetBeamTypeTag(Beam); PRTFile << "\n" << tag << "\n"; PRTFile << "halfwidth  = " <<
-    halfwidth << "\n"; PRTFile << "epsilonOpt = " << epsilonOpt << "\n"; PRTFile <<
-    "EpsMult    = " << Beam->epsMultiplier << "\n\n"; INIFlag = false;
-    }
-    */
 
     return Beam->epsMultiplier * epsilonOpt;
 }
@@ -596,7 +585,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Init_Influenc
             // I [mbp] fixed this in InfluenceGeoHatRayCen
             inflray.rayn1      = VEC23<R3D>(RL(0.0));
             DEP(inflray.rayn1) = RL(1.0);
-            inflray.rayn2      = VEC23<R3D>(DEBUG_LARGEVAL);
+            inflray.rayn2      = VEC23<R3D>(NAN);
             inflray.x          = VEC23<R3D>(RL(0.0));
             inflray.lastValid  = false;
         } else {
@@ -1179,7 +1168,7 @@ Step_InfluenceGeoRayCen(
             for(int32_t ir = irA + notii; ir != irB + notii; ir += (notii << 1) - 1) {
                 real s  = (Pos->Rr[ir] - rA) / (rB - rA); // LP: called w in 2D
                 real n1 = STD::abs(nA + s * (nB - nA));   // normal distance to ray
-                real n2 = DEBUG_LARGEVAL; // LP: n1, n2 were called n, m in 3D
+                real n2 = NAN; // LP: n1, n2 were called n, m in 3D
                 if constexpr(R3D) {
                     n2 = STD::abs(mA + s * (mB - mA)); // normal distance to ray
                 }
@@ -1379,7 +1368,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
                     real s = glm::dot(x_rcvr_ray, rayt) / rlen;
                     // normal distance to ray
                     real n1 = STD::abs(glm::dot(x_rcvr_ray, rayn1));
-                    real n2 = DEBUG_LARGEVAL;
+                    real n2 = NAN;
                     if constexpr(R3D) {
                         // normal distance to ray
                         n2 = STD::abs(glm::dot(x_rcvr_ray, rayn2));
