@@ -49,16 +49,16 @@ public:
         params.Pos->Sy[0] = FL(0.0); // dummy y-coordinate
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         if constexpr(O3D) {
-            ReadVector(params, params.Pos->NSx, params.Pos->Sx, ENVFile, DescriptionX);
-            ReadVector(params, params.Pos->NSy, params.Pos->Sy, ENVFile, DescriptionY);
+            ReadVector(params, params.Pos->Sx, params.Pos->NSx, ENVFile, DescriptionX);
+            ReadVector(params, params.Pos->Sy, params.Pos->NSy, ENVFile, DescriptionY);
         } else {
             Default(params);
         }
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         if(params.Pos->NSx * params.Pos->NSy * params.Pos->NSz <= 0) {
             EXTERR(
@@ -66,22 +66,22 @@ public:
                 params.Pos->NSy, params.Pos->NSz);
         }
 
-        ValidateVector(params, params.Pos->NSx, params.Pos->Sx, DescriptionX);
-        ValidateVector(params, params.Pos->NSy, params.Pos->Sy, DescriptionY);
+        ValidateVector(params, params.Pos->Sx, params.Pos->NSx, DescriptionX);
+        ValidateVector(params, params.Pos->Sy, params.Pos->NSy, DescriptionY);
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
         EchoVectorWDescr(
-            params, params.Pos->NSx, params.Pos->Sx, RL(0.001), DescriptionX, Units);
+            params, params.Pos->Sx, params.Pos->NSx, FL(0.001), DescriptionX, Units);
         EchoVectorWDescr(
-            params, params.Pos->NSy, params.Pos->Sy, RL(0.001), DescriptionY, Units);
+            params, params.Pos->Sy, params.Pos->NSy, FL(0.001), DescriptionY, Units);
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         if(!params.Pos->SxSyInKm) return;
-        ToMeters(params.Pos->NSx, params.Pos->Sx);
-        ToMeters(params.Pos->NSy, params.Pos->Sy);
+        ToMeters(params.Pos->Sx, params.Pos->NSx);
+        ToMeters(params.Pos->Sy, params.Pos->NSy);
         params.Pos->SxSyInKm = false;
     }
     virtual void Finalize(bhcParams<O3D, R3D> &params) const override

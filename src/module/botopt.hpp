@@ -32,7 +32,7 @@ public:
         memcpy(params.Bdry->Bot.hs.Opt, "R-    ", 6);
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.Bdry->Bot.hs.Opt, 6); // LP: LDIFile fills rest with ' '
@@ -42,10 +42,8 @@ public:
     {
         params.Bdry->Bot.hs.bc = params.Bdry->Bot.hs.Opt[0];
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
-        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-
         switch(params.Bdry->Bot.hs.Opt[1]) {
         case '~':
         case '*': break;
@@ -59,7 +57,7 @@ public:
                 params.Bdry->Bot.hs.Opt[1]);
         }
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 

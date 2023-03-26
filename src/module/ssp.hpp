@@ -19,6 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "../common_setup.hpp"
 #include "paramsmodule.hpp"
+#include "../curves.hpp"
 
 namespace bhc { namespace module {
 
@@ -54,11 +55,15 @@ public:
         ssp->rangeInKm = false;
     }
 
+    virtual void Default(bhcParams<O3D, R3D> &) const override {}
+
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         SSPStructure *ssp = params.ssp;
 
+        int32_t NPts; // LP: ignored
+        real Sigma;   // LP: ignored
         LIST(ENVFile);
         ENVFile.Read(NPts);
         ENVFile.Read(Sigma);
@@ -169,11 +174,11 @@ public:
     {
         // Depth of top boundary is taken from first SSP point
         // LP: Must be here, used later in env setup.
-        Bdry->Top.hs.Depth = params.ssp->z[0];
+        params.Bdry->Top.hs.Depth = params.ssp->z[0];
         // [mbp:] bottom depth should perhaps be set the same way?
     }
 
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -212,14 +217,14 @@ public:
                         "3D or Nx2D mode, but supported in " BHC_PROGRAMNAME);
 #endif
             }
+            break;
         case 'Q':
             if constexpr(O3D) {
                 EXTERR("PreprocessSSP: 2D profile not supported in 3D or Nx2D mode");
             }
             if(ssp->Nr < 2) {
-                PRTFile << "ssp: Quad: You must have a least two profiles in your 2D SSP "
-                           "field\n";
-                std::abort();
+                EXTERR("ssp: Quad: You must have a least two profiles in your 2D SSP "
+                       "field\n");
             }
             break;
         case 'H':
@@ -238,12 +243,12 @@ public:
         default: EXTERR("PreprocessSSP: Invalid profile option %c", ssp->Type);
         }
 
-        if(!monotonic(ssp->NPts, ssp->z)) {
-            EXTERR("PreprocessSSP: The depths in the SSP must be monotone increasing ");
+        if(!monotonic(ssp->z, ssp->NPts)) {
+            EXTERR("PreprocessSSP: The depths in the SSP must be monotone increasing");
         }
     }
 
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp     = params.ssp;
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
@@ -309,10 +314,10 @@ public:
         if(ssp->rangeInKm) {
             // convert km to m
             if(ssp->Type == 'Q') {
-                ToMeters(ssp->Nr, ssp->Seg.r);
+                ToMeters(ssp->Seg.r, ssp->Nr);
             } else if(ssp->Type == 'H') {
-                ToMeters(ssp->Nx, ssp->Seg.x);
-                ToMeters(ssp->Ny, ssp->Seg.y);
+                ToMeters(ssp->Seg.x, ssp->Nx);
+                ToMeters(ssp->Seg.y, ssp->Ny);
             }
             ssp->rangeInKm = false;
         }

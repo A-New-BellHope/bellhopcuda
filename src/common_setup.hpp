@@ -284,7 +284,7 @@ template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(
         --n;
 }
 
-template<typename REAL> inline void ToMeters(int32_t &Nx, REAL *&x)
+template<typename REAL> inline void ToMeters(REAL *&x, int32_t &Nx)
 {
     for(int32_t i = 0; i < Nx; ++i) x[i] *= FL(1000.0);
 }
@@ -334,7 +334,7 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
  * Read a vector x
  */
 template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
-    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, LDIFile &ENVFile,
+    bhcParams<O3D, R3D> &params, REAL *&x, int32_t &Nx, LDIFile &ENVFile,
     const char *Description)
 {
     LIST(ENVFile);
@@ -349,7 +349,7 @@ template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
 }
 
 template<bool O3D, bool R3D, typename REAL> inline void ValidateVector(
-    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, const char *Description)
+    bhcParams<O3D, R3D> &params, REAL *&x, int32_t &Nx, const char *Description)
 {
     if(Nx <= 0) { EXTERR("ValidateVector: Number of %s must be positive", Description); }
     if(!monotonic(x, Nx)) {
@@ -389,7 +389,7 @@ template<typename REAL> inline void EchoVector(
  * Units       is something like 'km'
  */
 template<bool O3D, bool R3D, typename REAL> inline void EchoVectorWDescr(
-    bhcParams<O3D, R3D> &params, int32_t &Nx, REAL *&x, REAL multiplier,
+    bhcParams<O3D, R3D> &params, REAL *&x, int32_t &Nx, REAL multiplier,
     const char *Description, const char *Units)
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;

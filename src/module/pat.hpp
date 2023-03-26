@@ -31,32 +31,32 @@ public:
 
     virtual void Init(bhcParams<O3D, R3D> &params) const override
     {
-        params.beaminfo->SrcBmPat = nullptr;
+        params.sbp->SrcBmPat = nullptr;
     }
 
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
-        params.beaminfo->SBPFlag = params.Beam->RunType[2];
-        params.beaminfo->SBPIndB = true;
+        params.sbp->SBPFlag = params.Beam->RunType[2];
+        params.sbp->SBPIndB = true;
     }
 
     virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
-        BeamInfo *beaminfo = params.beaminfo;
-        beaminfo->NSBPPts  = 2;
+        SBPInfo *sbp = params.sbp;
+        sbp->NSBPPts = 2;
         trackallocate(
-            params, "default/trivial source beam pattern", beaminfo->SrcBmPat, 2 * 2);
-        beaminfo->SrcBmPat[0 * 2 + 0] = FL(-180.0);
-        beaminfo->SrcBmPat[0 * 2 + 1] = FL(0.0);
-        beaminfo->SrcBmPat[1 * 2 + 0] = FL(180.0);
-        beaminfo->SrcBmPat[1 * 2 + 1] = FL(0.0);
+            params, "default/trivial source beam pattern", sbp->SrcBmPat, 2 * 2);
+        sbp->SrcBmPat[0 * 2 + 0] = FL(-180.0);
+        sbp->SrcBmPat[0 * 2 + 1] = FL(0.0);
+        sbp->SrcBmPat[1 * 2 + 0] = FL(180.0);
+        sbp->SrcBmPat[1 * 2 + 1] = FL(0.0);
     }
 
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+    virtual void Read(bhcParams<O3D, R3D> &params, LDIFile &, HSInfo &) const override
     {
-        BeamInfo *beaminfo = params.beaminfo;
-        if(beaminfo->SBPFlag != '*') {
+        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+        SBPInfo *sbp          = params.sbp;
+        if(sbp->SBPFlag != '*') {
             Default(params);
             return;
         }
@@ -68,42 +68,41 @@ public:
         }
 
         LIST(SBPFile);
-        SBPFile.Read(beaminfo->NSBPPts);
-        trackallocate(
-            params, "source beam pattern", beaminfo->SrcBmPat, beaminfo->NSBPPts * 2);
+        SBPFile.Read(sbp->NSBPPts);
+        trackallocate(params, "source beam pattern", sbp->SrcBmPat, sbp->NSBPPts * 2);
 
-        for(int32_t i = 0; i < beaminfo->NSBPPts; ++i) {
+        for(int32_t i = 0; i < sbp->NSBPPts; ++i) {
             LIST(SBPFile);
-            SBPFile.Read(&beaminfo->SrcBmPat[2 * i], 2);
+            SBPFile.Read(&sbp->SrcBmPat[2 * i], 2);
         }
     }
 
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
-        BeamInfo *beaminfo = params.beaminfo;
-        if(!monotonic(beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0)) {
+        SBPInfo *sbp = params.sbp;
+        if(!monotonic(sbp->SrcBmPat, sbp->NSBPPts, 2, 0)) {
             EXTERR("BELLHOP-ReadPat: Source beam pattern angles are not monotonic");
         }
     }
 
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-        BeamInfo *beaminfo    = params.beaminfo;
+        SBPInfo *sbp          = params.sbp;
         Preprocess(params);
 
-        if(beaminfo->SBPFlag == '*') {
+        if(sbp->SBPFlag == '*') {
             PRTFile
                 << "\n______________________________\nUsing source beam pattern file\n";
         }
         // LP: Not normally echoed if there isn't a file, but may want to echo
         // values modified by the user.
 
-        PRTFile << "Number of source beam pattern points " << beaminfo->NSBPPts << "\n";
+        PRTFile << "Number of source beam pattern points " << sbp->NSBPPts << "\n";
         PRTFile << "\n Angle (degrees)  Power (dB)\n" << std::setprecision(3);
-        for(int32_t i = 0; i < beaminfo->NSBPPts; ++i) {
-            real dB = FL(20.0) * STD::log10(beaminfo->SrcBmPat[2 * i + 1]);
-            PRTFile << beaminfo->SrcBmPat[2 * i] << " " << dB << "\n";
+        for(int32_t i = 0; i < sbp->NSBPPts; ++i) {
+            real dB = FL(20.0) * STD::log10(sbp->SrcBmPat[2 * i + 1]);
+            PRTFile << sbp->SrcBmPat[2 * i] << " " << dB << "\n";
         }
 
         PRTFile << "\n";
@@ -111,19 +110,19 @@ public:
 
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
-        BeamInfo *beaminfo = params.beaminfo;
-        if(beaminfo->SBPIndB) {
-            beaminfo->SBPIndB = false;
+        SBPInfo *sbp = params.sbp;
+        if(sbp->SBPIndB) {
+            sbp->SBPIndB = false;
             // convert dB to linear scale
-            for(int32_t i = 0; i < beaminfo->NSBPPts; ++i)
-                beaminfo->SrcBmPat[i * 2 + 1]
-                    = STD::pow(FL(10.0), beaminfo->SrcBmPat[i * 2 + 1] / FL(20.0));
+            for(int32_t i = 0; i < sbp->NSBPPts; ++i)
+                sbp->SrcBmPat[i * 2 + 1]
+                    = STD::pow(FL(10.0), sbp->SrcBmPat[i * 2 + 1] / FL(20.0));
         }
     }
 
     virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
-        trackdeallocate(params, params.beaminfo->SrcBmPat);
+        trackdeallocate(params, params.sbp->SrcBmPat);
     }
 };
 

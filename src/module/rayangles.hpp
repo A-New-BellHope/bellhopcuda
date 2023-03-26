@@ -33,6 +33,7 @@ public:
         AngleInfo &a = GetAngle(params);
         a.angles     = nullptr;
     }
+
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
@@ -45,8 +46,9 @@ public:
         // which in Fortran (and in the env file!) is 0. This gets converted to 0-
         // indexed when it is used.
         a.iSingle   = 0;
-        a.InDegrees = true;
+        a.inDegrees = true;
     }
+
     virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
@@ -57,7 +59,7 @@ public:
                 a.angles[i] = (float)(i * 360) / (float)(a.n);
             }
         } else {
-            EstimateNumAngles(params, a);
+            EstimateNumAngles(params);
             trackallocate(params, FuncName, a.angles, a.n);
             if(a.n < 3) EXTERR("Internal error in default RayAnglesElevation setup");
             a.angles[0] = RL(-20.0);
@@ -66,8 +68,9 @@ public:
             SubTab(a.angles, a.n);
         }
     }
+
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         AngleInfo &a = GetAngle(params);
 
@@ -77,7 +80,7 @@ public:
             // option to trace a single beam
             ENVFile.Read(a.iSingle);
         }
-        if(a.n == 0) { EstimateNumAngles(params, a); }
+        if(a.n == 0) EstimateNumAngles(params);
         trackallocate(params, FuncName, a.angles, bhc::max(3, a.n));
 
         if(a.n > 2) a.angles[2] = FL(-999.9);
@@ -87,10 +90,11 @@ public:
         Sort(a.angles, a.n);
         CheckFix360Sweep(a.angles, a.n);
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
-        ValidateVector(params, a.n, a.angles, FuncName);
+        ValidateVector(params, a.angles, a.n, FuncName);
 
         if(a.n > 1 && a.angles[a.n - 1] == a.angles[0]) {
             EXTERR("%s: First and last beam take-off angle are identical", FuncName);
@@ -99,9 +103,11 @@ public:
             EXTERR("%s: Selected beam, iSingle not in [1, a.n]", FuncName);
         }
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+        AngleInfo &a          = GetAngle(params);
         Preprocess(params);
         if constexpr(!BEARING) {
             PRTFile
@@ -112,11 +118,14 @@ public:
                 << "   = " << a.n << "\n";
         if(a.iSingle > 0) PRTFile << "Trace only beam number " << a.iSingle << "\n";
         PRTFile << "   Beam take-off angles (degrees)\n";
-        EchoVector(a.angles, a.n, RadDeg, PRTFile);
+        EchoVector(a.angles, a.n, PRTFile, 10, "", RadDeg);
     }
+
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+        AngleInfo &a          = GetAngle(params);
+
         if constexpr(BEARING && O3D && !R3D) {
             // Nx2D CASE: beams must lie on rcvr radials--- replace beta with theta
             if(!IsRayRun(params.Beam)) {
@@ -134,16 +143,17 @@ public:
             }
         }
 
-        if(a.InDegrees) {
+        if(a.inDegrees) {
             // convert to radians
             for(int32_t i = 0; i < a.n; ++i) a.angles[i] *= DegRad;
-            a.InDegrees = false;
+            a.inDegrees = false;
         }
 
         // angular spacing between beams
         a.d = FL(0.0);
         if(a.n != 1) a.d = (a.angles[a.n - 1] - a.angles[0]) / (a.n - 1);
     }
+
     virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
@@ -164,13 +174,15 @@ private:
     /**
      * automatically estimate n to use
      */
-    inline void EstimateNumAngles(bhcParams<O3D, R3D> &params, AngleInfo &a) const
+    inline void EstimateNumAngles(bhcParams<O3D, R3D> &params) const
     {
+        AngleInfo &a = GetAngle(params);
         if(IsRayRun(params.Beam)) {
             a.n = 50; // For a ray trace plot, we don't want too many rays ...
         } else {
             // you're letting ME choose? OK: ideas based on an isospeed ocean
             // limit based on phase of adjacent beams at maximum range
+            constexpr real c0 = FL(1500.0);
             a.n = bhc::max(
                 (int)((BEARING ? FL(0.1) : FL(0.3)) * params.Pos->Rr[params.Pos->NRr - 1] 
                 * params.freqinfo->freq0 / c0),
@@ -178,9 +190,10 @@ private:
 
             if constexpr(!BEARING) {
                 // limit based on having beams that are thin with respect to the water
-                // depth assumes also a full 360 degree angular spread of rays Should
-                // check which Depth is used here, in case where there is a variable
-                // bathymetry
+                // depth assumes also a full 360 degree angular spread of rays
+                // Should check which Depth is used here, in case where there is a
+                // variable bathymetry
+                real Depth = params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth;
                 real d_theta_recommended = STD::atan(
                     Depth / (FL(10.0) * params.Pos->Rr[params.Pos->NRr - 1]));
                 a.n = bhc::max((int)(REAL_PI / d_theta_recommended), a.n);

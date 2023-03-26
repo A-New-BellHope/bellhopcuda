@@ -38,7 +38,8 @@ public:
     /// Postprocess after run is complete.
     virtual void Postprocess(bhcParams<O3D, R3D> &, bhcOutputs<O3D, R3D> &) const {}
     /// Write results to disk.
-    virtual void Writeout(bhcParams<O3D, R3D> &, bhcOutputs<O3D, R3D> &) const {}
+    virtual void Writeout(const bhcParams<O3D, R3D> &, const bhcOutputs<O3D, R3D> &) const
+    {}
     /// Deallocate memory.
     virtual void Finalize(bhcParams<O3D, R3D> &, bhcOutputs<O3D, R3D> &) const {}
 };

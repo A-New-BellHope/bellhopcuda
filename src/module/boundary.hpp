@@ -19,6 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "../common_setup.hpp"
 #include "paramsmodule.hpp"
+#include "../boundary.hpp"
 
 namespace bhc { namespace module {
 
@@ -64,11 +65,10 @@ public:
             bdinfotb->bd[2].x = vec3(BDRYBIG, -BDRYBIG, BdryDepth(params));
             bdinfotb->bd[3].x = vec3(BDRYBIG, BDRYBIG, BdryDepth(params));
 
-            real defaultnz = isTop ? FL(-1.0) : FL(1.0);
             for(int32_t i = 0; i < 4; ++i) {
                 bdinfotb->bd[i].t  = vec3(FL(1.0), FL(0.0), FL(0.0));
-                bdinfotb->bd[i].n1 = vec3(FL(0.0), FL(0.0), defaultnz);
-                bdinfotb->bd[i].n2 = vec3(FL(0.0), FL(0.0), defaultnz);
+                bdinfotb->bd[i].n1 = vec3(FL(0.0), FL(0.0), NegTop);
+                bdinfotb->bd[i].n2 = vec3(FL(0.0), FL(0.0), NegTop);
             }
             bdinfotb->dirty = false; // LP: No ComputeBdryTangentNormal cause done
                                      // manually here
@@ -79,8 +79,7 @@ public:
         }
     }
 
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+    virtual void Read(bhcParams<O3D, R3D> &params, LDIFile &, HSInfo &) const override
     {
         if(!IsFile(params)) {
             Default(params);
@@ -174,14 +173,15 @@ public:
         }
     }
 
-    virtual void SetupPost(const bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPost(bhcParams<O3D, R3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         if constexpr(O3D) bdinfotb->type[1] = ' ';
     }
 
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
+        PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
 
         switch(bdinfotb->type[0]) {
@@ -242,8 +242,7 @@ public:
             }
 
             for(int32_t ii = 0; ii < bdinfotb->NPts; ++ii) {
-                real sidemult = (isTop ? RL(1.0) : RL(-1.0));
-                if(sidemult * bdinfotb->bd[ii].x[1] < sidemult * BdryDepth(params)) {
+                if(-NegTop * bdinfotb->bd[ii].x[1] < -NegTop * BdryDepth(params)) {
                     EXTERR(
                         "BELLHOP:Read%s: %s %s point in the sound speed profile",
                         s_ATIBTY, s_AltimetryBathymetry, s_risesdrops);
@@ -258,7 +257,7 @@ public:
         }
     }
 
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
@@ -291,14 +290,14 @@ public:
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in x "
                     << bdinfotb->NPts.x << "\n";
             EchoVector(
-                Globalx, bdinfotb->NPts.x, PRTFile, Bdry_Number_to_Echo, "", RL(0.001),
-                bdinfotb->NPts.y * BdryStride<O3D>, 0);
+                &bdinfotb->bd[0].x.x, bdinfotb->NPts.x, PRTFile, Bdry_Number_to_Echo, "",
+                RL(0.001), bdinfotb->NPts.y * BdryStride<O3D>, 0);
 
             PRTFile << "\nNumber of " << s_altimetrybathymetry << " points in y "
                     << bdinfotb->NPts.y << "\n";
             EchoVector(
-                Globaly, bdinfotb->NPts.y, PRTFile, Bdry_Number_to_Echo, "", RL(0.001),
-                BdryStride<O3D>, 0);
+                &bdinfotb->bd[0].x.y, bdinfotb->NPts.y, PRTFile, Bdry_Number_to_Echo, "",
+                RL(0.001), BdryStride<O3D>, 0);
 
             PRTFile << "\n";
         } else {
@@ -364,7 +363,7 @@ public:
         if(!bdinfotb->dirty) return;
         bdinfotb->dirty = false;
 
-        ComputeBdryTangentNormal<O3D, R3D>(params, bdinfotb, isTop);
+        ComputeBdryTangentNormal(params, bdinfotb);
 
         if constexpr(!O3D) {
             // convert range-dependent geoacoustic parameters from user to program units
@@ -390,6 +389,8 @@ public:
     }
 
 private:
+    constexpr static real NegTop = ISTOP ? RL(-1.0) : RL(1.0);
+
     bool IsFile(bhcParams<O3D, R3D> &params) const
     {
         char BdryDefMode;
@@ -431,8 +432,8 @@ private:
      * normals  (.n, .noden), and
      * curvatures (.kappa)
      */
-    template<bool O3D, bool R3D> inline void ComputeBdryTangentNormal(
-        const bhcParams<O3D, R3D> &params, BdryInfoTopBot<O3D> *bd, bool isTop) const
+    inline void ComputeBdryTangentNormal(
+        const bhcParams<O3D, R3D> &params, BdryInfoTopBot<O3D> *bd) const
     {
         typename TmplInt12<O3D>::type NPts = bd->NPts;
         vec3 tvec;
@@ -454,7 +455,7 @@ private:
 
                     // normal vector is the cross-product of the edge tangents
                     vec3 n1 = glm::cross(u, v);
-                    if(isTop) n1 = -n1;
+                    if constexpr(ISTOP) n1 = -n1;
 
                     bd->bd[ix * NPts.y + iy].n1 = n1 / glm::length(n1); // scale to make
                                                                         // it a unit
@@ -466,7 +467,7 @@ private:
 
                     // normal vector is the cross-product of the edge tangents
                     vec3 n2 = glm::cross(u, v);
-                    if(isTop) n2 = -n2;
+                    if constexpr(ISTOP) n2 = -n2;
 
                     bd->bd[ix * NPts.y + iy].n2 = n2 / glm::length(n2); // scale to make
                                                                         // it a unit
@@ -556,8 +557,8 @@ private:
                 bd->bd[ii].Len = glm::length(bd->bd[ii].t);
                 bd->bd[ii].t /= bd->bd[ii].Len;
 
-                bd->bd[ii].n[0] = (isTop ? RL(1.0) : RL(-1.0)) * bd->bd[ii].t[1];
-                bd->bd[ii].n[1] = (isTop ? RL(-1.0) : RL(1.0)) * bd->bd[ii].t[0];
+                bd->bd[ii].n[0] = -NegTop * bd->bd[ii].t[1];
+                bd->bd[ii].n[1] = NegTop * bd->bd[ii].t[0];
             }
         }
 
@@ -673,10 +674,8 @@ private:
                 bd->bd[NPts - 1].Nodet = vec2(FL(1.0), FL(0.0)); // tangent right-end node
 
                 for(int32_t ii = 0; ii < NPts; ++ii) {
-                    bd->bd[ii].Noden[0] = (isTop ? RL(1.0) : RL(-1.0))
-                        * bd->bd[ii].Nodet[1];
-                    bd->bd[ii].Noden[1] = (isTop ? RL(-1.0) : RL(1.0))
-                        * bd->bd[ii].Nodet[0];
+                    bd->bd[ii].Noden[0] = -NegTop * bd->bd[ii].Nodet[1];
+                    bd->bd[ii].Noden[1] = NegTop * bd->bd[ii].Nodet[0];
                 }
 
                 // compute curvature in each segment

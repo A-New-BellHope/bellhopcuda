@@ -45,25 +45,26 @@ public:
         }
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
-        ReadVector(params, params.Pos->NRr, params.Pos->Rr, ENVFile, Description2);
+        ReadVector(params, params.Pos->Rr, params.Pos->NRr, ENVFile, Description2);
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
-        ValidateVector(params, params.Pos->NRr, params.Pos->Rr, Description2);
+        ValidateVector(params, params.Pos->Rr, params.Pos->NRr, Description2);
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
         EchoVectorWDescr(
-            params, params.Pos->NRr, params.Pos->Rr, RL(0.001), Description, Units);
+            params, params.Pos->Rr, params.Pos->NRr, FL(0.001), Description, Units);
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
-        if(params.Pos->RrInKm) {
-            ToMeters(params.Pos->NRr, params.Pos->Rr);
-            params.Pos->RrInKm = false;
+        Position *Pos = params.Pos;
+        if(Pos->RrInKm) {
+            ToMeters(Pos->Rr, Pos->NRr);
+            Pos->RrInKm = false;
         }
 
         // calculate range spacing

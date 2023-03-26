@@ -32,19 +32,19 @@ public:
         params.atten->NMedia = 1;
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.atten->NMedia);
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         if(params.atten->NMedia != 1) {
             EXTWARN("ReadEnvironment: Only one medium or layer is allowed in BELLHOP; "
                     "sediment layers must be handled using a reflection coefficient");
         }
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "Dummy parameter NMedia = " << params.atten->NMedia << "\n";

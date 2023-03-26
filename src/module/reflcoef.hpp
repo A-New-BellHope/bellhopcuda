@@ -47,14 +47,15 @@ public:
         refltb->NPts = 0;
     }
 
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+    virtual void Read(bhcParams<O3D, R3D> &params, LDIFile &, HSInfo &) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
+        PrintFileEmu &PRTFile        = GetInternal(params)->PRTFile;
         if(!IsFile(params)) {
             Default(params);
             return;
         }
+
         LDIFile BRCFile(GetInternal(params), GetInternal(params)->FileRoot + s_extension);
         if(!BRCFile.Good()) {
             PRTFile << s_RC << "File = " << GetInternal(params)->FileRoot << s_extension
@@ -75,10 +76,10 @@ public:
             BRCFile.Read(refltb->r[itheta].phi);
             refltb->r[itheta].phi *= DegRad; // convert to radians
         }
-        refl->AnglesInDegrees = true;
+        refltb->inDegrees = true;
     }
 
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         if constexpr(!ISTOP) {
             // Optionally read in internal reflection coefficient data
@@ -89,24 +90,25 @@ public:
         }
     }
 
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         if(!IsFile(params)) return;
-        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+        PrintFileEmu &PRTFile        = GetInternal(params)->PRTFile;
+        ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         PRTFile << "_____________________________________________________________________"
                    "_____\n\n";
         PRTFile << "Using tabulated " << s_topbottom << " reflection coef.\n";
         PRTFile << "Number of points in " << s_topbottom
-                << " reflection coefficient = " << refl->bot.NPts << "\n";
+                << " reflection coefficient = " << refltb->NPts << "\n";
     }
 
-    virtual void PostProcess(const bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
         if(!IsFile(params)) return;
 
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
-        if(refltb->AnglesInDegrees) {
-            refltb->AnglesInDegrees = false;
+        if(refltb->inDegrees) {
+            refltb->inDegrees = false;
             for(int32_t itheta = 0; itheta < refltb->NPts; ++itheta) {
                 refltb->r[itheta].phi *= DegRad; // convert to radians
             }
@@ -123,9 +125,9 @@ private:
     ReflectionInfoTopBot *GetReflTopBot(bhcParams<O3D, R3D> &params) const
     {
         if constexpr(ISTOP)
-            return params.refl->top;
+            return &params.refl->top;
         else
-            return params.refl->bot;
+            return &params.refl->bot;
     }
     bool IsFile(bhcParams<O3D, R3D> &params) const
     {

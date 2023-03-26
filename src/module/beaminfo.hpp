@@ -32,14 +32,16 @@ public:
 
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
-        memcpy(params.Beam->Type, "G S ", 4);
+        BeamStructure<O3D> *Beam = params.Beam;
+        memcpy(Beam->Type, "G S ", 4);
         MoveBeamType(params);
 
         Beam->rangeInKm  = true;
         Beam->autoDeltas = false;
 
         Beam->deltas = RL(0.0);
-        Beam->Box.x = Beam->Box.y = Beam->Box.z = RL(-1.0);
+        Beam->Box.x = Beam->Box.y = RL(-1.0);
+        if constexpr(O3D) Beam->Box.z = RL(-1.0);
 
         Beam->epsMultiplier = FL(1.0);
         Beam->rLoop         = RL(1.0);
@@ -59,7 +61,7 @@ public:
         }
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         BeamStructure<O3D> *Beam = params.Beam;
 
@@ -95,13 +97,13 @@ public:
             ENVFile.Read(Beam->Component);
         }
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         BeamStructure<O3D> *Beam = params.Beam;
         Preprocess(params);
 
         bool boxerr = Beam->Box.x <= RL(0.0) || Beam->Box.y <= RL(0.0);
-        if constexpr(O3D) boxerr || = Beam->Box.z <= RL(0.0);
+        if constexpr(O3D) boxerr = boxerr || Beam->Box.z <= RL(0.0);
         if(boxerr) { EXTERR("ReadEnvironment: Beam box not set up correctly"); }
 
         if(IsGeometricInfl(Beam) || IsSGBInfl(Beam)) {
@@ -121,7 +123,7 @@ public:
                 Beam->RunType[1]);
         }
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile    = GetInternal(params)->PRTFile;
         BeamStructure<O3D> *Beam = params.Beam;

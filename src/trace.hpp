@@ -79,7 +79,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     BdryState<O3D> &bds, BdryType &Bdry, const BdryType *ConstBdry,
     const BdryInfo<O3D> *bdinfo, const SSPStructure *ssp, const Position *Pos,
     const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, ErrState *errState)
+    const BeamStructure<O3D> *Beam, const SBPInfo *sbp, ErrState *errState)
 {
     if(rinit.isz < 0 || rinit.isz >= Pos->NSz || rinit.ialpha < 0
        || rinit.ialpha >= Angles->alpha.n
@@ -133,17 +133,16 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         }
     }
 
-    int32_t ibp = BinarySearchLEQ(
-        beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, rinit.SrcDeclAngle);
+    int32_t ibp = BinarySearchLEQ(sbp->SrcBmPat, sbp->NSBPPts, 2, 0, rinit.SrcDeclAngle);
     // LP: Our function won't ever go outside the table, but we need to limit it
     // to 2 from the end.
-    ibp = bhc::min(ibp, beaminfo->NSBPPts - 2);
+    ibp = bhc::min(ibp, sbp->NSBPPts - 2);
 
     // linear interpolation to get amplitude
-    real s = (rinit.SrcDeclAngle - beaminfo->SrcBmPat[2 * ibp + 0])
-        / (beaminfo->SrcBmPat[2 * (ibp + 1) + 0] - beaminfo->SrcBmPat[2 * ibp + 0]);
-    float Amp0 = (FL(1.0) - s) * beaminfo->SrcBmPat[2 * ibp + 1]
-        + s * beaminfo->SrcBmPat[2 * (ibp + 1) + 1]; // initial amplitude
+    real s = (rinit.SrcDeclAngle - sbp->SrcBmPat[2 * ibp + 0])
+        / (sbp->SrcBmPat[2 * (ibp + 1) + 0] - sbp->SrcBmPat[2 * ibp + 0]);
+    float Amp0 = (FL(1.0) - s) * sbp->SrcBmPat[2 * ibp + 1]
+        + s * sbp->SrcBmPat[2 * (ibp + 1) + 1]; // initial amplitude
 
     // Lloyd mirror pattern for semi-coherent option
     if(IsSemiCoherentRun(Beam)) {
@@ -486,7 +485,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
     Origin<O3D, R3D> &org, const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo,
     const ReflectionInfo *refl, const SSPStructure *ssp, const Position *Pos,
     const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, ErrState *errState)
+    const BeamStructure<O3D> *Beam, const SBPInfo *sbp, ErrState *errState)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
     SSPSegState iSeg;
@@ -496,7 +495,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
 
     if(!RayInit<CFG, O3D, R3D>(
            rinit, xs, ray[0], gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
-           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo, errState)) {
+           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, sbp, errState)) {
         Nsteps = 1;
         return;
     }
@@ -528,7 +527,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
     RayInitInfo &rinit, cpxf *uAllSources, const BdryType *ConstBdry,
     const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl, const SSPStructure *ssp,
     const Position *Pos, const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, EigenInfo *eigen,
+    const BeamStructure<O3D> *Beam, const SBPInfo *sbp, EigenInfo *eigen,
     const ArrInfo *arrinfo, ErrState *errState)
 {
     real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
@@ -545,7 +544,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldMode
 
     if(!RayInit<CFG, O3D, R3D>(
            rinit, xs, point0, gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
-           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, beaminfo, errState)) {
+           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, sbp, errState)) {
         return;
     }
 

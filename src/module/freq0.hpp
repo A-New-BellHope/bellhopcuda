@@ -35,12 +35,12 @@ public:
         params.freqinfo->freq0 = RL(50.0);
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.freqinfo->freq0);
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);

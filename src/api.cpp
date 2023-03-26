@@ -218,7 +218,7 @@ template<bool O3D, bool R3D> bool setup(
         params.Angles   = nullptr;
         params.freqinfo = nullptr;
         params.Beam     = nullptr;
-        params.beaminfo = nullptr;
+        params.sbp      = nullptr;
         outputs.rayinfo = nullptr;
         outputs.eigen   = nullptr;
         outputs.arrinfo = nullptr;
@@ -231,7 +231,7 @@ template<bool O3D, bool R3D> bool setup(
         trackallocate(params, "data structures", params.Angles);
         trackallocate(params, "data structures", params.freqinfo);
         trackallocate(params, "data structures", params.Beam);
-        trackallocate(params, "data structures", params.beaminfo);
+        trackallocate(params, "data structures", params.sbp);
         trackallocate(params, "data structures", outputs.rayinfo);
         trackallocate(params, "data structures", outputs.eigen);
         trackallocate(params, "data structures", outputs.arrinfo);
@@ -241,7 +241,7 @@ template<bool O3D, bool R3D> bool setup(
         for(auto *m : modules.list()) m->Init(params);
         for(auto *m : modes.list()) m->Init(outputs);
 
-        if(params.internal.noEnvFil) {
+        if(GetInternal(params)->noEnvFil) {
             for(auto *m : modules.list()) {
                 m->SetupPre(params);
                 m->Default(params);
@@ -304,17 +304,17 @@ template bool BHC_API setup<true, true>(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool O3D, bool R3D> inline ModeModule<O3D, R3D> *GetMode(
+template<bool O3D, bool R3D> inline mode::ModeModule<O3D, R3D> *GetMode(
     const bhcParams<O3D, R3D> &params)
 {
     if(IsRayRun(params.Beam)) {
-        return new mode::Ray();
+        return new mode::Ray<O3D, R3D>();
     } else if(IsTLRun(params.Beam)) {
-        return new mode::TL();
+        return new mode::TL<O3D, R3D>();
     } else if(IsEigenraysRun(params.Beam)) {
-        return new mode::Eigen();
+        return new mode::Eigen<O3D, R3D>();
     } else if(IsArrivalsRun(params.Beam)) {
-        return new mode::Arr();
+        return new mode::Arr<O3D, R3D>();
     } else {
         EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
         return nullptr;
@@ -328,6 +328,7 @@ template<bool O3D, bool R3D> bool run(
         Stopwatch sw(GetInternal(params));
 
         sw.tick();
+        module::ModulesList<O3D, R3D> modules;
         for(auto *m : modules.list()) m->Validate(params);
         for(auto *m : modules.list()) m->Preprocess(params);
         auto *mo = GetMode<O3D, R3D>(params);
@@ -382,15 +383,15 @@ template<bool O3D, bool R3D> bool writeout(
 }
 
 #if BHC_ENABLE_2D
-template BHC_API bool writeout<false, false>(
+template bool BHC_API writeout<false, false>(
     const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
-template BHC_API bool writeout<true, false>(
+template bool BHC_API writeout<true, false>(
     const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
-template BHC_API bool writeout<true, true>(
+template bool BHC_API writeout<true, true>(
     const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
 #endif
 
@@ -402,7 +403,7 @@ template<bool O3D, bool R3D> void finalize(
     module::ModulesList<O3D, R3D> modules;
     mode::ModesList<O3D, R3D> modes;
     for(auto *m : modules.list()) m->Finalize(params);
-    for(auto *m : modes.list()) m->Finalize(outputs);
+    for(auto *m : modes.list()) m->Finalize(params, outputs);
 
     trackdeallocate(params, params.Bdry);
     trackdeallocate(params, params.bdinfo);
@@ -413,7 +414,7 @@ template<bool O3D, bool R3D> void finalize(
     trackdeallocate(params, params.Angles);
     trackdeallocate(params, params.freqinfo);
     trackdeallocate(params, params.Beam);
-    trackdeallocate(params, params.beaminfo);
+    trackdeallocate(params, params.sbp);
     trackdeallocate(params, outputs.rayinfo);
     trackdeallocate(params, outputs.eigen);
     trackdeallocate(params, outputs.arrinfo);

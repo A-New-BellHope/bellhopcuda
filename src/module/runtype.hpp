@@ -41,12 +41,12 @@ public:
         }
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.Beam->RunType, 7);
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         switch(params.Beam->RunType[0]) {
         case 'R': break;
@@ -104,7 +104,7 @@ public:
                 "Unknown dimensionality %c in environment file", params.Beam->RunType[5]);
         }
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "\n";

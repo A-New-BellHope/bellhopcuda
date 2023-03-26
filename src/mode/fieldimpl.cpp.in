@@ -39,7 +39,7 @@ template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
         MainFieldModes<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
             rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
             params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
-            params.beaminfo, outputs.eigen, outputs.arrinfo, errState);
+            params.sbp, outputs.eigen, outputs.arrinfo, errState);
     }
 }
 

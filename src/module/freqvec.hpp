@@ -43,30 +43,30 @@ public:
     virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
         trackallocate(
-            params, "default frequencies", freqinfo->freqVec, params.freqinfo->Nfreq);
-        freqinfo->freqVec[0] = freqinfo->freq0;
+            params, "default frequencies", params.freqinfo->freqVec,
+            params.freqinfo->Nfreq);
+        params.freqinfo->freqVec[0] = params.freqinfo->freq0;
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         if(params.Bdry->Top.hs.Opt[5] == 'B') {
             ReadVector(
-                params, params.freqinfo->Nfreq, params.freqinfo->freqVec, ENVFile,
+                params, params.freqinfo->freqVec, params.freqinfo->Nfreq, ENVFile,
                 Description);
         } else {
             Default(params);
         }
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         ValidateVector(
-            params, params.freqinfo->Nfreq, params.freqinfo->freqVec, Description);
+            params, params.freqinfo->freqVec, params.freqinfo->Nfreq, Description);
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
-        Preprocess(params);
         EchoVectorWDescr(
-            params, params.freqinfo->Nfreq, params.freqinfo->freqVec, RL(1.0),
+            params, params.freqinfo->freqVec, params.freqinfo->Nfreq, RL(1.0),
             Description, Units);
     }
     virtual void Finalize(bhcParams<O3D, R3D> &params) const override

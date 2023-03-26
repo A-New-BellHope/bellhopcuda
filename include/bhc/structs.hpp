@@ -83,7 +83,9 @@ struct SSPStructure {
     real alphaR[MaxSSP], alphaI[MaxSSP];
     // LP: Not actually used, but echoed, so with new system need to store them
     real betaR[MaxSSP], betaI[MaxSSP];
-    bool dirty; // reset and update derived params
+    bool rangeInKm; // Ranges (R, X, Y) specified in km, will be automatically converted
+                    // to meters
+    bool dirty;     // reset and update derived params
 };
 
 // SSPOutputs is templated as O3D during computation, but R3D when returned,
@@ -168,6 +170,8 @@ template<bool O3D> constexpr int32_t BdryStride = sizeof(BdryPtFull<O3D>) / size
 template<bool O3D> struct BdryInfoTopBot {
     IORI2<O3D> NPts;
     char type[2];        // In 3D, only first char is used
+    bool dirty;          // Set to indicate that derived values need updating
+    bool rangeInKm;      // R, X, Y values in km; automatically converted to meters
     BdryPtFull<O3D> *bd; // 2D: 1D array / 3D: 2D array
 };
 /**
@@ -237,6 +241,7 @@ struct ReflectionCoef {
 
 struct ReflectionInfoTopBot {
     int32_t NPts;
+    bool inDegrees; // Angles in degrees, converted to radians at preprocess
     ReflectionCoef *r;
 };
 struct ReflectionInfo {
@@ -268,6 +273,7 @@ struct AttenInfo {
 struct Position {
     int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
     int32_t NRz_per_range;
+    bool SxSyInKm, RrInKm; // Values in km, converted to meters in preprocess
     real Delta_r, Delta_theta;
     // int32_t *iSz, *iRz; // LP: Not used.
     // LP: These are really floats, not reals.
@@ -286,6 +292,7 @@ struct AngleInfo {
     int32_t n, iSingle;
     real d; // angular spacing between beams
     real *angles;
+    bool inDegrees; // Angles in degrees, converted to radians at preprocess
 };
 
 struct AnglesStructure {
@@ -314,21 +321,23 @@ struct FreqInfo {
 template<bool O3D> struct BeamStructure {
     // LP: NSteps moved out of this struct as it's a property of a single beam.
     int32_t NBeams, Nimage, iBeamWindow;
-    real deltas, epsMultiplier, rLoop;
     char Component;
     char Type[4];
     char RunType[7];
+    bool rangeInKm;  // Box R, X, Y specified in km, converted to meters in preprocess
+    bool autoDeltas; // stores whether deltas was automatically computed, for echo
+    real deltas, epsMultiplier, rLoop;
     VEC23<O3D> Box;
 };
 
 /**
- * LP: TODO: rename to something with SBP, this is not the same kind of beam
- * as BeamStructure.
+ * LP: Source Beam Pattern info.
  */
-struct BeamInfo {
+struct SBPInfo {
+    char SBPFlag;
+    bool SBPIndB; // SrcBmPat values in dB, auto converted to linear in preprocess
     int32_t NSBPPts;
     real *SrcBmPat;
-    char SBPFlag;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -528,7 +537,7 @@ template<bool O3D, bool R3D> struct bhcParams {
     AnglesStructure *Angles;
     FreqInfo *freqinfo;
     BeamStructure<O3D> *Beam;
-    BeamInfo *beaminfo;
+    SBPInfo *sbp;
     /// Pointer to internal data structure for program (non-marine-related) state.
     void *internal;
 };

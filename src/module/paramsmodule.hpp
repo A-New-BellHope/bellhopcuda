@@ -47,9 +47,9 @@ public:
     /// Called after Default or Read for common setup.
     virtual void SetupPost(bhcParams<O3D, R3D> &) const {}
     /// Check if the parameters are valid values. Throws errors if not.
-    virtual void Validate(const bhcParams<O3D, R3D> &) const {}
+    virtual void Validate(bhcParams<O3D, R3D> &) const {}
     /// Writes info about the parameters to the print file emulator.
-    virtual void Echo(const bhcParams<O3D, R3D> &) const {}
+    virtual void Echo(bhcParams<O3D, R3D> &) const {}
     /// Modifies the parameters before processing, e.g. km to m. Module must add
     /// flags to params to track whether this has been done or not.
     virtual void Preprocess(bhcParams<O3D, R3D> &) const {}

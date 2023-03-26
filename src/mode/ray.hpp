@@ -124,7 +124,7 @@ public:
     }
 
     virtual void Writeout(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
     {
         RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
         LDOFile RAYFile;

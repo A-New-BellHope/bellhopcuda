@@ -46,8 +46,7 @@ public:
     Field() {}
     virtual ~Field() {}
 
-    virtual void Preprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &) const
     {
         PreRun_Influence<O3D, R3D>(params);
     }

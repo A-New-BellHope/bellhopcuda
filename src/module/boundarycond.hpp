@@ -39,7 +39,7 @@ public:
         hs.cP = hs.cS = hs.rho = FL(0.0);
         params.fT              = RL(1.0e20);
     }
-    virtual void Default(bhcParams<O3D, R3D> &params) const override {}
+    virtual void Default(bhcParams<O3D, R3D> &) const override {}
     virtual void Read(
         bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
@@ -77,7 +77,7 @@ public:
             RecycledHS.rho    = hs.rho;
         }
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         switch(GetBdry(params).hs.bc) {
         case 'V': break;
@@ -90,7 +90,7 @@ public:
         default: EXTERR("TopBot: Unknown boundary condition type");
         }
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         HSInfo &hs            = GetBdry(params).hs;
@@ -191,7 +191,7 @@ public:
     }
 
 private:
-    BdryPtSmall &GetBdry(bhcParams<O3D, R3D> &params) const
+    BdryPtSmall &GetBdry(const bhcParams<O3D, R3D> &params) const
     {
         if constexpr(ISTOP) return params.Bdry->Top;
         return params.Bdry->Bot;

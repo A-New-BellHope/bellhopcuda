@@ -38,7 +38,7 @@ public:
         memcpy(params.Bdry->Top.hs.Opt, "CVW - ", 6);
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.Bdry->Top.hs.Opt, 6); // LP: LDIFile fills rest with ' '
@@ -76,7 +76,7 @@ public:
         params.ssp->AttenUnit[0] = params.Bdry->Top.hs.Opt[2];
         params.ssp->AttenUnit[1] = params.Bdry->Top.hs.Opt[3];
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
@@ -125,7 +125,6 @@ public:
 
         // optional addition of volume attenuation using standard formulas
 
-        AttenInfo *atten = params.atten;
         switch(params.ssp->AttenUnit[1]) {
         case 'T': break;
         case 'F': break;
@@ -149,7 +148,7 @@ public:
         default: EXTERR("ReadEnvironment: Unknown top option letter in sixth position\n");
         }
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "\n";

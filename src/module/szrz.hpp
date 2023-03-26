@@ -53,12 +53,12 @@ public:
         }
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
-        ReadVector(params, params.Pos->NSz, params.Pos->Sz, ENVFile, DescriptionS);
-        ReadVector(params, params.Pos->NRz, params.Pos->Rz, ENVFile, DescriptionR);
+        ReadVector(params, params.Pos->Sz, params.Pos->NSz, ENVFile, DescriptionS);
+        ReadVector(params, params.Pos->Rz, params.Pos->NRz, ENVFile, DescriptionR);
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         Position *Pos         = params.Pos;
@@ -111,13 +111,15 @@ public:
                 << "Warning in ReadSzRz : Receiver below or too near the bottom bdry has "
                    "been moved up\n";
 
-        ValidateVector(params, Pos->NSz, Pos->Sz, DescriptionS);
-        ValidateVector(params, Pos->NRz, Pos->Rz, DescriptionR);
+        ValidateVector(params, Pos->Sz, Pos->NSz, DescriptionS);
+        ValidateVector(params, Pos->Rz, Pos->NRz, DescriptionR);
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
-        EchoVectorWDescr(params, params.Pos->NSz, params.Pos->Sz, DescriptionS, Units);
-        EchoVectorWDescr(params, params.Pos->NRz, params.Pos->Rz, DescriptionR, Units);
+        EchoVectorWDescr(
+            params, params.Pos->Sz, params.Pos->NSz, FL(1.0), DescriptionS, Units);
+        EchoVectorWDescr(
+            params, params.Pos->Rz, params.Pos->NRz, FL(1.0), DescriptionR, Units);
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {

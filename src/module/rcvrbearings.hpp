@@ -46,28 +46,30 @@ public:
         }
     }
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         if constexpr(O3D) {
             ReadVector(
-                params, params.Pos->Ntheta, params.Pos->theta, ENVFile, Description);
-            CheckFix360Sweep(Pos->theta, Pos->Ntheta);
+                params, params.Pos->theta, params.Pos->Ntheta, ENVFile, Description);
+            CheckFix360Sweep(params.Pos->theta, params.Pos->Ntheta);
         } else {
             Default(params);
         }
     }
-    virtual void Validate(const bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
-        ValidateVector(params, params.Pos->Ntheta, params.Pos->theta, Description);
+        ValidateVector(params, params.Pos->theta, params.Pos->Ntheta, Description);
     }
-    virtual void Echo(const bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         Preprocess(params);
         EchoVectorWDescr(
-            params, params.Pos->Ntheta, params.Pos->theta, RadDeg, Description, Units);
+            params, params.Pos->theta, params.Pos->Ntheta, (float)RadDeg, Description,
+            Units);
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
+        Position *Pos = params.Pos;
         // calculate angular spacing
         Pos->Delta_theta = FL(0.0);
         if(Pos->Ntheta != 1)
