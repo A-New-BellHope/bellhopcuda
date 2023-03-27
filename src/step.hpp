@@ -23,7 +23,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-#define STEP_DEBUGGING 1
+// #define STEP_DEBUGGING 1
 
 #ifdef BHC_USE_FLOATS
 #define INFINITESIMAL_STEP_SIZE (RL(1e-3))

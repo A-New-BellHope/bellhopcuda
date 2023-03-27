@@ -33,7 +33,8 @@ public:
     }
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
-        params.Pos->NRr = 1;
+        params.Pos->NRr    = 1;
+        params.Pos->RrInKm = true;
     }
     virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
@@ -41,7 +42,7 @@ public:
         trackallocate(
             params, "default receiver r-coordinates", params.Pos->Rr, params.Pos->NRr);
         for(int32_t i = 0; i < params.Pos->NRr; ++i) {
-            params.Pos->Rr[i] = RL(5000.0) * (real)(i + 1);
+            params.Pos->Rr[i] = RL(5.0) * (real)(i + 1);
         }
     }
     virtual void Read(

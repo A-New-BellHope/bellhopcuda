@@ -277,8 +277,7 @@ public:
         switch(ssp->Type) {
         case 'Q':
             PRTFile << "_________________________________________________________________"
-                       "________"
-                       "_\n\n";
+                       "_________\n\n";
             PRTFile << "Using range-dependent sound speed\n";
 
             PRTFile << "Number of SSP ranges = " << ssp->Nr << "\n";

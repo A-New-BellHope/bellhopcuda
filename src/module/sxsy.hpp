@@ -87,10 +87,11 @@ public:
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
     {
-        if(!params.Pos->SxSyInKm) return;
-        ToMeters(params.Pos->Sx, params.Pos->NSx);
-        ToMeters(params.Pos->Sy, params.Pos->NSy);
-        params.Pos->SxSyInKm = false;
+        if(params.Pos->SxSyInKm) {
+            params.Pos->SxSyInKm = false;
+            ToMeters(params.Pos->Sx, params.Pos->NSx);
+            ToMeters(params.Pos->Sy, params.Pos->NSy);
+        }
     }
     virtual void Finalize(bhcParams<O3D, R3D> &params) const override
     {
