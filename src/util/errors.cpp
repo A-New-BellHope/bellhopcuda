@@ -149,7 +149,7 @@ void CheckReportErrors(bhcInternal *internal, const ErrState *errState)
                 internal,
                 "Internal error in error tracking system: unknown error thrown");
         }
-        ExternalError(internal, "Error");
+        ExternalError(internal, "Raising error(s) reported above to caller");
     }
 }
 

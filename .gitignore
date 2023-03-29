@@ -22,6 +22,8 @@ test/cudawin/
 gen_*_pass.txt
 gen_*_fail.txt
 genperf_*.txt
+genrev_*.txt
 test/in/gen_*
 test/in/genperf_*
+test/in/genrev_*
 

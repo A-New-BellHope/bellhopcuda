@@ -87,7 +87,10 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
             + '), top bc (vacuum), atten units, add vol atten, altimetry, dev mode\n')
         envfil.write('0  0.0 5000.0 ! NPts (ignored), Sigma (ignored), bot depth\n')
         if st != 'A':
-            if p['ssp']['NPts'] == 3:
+            if p['ssp']['pts'] is not None:
+                for (z, c) in p['ssp']['pts']:
+                    envfil.write('{:6.1f} {:6.1f} /\n'.format(z, c))
+            elif p['ssp']['NPts'] == 3:
                 envfil.write('   0.0 1547.0 /\n')
                 envfil.write('1234.5 1500.0 /\n')
                 envfil.write('5000.0 1560.0 /\n')
@@ -141,15 +144,16 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
                     sspfil.write(' '.join('{:.2f}'.format(gen_ssp(r, z)) for r in range(Nr)) + '\n')
             else:
                 Nx, Ny, Nz = ssp['Nx'], ssp['Ny'], ssp['Nz']
-                xymin, xymax, zmax = ssp['xymin'], ssp['xymax'], ssp['zmax']
+                xmin, xmax, ymin, ymax, zmin, zmax = ssp['xmin'], ssp['xmax'], \
+                    ssp['ymin'], ssp['ymax'], ssp['zmin'], ssp['zmax']
                 def gen_ssp(x, y, z):
                     return 1500.0 + 50.0 * x / Nx - 50.0 * y / Ny + 50.0 * z / Nz
                 sspfil.write(str(Nx) + '\n')
-                sspfil.write(' '.join('{:.2f}'.format(xymin+(xymax-xymin)*x/(Nx-1)) for x in range(Nx)) + '\n')
+                sspfil.write(' '.join('{:.2f}'.format(xmin+(xmax-xmin)*x/(Nx-1)) for x in range(Nx)) + '\n')
                 sspfil.write(str(Ny) + '\n')
-                sspfil.write(' '.join('{:.2f}'.format(xymin+(xymax-xymin)*y/(Ny-1)) for y in range(Ny)) + '\n')
+                sspfil.write(' '.join('{:.2f}'.format(ymin+(ymax-ymin)*y/(Ny-1)) for y in range(Ny)) + '\n')
                 sspfil.write(str(Nz) + '\n')
-                sspfil.write(' '.join('{:.2f}'.format(zmax*z/(Nz-1)) for z in range(Nz)) + '\n')
+                sspfil.write(' '.join('{:.2f}'.format(zmin+(zmax-zmin)*z/(Nz-1)) for z in range(Nz)) + '\n')
                 for z in range(Nz):
                     for y in range(Ny):
                         sspfil.write(' '.join('{:.2f}'.format(gen_ssp(x, y, z)) for x in range(Nx)) + '\n')
@@ -183,17 +187,29 @@ def get_default_p(rt):
     p['deltas'] = 1000.0
     p['ssp'] = {
         'NPts': 3,
+        'pts': None,
         'Nr': 5,
         'Rmin': -102.0,
         'Rmax': 102.0,
         'Nx': 4,
         'Ny': 6,
         'Nz': 5,
-        'xymin': -150.0,
-        'xymax': 150.0,
+        'xmin': -150.0,
+        'xmax': 150.0,
+        'ymin': -150.0,
+        'ymax': 150.0,
+        'zmin': 0.0,
         'zmax': 5000.0,
     }
     return p
+    
+def create_test_inner(dim, rt, it, st, p, subnames, shouldwork, gensuffix, passtxt, failtxt):
+    env_name = 'gen' + gensuffix + '_' + '_'.join(subnames)
+    title = ', '.join(subnames)
+    if gensuffix == 'rev':
+        title += ' reversed'
+    write_env_etc(dim, rt, it, st, p, env_name, title)
+    (passtxt if shouldwork else failtxt).write(env_name + '\n')
     
 def gen_all_it_st_combos(passtxt, failtxt, dim, rt):
     p = get_default_p(rt)
@@ -202,11 +218,10 @@ def gen_all_it_st_combos(passtxt, failtxt, dim, rt):
     it_list = ['G'] if rt == 'R' else infl_types.keys()
     for it in it_list:
         for st in ssp_types.keys():
-            subnames = [dims[dim], run_types[rt], infl_types[it], ssp_types[st]]
-            env_name = 'gen_' + '_'.join(subnames)
-            title = ', '.join(subnames)
-            write_env_etc(dim, rt, it, st, p, env_name, title)
-            (passtxt if should_work(dim, rt, it, st) else failtxt).write(env_name + '\n')
+            create_test_inner(dim, rt, it, st, p,
+                [dims[dim], run_types[rt], infl_types[it], ssp_types[st]],
+                should_work(dim, rt, it, st),
+                '', passtxt, failtxt)
 
 def gen_coverage_tests():
     for dim in [2, 3, 4]:
@@ -221,6 +236,107 @@ def gen_coverage_tests():
         gen_coverage_tests_type('tl', ['C', 'S', 'I'])
         gen_coverage_tests_type('eigen', ['E'])
         gen_coverage_tests_type('arr', ['A', 'a'])
+
+def gen_reverse_tests():
+    rt = 'C'
+    it = 'G'
+    for dim in [2, 3]:
+        with open('genrev_{}_pass.txt'.format(dims[dim]), 'w') as passtxt, \
+            open('genrev_{}_fail.txt'.format(dims[dim]), 'w') as failtxt:
+            for k in range(13):
+                for subtab in [False, True]:
+                    p = get_default_p(rt)
+                    st = 'C'
+                    shouldwork = True
+                    if k == 0:
+                        revname = 'Sx'
+                        if dim == 2: continue
+                        p['NSx'] = 10 if subtab else 2
+                        p['Sx'] = [5.0, -5.0]
+                    elif k == 1:
+                        revname = 'Sy'
+                        if dim == 2: continue
+                        p['NSy'] = 10 if subtab else 2
+                        p['Sy'] = [5.0, -5.0]
+                    elif k == 2:
+                        revname = 'Sz'
+                        p['NSz'] = 10 if subtab else 2
+                        p['Sz'] = [1500.0, 200.0]
+                    elif k == 3:
+                        revname = 'Rz'
+                        p['NRz'] = 10 if subtab else 2
+                        p['Rz'] = [4234.0, 123.4]
+                    elif k == 4:
+                        revname = 'Rr'
+                        p['NRr'] = 10 if subtab else 2
+                        p['Rr'] = [51.0, 4.1]
+                    elif k == 5:
+                        revname = 'theta'
+                        if dim == 2: continue
+                        p['Ntheta'] = 10 if subtab else 2
+                        p['theta'] = [359.0, 1.0]
+                    elif k == 6:
+                        revname = 'alpha'
+                        p['Nalpha'] = 10 if subtab else 2
+                        p['alpha'] = [51.2, -51.2]
+                    elif k == 7:
+                        revname = 'beta'
+                        if dim == 2: continue
+                        if subtab:
+                            p['Nbeta'] = 7
+                            p['beta'] = [182.0, 92.0]
+                        else:
+                            p['Nbeta'] = 3
+                            p['beta'] = [182.0, 137.0, 92.0]
+                    elif k == 8:
+                        revname = 'NPts'
+                        if subtab: continue
+                        shouldwork = False
+                        p['ssp']['NPts'] = 4
+                        p['ssp']['pts'] = [
+                            (0.0, 1500.0),
+                            (2123.0, 1490.0),
+                            (1123.0, 1520.0),
+                            (5000.0, 1550.0),
+                        ]
+                    elif k == 9:
+                        revname = 'Nr'
+                        if dim != 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        st = 'Q'
+                        p['ssp']['Rmin'] = 50.0
+                        p['ssp']['Rmax'] = 1.0
+                    elif k == 10:
+                        revname = 'Nx'
+                        if dim == 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        st = 'H'
+                        p['ssp']['xmin'] = 10.0
+                        p['ssp']['xmax'] = -10.0
+                    elif k == 11:
+                        revname = 'Ny'
+                        if dim == 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        st = 'H'
+                        p['ssp']['ymin'] = 10.0
+                        p['ssp']['ymax'] = -10.0
+                    elif k == 12:
+                        revname = 'Nz'
+                        if dim == 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        st = 'H'
+                        p['ssp']['zmin'] = 4000.0
+                        p['ssp']['zmax'] = 1000.0
+                    else:
+                        raise RuntimeError
+                    subnames = [dims[dim], revname]
+                    if subtab: subnames.append('tab')
+                    create_test_inner(dim, rt, it, st, p, subnames,
+                        shouldwork, 'rev', passtxt, failtxt)
 
 def gen_perf_ray_tests():
     for dim in [2, 3, 4]:
@@ -384,7 +500,8 @@ def gen_perf_arr_tests():
                         write_env_etc(dim, rt, it, st, p, env_name, title)
                 
 
-gen_coverage_tests()
-gen_perf_ray_tests()
-gen_perf_tl_tests()
-gen_perf_arr_tests()
+# gen_coverage_tests()
+gen_reverse_tests()
+# gen_perf_ray_tests()
+# gen_perf_tl_tests()
+# gen_perf_arr_tests()

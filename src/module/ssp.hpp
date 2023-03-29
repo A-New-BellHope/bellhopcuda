@@ -182,27 +182,6 @@ public:
     virtual void Validate(bhcParams<O3D, R3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
-
-        if(ssp->NPts > MaxSSP) {
-            EXTERR("ReadSSP: Number of SSP points exceeds limit");
-        } else if(ssp->NPts < 2) {
-            EXTERR("ReadSSP: The SSP must have at least 2 points");
-        }
-
-        if(ssp->NPts != ssp->Nz) {
-            EXTERR("ssp->Npts / ssp->Nz have not been set up correctly");
-        }
-
-        if(ssp->z[0] != params.Bdry->Top.hs.Depth) {
-            EXTERR("Ocean surface (Bdry->Top.hs.Depth) must be at first SSP depth "
-                   "(ssp->z[0])");
-        }
-        if(std::abs(ssp->z[ssp->NPts - 1] - params.Bdry->Bot.hs.Depth)
-           >= FL(100.0) * FLT_EPSILON) {
-            EXTERR("Ocean bottom (Bdry->Bot.hs.Depth) must be at last SSP depth "
-                   "(ssp->z[ssp->NPts-1])");
-        }
-
         switch(ssp->Type) {
         case 'N': break;
         case 'C': break;
@@ -227,6 +206,9 @@ public:
                 EXTERR("ssp: Quad: You must have a least two profiles in your 2D SSP "
                        "field\n");
             }
+            if(!monotonic(ssp->Seg.r, ssp->Nr)) {
+                EXTERR("ssp: Quad: The ranges in the SSP must be monotone increasing");
+            }
             break;
         case 'H':
             if constexpr(!O3D) {
@@ -239,13 +221,47 @@ public:
             if(ssp->Nz >= MaxSSP) {
                 EXTERR("ssp: Hexahedral: Number of SSP points in Z exceeds limit");
             }
+            if(!monotonic(ssp->Seg.x, ssp->Nx)) {
+                EXTERR("ssp: Hexahedral: The x coordinates in the SSP must be monotone "
+                       "increasing");
+            }
+            if(!monotonic(ssp->Seg.y, ssp->Ny)) {
+                EXTERR("ssp: Hexahedral: The y coordinates in the SSP must be monotone "
+                       "increasing");
+            }
+            if(!monotonic(ssp->Seg.z, ssp->Nz)) {
+                EXTERR("ssp: Hexahedral: The z coordinates in the SSP must be monotone "
+                       "increasing");
+            }
             break;
         case 'A': break;
         default: EXTERR("PreprocessSSP: Invalid profile option %c", ssp->Type);
         }
 
+        if(ssp->NPts > MaxSSP) {
+            EXTERR("ReadSSP: Number of SSP points exceeds limit");
+        } else if(ssp->NPts < 2) {
+            EXTERR("ReadSSP: The SSP must have at least 2 points");
+        }
+        if(ssp->NPts != ssp->Nz) {
+            EXTERR("ssp->Npts / ssp->Nz have not been set up correctly");
+        }
         if(!monotonic(ssp->z, ssp->NPts)) {
             EXTERR("PreprocessSSP: The depths in the SSP must be monotone increasing");
+        }
+
+        if(ssp->z[0] != params.Bdry->Top.hs.Depth) {
+            EXTERR("Ocean surface (Bdry->Top.hs.Depth) must be at first SSP depth "
+                   "(ssp->z[0])");
+        }
+        if(std::abs(ssp->z[ssp->NPts - 1] - params.Bdry->Bot.hs.Depth)
+           >= FL(100.0) * FLT_EPSILON) {
+            // By overriding the z coordinates in hexahedral mode, you can make
+            // a SSP which does not end at the bottom. BELLHOP(3D) silently
+            // accepts this at the start, but when the rays go outside the SSP
+            // box, then an error is thrown.
+            EXTWARN("Ocean bottom (Bdry->Bot.hs.Depth) must be at last SSP depth "
+                    "(ssp->z[ssp->NPts-1])");
         }
     }
 
@@ -417,6 +433,9 @@ private:
     inline void SegZToZ(bhcParams<O3D, R3D> &params) const
     {
         SSPStructure *ssp = params.ssp;
+        if(ssp->Nz > MaxSSP) {
+            EXTERR("SSP: Hexahedral: Number of z coordinates exceeds limit");
+        }
         // over-ride the SSP%z values read in from the environmental file with these
         // new values
         ssp->NPts = ssp->Nz;
