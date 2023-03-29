@@ -90,7 +90,8 @@ public:
             ENVFile.Read(a.angles, a.n);
             SubTab(a.angles, a.n);
             Sort(a.angles, a.n);
-            CheckFix360Sweep(a.angles, a.n);
+            [[maybe_unused]] bool dummy;
+            CheckFix360Sweep(a.angles, a.n, dummy);
         }
     }
 
@@ -145,7 +146,8 @@ public:
                        "lines, theta\n";
                 trackdeallocate(params, a.angles);
 
-                a.n = params.Pos->Ntheta;
+                a.n         = params.Pos->Ntheta;
+                a.inDegrees = true;
                 trackallocate(
                     params, "beam angles replaced with receiver bearing angles", a.angles,
                     a.n);

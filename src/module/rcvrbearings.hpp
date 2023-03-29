@@ -34,7 +34,8 @@ public:
     }
     virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
     {
-        params.Pos->Ntheta = 1;
+        params.Pos->Ntheta           = 1;
+        params.Pos->thetaDuplRemoved = false;
     }
     virtual void Default(bhcParams<O3D, R3D> &params) const override
     {
@@ -51,7 +52,8 @@ public:
         if constexpr(O3D) {
             ReadVector(
                 params, params.Pos->theta, params.Pos->Ntheta, ENVFile, Description);
-            CheckFix360Sweep(params.Pos->theta, params.Pos->Ntheta);
+            CheckFix360Sweep(
+                params.Pos->theta, params.Pos->Ntheta, params.Pos->thetaDuplRemoved);
         } else {
             Default(params);
         }
@@ -69,10 +71,17 @@ public:
     virtual void Echo(bhcParams<O3D, R3D> &params) const override
     {
         if constexpr(O3D) {
+            PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
             Preprocess(params);
             EchoVectorWDescr(
-                params, params.Pos->theta, params.Pos->Ntheta, (float)RadDeg, Description,
+                params, params.Pos->theta, params.Pos->Ntheta, FL(1.0), Description,
                 Units);
+            if(params.Pos->thetaDuplRemoved) {
+                PRTFile << "(Duplicate angle at " << params.Pos->theta[0] + FL(360.0)
+                        << " degrees removed--this occurs in BELLHOP(3D) too,\n"
+                           "but that version echoes the vector before removing the "
+                           "duplicate)\n";
+            }
         }
     }
     virtual void Preprocess(bhcParams<O3D, R3D> &params) const override

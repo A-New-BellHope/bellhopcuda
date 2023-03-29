@@ -152,6 +152,7 @@ public:
             trackallocate(params, "hexahedral SSP grid", ssp->Seg.z, ssp->Nz);
             LIST(SSPFile);
             SSPFile.Read(ssp->Seg.z, ssp->Nz);
+            SegZToZ(params);
 
             trackallocate(
                 params, "hexahedral SSP values", ssp->cMat, ssp->Nx * ssp->Ny * ssp->Nz);
@@ -337,17 +338,7 @@ public:
                     }
                 }
             }
-
-            // over-ride the SSP%z values read in from the environmental file with these
-            // new values
-            ssp->NPts = ssp->Nz;
-            for(int32_t iz = 0; iz < ssp->Nz; ++iz) {
-                ssp->z[iz] = ssp->Seg.z[iz];
-                // LP: These are not well-defined, make sure they're not used
-                ssp->c[iz]  = NAN;
-                ssp->cz[iz] = NAN;
-            }
-
+            SegZToZ(params);
             // LP: ssp->c and ssp->cz are not well-defined in hexahedral mode, and
             // if the number of depths is changed (ssp->Nz vs. ssp->NPts), computing
             // them may read uninitialized data.
@@ -420,6 +411,21 @@ public:
         trackdeallocate(params, ssp->Seg.x);
         trackdeallocate(params, ssp->Seg.y);
         trackdeallocate(params, ssp->Seg.z);
+    }
+
+private:
+    inline void SegZToZ(bhcParams<O3D, R3D> &params) const
+    {
+        SSPStructure *ssp = params.ssp;
+        // over-ride the SSP%z values read in from the environmental file with these
+        // new values
+        ssp->NPts = ssp->Nz;
+        for(int32_t iz = 0; iz < ssp->Nz; ++iz) {
+            ssp->z[iz] = ssp->Seg.z[iz];
+            // LP: These are not well-defined, make sure they're not used
+            ssp->c[iz]  = NAN;
+            ssp->cz[iz] = NAN;
+        }
     }
 };
 

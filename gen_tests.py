@@ -27,6 +27,11 @@ dims = {
     3: '3D',
     4: 'Nx2D'
 }
+dim_ids = {
+    2: ' ',
+    3: '3',
+    4: '2'
+}
 run_types = {
     'R': 'ray',
     'C': 'coherent',
@@ -109,7 +114,7 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
         if dim != 2:
             envfil.write(f"{p['Ntheta']}         ! Ntheta (number of bearings)\n")
             envfil.write(f"{' '.join(map(str, p['theta']))} /  ! bearing angles (degrees)\n")
-        envfil.write('\'' + rt + it + ' RR' + ('3' if dim == 3 else '2') 
+        envfil.write('\'' + rt + it + ' RR' + dim_ids[dim]
             + '\'      ! RunType, infl/beam type, ignored, point source, rectilinear grid, dim\n')
         envfil.write(f"{p['Nalpha']}            ! NBEAMS\n")
         envfil.write(f"{' '.join(map(str, p['alpha']))} /  ! ALPHA1, 2 (degrees)\n")

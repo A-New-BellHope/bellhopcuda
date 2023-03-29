@@ -270,15 +270,17 @@ template<typename REAL> HOST_DEVICE inline bool monotonic(
  * mbp: full 360-degree sweep? remove duplicate angle/beam
  */
 template<typename REAL> HOST_DEVICE inline void CheckFix360Sweep(
-    const REAL *angles, int32_t &n)
+    const REAL *angles, int32_t &n, bool &removed)
 {
     CHECK_REAL_T();
     // LP: Changed from (the FORTRAN equivalent of) REAL_MINPOS, see Fortran
     // version readme.
     if(n > 1
        && STD::abs(STD::fmod(angles[n - 1] - angles[0], FL(360.0)))
-           < FL(10.0) * spacing(RL(360.0)))
+           < FL(10.0) * spacing(RL(360.0))) {
         --n;
+        removed = true;
+    }
 }
 
 template<typename REAL> inline void ToMeters(REAL *&x, int32_t &Nx)

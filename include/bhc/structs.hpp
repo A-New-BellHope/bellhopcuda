@@ -274,6 +274,7 @@ struct Position {
     int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
     int32_t NRz_per_range;
     bool SxSyInKm, RrInKm; // Values in km, converted to meters in preprocess
+    bool thetaDuplRemoved;
     real Delta_r, Delta_theta;
     // int32_t *iSz, *iRz; // LP: Not used.
     // LP: These are really floats, not reals.
