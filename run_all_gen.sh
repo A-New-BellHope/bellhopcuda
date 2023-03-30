@@ -24,15 +24,23 @@ run_kind() {
     ./run_tests.sh $kind gen_${kind}_fail shouldfail
 }
 
+run_rev() {
+    kind=$1
+    ./run_tests.sh tl${kind} genrev_${kind}_pass
+    ./run_tests.sh tl${kind} genrev_${kind}_fail shouldfail
+}
+
 run_kind ray2D
 run_kind tl2D
 run_kind eigen2D
 run_kind arr2D
+run_rev 2D
 
 run_kind ray3D
 run_kind tl3D
 run_kind eigen3D
 run_kind arr3D
+run_rev 3D
 
 run_kind rayNx2D
 run_kind tlNx2D

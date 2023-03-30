@@ -56,8 +56,8 @@ public:
             return;
         }
 
-        LDIFile BRCFile(GetInternal(params), GetInternal(params)->FileRoot + s_extension);
-        if(!BRCFile.Good()) {
+        LDIFile xRCFile(GetInternal(params), GetInternal(params)->FileRoot + s_extension);
+        if(!xRCFile.Good()) {
             PRTFile << s_RC << "File = " << GetInternal(params)->FileRoot << s_extension
                     << "\n";
             EXTERR(
@@ -65,16 +65,15 @@ public:
                 "Coefficient file",
                 s_TopBottom);
         }
-        LIST(BRCFile);
-        BRCFile.Read(refltb->NPts);
+        LIST(xRCFile);
+        xRCFile.Read(refltb->NPts);
         trackallocate(params, "reflection coefficients", refltb->r, refltb->NPts);
 
-        LIST(BRCFile);
+        LIST(xRCFile);
         for(int32_t itheta = 0; itheta < refltb->NPts; ++itheta) {
-            BRCFile.Read(refltb->r[itheta].theta);
-            BRCFile.Read(refltb->r[itheta].r);
-            BRCFile.Read(refltb->r[itheta].phi);
-            refltb->r[itheta].phi *= DegRad; // convert to radians
+            xRCFile.Read(refltb->r[itheta].theta);
+            xRCFile.Read(refltb->r[itheta].r);
+            xRCFile.Read(refltb->r[itheta].phi);
         }
         refltb->inDegrees = true;
     }
@@ -87,6 +86,17 @@ public:
                 EXTERR("Internal reflections not supported by BELLHOP and therefore "
                        "not supported by " BHC_PROGRAMNAME);
             }
+        }
+
+        if(!IsFile(params)) return;
+        ReflectionInfoTopBot *refltb = GetReflTopBot(params);
+
+        if(!monotonic(
+               &refltb->r[0].theta, refltb->NPts, sizeof(ReflectionCoef) / sizeof(real),
+               0)) {
+            EXTERR(
+                "%s reflection coefficients must be monotonically increasing",
+                s_TopBottom);
         }
     }
 

@@ -239,7 +239,7 @@ template<> inline void Sort(cpx *arr, size_t n)
 template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n)
 {
     CHECK_REAL_T();
-    if(n == 1) return true;
+    if(n < 2) return true;
     for(size_t i = 0; i < n - 1; ++i) {
         if(arr[i + 1] <= arr[i]) return false;
     }
@@ -248,7 +248,7 @@ template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n)
 template<typename VEC2> HOST_DEVICE inline bool monotonic(
     VEC2 *arr, size_t n, const int32_t dim)
 {
-    if(n == 1) return true;
+    if(n < 2) return true;
     for(size_t i = 0; i < n - 1; ++i) {
         if(arr[i + 1][dim] <= arr[i][dim]) return false;
     }
@@ -258,7 +258,7 @@ template<typename REAL> HOST_DEVICE inline bool monotonic(
     REAL *arr, size_t n, const int32_t stridereals, const int32_t offset)
 {
     CHECK_REAL_T();
-    if(n == 1) return true;
+    if(n < 2) return true;
     for(size_t i = 0; i < n - 1; ++i) {
         if(arr[(i + 1) * stridereals + offset] <= arr[i * stridereals + offset])
             return false;
