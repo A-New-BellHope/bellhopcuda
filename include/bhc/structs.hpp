@@ -222,7 +222,7 @@ template<bool O3D> struct BdryState {
 };
 
 /**
- * LP: In 2D-3D mode, describes the position of the 2D ray space relative to the
+ * LP: In Nx2D mode, describes the position of the 2D ray space relative to the
  * 3D ocean. Unused (empty struct) in 2D and full 3D mode.
  */
 template<bool O3D, bool R3D> struct Origin {};
@@ -274,6 +274,9 @@ struct Position {
     int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
     int32_t NRz_per_range;
     bool SxSyInKm, RrInKm; // Values in km, converted to meters in preprocess
+    /// Whether a duplicate angle (e.g. 360.0 when 0.0 also exists) was removed
+    /// while reading the environment file. If manually setting theta, set this
+    /// to false and do not include any duplicate angles.
     bool thetaDuplRemoved;
     real Delta_r, Delta_theta;
     // int32_t *iSz, *iRz; // LP: Not used.
@@ -499,8 +502,8 @@ struct bhcInit {
      * deleted by the caller after bhc::setup() returns.
 
      * If null: Sets up the environment with some very basic defaults.
-     * prtCallback must not be null, as in this case a real *.prt file cannot be
-     * created. bhc::writeout() also cannot be used.
+     * prtCallback must not be null, because if there is no environment file, a
+     * real *.prt file cannot be created. bhc::writeout() also cannot be used.
      */
     const char *FileRoot = nullptr;
     /**
@@ -520,13 +523,17 @@ struct bhcInit {
      * to nullptr so it writes PRTFiles, each instance must use a different
      * FileRoot or there will be issues with the multiple instances trying to
      * write to the same PRTFile.
+     *
+     * The memory pointed to by message will be freed immediately after the
+     * callback function returns, so your callback function must copy the string
+     * rather than storing the pointer.
      */
     void (*prtCallback)(const char *message) = nullptr;
     /// See documentation for prtCallback above.
     void (*outputCallback)(const char *message) = nullptr;
 };
 
-template<bool O3D, bool R3D> struct bhcParams {
+template<bool O3D> struct bhcParams {
     char Title[80]; // Size determined by WriteHeader for TL
     real fT;
     BdryType *Bdry;

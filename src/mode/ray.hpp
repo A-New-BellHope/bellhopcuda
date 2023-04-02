@@ -23,26 +23,26 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> bool RunRay(
-    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t job,
-    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
+    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D> &params, int32_t job, int32_t worker,
+    RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 extern template bool RunRay<false, false>(
-    RayInfo<false, false> *rayinfo, const bhcParams<false, false> &params, int32_t job,
+    RayInfo<false, false> *rayinfo, const bhcParams<false> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 extern template bool RunRay<true, false>(
-    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, int32_t job,
+    RayInfo<true, false> *rayinfo, const bhcParams<true> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 extern template bool RunRay<true, true>(
-    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, int32_t job,
+    RayInfo<true, true> *rayinfo, const bhcParams<true> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 
 template<bool O3D, bool R3D> void RunRayMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
 extern template void RunRayMode<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 extern template void RunRayMode<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 extern template void RunRayMode<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> class Ray : public ModeModule<O3D, R3D> {
 public:
@@ -61,8 +61,7 @@ public:
         outputs.rayinfo->NRays           = 0;
     }
 
-    virtual void Preprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
 
@@ -107,13 +106,12 @@ public:
         rayinfo->RayMemPoints = 0;
     }
 
-    virtual void Run(bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Run(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         RunRayMode<O3D, R3D>(params, outputs);
     }
 
-    virtual void Postprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Postprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
         for(int r = 0; r < rayinfo->NRays; ++r) {
@@ -124,7 +122,7 @@ public:
     }
 
     virtual void Writeout(
-        const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
     {
         RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
         LDOFile RAYFile;
@@ -136,8 +134,7 @@ public:
         }
     }
 
-    virtual void Finalize(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         trackdeallocate(params, outputs.rayinfo->results);
         trackdeallocate(params, outputs.rayinfo->RayMem);
@@ -149,7 +146,7 @@ private:
     // them separately.
 
     inline void OpenRAYFile(
-        LDOFile &RAYFile, std::string FileRoot, const bhcParams<O3D, R3D> &params) const
+        LDOFile &RAYFile, std::string FileRoot, const bhcParams<O3D> &params) const
     {
         if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)) {
             EXTERR("OpenRAYFile not in ray trace or eigenrays mode");

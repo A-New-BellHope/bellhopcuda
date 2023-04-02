@@ -153,8 +153,9 @@ struct bhcInternal {
     size_t usedMemory;
     bool useRayCopyMode;
     bool noEnvFil;
+    uint8_t dim;
 
-    bhcInternal(const bhcInit &init)
+    bhcInternal(const bhcInit &init, bool o3d, bool r3d)
         : outputCallback(init.outputCallback),
           FileRoot(
               init.FileRoot == nullptr ? "error_incorrect_use_of_" BHC_PROGRAMNAME
@@ -162,12 +163,13 @@ struct bhcInternal {
           PRTFile(this, this->FileRoot, init.prtCallback), gpuIndex(init.gpuIndex),
           numThreads(ModifyNumThreads(init.numThreads)), maxMemory(init.maxMemory),
           usedMemory(0), useRayCopyMode(init.useRayCopyMode),
-          noEnvFil(init.FileRoot == nullptr)
+          noEnvFil(init.FileRoot == nullptr), dim(r3d       ? 3
+                                                      : o3d ? 4
+                                                            : 2)
     {}
 };
 
-template<bool O3D, bool R3D> inline bhcInternal *GetInternal(
-    const bhcParams<O3D, R3D> &params)
+template<bool O3D> inline bhcInternal *GetInternal(const bhcParams<O3D> &params)
 {
     return reinterpret_cast<bhcInternal *>(params.internal);
 }
@@ -176,8 +178,8 @@ template<bool O3D, bool R3D> inline bhcInternal *GetInternal(
 // CUDA memory
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool O3D, bool R3D, typename T> inline void trackdeallocate(
-    const bhcParams<O3D, R3D> &params, T *&ptr)
+template<bool O3D, typename T> inline void trackdeallocate(
+    const bhcParams<O3D> &params, T *&ptr)
 {
     if(ptr == nullptr) return;
     // Size stored two 64-bit words before returned pointer. 16 byte aligned.
@@ -192,8 +194,8 @@ template<bool O3D, bool R3D, typename T> inline void trackdeallocate(
     ptr = nullptr;
 }
 
-template<bool O3D, bool R3D, typename T> inline void trackallocate(
-    const bhcParams<O3D, R3D> &params, const char *description, T *&ptr, size_t n = 1)
+template<bool O3D, typename T> inline void trackallocate(
+    const bhcParams<O3D> &params, const char *description, T *&ptr, size_t n = 1)
 {
     if(ptr != nullptr) trackdeallocate(params, ptr);
     uint64_t *ptr2;
@@ -332,8 +334,8 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
 /**
  * Read a vector x
  */
-template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
-    bhcParams<O3D, R3D> &params, REAL *&x, int32_t &Nx, LDIFile &ENVFile,
+template<bool O3D, typename REAL> inline void ReadVector(
+    bhcParams<O3D> &params, REAL *&x, int32_t &Nx, LDIFile &ENVFile,
     const char *Description)
 {
     LIST(ENVFile);
@@ -347,8 +349,8 @@ template<bool O3D, bool R3D, typename REAL> inline void ReadVector(
     Sort(x, Nx);
 }
 
-template<bool O3D, bool R3D, typename REAL> inline void ValidateVector(
-    bhcParams<O3D, R3D> &params, REAL *&x, int32_t &Nx, const char *Description)
+template<bool O3D, typename REAL> inline void ValidateVector(
+    bhcParams<O3D> &params, REAL *&x, int32_t &Nx, const char *Description)
 {
     if(Nx <= 0) { EXTERR("ValidateVector: Number of %s must be positive", Description); }
     if(!monotonic(x, Nx)) {
@@ -387,8 +389,8 @@ template<typename REAL> inline void EchoVector(
  * Description is something like 'receiver ranges'
  * Units       is something like 'km'
  */
-template<bool O3D, bool R3D, typename REAL> inline void EchoVectorWDescr(
-    bhcParams<O3D, R3D> &params, REAL *&x, int32_t &Nx, REAL multiplier,
+template<bool O3D, typename REAL> inline void EchoVectorWDescr(
+    bhcParams<O3D> &params, REAL *&x, int32_t &Nx, REAL multiplier,
     const char *Description, const char *Units)
 {
     PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;

@@ -24,13 +24,13 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void PostProcessEigenrays(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
 extern template void PostProcessEigenrays<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 extern template void PostProcessEigenrays<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 extern template void PostProcessEigenrays<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> class Eigen : public Field<O3D, R3D> {
 public:
@@ -44,8 +44,7 @@ public:
         outputs.eigen->memsize = 0;
     }
 
-    virtual void Preprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         Field<O3D, R3D>::Preprocess(params, outputs);
 
@@ -68,21 +67,19 @@ public:
         eigen->neigen = 0;
     }
 
-    virtual void Postprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Postprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         PostProcessEigenrays<O3D, R3D>(params, outputs);
     }
 
     virtual void Writeout(
-        const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
     {
         Ray<O3D, R3D> raymode;
         raymode.Writeout(params, outputs);
     }
 
-    virtual void Finalize(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         trackdeallocate(params, outputs.eigen->hits);
     }

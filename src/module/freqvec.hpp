@@ -32,28 +32,27 @@ namespace bhc { namespace module {
  * the beam trace or influence. However, this can't be removed, as the frequency
  * vector must be written out to the shade file.
  */
-template<bool O3D, bool R3D> class FreqVec : public ParamsModule<O3D, R3D> {
+template<bool O3D> class FreqVec : public ParamsModule<O3D> {
 public:
     FreqVec() {}
     virtual ~FreqVec() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override
     {
         params.freqinfo->freqVec = nullptr;
     }
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         params.freqinfo->Nfreq = 1;
     }
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         trackallocate(
             params, "default frequencies", params.freqinfo->freqVec,
             params.freqinfo->Nfreq);
         params.freqinfo->freqVec[0] = params.freqinfo->freq0;
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         if(params.Bdry->Top.hs.Opt[5] == 'B') {
             ReadVector(
@@ -63,12 +62,12 @@ public:
             Default(params);
         }
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         ValidateVector(
             params, params.freqinfo->freqVec, params.freqinfo->Nfreq, Description);
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         if(params.freqinfo->Nfreq != 1
            || params.freqinfo->freqVec[0] != params.freqinfo->freq0) {
@@ -77,7 +76,7 @@ public:
                 Description, Units);
         }
     }
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         trackdeallocate(params, params.freqinfo->freqVec);
     }

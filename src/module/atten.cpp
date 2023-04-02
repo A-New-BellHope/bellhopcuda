@@ -96,9 +96,8 @@ inline real Franc_Garr(real f, const AttenInfo *atten)
  * c     real      part of sound speed
  * alpha imaginary part of sound speed
  */
-template<bool O3D, bool R3D> cpx crci(
-    const bhcParams<O3D, R3D> &params, real z, real c, real alpha,
-    const char (&AttenUnit)[2])
+template<bool O3D> cpx crci(
+    const bhcParams<O3D> &params, real z, real c, real alpha, const char (&AttenUnit)[2])
 {
     real f2, omega, alphaT, Thorp, a, fg;
     cpx ret;
@@ -195,18 +194,13 @@ template<bool O3D, bool R3D> cpx crci(
 }
 
 #if BHC_ENABLE_2D
-template cpx crci<false, false>(
-    const bhcParams<false, false> &params, real z, real c, real alpha,
+template cpx crci<false>(
+    const bhcParams<false> &params, real z, real c, real alpha,
     const char (&AttenUnit)[2]);
 #endif
-#if BHC_ENABLE_NX2D
-template cpx crci<true, false>(
-    const bhcParams<true, false> &params, real z, real c, real alpha,
-    const char (&AttenUnit)[2]);
-#endif
-#if BHC_ENABLE_3D
-template cpx crci<true, true>(
-    const bhcParams<true, true> &params, real z, real c, real alpha,
+#if BHC_ENABLE_NX2D || BHC_ENABLE_3D
+template cpx crci<true>(
+    const bhcParams<true> &params, real z, real c, real alpha,
     const char (&AttenUnit)[2]);
 #endif
 

@@ -33,8 +33,8 @@ namespace bhc { namespace mode {
  * PlotType: If "TL", writes only first and last Sx and Sy [LP: never set to
  * "TL" in BELLHOP]
  */
-template<bool O3D, bool R3D> inline void WriteHeader(
-    const bhcParams<O3D, R3D> &params, DirectOFile &SHDFile, float atten,
+template<bool O3D> inline void WriteHeader(
+    const bhcParams<O3D> &params, DirectOFile &SHDFile, float atten,
     const std::string &PlotType)
 {
     const Position *Pos      = params.Pos;
@@ -102,7 +102,7 @@ template<bool O3D, bool R3D> inline void WriteHeader(
  * LP: Write TL results
  */
 template<bool O3D, bool R3D> void PostProcessTL(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     ErrState errState;
     ResetErrState(&errState);
@@ -179,22 +179,22 @@ template<bool O3D, bool R3D> void PostProcessTL(
 
 #if BHC_ENABLE_2D
 template void PostProcessTL<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void PostProcessTL<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void PostProcessTL<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 /**
  * LP: Write TL results
  */
 template<bool O3D, bool R3D> void WriteOutTL(
-    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs)
 {
     real atten = FL(0.0);
     std::string PlotType;
@@ -241,15 +241,15 @@ template<bool O3D, bool R3D> void WriteOutTL(
 
 #if BHC_ENABLE_2D
 template void WriteOutTL<false, false>(
-    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void WriteOutTL<true, false>(
-    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void WriteOutTL<true, true>(
-    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
 #endif
 
 }} // namespace bhc::mode

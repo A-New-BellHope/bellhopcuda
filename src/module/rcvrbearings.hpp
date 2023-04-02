@@ -22,22 +22,22 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class RcvrBearings : public ParamsModule<O3D, R3D> {
+template<bool O3D> class RcvrBearings : public ParamsModule<O3D> {
 public:
     RcvrBearings() {}
     virtual ~RcvrBearings() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override
     {
         params.Pos->theta  = nullptr;
         params.Pos->t_rcvr = nullptr;
     }
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         params.Pos->Ntheta           = 1;
         params.Pos->thetaDuplRemoved = false;
     }
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         if constexpr(O3D) { params.Pos->Ntheta = 5; }
         trackallocate(
@@ -46,8 +46,7 @@ public:
             params.Pos->theta[i] = RL(72.0) * (real)i;
         }
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         if constexpr(O3D) {
             ReadVector(
@@ -58,7 +57,7 @@ public:
             Default(params);
         }
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         if constexpr(!O3D) {
             if(params.Pos->Ntheta != 1 || params.Pos->theta[0] != RL(0.0)) {
@@ -68,7 +67,7 @@ public:
             ValidateVector(params, params.Pos->theta, params.Pos->Ntheta, Description);
         }
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         if constexpr(O3D) {
             PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
@@ -84,7 +83,7 @@ public:
             }
         }
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         Position *Pos = params.Pos;
         // calculate angular spacing
@@ -98,7 +97,7 @@ public:
             params.Pos->t_rcvr[i] = vec2(STD::cos(theta), STD::sin(theta));
         }
     }
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         trackdeallocate(params, params.Pos->theta);
         trackdeallocate(params, params.Pos->t_rcvr);

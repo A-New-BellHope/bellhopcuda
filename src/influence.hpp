@@ -472,7 +472,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
 // Init_Influence
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D, R3D> &params)
+template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D> &params)
 {
     if(IsCervenyInfl(params.Beam)) {
         if constexpr(R3D) {

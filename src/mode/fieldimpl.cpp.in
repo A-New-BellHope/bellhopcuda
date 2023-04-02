@@ -27,7 +27,7 @@ namespace bhc { namespace mode {
 using GENCFG = CfgSel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@>;
 
 template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
-    bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
+    bhcParams<@BHCGENO3D@> &params,
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs,
     ErrState *errState)
 {
@@ -44,7 +44,7 @@ template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
 }
 
 template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
-    bhcParams<@BHCGENO3D@, @BHCGENR3D@> &params,
+    bhcParams<@BHCGENO3D@> &params,
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs)
 {
     ErrState errState;

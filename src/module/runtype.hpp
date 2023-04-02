@@ -25,28 +25,27 @@ namespace bhc { namespace module {
 /**
  * Read the RunType variable and echo with explanatory information to the print file
  */
-template<bool O3D, bool R3D> class RunType : public ParamsModule<O3D, R3D> {
+template<bool O3D> class RunType : public ParamsModule<O3D> {
 public:
     RunType() {}
     virtual ~RunType() {}
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         // RunType, infl/beam type, ignored, point source, rectilinear grid, dim, ignored
         memcpy(params.Beam->RunType, "CG RR  ", 7);
-        if constexpr(R3D) {
+        if(GetInternal(params)->dim == 3) {
             params.Beam->RunType[5] = '3';
-        } else if constexpr(O3D) {
+        } else if(GetInternal(params)->dim == 4) {
             params.Beam->RunType[5] = '2';
-        }
+        } // else for 2D, = ' ';
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.Beam->RunType, 7);
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         switch(params.Beam->RunType[0]) {
         case 'R': break;
@@ -73,28 +72,29 @@ public:
 
         if(params.Beam->RunType[4] != 'I') params.Beam->RunType[4] = 'R';
 
+        uint8_t dim = GetInternal(params)->dim;
         switch(params.Beam->RunType[5]) {
         case '3':
-            if constexpr(!R3D) {
+            if(dim != 3) {
                 EXTERR(
                     "Environment file specifies 3D, but you are running " BHC_PROGRAMNAME
                     " in 2D or Nx2D mode");
             }
             break;
         case '2':
-            if constexpr(R3D) {
+            if(dim == 3) {
                 EXTERR("Environment file specifies Nx2D or possibly 2D, but you are "
                        "running " BHC_PROGRAMNAME " in 3D mode");
-            } else if constexpr(!O3D) {
+            } else if(dim == 2) {
                 EXTWARN("Environment file specifies dimensionality 2, which usually "
                         "means Nx2D, but you are running " BHC_PROGRAMNAME " in 2D mode");
             }
             break;
         case ' ':
-            if constexpr(R3D) {
+            if(dim == 3) {
                 EXTERR("Environment file specifies 2D or possibly Nx2D, but you are "
                        "running " BHC_PROGRAMNAME " in 3D mode");
-            } else if constexpr(O3D) {
+            } else if(dim == 4) {
                 EXTWARN("Environment file specifies dimensionality ' ', which usually "
                         "means 2D, but you are running " BHC_PROGRAMNAME " in Nx2D mode");
             }
@@ -104,7 +104,7 @@ public:
                 "Unknown dimensionality %c in environment file", params.Beam->RunType[5]);
         }
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "\n";

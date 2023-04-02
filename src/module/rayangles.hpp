@@ -22,19 +22,18 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D, bool BEARING> class RayAngles
-    : public ParamsModule<O3D, R3D> {
+template<bool O3D, bool BEARING> class RayAngles : public ParamsModule<O3D> {
 public:
     RayAngles() {}
     virtual ~RayAngles() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         a.angles     = nullptr;
     }
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         if constexpr(BEARING) {
@@ -49,7 +48,7 @@ public:
         a.inDegrees = true;
     }
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         if constexpr(BEARING) {
@@ -69,8 +68,7 @@ public:
         }
     }
 
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         if constexpr(BEARING && !O3D) {
             Default(params);
@@ -95,7 +93,7 @@ public:
         }
     }
 
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         if constexpr(BEARING && !O3D) {
@@ -114,7 +112,7 @@ public:
         }
     }
 
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         if constexpr(!BEARING || O3D) {
             PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
@@ -133,14 +131,14 @@ public:
         }
     }
 
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         AngleInfo &a          = GetAngle(params);
 
-        if constexpr(BEARING && O3D && !R3D) {
-            // Nx2D CASE: beams must lie on rcvr radials--- replace beta with theta
-            if(!IsRayRun(params.Beam)) {
+        if constexpr(BEARING) {
+            if(GetInternal(params)->dim == 4 && !IsRayRun(params.Beam)) {
+                // Nx2D CASE: beams must lie on rcvr radials--- replace beta with theta
                 PRTFile
                     << "\nReplacing beam take-off angles, beta, with receiver bearing "
                        "lines, theta\n";
@@ -167,7 +165,7 @@ public:
         if(a.n != 1) a.d = (a.angles[a.n - 1] - a.angles[0]) / (a.n - 1);
     }
 
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);
         trackdeallocate(params, a.angles);
@@ -177,7 +175,7 @@ private:
     constexpr static const char *FuncName = BEARING ? "RayAnglesBearing"
                                                     : "RayAnglesElevation";
 
-    inline AngleInfo &GetAngle(bhcParams<O3D, R3D> &params) const
+    inline AngleInfo &GetAngle(bhcParams<O3D> &params) const
     {
         if constexpr(BEARING)
             return params.Angles->beta;
@@ -187,7 +185,7 @@ private:
     /**
      * automatically estimate n to use
      */
-    inline void EstimateNumAngles(bhcParams<O3D, R3D> &params) const
+    inline void EstimateNumAngles(bhcParams<O3D> &params) const
     {
         AngleInfo &a = GetAngle(params);
         if(IsRayRun(params.Beam)) {
@@ -215,7 +213,7 @@ private:
     }
 };
 
-template<bool O3D, bool R3D> using RayAnglesElevation = RayAngles<O3D, R3D, false>;
-template<bool O3D, bool R3D> using RayAnglesBearing   = RayAngles<O3D, R3D, true>;
+template<bool O3D> using RayAnglesElevation = RayAngles<O3D, false>;
+template<bool O3D> using RayAnglesBearing   = RayAngles<O3D, true>;
 
 }} // namespace bhc::module

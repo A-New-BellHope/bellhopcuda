@@ -22,31 +22,30 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class Title : public ParamsModule<O3D, R3D> {
+template<bool O3D> class Title : public ParamsModule<O3D> {
 public:
     Title() {}
     virtual ~Title() {}
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         SetTitle(params, "no env file");
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         std::string TempTitle;
         LIST(ENVFile);
         ENVFile.Read(TempTitle);
         SetTitle(params, TempTitle);
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << params.Title << "\n";
     }
 
 private:
-    inline void SetTitle(bhcParams<O3D, R3D> &params, const std::string &TempTitle) const
+    inline void SetTitle(bhcParams<O3D> &params, const std::string &TempTitle) const
     {
         // Prepend model name to title
         std::string t2 = BHC_PROGRAMNAME "- " + TempTitle;

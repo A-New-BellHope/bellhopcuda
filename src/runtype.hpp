@@ -178,31 +178,39 @@ template<bool O3D> HOST_DEVICE inline bool IsGaussianGeomInfl(
     return t == 'B' || t == 'b';
 }
 
-template<bool O3D, bool R3D> HOST_DEVICE inline const char *GetBeamTypeTag(
+template<bool O3D> HOST_DEVICE inline const char *GetBeamTypeTag(
     const BeamStructure<O3D> *Beam)
 {
     switch(Beam->Type[0]) {
     case 'C':
-    case 'R': return R3D ? "Cerveny style beam" : "Paraxial beams";
+    case 'R':
+        if constexpr(O3D)
+            return "Cerveny style beam";
+        else
+            return "Paraxial beams";
     case '^':
     case ' ':
-        if constexpr(!R3D)
+        if constexpr(!O3D)
             return "Warning, Beam->Type[0] = ^ or ' ' not properly handled in BELLHOP "
                    "(2D)";
         [[fallthrough]];
     case 'G':
-        if constexpr(R3D) return "Geometric beam, hat-shaped, Cart. coord.";
+        if constexpr(O3D) return "Geometric beam, hat-shaped, Cart. coord.";
         [[fallthrough]];
     case 'g':
-        if constexpr(R3D) return "Geometric beam, hat-shaped, Ray coord.";
+        if constexpr(O3D) return "Geometric beam, hat-shaped, Ray coord.";
         return "Geometric hat beams";
     case 'B':
-        return R3D ? "Geometric beam, Gaussian-shaped, Cart. coord."
-                   : "Geometric Gaussian beams";
+        if constexpr(O3D)
+            return "Geometric beam, Gaussian-shaped, Cart. coord.";
+        else
+            return "Geometric Gaussian beams";
     case 'b':
-        return R3D
-            ? "Geometric beam, Gaussian-shaped, Ray coord."
-            : "Geo Gaussian beams in ray-cent. coords. not implemented in BELLHOP (2D)";
+        if constexpr(O3D)
+            return "Geometric beam, Gaussian-shaped, Ray coord.";
+        else
+            return "Geo Gaussian beams in ray-cent. coords. not implemented in BELLHOP "
+                   "(2D)";
     case 'S': return "Simple Gaussian beams";
     default: return "Invalid Beam->Type[0]";
     }

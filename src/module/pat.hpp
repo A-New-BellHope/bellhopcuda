@@ -24,23 +24,23 @@ namespace bhc { namespace module {
 /**
  * Source Beam Pattern
  */
-template<bool O3D, bool R3D> class Pat : public ParamsModule<O3D, R3D> {
+template<bool O3D> class Pat : public ParamsModule<O3D> {
 public:
     Pat() {}
     virtual ~Pat() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override
     {
         params.sbp->SrcBmPat = nullptr;
     }
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         params.sbp->SBPFlag = params.Beam->RunType[2];
         params.sbp->SBPIndB = true;
     }
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         SBPInfo *sbp = params.sbp;
         sbp->NSBPPts = 2;
@@ -52,7 +52,7 @@ public:
         sbp->SrcBmPat[1 * 2 + 1] = FL(0.0);
     }
 
-    virtual void Read(bhcParams<O3D, R3D> &params, LDIFile &, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &, HSInfo &) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         SBPInfo *sbp          = params.sbp;
@@ -77,7 +77,7 @@ public:
         }
     }
 
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         SBPInfo *sbp = params.sbp;
         if(!monotonic(sbp->SrcBmPat, sbp->NSBPPts, 2, 0)) {
@@ -85,7 +85,7 @@ public:
         }
     }
 
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         SBPInfo *sbp          = params.sbp;
@@ -108,7 +108,7 @@ public:
         PRTFile << "\n";
     }
 
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         SBPInfo *sbp = params.sbp;
         if(sbp->SBPIndB) {
@@ -120,7 +120,7 @@ public:
         }
     }
 
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         trackdeallocate(params, params.sbp->SrcBmPat);
     }

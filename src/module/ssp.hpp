@@ -23,12 +23,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class SSP : public ParamsModule<O3D, R3D> {
+template<bool O3D> class SSP : public ParamsModule<O3D> {
 public:
     SSP() {}
     virtual ~SSP() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -40,7 +40,7 @@ public:
         ssp->Seg.z = nullptr;
     }
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -55,10 +55,10 @@ public:
         ssp->rangeInKm = false;
     }
 
-    virtual void Default(bhcParams<O3D, R3D> &) const override {}
+    virtual void Default(bhcParams<O3D> &) const override {}
 
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -171,7 +171,7 @@ public:
         }
     }
 
-    virtual void SetupPost(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         // Depth of top boundary is taken from first SSP point
         // LP: Must be here, used later in env setup.
@@ -179,7 +179,7 @@ public:
         // [mbp:] bottom depth should perhaps be set the same way?
     }
 
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
         switch(ssp->Type) {
@@ -265,7 +265,7 @@ public:
         }
     }
 
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         SSPStructure *ssp     = params.ssp;
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
@@ -323,7 +323,7 @@ public:
         }
     }
 
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -417,7 +417,7 @@ public:
         }
     }
 
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         SSPStructure *ssp = params.ssp;
 
@@ -430,7 +430,7 @@ public:
     }
 
 private:
-    inline void SegZToZ(bhcParams<O3D, R3D> &params) const
+    inline void SegZToZ(bhcParams<O3D> &params) const
     {
         SSPStructure *ssp = params.ssp;
         if(ssp->Nz > MaxSSP) {

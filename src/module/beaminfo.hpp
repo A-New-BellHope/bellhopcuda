@@ -25,12 +25,12 @@ namespace bhc { namespace module {
 /**
  * Limits for tracing beams
  */
-template<bool O3D, bool R3D> class BeamInfo : public ParamsModule<O3D, R3D> {
+template<bool O3D> class BeamInfo : public ParamsModule<O3D> {
 public:
     BeamInfo() {}
     virtual ~BeamInfo() {}
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         BeamStructure<O3D> *Beam = params.Beam;
         memcpy(Beam->Type, "G S ", 4);
@@ -49,7 +49,7 @@ public:
         Beam->iBeamWindow   = 4;
         Beam->Component     = 'P';
     }
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         BeamStructure<O3D> *Beam = params.Beam;
         if constexpr(O3D) {
@@ -60,8 +60,7 @@ public:
             Beam->Box.x = RL(101.0);
         }
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         BeamStructure<O3D> *Beam = params.Beam;
 
@@ -97,7 +96,7 @@ public:
             ENVFile.Read(Beam->Component);
         }
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         BeamStructure<O3D> *Beam = params.Beam;
         Preprocess(params);
@@ -123,7 +122,7 @@ public:
                 Beam->RunType[1]);
         }
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile    = GetInternal(params)->PRTFile;
         BeamStructure<O3D> *Beam = params.Beam;
@@ -152,7 +151,7 @@ public:
 
         // write info to prt file
         const char *tag = IsCervenyInfl(Beam) ? GetBeamWidthTag(Beam)
-                                              : GetBeamTypeTag<O3D, R3D>(Beam);
+                                              : GetBeamTypeTag<O3D>(Beam);
         PRTFile << "\n" << tag << "\n";
         // LP: The first two aren't available here (only in run), and the third
         // is echoed below anyway.
@@ -194,7 +193,7 @@ public:
             }
         }
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         BeamStructure<O3D> *Beam = params.Beam;
         MoveBeamType(params);
@@ -214,7 +213,7 @@ public:
     }
 
 private:
-    void MoveBeamType(bhcParams<O3D, R3D> &params) const
+    void MoveBeamType(bhcParams<O3D> &params) const
     {
         BeamStructure<O3D> *Beam = params.Beam;
         Beam->Type[3]            = Beam->RunType[6]; // selects beam shift option

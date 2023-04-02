@@ -22,21 +22,18 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class RcvrRanges : public ParamsModule<O3D, R3D> {
+template<bool O3D> class RcvrRanges : public ParamsModule<O3D> {
 public:
     RcvrRanges() {}
     virtual ~RcvrRanges() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
-    {
-        params.Pos->Rr = nullptr;
-    }
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override { params.Pos->Rr = nullptr; }
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         params.Pos->NRr    = 1;
         params.Pos->RrInKm = true;
     }
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         params.Pos->NRr = 10;
         trackallocate(
@@ -45,22 +42,21 @@ public:
             params.Pos->Rr[i] = RL(5.0) * (real)(i + 1);
         }
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         ReadVector(params, params.Pos->Rr, params.Pos->NRr, ENVFile, Description2);
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         ValidateVector(params, params.Pos->Rr, params.Pos->NRr, Description2);
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         Preprocess(params);
         EchoVectorWDescr(
             params, params.Pos->Rr, params.Pos->NRr, FL(0.001), Description, Units);
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         Position *Pos = params.Pos;
         if(Pos->RrInKm) {
@@ -72,7 +68,7 @@ public:
         Pos->Delta_r = FL(0.0);
         if(Pos->NRr >= 2) Pos->Delta_r = Pos->Rr[Pos->NRr - 1] - Pos->Rr[Pos->NRr - 2];
     }
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         trackdeallocate(params, params.Pos->Rr);
     }

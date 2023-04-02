@@ -50,56 +50,52 @@ namespace bhc {
 
 namespace module {
 
-template<bool O3D, bool R3D> class ModulesList {
+template<bool O3D> class ModulesList {
 public:
     ModulesList()
     {
-        modules.push_back(new Atten<O3D, R3D>());
-        modules.push_back(new Title<O3D, R3D>());
-        modules.push_back(new Freq0<O3D, R3D>());
-        modules.push_back(new NMedia<O3D, R3D>());
-        modules.push_back(new TopOpt<O3D, R3D>());
-        modules.push_back(new BoundaryCondTop<O3D, R3D>());
-        modules.push_back(new SSP<O3D, R3D>());
-        modules.push_back(new BotOpt<O3D, R3D>());
-        modules.push_back(new BoundaryCondBot<O3D, R3D>());
-        modules.push_back(new SxSy<O3D, R3D>());
-        modules.push_back(new SzRz<O3D, R3D>());
-        modules.push_back(new RcvrRanges<O3D, R3D>());
-        modules.push_back(new RcvrBearings<O3D, R3D>());
-        modules.push_back(new FreqVec<O3D, R3D>());
-        modules.push_back(new RunType<O3D, R3D>());
-        modules.push_back(new RayAnglesElevation<O3D, R3D>());
-        modules.push_back(new RayAnglesBearing<O3D, R3D>());
-        modules.push_back(new BeamInfo<O3D, R3D>());
-        modules.push_back(new Altimetry<O3D, R3D>());
-        modules.push_back(new Bathymetry<O3D, R3D>());
-        modules.push_back(new BRC<O3D, R3D>());
-        modules.push_back(new TRC<O3D, R3D>());
-        modules.push_back(new Pat<O3D, R3D>());
+        modules.push_back(new Atten<O3D>());
+        modules.push_back(new Title<O3D>());
+        modules.push_back(new Freq0<O3D>());
+        modules.push_back(new NMedia<O3D>());
+        modules.push_back(new TopOpt<O3D>());
+        modules.push_back(new BoundaryCondTop<O3D>());
+        modules.push_back(new SSP<O3D>());
+        modules.push_back(new BotOpt<O3D>());
+        modules.push_back(new BoundaryCondBot<O3D>());
+        modules.push_back(new SxSy<O3D>());
+        modules.push_back(new SzRz<O3D>());
+        modules.push_back(new RcvrRanges<O3D>());
+        modules.push_back(new RcvrBearings<O3D>());
+        modules.push_back(new FreqVec<O3D>());
+        modules.push_back(new RunType<O3D>());
+        modules.push_back(new RayAnglesElevation<O3D>());
+        modules.push_back(new RayAnglesBearing<O3D>());
+        modules.push_back(new BeamInfo<O3D>());
+        modules.push_back(new Altimetry<O3D>());
+        modules.push_back(new Bathymetry<O3D>());
+        modules.push_back(new BRC<O3D>());
+        modules.push_back(new TRC<O3D>());
+        modules.push_back(new Pat<O3D>());
     }
     ~ModulesList()
     {
         for(auto *module : modules) delete module;
     }
 
-    const std::vector<ParamsModule<O3D, R3D> *> &list() const { return modules; }
+    const std::vector<ParamsModule<O3D> *> &list() const { return modules; }
 
 private:
-    std::vector<ParamsModule<O3D, R3D> *> modules;
+    std::vector<ParamsModule<O3D> *> modules;
 };
 
 #if BHC_ENABLE_2D
-template class ParamsModule<false, false>;
-template class ModulesList<false, false>;
+template class ParamsModule<false>;
+template class ModulesList<false>;
 #endif
-#if BHC_ENABLE_NX2D
-template class ParamsModule<true, false>;
-template class ModulesList<true, false>;
-#endif
-#if BHC_ENABLE_3D
-template class ParamsModule<true, true>;
-template class ModulesList<true, true>;
+#if BHC_ENABLE_NX2D || BHC_ENABLE_3D
+template class ParamsModule<true>;
+template class ModulesList<true>;
 #endif
 
 } // namespace module
@@ -145,7 +141,7 @@ template class ModesList<true, true>;
 } // namespace mode
 
 #ifdef BHC_BUILD_CUDA
-template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
+template<bool O3D> void setupGPU(const bhcParams<O3D> &params)
 {
     // Print info about all GPUs and which one is selected
     int num_gpus;
@@ -196,10 +192,10 @@ template<bool O3D, bool R3D> void setupGPU(const bhcParams<O3D, R3D> &params)
 ////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> bool setup(
-    const bhcInit &init, bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    const bhcInit &init, bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     try {
-        params.internal = new bhcInternal(init);
+        params.internal = new bhcInternal(init, O3D, R3D);
 
         Stopwatch sw(GetInternal(params));
         sw.tick();
@@ -236,7 +232,7 @@ template<bool O3D, bool R3D> bool setup(
         trackallocate(params, "data structures", outputs.eigen);
         trackallocate(params, "data structures", outputs.arrinfo);
 
-        module::ModulesList<O3D, R3D> modules;
+        module::ModulesList<O3D> modules;
         mode::ModesList<O3D, R3D> modes;
         for(auto *m : modules.list()) m->Init(params);
         for(auto *m : modes.list()) m->Init(outputs);
@@ -289,23 +285,21 @@ template<bool O3D, bool R3D> bool setup(
 
 #if BHC_ENABLE_2D
 template bool BHC_API setup<false, false>(
-    const bhcInit &init, bhcParams<false, false> &params,
-    bhcOutputs<false, false> &outputs);
+    const bhcInit &init, bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API setup<true, false>(
-    const bhcInit &init, bhcParams<true, false> &params,
-    bhcOutputs<true, false> &outputs);
+    const bhcInit &init, bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API setup<true, true>(
-    const bhcInit &init, bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcInit &init, bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> inline mode::ModeModule<O3D, R3D> *GetMode(
-    const bhcParams<O3D, R3D> &params)
+    const bhcParams<O3D> &params)
 {
     if(IsRayRun(params.Beam)) {
         return new mode::Ray<O3D, R3D>();
@@ -322,13 +316,13 @@ template<bool O3D, bool R3D> inline mode::ModeModule<O3D, R3D> *GetMode(
 }
 
 template<bool O3D, bool R3D> bool run(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     try {
         Stopwatch sw(GetInternal(params));
 
         sw.tick();
-        module::ModulesList<O3D, R3D> modules;
+        module::ModulesList<O3D> modules;
         for(auto *m : modules.list()) m->Validate(params);
         for(auto *m : modules.list()) m->Preprocess(params);
         auto *mo = GetMode<O3D, R3D>(params);
@@ -354,19 +348,19 @@ template<bool O3D, bool R3D> bool run(
 
 #if BHC_ENABLE_2D
 template bool BHC_API
-run<false, false>(bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+run<false, false>(bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API
-run<true, false>(bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+run<true, false>(bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API
-run<true, true>(bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+run<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> bool writeout(
-    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs)
 {
     try {
         Stopwatch sw(GetInternal(params));
@@ -384,23 +378,23 @@ template<bool O3D, bool R3D> bool writeout(
 
 #if BHC_ENABLE_2D
 template bool BHC_API writeout<false, false>(
-    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API writeout<true, false>(
-    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API writeout<true, true>(
-    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> void finalize(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    module::ModulesList<O3D, R3D> modules;
+    module::ModulesList<O3D> modules;
     mode::ModesList<O3D, R3D> modes;
     for(auto *m : modules.list()) m->Finalize(params);
     for(auto *m : modes.list()) m->Finalize(params, outputs);
@@ -430,16 +424,16 @@ template<bool O3D, bool R3D> void finalize(
 }
 
 #if BHC_ENABLE_2D
-template void BHC_API finalize<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+template void BHC_API
+finalize<false, false>(bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void BHC_API
-finalize<true, false>(bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+finalize<true, false>(bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void BHC_API
-finalize<true, true>(bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+finalize<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 } // namespace bhc

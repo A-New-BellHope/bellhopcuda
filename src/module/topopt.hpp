@@ -26,19 +26,18 @@ namespace bhc { namespace module {
  * LP: Read top halfspace options; 4 out of the 6 entries are general program
  * options.
  */
-template<bool O3D, bool R3D> class TopOpt : public ParamsModule<O3D, R3D> {
+template<bool O3D> class TopOpt : public ParamsModule<O3D> {
 public:
     TopOpt() {}
     virtual ~TopOpt() {}
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         // SSP (clinear), top bc (vacuum), atten units (dB/wavelength),
         // add vol atten (none), altimetry (none), dev mode (off)
         memcpy(params.Bdry->Top.hs.Opt, "CVW - ", 6);
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.Bdry->Top.hs.Opt, 6); // LP: LDIFile fills rest with ' '
@@ -69,14 +68,14 @@ public:
             }
         }
     }
-    virtual void SetupPost(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         params.ssp->Type         = params.Bdry->Top.hs.Opt[0];
         params.Bdry->Top.hs.bc   = params.Bdry->Top.hs.Opt[1];
         params.ssp->AttenUnit[0] = params.Bdry->Top.hs.Opt[2];
         params.ssp->AttenUnit[1] = params.Bdry->Top.hs.Opt[3];
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
@@ -148,7 +147,7 @@ public:
         default: EXTERR("ReadEnvironment: Unknown top option letter in sixth position\n");
         }
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "\n";

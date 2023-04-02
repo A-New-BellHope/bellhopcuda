@@ -22,27 +22,26 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class BotOpt : public ParamsModule<O3D, R3D> {
+template<bool O3D> class BotOpt : public ParamsModule<O3D> {
 public:
     BotOpt() {}
     virtual ~BotOpt() {}
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         memcpy(params.Bdry->Bot.hs.Opt, "R-    ", 6);
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.Bdry->Bot.hs.Opt, 6); // LP: LDIFile fills rest with ' '
         ENVFile.Read(params.Bdry->Bot.hsx.Sigma);
     }
-    virtual void SetupPost(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         params.Bdry->Bot.hs.bc = params.Bdry->Bot.hs.Opt[0];
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         switch(params.Bdry->Bot.hs.Opt[1]) {
         case '~':
@@ -57,7 +56,7 @@ public:
                 params.Bdry->Bot.hs.Opt[1]);
         }
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 

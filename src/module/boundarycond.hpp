@@ -27,21 +27,20 @@ namespace bhc { namespace module {
  * Handles top and bottom boundary conditions
  * params.freqinfo->freq0: center / nominal frequency (wideband not supported)
  */
-template<bool O3D, bool R3D, bool ISTOP> class BoundaryCond
-    : public ParamsModule<O3D, R3D> {
+template<bool O3D, bool ISTOP> class BoundaryCond : public ParamsModule<O3D> {
 public:
     BoundaryCond() {}
     virtual ~BoundaryCond() {}
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         HSInfo &hs = GetBdry(params).hs;
         hs.cP = hs.cS = hs.rho = FL(0.0);
         params.fT              = RL(1.0e20);
     }
-    virtual void Default(bhcParams<O3D, R3D> &) const override {}
+    virtual void Default(bhcParams<O3D> &) const override {}
     virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
+        bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
         HSInfo &hs   = GetBdry(params).hs;
         HSExtra &hsx = GetBdry(params).hsx;
@@ -77,7 +76,7 @@ public:
             RecycledHS.rho    = hs.rho;
         }
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         switch(GetBdry(params).hs.bc) {
         case 'V': break;
@@ -90,7 +89,7 @@ public:
         default: EXTERR("TopBot: Unknown boundary condition type");
         }
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         HSInfo &hs            = GetBdry(params).hs;
@@ -130,7 +129,7 @@ public:
             PRTFile << std::setw(10) << hsx.Mz << "\n";
         }
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         HSInfo &hs   = GetBdry(params).hs;
         HSExtra &hsx = GetBdry(params).hsx;
@@ -191,14 +190,14 @@ public:
     }
 
 private:
-    BdryPtSmall &GetBdry(const bhcParams<O3D, R3D> &params) const
+    BdryPtSmall &GetBdry(const bhcParams<O3D> &params) const
     {
         if constexpr(ISTOP) return params.Bdry->Top;
         return params.Bdry->Bot;
     }
 };
 
-template<bool O3D, bool R3D> using BoundaryCondTop = BoundaryCond<O3D, R3D, true>;
-template<bool O3D, bool R3D> using BoundaryCondBot = BoundaryCond<O3D, R3D, false>;
+template<bool O3D> using BoundaryCondTop = BoundaryCond<O3D, true>;
+template<bool O3D> using BoundaryCondBot = BoundaryCond<O3D, false>;
 
 }} // namespace bhc::module

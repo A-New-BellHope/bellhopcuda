@@ -23,22 +23,20 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void PostProcessArrivals(
-    const bhcParams<O3D, R3D> &params, ArrInfo *arrinfo);
+    const bhcParams<O3D> &params, ArrInfo *arrinfo);
 extern template void PostProcessArrivals<false, false>(
-    const bhcParams<false, false> &params, ArrInfo *arrinfo);
+    const bhcParams<false> &params, ArrInfo *arrinfo);
 extern template void PostProcessArrivals<true, false>(
-    const bhcParams<true, false> &params, ArrInfo *arrinfo);
+    const bhcParams<true> &params, ArrInfo *arrinfo);
 extern template void PostProcessArrivals<true, true>(
-    const bhcParams<true, true> &params, ArrInfo *arrinfo);
+    const bhcParams<true> &params, ArrInfo *arrinfo);
 
-template<bool O3D, bool R3D> void WriteOutArrivals(
-    const bhcParams<O3D, R3D> &params, const ArrInfo *arrinfo);
-extern template void WriteOutArrivals<false, false>(
-    const bhcParams<false, false> &params, const ArrInfo *arrinfo);
-extern template void WriteOutArrivals<true, false>(
-    const bhcParams<true, false> &params, const ArrInfo *arrinfo);
-extern template void WriteOutArrivals<true, true>(
-    const bhcParams<true, true> &params, const ArrInfo *arrinfo);
+template<bool O3D> void WriteOutArrivals(
+    const bhcParams<O3D> &params, const ArrInfo *arrinfo);
+extern template void WriteOutArrivals<false>(
+    const bhcParams<false> &params, const ArrInfo *arrinfo);
+extern template void WriteOutArrivals<true>(
+    const bhcParams<true> &params, const ArrInfo *arrinfo);
 
 template<bool O3D, bool R3D> class Arr : public Field<O3D, R3D> {
 public:
@@ -53,8 +51,7 @@ public:
         outputs.arrinfo->MaxNArr       = 1;
     }
 
-    virtual void Preprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         Field<O3D, R3D>::Preprocess(params, outputs);
         ArrInfo *arrinfo = outputs.arrinfo;
@@ -91,20 +88,18 @@ public:
         // MaxNPerSource does not have to be initialized
     }
 
-    virtual void Postprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Postprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         PostProcessArrivals<O3D, R3D>(params, outputs.arrinfo);
     }
 
     virtual void Writeout(
-        const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
     {
-        WriteOutArrivals<O3D, R3D>(params, outputs.arrinfo);
+        WriteOutArrivals<O3D>(params, outputs.arrinfo);
     }
 
-    virtual void Finalize(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         trackdeallocate(params, outputs.arrinfo->Arr);
         trackdeallocate(params, outputs.arrinfo->NArr);

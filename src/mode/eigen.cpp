@@ -24,7 +24,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void EigenModePostWorker(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, int32_t worker,
+    const bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, int32_t worker,
     ErrState *errState)
 {
     SetupThread();
@@ -50,22 +50,22 @@ template<bool O3D, bool R3D> void EigenModePostWorker(
 
 #if BHC_ENABLE_2D
 template void EigenModePostWorker<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    int32_t worker, ErrState *errState);
+    const bhcParams<false> &params, bhcOutputs<false, false> &outputs, int32_t worker,
+    ErrState *errState);
 #endif
 #if BHC_ENABLE_NX2D
 template void EigenModePostWorker<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
-    int32_t worker, ErrState *errState);
+    const bhcParams<true> &params, bhcOutputs<true, false> &outputs, int32_t worker,
+    ErrState *errState);
 #endif
 #if BHC_ENABLE_3D
 template void EigenModePostWorker<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, int32_t worker,
+    const bhcParams<true> &params, bhcOutputs<true, true> &outputs, int32_t worker,
     ErrState *errState);
 #endif
 
 template<bool O3D, bool R3D> void PostProcessEigenrays(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     Ray<O3D, R3D> raymode;
     raymode.Preprocess(params, outputs);
@@ -95,15 +95,15 @@ template<bool O3D, bool R3D> void PostProcessEigenrays(
 
 #if BHC_ENABLE_2D
 template void PostProcessEigenrays<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void PostProcessEigenrays<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void PostProcessEigenrays<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 }} // namespace bhc::mode

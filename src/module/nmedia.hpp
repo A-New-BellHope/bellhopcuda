@@ -22,29 +22,28 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-template<bool O3D, bool R3D> class NMedia : public ParamsModule<O3D, R3D> {
+template<bool O3D> class NMedia : public ParamsModule<O3D> {
 public:
     NMedia() {}
     virtual ~NMedia() {}
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         params.atten->NMedia = 1;
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.atten->NMedia);
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         if(params.atten->NMedia != 1) {
             EXTWARN("ReadEnvironment: Only one medium or layer is allowed in BELLHOP; "
                     "sediment layers must be handled using a reflection coefficient");
         }
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << "Dummy parameter NMedia = " << params.atten->NMedia << "\n";

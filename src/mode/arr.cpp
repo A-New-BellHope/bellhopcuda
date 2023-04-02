@@ -22,7 +22,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void PostProcessArrivals(
-    const bhcParams<O3D, R3D> &params, ArrInfo *arrinfo)
+    const bhcParams<O3D> &params, ArrInfo *arrinfo)
 {
     const Position *Pos = params.Pos;
     for(int32_t isz = 0; isz < Pos->NSz; ++isz) {
@@ -72,19 +72,19 @@ template<bool O3D, bool R3D> void PostProcessArrivals(
 
 #if BHC_ENABLE_2D
 template void PostProcessArrivals<false, false>(
-    const bhcParams<false, false> &params, ArrInfo *arrinfo);
+    const bhcParams<false> &params, ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_NX2D
 template void PostProcessArrivals<true, false>(
-    const bhcParams<true, false> &params, ArrInfo *arrinfo);
+    const bhcParams<true> &params, ArrInfo *arrinfo);
 #endif
 #if BHC_ENABLE_3D
 template void PostProcessArrivals<true, true>(
-    const bhcParams<true, true> &params, ArrInfo *arrinfo);
+    const bhcParams<true> &params, ArrInfo *arrinfo);
 #endif
 
-template<bool O3D, bool R3D> void WriteOutArrivals(
-    const bhcParams<O3D, R3D> &params, const ArrInfo *arrinfo)
+template<bool O3D> void WriteOutArrivals(
+    const bhcParams<O3D> &params, const ArrInfo *arrinfo)
 {
     const Position *Pos = params.Pos;
 
@@ -234,16 +234,12 @@ template<bool O3D, bool R3D> void WriteOutArrivals(
 }
 
 #if BHC_ENABLE_2D
-template void WriteOutArrivals<false, false>(
-    const bhcParams<false, false> &params, const ArrInfo *arrinfo);
+template void WriteOutArrivals<false>(
+    const bhcParams<false> &params, const ArrInfo *arrinfo);
 #endif
-#if BHC_ENABLE_NX2D
-template void WriteOutArrivals<true, false>(
-    const bhcParams<true, false> &params, const ArrInfo *arrinfo);
-#endif
-#if BHC_ENABLE_3D
-template void WriteOutArrivals<true, true>(
-    const bhcParams<true, true> &params, const ArrInfo *arrinfo);
+#if BHC_ENABLE_NX2D || BHC_ENABLE_3D
+template void WriteOutArrivals<true>(
+    const bhcParams<true> &params, const ArrInfo *arrinfo);
 #endif
 
 }} // namespace bhc::mode

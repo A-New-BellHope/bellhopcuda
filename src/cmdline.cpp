@@ -22,7 +22,7 @@ static bhc::bhcInit init;
 
 template<bool O3D, bool R3D> int mainmain()
 {
-    bhc::bhcParams<O3D, R3D> params;
+    bhc::bhcParams<O3D> params;
     bhc::bhcOutputs<O3D, R3D> outputs;
     if(!bhc::setup<O3D, R3D>(init, params, outputs)) return 1;
     if(!bhc::run<O3D, R3D>(params, outputs)) return 1;
@@ -68,8 +68,7 @@ void showhelp(const char *argv0)
 #endif
            "-copy, -raycopy: Sets the behavior when there is insufficient memory to\n"
            "    allocate the requested number of full-size rays. See "
-           "bhcInit::useRayCopyMode\n"
-           "    in <bhc/structs.hpp> for more details\n"
+           "bhcInit::useRayCopyMode\n    in <bhc/structs.hpp> for more details\n"
 #if BHC_BUILD_CUDA
            "-gpu=N, -device=N: Selects CUDA device N\n"
 #endif

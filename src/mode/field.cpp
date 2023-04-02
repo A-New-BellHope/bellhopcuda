@@ -24,7 +24,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     char st = params.ssp->Type;
     if(st == 'N') {
@@ -92,7 +92,7 @@ template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(
 }
 
 template<char IT, bool O3D, bool R3D> inline void RunFieldModesSelRun(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     char rt = params.Beam->RunType[0];
     if(rt == 'C' || rt == 'S' || rt == 'I') {
@@ -132,7 +132,7 @@ template<char IT, bool O3D, bool R3D> inline void RunFieldModesSelRun(
 }
 
 template<bool O3D, bool R3D> inline void RunFieldModesSelInfl(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
 #ifdef BHC_BUILD_CUDA
     checkCudaErrors(cudaSetDevice(GetInternal(params)->gpuIndex));
@@ -212,15 +212,15 @@ template<bool O3D, bool R3D> inline void RunFieldModesSelInfl(
 
 #if BHC_ENABLE_2D
 template void RunFieldModesSelInfl<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void RunFieldModesSelInfl<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void RunFieldModesSelInfl<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 }} // namespace bhc::mode

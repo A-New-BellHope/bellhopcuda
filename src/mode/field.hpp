@@ -24,19 +24,19 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<typename CFG, bool O3D, bool R3D> void FieldModesWorker(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, ErrState *errState);
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, ErrState *errState);
 
 template<typename CFG, bool O3D, bool R3D> void RunFieldModesImpl(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
 
 template<bool O3D, bool R3D> void RunFieldModesSelInfl(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
 extern template void RunFieldModesSelInfl<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 extern template void RunFieldModesSelInfl<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 extern template void RunFieldModesSelInfl<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 /**
  * Parent class for field modes (TL, eigen, arr).
@@ -46,12 +46,12 @@ public:
     Field() {}
     virtual ~Field() {}
 
-    virtual void Preprocess(bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &) const
+    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &) const
     {
         PreRun_Influence<O3D, R3D>(params);
     }
 
-    virtual void Run(bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Run(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         RunFieldModesSelInfl<O3D, R3D>(params, outputs);
     }

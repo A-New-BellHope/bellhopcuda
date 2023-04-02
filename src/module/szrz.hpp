@@ -25,22 +25,22 @@ namespace bhc { namespace module {
 /**
  * source and receiver z-coordinates (depths)
  */
-template<bool O3D, bool R3D> class SzRz : public ParamsModule<O3D, R3D> {
+template<bool O3D> class SzRz : public ParamsModule<O3D> {
 public:
     SzRz() {}
     virtual ~SzRz() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override
     {
         params.Pos->Sz = nullptr;
         params.Pos->Rz = nullptr;
     }
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         params.Pos->NSz = 1;
         params.Pos->NRz = 1;
     }
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         trackallocate(params, "default source z-coordinates", params.Pos->Sz, 1);
         params.Pos->Sz[0] = RL(567.8);
@@ -52,13 +52,12 @@ public:
             params.Pos->Rz[i] = RL(500.0) * (real)i;
         }
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         ReadVector(params, params.Pos->Sz, params.Pos->NSz, ENVFile, DescriptionS);
         ReadVector(params, params.Pos->Rz, params.Pos->NRz, ENVFile, DescriptionR);
     }
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         Position *Pos         = params.Pos;
@@ -114,19 +113,19 @@ public:
         ValidateVector(params, Pos->Sz, Pos->NSz, DescriptionS);
         ValidateVector(params, Pos->Rz, Pos->NRz, DescriptionR);
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         EchoVectorWDescr(
             params, params.Pos->Sz, params.Pos->NSz, FL(1.0), DescriptionS, Units);
         EchoVectorWDescr(
             params, params.Pos->Rz, params.Pos->NRz, FL(1.0), DescriptionR, Units);
     }
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         // irregular or rectilinear grid
         params.Pos->NRz_per_range = IsIrregularGrid(params.Beam) ? 1 : params.Pos->NRz;
     }
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         trackdeallocate(params, params.Pos->Sz);
         trackdeallocate(params, params.Pos->Rz);

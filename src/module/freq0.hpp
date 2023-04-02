@@ -22,25 +22,21 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc { namespace module {
 
-/**
- *
- */
-template<bool O3D, bool R3D> class Freq0 : public ParamsModule<O3D, R3D> {
+template<bool O3D> class Freq0 : public ParamsModule<O3D> {
 public:
     Freq0() {}
     virtual ~Freq0() {}
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         params.freqinfo->freq0 = RL(50.0);
     }
-    virtual void Read(
-        bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
     {
         LIST(ENVFile);
         ENVFile.Read(params.freqinfo->freq0);
     }
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         PRTFile << std::setiosflags(std::ios::scientific) << std::setprecision(4);

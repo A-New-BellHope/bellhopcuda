@@ -26,18 +26,18 @@ namespace bhc { namespace module {
 /**
  * Templated to become Altimetry or Bathymetry
  */
-template<bool O3D, bool R3D, bool ISTOP> class Boundary : public ParamsModule<O3D, R3D> {
+template<bool O3D, bool ISTOP> class Boundary : public ParamsModule<O3D> {
 public:
     Boundary() {}
     virtual ~Boundary() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         bdinfotb->bd                  = nullptr;
     }
 
-    virtual void SetupPre(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPre(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         if constexpr(O3D) {
@@ -51,7 +51,7 @@ public:
         bdinfotb->dirty     = true;
     }
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
 
@@ -79,7 +79,7 @@ public:
         }
     }
 
-    virtual void Read(bhcParams<O3D, R3D> &params, LDIFile &, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &, HSInfo &) const override
     {
         if(!IsFile(params)) {
             Default(params);
@@ -173,13 +173,13 @@ public:
         }
     }
 
-    virtual void SetupPost(bhcParams<O3D, R3D> &params) const override
+    virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         if constexpr(O3D) bdinfotb->type[1] = ' ';
     }
 
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
@@ -257,7 +257,7 @@ public:
         }
     }
 
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
@@ -339,7 +339,7 @@ public:
         }
     }
 
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
 
@@ -382,7 +382,7 @@ public:
         }
     }
 
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         trackdeallocate(params, bdinfotb->bd);
@@ -391,7 +391,7 @@ public:
 private:
     constexpr static real NegTop = ISTOP ? RL(-1.0) : RL(1.0);
 
-    bool IsFile(bhcParams<O3D, R3D> &params) const
+    bool IsFile(bhcParams<O3D> &params) const
     {
         char BdryDefMode;
         if constexpr(ISTOP)
@@ -400,14 +400,14 @@ private:
             BdryDefMode = params.Bdry->Bot.hs.Opt[1];
         return BdryDefMode == '~' || BdryDefMode == '*';
     }
-    real BdryDepth(bhcParams<O3D, R3D> &params) const
+    real BdryDepth(bhcParams<O3D> &params) const
     {
         if constexpr(ISTOP)
             return params.Bdry->Top.hs.Depth;
         else
             return params.Bdry->Bot.hs.Depth;
     }
-    BdryInfoTopBot<O3D> *GetBdryInfoTopBot(bhcParams<O3D, R3D> &params) const
+    BdryInfoTopBot<O3D> *GetBdryInfoTopBot(bhcParams<O3D> &params) const
     {
         if constexpr(ISTOP)
             return &params.bdinfo->top;
@@ -433,7 +433,7 @@ private:
      * curvatures (.kappa)
      */
     inline void ComputeBdryTangentNormal(
-        const bhcParams<O3D, R3D> &params, BdryInfoTopBot<O3D> *bd) const
+        const bhcParams<O3D> &params, BdryInfoTopBot<O3D> *bd) const
     {
         typename TmplInt12<O3D>::type NPts = bd->NPts;
         vec3 tvec;
@@ -725,7 +725,7 @@ private:
     }
 };
 
-template<bool O3D, bool R3D> using Altimetry  = Boundary<O3D, R3D, true>;
-template<bool O3D, bool R3D> using Bathymetry = Boundary<O3D, R3D, false>;
+template<bool O3D> using Altimetry  = Boundary<O3D, true>;
+template<bool O3D> using Bathymetry = Boundary<O3D, false>;
 
 }} // namespace bhc::module

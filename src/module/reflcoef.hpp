@@ -27,18 +27,18 @@ namespace bhc { namespace module {
  *
  * flag set to 'F' if refl. coef. is to be read from a File
  */
-template<bool O3D, bool R3D, bool ISTOP> class ReflCoef : public ParamsModule<O3D, R3D> {
+template<bool O3D, bool ISTOP> class ReflCoef : public ParamsModule<O3D> {
 public:
     ReflCoef() {}
     virtual ~ReflCoef() {}
 
-    virtual void Init(bhcParams<O3D, R3D> &params) const override
+    virtual void Init(bhcParams<O3D> &params) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         refltb->r                    = nullptr;
     }
 
-    virtual void Default(bhcParams<O3D, R3D> &params) const override
+    virtual void Default(bhcParams<O3D> &params) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         // LP: Original version allocates a size 1 array but never initializes
@@ -47,7 +47,7 @@ public:
         refltb->NPts = 0;
     }
 
-    virtual void Read(bhcParams<O3D, R3D> &params, LDIFile &, HSInfo &) const override
+    virtual void Read(bhcParams<O3D> &params, LDIFile &, HSInfo &) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         PrintFileEmu &PRTFile        = GetInternal(params)->PRTFile;
@@ -78,7 +78,7 @@ public:
         refltb->inDegrees = true;
     }
 
-    virtual void Validate(bhcParams<O3D, R3D> &params) const override
+    virtual void Validate(bhcParams<O3D> &params) const override
     {
         if constexpr(!ISTOP) {
             // Optionally read in internal reflection coefficient data
@@ -100,7 +100,7 @@ public:
         }
     }
 
-    virtual void Echo(bhcParams<O3D, R3D> &params) const override
+    virtual void Echo(bhcParams<O3D> &params) const override
     {
         if(!IsFile(params)) return;
         PrintFileEmu &PRTFile        = GetInternal(params)->PRTFile;
@@ -112,7 +112,7 @@ public:
                 << " reflection coefficient = " << refltb->NPts << "\n";
     }
 
-    virtual void Preprocess(bhcParams<O3D, R3D> &params) const override
+    virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         if(!IsFile(params)) return;
 
@@ -125,21 +125,21 @@ public:
         }
     }
 
-    virtual void Finalize(bhcParams<O3D, R3D> &params) const override
+    virtual void Finalize(bhcParams<O3D> &params) const override
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         trackdeallocate(params, refltb->r);
     }
 
 private:
-    ReflectionInfoTopBot *GetReflTopBot(bhcParams<O3D, R3D> &params) const
+    ReflectionInfoTopBot *GetReflTopBot(bhcParams<O3D> &params) const
     {
         if constexpr(ISTOP)
             return &params.refl->top;
         else
             return &params.refl->bot;
     }
-    bool IsFile(bhcParams<O3D, R3D> &params) const
+    bool IsFile(bhcParams<O3D> &params) const
     {
         char opt;
         if constexpr(ISTOP)
@@ -154,7 +154,7 @@ private:
     constexpr static const char *s_RC        = ISTOP ? "TRC" : "BRC";
 };
 
-template<bool O3D, bool R3D> using TRC = ReflCoef<O3D, R3D, true>;
-template<bool O3D, bool R3D> using BRC = ReflCoef<O3D, R3D, false>;
+template<bool O3D> using TRC = ReflCoef<O3D, true>;
+template<bool O3D> using BRC = ReflCoef<O3D, false>;
 
 }} // namespace bhc::module

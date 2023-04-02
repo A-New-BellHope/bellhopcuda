@@ -56,44 +56,80 @@ namespace bhc {
  * O3D=true, R3D=true: 3D mode
  */
 template<bool O3D, bool R3D> bool setup(
-    const bhcInit &init, bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    const bhcInit &init, bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
 extern template BHC_API bool setup<false, false>(
-    const bhcInit &init, bhcParams<false, false> &params,
-    bhcOutputs<false, false> &outputs);
-/// Nx2D or 2D-3D version, see template.
+    const bhcInit &init, bhcParams<false> &params, bhcOutputs<false, false> &outputs);
+/// Nx2D version, see template.
 extern template BHC_API bool setup<true, false>(
-    const bhcInit &init, bhcParams<true, false> &params,
-    bhcOutputs<true, false> &outputs);
+    const bhcInit &init, bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
 extern template BHC_API bool setup<true, true>(
-    const bhcInit &init, bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcInit &init, bhcParams<true> &params, bhcOutputs<true, true> &outputs);
+
+/*
+ * You can generally modify params as desired before run. There are two main
+ * restrictions on this.
+ * 1. You must not allocate or deallocate any data structures / arrays within
+ *    params. If you need to change their size, you must use the functions
+ *    below.
+ * 2. Many data structures have bool flags indicating whether the data is in one
+ *    format or another, or whether it has been preprocessed or is dirty. Make
+ *    sure you understand any flags present in the structure you are modifying.
+ *    For example, params.Pos->SxSyInKm is true if params.Pos->Sx[:] and Sy[:]
+ *    are in kilometers and false if they are in meters. If you are writing to
+ *    these arrays, you must set the flag to the correct value for your data.
+ *    And if you are reading from these arrays, you must read and respect the
+ *    current state of the flag. In this case, the data will be converted to
+ *    meters (and the flag cleared) when run() or other API calls are made. So,
+ *    you may have written the data originally in kilometers, but it may be in
+ *    meters now.
+ */
+
+/**
+ * Reallocate altimetry data to the given size (for 2D this is range, for
+ * 3D/Nx2D this is X/Y). After calling this, fill in the coordinates of the
+ * boundary points in params.bdinfo->top.bd[:].x. The R/X/Y values need not be
+ * uniformly spaced but they must be monotonically increasing.
+ * 2D: If params.bdinfo->top.type[1] == 'L', also must fill in params.bdinfo->
+ * top.bd[:].hs.{alphaR, betaR, rho, alphaI, betaI}.
+ * 3D: Access the boundary array as params.bdinfo->top.bd[ix * NPts.y + iy].
+ * The X and Y coordinates must be on a Cartesian grid and filled in into x.x
+ * and x.y of each point (even though this duplicates the values many times).
+ */
+template<bool O3D> void extsetup_altimetry(
+    bhcParams<O3D> &params, const IORI2<O3D> &size);
+extern template void extsetup_altimetry<false>(
+    bhcParams<false> &params, const IORI2<false> &size);
+extern template void extsetup_altimetry<true>(
+    bhcParams<true> &params, const IORI2<true> &size);
+/// See extsetup_altimetry.
+template<bool O3D> void extsetup_bathymetry(
+    bhcParams<O3D> &params, const IORI2<O3D> &size);
+extern template void extsetup_bathymetry<false>(
+    bhcParams<false> &params, const IORI2<false> &size);
+extern template void extsetup_bathymetry<true>(
+    bhcParams<true> &params, const IORI2<true> &size);
 
 /**
  * Runs the selected run type and places the results in the appropriate struct
  * within outputs.
  *
- * An env file should usually be read directly first, by calling setup then
- * run-finalize. But, before calling finalize, you may edit parameters and rerun
- * with an expected pattern
- *     setup-run-change params-run-change params...-finalize.
- * TODO: Only a few parameters can be updated, notably sources and 1D SSP - JS, 8/25/2022.
- *
  * returns: false if an error occurred, true if no errors.
  */
 template<bool O3D, bool R3D> bool run(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
 extern template BHC_API bool run<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 /// Nx2D or 2D-3D version, see template.
 extern template BHC_API bool run<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
 extern template BHC_API bool run<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 /**
  * Write results for the past run to BELLHOP-formatted files, i.e. a ray file,
@@ -103,34 +139,34 @@ extern template BHC_API bool run<true, true>(
  * returns: false if an error occurred, true if no errors.
  */
 template<bool O3D, bool R3D> bool writeout(
-    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs);
+    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
 extern template BHC_API bool writeout<false, false>(
-    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs);
 /// Nx2D or 2D-3D version, see template.
 extern template BHC_API bool writeout<true, false>(
-    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
 extern template BHC_API bool writeout<true, true>(
-    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
 
 /**
  * Frees memory. You may call run() many times (with changed parameters), you do
  * not have to call setup - run - finalize every time.
  */
 template<bool O3D, bool R3D> void finalize(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
 
 /// 2D version, see template.
 extern template BHC_API void finalize<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 /// Nx2D or 2D-3D version, see template.
 extern template BHC_API void finalize<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
 extern template BHC_API void finalize<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 } // namespace bhc
 

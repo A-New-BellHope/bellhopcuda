@@ -24,8 +24,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> bool RunRay(
-    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D, R3D> &params, int32_t job,
-    int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState)
+    RayInfo<O3D, R3D> *rayinfo, const bhcParams<O3D> &params, int32_t job, int32_t worker,
+    RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState)
 {
     if(job >= rayinfo->NRays || worker >= GetInternal(params)->numThreads) {
         RunError(errState, BHC_ERR_JOBNUM);
@@ -108,22 +108,22 @@ template<bool O3D, bool R3D> bool RunRay(
 
 #if BHC_ENABLE_2D
 template bool RunRay<false, false>(
-    RayInfo<false, false> *rayinfo, const bhcParams<false, false> &params, int32_t job,
+    RayInfo<false, false> *rayinfo, const bhcParams<false> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 #endif
 #if BHC_ENABLE_NX2D
 template bool RunRay<true, false>(
-    RayInfo<true, false> *rayinfo, const bhcParams<true, false> &params, int32_t job,
+    RayInfo<true, false> *rayinfo, const bhcParams<true> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 #endif
 #if BHC_ENABLE_3D
 template bool RunRay<true, true>(
-    RayInfo<true, true> *rayinfo, const bhcParams<true, true> &params, int32_t job,
+    RayInfo<true, true> *rayinfo, const bhcParams<true> &params, int32_t job,
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 #endif
 
 template<bool O3D, bool R3D> void RayModeWorker(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs, int32_t worker,
+    const bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, int32_t worker,
     ErrState *errState)
 {
     SetupThread();
@@ -141,22 +141,22 @@ template<bool O3D, bool R3D> void RayModeWorker(
 
 #if BHC_ENABLE_2D
 template void RayModeWorker<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs,
-    int32_t worker, ErrState *errState);
+    const bhcParams<false> &params, bhcOutputs<false, false> &outputs, int32_t worker,
+    ErrState *errState);
 #endif
 #if BHC_ENABLE_NX2D
 template void RayModeWorker<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs,
-    int32_t worker, ErrState *errState);
+    const bhcParams<true> &params, bhcOutputs<true, false> &outputs, int32_t worker,
+    ErrState *errState);
 #endif
 #if BHC_ENABLE_3D
 template void RayModeWorker<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs, int32_t worker,
+    const bhcParams<true> &params, bhcOutputs<true, true> &outputs, int32_t worker,
     ErrState *errState);
 #endif
 
 template<bool O3D, bool R3D> void RunRayMode(
-    bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs)
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
     ErrState errState;
     ResetErrState(&errState);
@@ -172,15 +172,15 @@ template<bool O3D, bool R3D> void RunRayMode(
 
 #if BHC_ENABLE_2D
 template void RunRayMode<false, false>(
-    bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 #endif
 #if BHC_ENABLE_NX2D
 template void RunRayMode<true, false>(
-    bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #endif
 #if BHC_ENABLE_3D
 template void RunRayMode<true, true>(
-    bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 }} // namespace bhc::mode

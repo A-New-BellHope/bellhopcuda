@@ -23,22 +23,22 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void PostProcessTL(
-    const bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs);
+    const bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
 extern template void PostProcessTL<false, false>(
-    const bhcParams<false, false> &params, bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, bhcOutputs<false, false> &outputs);
 extern template void PostProcessTL<true, false>(
-    const bhcParams<true, false> &params, bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 extern template void PostProcessTL<true, true>(
-    const bhcParams<true, true> &params, bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> void WriteOutTL(
-    const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs);
+    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs);
 extern template void WriteOutTL<false, false>(
-    const bhcParams<false, false> &params, const bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs);
 extern template void WriteOutTL<true, false>(
-    const bhcParams<true, false> &params, const bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs);
 extern template void WriteOutTL<true, true>(
-    const bhcParams<true, true> &params, const bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
 
 template<bool O3D, bool R3D> class TL : public Field<O3D, R3D> {
 public:
@@ -50,8 +50,7 @@ public:
         outputs.uAllSources = nullptr;
     }
 
-    virtual void Preprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         Field<O3D, R3D>::Preprocess(params, outputs);
 
@@ -64,20 +63,18 @@ public:
         memset(outputs.uAllSources, 0, n * sizeof(cpxf));
     }
 
-    virtual void Postprocess(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Postprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         PostProcessTL<O3D, R3D>(params, outputs);
     }
 
     virtual void Writeout(
-        const bhcParams<O3D, R3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
     {
         WriteOutTL<O3D, R3D>(params, outputs);
     }
 
-    virtual void Finalize(
-        bhcParams<O3D, R3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
     {
         trackdeallocate(params, outputs.uAllSources);
     }
