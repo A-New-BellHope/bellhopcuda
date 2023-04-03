@@ -57,6 +57,16 @@ public:
         ReadVector(params, params.Pos->Sz, params.Pos->NSz, ENVFile, DescriptionS);
         ReadVector(params, params.Pos->Rz, params.Pos->NRz, ENVFile, DescriptionR);
     }
+    void ExtSetupSz(bhcParams<O3D> &params, int32_t NSz) const
+    {
+        params.Pos->NSz = NSz;
+        trackallocate(params, DescriptionS, params.Pos->Sz, params.Pos->NSz);
+    }
+    void ExtSetupRz(bhcParams<O3D> &params, int32_t NRz) const
+    {
+        params.Pos->NRz = NRz;
+        trackallocate(params, DescriptionR, params.Pos->Rz, params.Pos->NRz);
+    }
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;

@@ -48,8 +48,7 @@ public:
     virtual void Default(bhcParams<O3D> &params) const override
     {
         trackallocate(
-            params, "default frequencies", params.freqinfo->freqVec,
-            params.freqinfo->Nfreq);
+            params, Description, params.freqinfo->freqVec, params.freqinfo->Nfreq);
         params.freqinfo->freqVec[0] = params.freqinfo->freq0;
     }
     virtual void Read(bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &) const override
@@ -61,6 +60,12 @@ public:
         } else {
             Default(params);
         }
+    }
+    void ExtSetup(bhcParams<O3D> &params, int32_t Nfreq) const
+    {
+        params.freqinfo->Nfreq = Nfreq;
+        trackallocate(
+            params, Description, params.freqinfo->freqVec, params.freqinfo->Nfreq);
     }
     virtual void Validate(bhcParams<O3D> &params) const override
     {

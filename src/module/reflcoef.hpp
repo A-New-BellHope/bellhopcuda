@@ -78,6 +78,14 @@ public:
         refltb->inDegrees = true;
     }
 
+    void ExtSetup(bhcParams<O3D> &params, int32_t NPts) const
+    {
+        ReflectionInfoTopBot *refltb = GetReflTopBot(params);
+        GetModeFlag(params)          = 'F';
+        refltb->NPts                 = size;
+        trackallocate(params, "reflection coefficients", refltb->r, refltb->NPts);
+    }
+
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         if constexpr(!ISTOP) {
@@ -139,15 +147,14 @@ private:
         else
             return &params.refl->bot;
     }
-    bool IsFile(bhcParams<O3D> &params) const
+    char &GetModeFlag(bhcParams<O3D> &params) const
     {
-        char opt;
         if constexpr(ISTOP)
-            opt = params.Bdry->Top.hs.Opt[1];
+            return params.Bdry->Top.hs.Opt[1];
         else
-            opt = params.Bdry->Bot.hs.Opt[0];
-        return opt == 'F';
+            return params.Bdry->Bot.hs.Opt[0];
     }
+    bool IsFile(bhcParams<O3D> &params) const { return GetModeFlag(params) == 'F'; }
     constexpr static const char *s_topbottom = ISTOP ? "top   " : "bottom";
     constexpr static const char *s_TopBottom = ISTOP ? "Top" : "Bottom";
     constexpr static const char *s_extension = ISTOP ? ".trc" : ".brc";

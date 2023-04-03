@@ -57,6 +57,13 @@ public:
             Default(params);
         }
     }
+    void ExtSetup(bhcParams<O3D> &params, int32_t NSx, int32_t NSy) const
+    {
+        params.Pos->NSx = NSx;
+        params.Pos->NSy = NSy;
+        trackallocate(params, DescriptionX, params.Pos->Sx, params.Pos->NSx);
+        trackallocate(params, DescriptionY, params.Pos->Sy, params.Pos->NSy);
+    }
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         if(params.Pos->NSx * params.Pos->NSy * params.Pos->NSz <= 0) {

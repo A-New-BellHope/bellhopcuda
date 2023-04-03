@@ -37,7 +37,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "module/beaminfo.hpp"
 #include "module/boundary.hpp"
 #include "module/reflcoef.hpp"
-#include "module/pat.hpp"
+#include "module/sbp.hpp"
 
 #include "mode/modemodule.hpp"
 #include "mode/ray.hpp"
@@ -76,7 +76,7 @@ public:
         modules.push_back(new Bathymetry<O3D>());
         modules.push_back(new BRC<O3D>());
         modules.push_back(new TRC<O3D>());
-        modules.push_back(new Pat<O3D>());
+        modules.push_back(new SBP<O3D>());
     }
     ~ModulesList()
     {
@@ -200,6 +200,12 @@ template<bool O3D, bool R3D> bool setup(
         Stopwatch sw(GetInternal(params));
         sw.tick();
 
+        if(GetInternal(params)->maxMemory < 8000000u) {
+            EXTERR(
+                "%d bytes is an unreasonably small amount of memory to "
+                "ask " BHC_PROGRAMNAME " to limit itself to",
+                GetInternal(params).maxMemory);
+        }
 #ifdef BHC_BUILD_CUDA
         setupGPU(params);
 #endif
@@ -434,6 +440,181 @@ finalize<true, false>(bhcParams<true> &params, bhcOutputs<true, false> &outputs)
 #if BHC_ENABLE_3D
 template void BHC_API
 finalize<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+template<bool O3D> void extsetup_sxsy(bhcParams<O3D> &params, int32_t NSx, int32_t NSy)
+{
+    SxSy<O3D> pm;
+    pm.ExtSetup(params, NSx, NSy);
+}
+#if BHC_ENABLE_2D
+template void extsetup_sxsy<false>(bhcParams<false> &params, int32_t NSx, int32_t NSy);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_sxsy<true>(bhcParams<true> &params, int32_t NSx, int32_t NSy);
+#endif
+
+template<bool O3D> void extsetup_sz(bhcParams<O3D> &params, int32_t NSz)
+{
+    SzRz<O3D> pm;
+    pm.ExtSetupSz(params, NSz);
+}
+#if BHC_ENABLE_2D
+template void extsetup_sz<false>(bhcParams<false> &params, int32_t NSz);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_sz<true>(bhcParams<true> &params, int32_t NSz);
+#endif
+
+template<bool O3D> void extsetup_rcvrranges(bhcParams<O3D> &params, int32_t NRr)
+{
+    RcvrRanges<O3D> pm;
+    pm.ExtSetup(params, NRr);
+}
+#if BHC_ENABLE_2D
+template void extsetup_rcvrranges<false>(bhcParams<false> &params, int32_t NRr);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_rcvrranges<true>(bhcParams<true> &params, int32_t NRr);
+#endif
+
+template<bool O3D> void extsetup_rcvrdepths(bhcParams<O3D> &params, int32_t NRz)
+{
+    SzRz<O3D> pm;
+    pm.ExtSetupRz(params, NRz);
+}
+#if BHC_ENABLE_2D
+template void extsetup_rcvrdepths<false>(bhcParams<false> &params, int32_t NRz);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_rcvrdepths<true>(bhcParams<true> &params, int32_t NRz);
+#endif
+
+template<bool O3D> void extsetup_rcvrbearings(bhcParams<O3D> &params, int32_t Ntheta)
+{
+    RcvrBearings<O3D> pm;
+    pm.ExtSetup(params, Ntheta);
+}
+#if BHC_ENABLE_2D
+template void extsetup_rcvrbearings<false>(bhcParams<false> &params, int32_t Ntheta);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_rcvrbearings<true>(bhcParams<true> &params, int32_t Ntheta);
+#endif
+
+template<bool O3D> void extsetup_rayelevations(bhcParams<O3D> &params, int32_t n)
+{
+    RayAnglesElevation<O3D> pm;
+    pm.ExtSetup(params, n);
+}
+#if BHC_ENABLE_2D
+template void extsetup_rayelevations<false>(bhcParams<false> &params, int32_t n);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_rayelevations<true>(bhcParams<true> &params, int32_t n);
+#endif
+
+template<bool O3D> void extsetup_raybearings(bhcParams<O3D> &params, int32_t n)
+{
+    RayAnglesBearing<O3D> pm;
+    pm.ExtSetup(params, n);
+}
+#if BHC_ENABLE_2D
+template void extsetup_raybearings<false>(bhcParams<false> &params, int32_t n);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_raybearings<true>(bhcParams<true> &params, int32_t n);
+#endif
+
+template<bool O3D> void extsetup_sbp(bhcParams<O3D> &params, int32_t NSBPPts)
+{
+    SBP<O3D> pm;
+    pm.ExtSetup(params, NSBPPts);
+}
+#if BHC_ENABLE_2D
+template void extsetup_sbp<false>(bhcParams<false> &params, int32_t NSBPPts);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_sbp<true>(bhcParams<true> &params, int32_t NSBPPts);
+#endif
+
+template<bool O3D> void extsetup_freqvec(bhcParams<O3D> &params, int32_t Nfreq)
+{
+    FreqVec<O3D> pm;
+    pm.ExtSetup(params, Nfreq);
+}
+#if BHC_ENABLE_2D
+template void extsetup_freqvec<false>(bhcParams<false> &params, int32_t Nfreq);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_freqvec<true>(bhcParams<true> &params, int32_t Nfreq);
+#endif
+
+template<bool O3D> void extsetup_altimetry(bhcParams<O3D> &params, const IORI2<O3D> &NPts)
+{
+    Altimetry<O3D> pm;
+    pm.ExtSetup(params, size);
+}
+#if BHC_ENABLE_2D
+template void extsetup_altimetry<false>(
+    bhcParams<false> &params, const IORI2<false> &NPts);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_altimetry<true>(bhcParams<true> &params, const IORI2<true> &NPts);
+#endif
+
+template<bool O3D> void extsetup_bathymetry(
+    bhcParams<O3D> &params, const IORI2<O3D> &NPts)
+{
+    Bathymetry<O3D> pm;
+    pm.ExtSetup(params, size);
+}
+#if BHC_ENABLE_2D
+template void extsetup_bathymetry<false>(
+    bhcParams<false> &params, const IORI2<false> &NPts);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_bathymetry<true>(bhcParams<true> &params, const IORI2<true> &NPts);
+#endif
+
+template<bool O3D> void extsetup_trc(bhcParams<O3D> &params, int32_t NPts)
+{
+    TRC<O3D> pm;
+    pm.ExtSetup(params, NPts);
+}
+#if BHC_ENABLE_2D
+template void extsetup_trc<false>(bhcParams<false> &params, int32_t NPts);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_trc<true>(bhcParams<true> &params, int32_t NPts);
+#endif
+
+template<bool O3D> void extsetup_brc(bhcParams<O3D> &params, int32_t NPts)
+{
+    BRC<O3D> pm;
+    pm.ExtSetup(params, NPts);
+}
+#if BHC_ENABLE_2D
+template void extsetup_brc<false>(bhcParams<false> &params, int32_t NPts);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template void extsetup_brc<true>(bhcParams<true> &params, int32_t NPts);
+#endif
+
+#if BHC_ENABLE_2D
+extern void extsetup_ssp_quad(bhcParams<false> &params, int32_t NPts, int32_t Nr)
+{
+    SSP<false> pm;
+    pm.ExtSetup(params, NPts, Nr, 0);
+}
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+extern void extsetup_ssp_hexahedral(
+    bhcParams<true> &params, int32_t Nx, int32_t Ny, int32_t Nz)
+{
+    SSP<true> pm;
+    pm.ExtSetup(params, Nx, Ny, Nz);
+}
 #endif
 
 } // namespace bhc

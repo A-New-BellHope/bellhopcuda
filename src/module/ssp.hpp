@@ -113,10 +113,7 @@ public:
             LIST(SSPFile);
             SSPFile.Read(ssp->Nr);
 
-            trackallocate(params, "quad SSP", ssp->cMat, ssp->NPts * ssp->Nr);
-            trackallocate(
-                params, "quad SSP derivatives", ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
-            trackallocate(params, "quad SSP ranges", ssp->Seg.r, ssp->Nr);
+            AllocateArrays(params);
 
             LIST(SSPFile);
             SSPFile.Read(ssp->Seg.r, ssp->Nr);
@@ -154,11 +151,7 @@ public:
             SSPFile.Read(ssp->Seg.z, ssp->Nz);
             SegZToZ(params);
 
-            trackallocate(
-                params, "hexahedral SSP values", ssp->cMat, ssp->Nx * ssp->Ny * ssp->Nz);
-            trackallocate(
-                params, "hexahedral SSP derivatives", ssp->czMat,
-                ssp->Nx * ssp->Ny * (ssp->Nz - 1));
+            AllocateArrays(params);
 
             for(int32_t iz2 = 0; iz2 < ssp->Nz; ++iz2) {
                 for(int32_t iy2 = 0; iy2 < ssp->Ny; ++iy2) {
@@ -177,6 +170,30 @@ public:
         // LP: Must be here, used later in env setup.
         params.Bdry->Top.hs.Depth = params.ssp->z[0];
         // [mbp:] bottom depth should perhaps be set the same way?
+    }
+
+    void ExtSetup(
+        bhcParams<O3D> &params, int32_t NPts_Nx, int32_t Nr_Ny,
+        [[maybe_unused]] int32_t None_Nz) const
+    {
+        SSPStructure *ssp = params.ssp;
+        if constexpr(!O3D) {
+            // quad
+            ssp->Type = 'Q';
+            ssp->NPts = NPts_Nx;
+            ssp->Nr   = Nr_Ny;
+        } else {
+            // hexahedral
+            ssp->Type = 'H';
+            ssp->Nx   = NPts_Nx;
+            ssp->Ny   = Nr_Ny;
+            ssp->Nz   = None_Nz;
+            trackallocate(params, "hexahedral SSP grid", ssp->Seg.x, ssp->Nx);
+            trackallocate(params, "hexahedral SSP grid", ssp->Seg.y, ssp->Ny);
+            trackallocate(params, "hexahedral SSP grid", ssp->Seg.z, ssp->Nz);
+        }
+        AllocateArrays(params);
+        ssp->dirty = true;
     }
 
     virtual void Validate(bhcParams<O3D> &params) const override
@@ -444,6 +461,24 @@ private:
             // LP: These are not well-defined, make sure they're not used
             ssp->c[iz]  = NAN;
             ssp->cz[iz] = NAN;
+        }
+    }
+    void AllocateArrays(bhcParams<O3D> &params) const
+    {
+        SSPStructure *ssp = params.ssp;
+        if constexpr(!O3D) {
+            // quad
+            trackallocate(params, "quad SSP", ssp->cMat, ssp->NPts * ssp->Nr);
+            trackallocate(
+                params, "quad SSP derivatives", ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
+            trackallocate(params, "quad SSP ranges", ssp->Seg.r, ssp->Nr);
+        } else {
+            // hexahedral
+            trackallocate(
+                params, "hexahedral SSP values", ssp->cMat, ssp->Nx * ssp->Ny * ssp->Nz);
+            trackallocate(
+                params, "hexahedral SSP derivatives", ssp->czMat,
+                ssp->Nx * ssp->Ny * (ssp->Nz - 1));
         }
     }
 };

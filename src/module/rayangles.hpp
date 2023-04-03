@@ -93,6 +93,13 @@ public:
         }
     }
 
+    void ExtSetup(bhcParams<O3D> &params, int32_t n) const
+    {
+        AngleInfo &a = GetAngle(params);
+        a.n          = n;
+        trackallocate(params, FuncName, a.angles, a.n);
+    }
+
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         AngleInfo &a = GetAngle(params);

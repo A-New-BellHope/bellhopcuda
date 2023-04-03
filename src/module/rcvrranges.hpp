@@ -46,6 +46,11 @@ public:
     {
         ReadVector(params, params.Pos->Rr, params.Pos->NRr, ENVFile, Description2);
     }
+    void ExtSetup(bhcParams<O3D> &params, int32_t NRr) const
+    {
+        params.Pos->NRr = NRr;
+        trackallocate(params, Description2, params.Pos->Rr, params.Pos->NRr);
+    }
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         ValidateVector(params, params.Pos->Rr, params.Pos->NRr, Description2);

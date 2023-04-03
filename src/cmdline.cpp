@@ -145,13 +145,6 @@ int main(int argc, char **argv)
                         return 1;
                     }
                     init.maxMemory = multiplier * std::stoi(value);
-                    if(init.maxMemory < 8000000u) {
-                        std::cout << init.maxMemory
-                                  << " bytes is an unreasonably small "
-                                     "amount of memory to ask " BHC_PROGRAMNAME
-                                     " to limit itself to\n";
-                        return 1;
-                    }
                 } else {
                     std::cout << "Unknown command-line option \"-" << key << "=" << value
                               << "\", try " << argv[0] << " --help\n";

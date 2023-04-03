@@ -179,6 +179,21 @@ public:
         if constexpr(O3D) bdinfotb->type[1] = ' ';
     }
 
+    void ExtSetup(bhcParams<O3D> &params, const IORI2<O3D> &size) const
+    {
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        GetModeFlag(params)           = '~';
+        bdinfotb->dirty               = true;
+        bdinfotb->NPts                = size;
+        if constexpr(O3D) {
+            trackallocate(
+                params, s_altimetrybathymetry, bdinfotb->bd,
+                bdinfotb->NPts.x * bdinfotb->NPts.y);
+        } else {
+            trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, bdinfotb->NPts);
+        }
+    }
+
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
@@ -391,14 +406,17 @@ public:
 private:
     constexpr static real NegTop = ISTOP ? RL(-1.0) : RL(1.0);
 
+    char &GetModeFlag(bhcParams<O3D> &params) const
+    {
+        if constexpr(ISTOP)
+            return params.Bdry->Top.hs.Opt[4];
+        else
+            return params.Bdry->Bot.hs.Opt[1];
+    }
     bool IsFile(bhcParams<O3D> &params) const
     {
-        char BdryDefMode;
-        if constexpr(ISTOP)
-            BdryDefMode = params.Bdry->Top.hs.Opt[4];
-        else
-            BdryDefMode = params.Bdry->Bot.hs.Opt[1];
-        return BdryDefMode == '~' || BdryDefMode == '*';
+        char flag = GetModeFlag(params);
+        return flag == '~' || flag == '*';
     }
     real BdryDepth(bhcParams<O3D> &params) const
     {

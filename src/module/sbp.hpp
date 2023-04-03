@@ -22,12 +22,12 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc { namespace module {
 
 /**
- * Source Beam Pattern
+ * Source Beam Pattern, formerly "Pat" (as in ReadPat)
  */
-template<bool O3D> class Pat : public ParamsModule<O3D> {
+template<bool O3D> class SBP : public ParamsModule<O3D> {
 public:
-    Pat() {}
-    virtual ~Pat() {}
+    SBP() {}
+    virtual ~SBP() {}
 
     virtual void Init(bhcParams<O3D> &params) const override
     {
@@ -69,12 +69,18 @@ public:
 
         LIST(SBPFile);
         SBPFile.Read(sbp->NSBPPts);
-        trackallocate(params, "source beam pattern", sbp->SrcBmPat, sbp->NSBPPts * 2);
+        trackallocate(params, Description, sbp->SrcBmPat, sbp->NSBPPts * 2);
 
         for(int32_t i = 0; i < sbp->NSBPPts; ++i) {
             LIST(SBPFile);
             SBPFile.Read(&sbp->SrcBmPat[2 * i], 2);
         }
+    }
+
+    void ExtSetup(bhcParams<O3D> &params, int32_t NSBPPts) const
+    {
+        params.sbp->NSBPPts = NSBPPts;
+        trackallocate(params, Description, params.sbp->SrcBmPat, params.sbp->NSBPPts);
     }
 
     virtual void Validate(bhcParams<O3D> &params) const override
@@ -124,6 +130,9 @@ public:
     {
         trackdeallocate(params, params.sbp->SrcBmPat);
     }
+
+private:
+    constexpr static const char *Description = "source beam pattern";
 };
 
 }} // namespace bhc::module
