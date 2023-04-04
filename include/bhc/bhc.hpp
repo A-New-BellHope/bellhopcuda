@@ -98,48 +98,55 @@ extern template BHC_API bool setup<true, true>(
  * meters.
  */
 template<bool O3D> void extsetup_sxsy(bhcParams<O3D> &params, int32_t NSx, int32_t NSy);
-extern template void extsetup_sxsy<false>(
+extern template BHC_API void extsetup_sxsy<false>(
     bhcParams<false> &params, int32_t NSx, int32_t NSy);
-extern template void extsetup_sxsy<true>(
+extern template BHC_API void extsetup_sxsy<true>(
     bhcParams<true> &params, int32_t NSx, int32_t NSy);
 /**
  * Reallocate the source Z positions (depths) to the given size. Depth values
  * are always specified in meters.
  */
 template<bool O3D> void extsetup_sz(bhcParams<O3D> &params, int32_t NSz);
-extern template void extsetup_sz<false>(bhcParams<false> &params, int32_t NSz);
-extern template void extsetup_sz<true>(bhcParams<true> &params, int32_t NSz);
+extern template BHC_API void extsetup_sz<false>(bhcParams<false> &params, int32_t NSz);
+extern template BHC_API void extsetup_sz<true>(bhcParams<true> &params, int32_t NSz);
 /**
  * Reallocate the receiver ranges to the given size. Set params.Pos->RrInKm
  * depending on whether you enter the data in kilometers or meters.
  */
 template<bool O3D> void extsetup_rcvrranges(bhcParams<O3D> &params, int32_t NRr);
-extern template void extsetup_rcvrranges<false>(bhcParams<false> &params, int32_t NRr);
-extern template void extsetup_rcvrranges<true>(bhcParams<true> &params, int32_t NRr);
+extern template BHC_API void extsetup_rcvrranges<false>(
+    bhcParams<false> &params, int32_t NRr);
+extern template BHC_API void extsetup_rcvrranges<true>(
+    bhcParams<true> &params, int32_t NRr);
 /**
  * Reallocate the receiver Z positions (depths) to the given size. Depth values
  * are always specified in meters.
  */
 template<bool O3D> void extsetup_rcvrdepths(bhcParams<O3D> &params, int32_t NRz);
-extern template void extsetup_rcvrdepths<false>(bhcParams<false> &params, int32_t NRz);
-extern template void extsetup_rcvrdepths<true>(bhcParams<true> &params, int32_t NRz);
+extern template BHC_API void extsetup_rcvrdepths<false>(
+    bhcParams<false> &params, int32_t NRz);
+extern template BHC_API void extsetup_rcvrdepths<true>(
+    bhcParams<true> &params, int32_t NRz);
 /**
  * Reallocate the receiver bearing angles to the given size. In 2D mode, there
  * must be exactly one bearing angle of 0.0; it is set up this way by default so
  * you never need to call this function. Receiver bearings are always in degrees.
  */
 template<bool O3D> void extsetup_rcvrbearings(bhcParams<O3D> &params, int32_t Ntheta);
-extern template void extsetup_rcvrbearings<false>(
+extern template BHC_API void extsetup_rcvrbearings<false>(
     bhcParams<false> &params, int32_t Ntheta);
-extern template void extsetup_rcvrbearings<true>(bhcParams<true> &params, int32_t Ntheta);
+extern template BHC_API void extsetup_rcvrbearings<true>(
+    bhcParams<true> &params, int32_t Ntheta);
 /**
  * Reallocate the ray elevation angles to the given size. Set
  * params.Angles->alpha.inDegrees depending on whether you enter the data in
  * degrees or radians.
  */
 template<bool O3D> void extsetup_rayelevations(bhcParams<O3D> &params, int32_t n);
-extern template void extsetup_rayelevations<false>(bhcParams<false> &params, int32_t n);
-extern template void extsetup_rayelevations<true>(bhcParams<true> &params, int32_t n);
+extern template BHC_API void extsetup_rayelevations<false>(
+    bhcParams<false> &params, int32_t n);
+extern template BHC_API void extsetup_rayelevations<true>(
+    bhcParams<true> &params, int32_t n);
 /**
  * Reallocate the ray bearing angles to the given size. In 2D mode, there must
  * be exactly one bearing angle of 0.0; it is set up this way by default so you
@@ -148,8 +155,10 @@ extern template void extsetup_rayelevations<true>(bhcParams<true> &params, int32
  * depending on whether you enter the data in degrees or radians.
  */
 template<bool O3D> void extsetup_raybearings(bhcParams<O3D> &params, int32_t n);
-extern template void extsetup_raybearings<false>(bhcParams<false> &params, int32_t n);
-extern template void extsetup_raybearings<true>(bhcParams<true> &params, int32_t n);
+extern template BHC_API void extsetup_raybearings<false>(
+    bhcParams<false> &params, int32_t n);
+extern template BHC_API void extsetup_raybearings<true>(
+    bhcParams<true> &params, int32_t n);
 /**
  * Reallocate the source beam pattern to the given size. After calling this,
  * write angles (monotonic, -180.0 to 180.0) and levels into params.sbp->SrcBmPat
@@ -158,8 +167,9 @@ extern template void extsetup_raybearings<true>(bhcParams<true> &params, int32_t
  * amplitude.
  */
 template<bool O3D> void extsetup_sbp(bhcParams<O3D> &params, int32_t NSBPPts);
-extern template void extsetup_sbp<false>(bhcParams<false> &params, int32_t NSBPPts);
-extern template void extsetup_sbp<true>(bhcParams<true> &params, int32_t NSBPPts);
+extern template BHC_API void extsetup_sbp<false>(
+    bhcParams<false> &params, int32_t NSBPPts);
+extern template BHC_API void extsetup_sbp<true>(bhcParams<true> &params, int32_t NSBPPts);
 /**
  * Reallocate the broadband frequency vector to the given size. FreqVec
  * (broadband mode) is not properly supported in BELLHOP(3D)--these values have
@@ -168,8 +178,10 @@ extern template void extsetup_sbp<true>(bhcParams<true> &params, int32_t NSBPPts
  * SHDFile.
  */
 template<bool O3D> void extsetup_freqvec(bhcParams<O3D> &params, int32_t Nfreq);
-extern template void extsetup_freqvec<false>(bhcParams<false> &params, int32_t Nfreq);
-extern template void extsetup_freqvec<true>(bhcParams<true> &params, int32_t Nfreq);
+extern template BHC_API void extsetup_freqvec<false>(
+    bhcParams<false> &params, int32_t Nfreq);
+extern template BHC_API void extsetup_freqvec<true>(
+    bhcParams<true> &params, int32_t Nfreq);
 /**
  * Reallocate altimetry data to the given size (for 2D this is range, for
  * 3D/Nx2D this is X/Y). After calling this, fill in the coordinates of the
@@ -189,16 +201,16 @@ extern template void extsetup_freqvec<true>(bhcParams<true> &params, int32_t Nfr
  */
 template<bool O3D> void extsetup_altimetry(
     bhcParams<O3D> &params, const IORI2<O3D> &NPts);
-extern template void extsetup_altimetry<false>(
+extern template BHC_API void extsetup_altimetry<false>(
     bhcParams<false> &params, const IORI2<false> &NPts);
-extern template void extsetup_altimetry<true>(
+extern template BHC_API void extsetup_altimetry<true>(
     bhcParams<true> &params, const IORI2<true> &NPts);
 /// See extsetup_altimetry.
 template<bool O3D> void extsetup_bathymetry(
     bhcParams<O3D> &params, const IORI2<O3D> &NPts);
-extern template void extsetup_bathymetry<false>(
+extern template BHC_API void extsetup_bathymetry<false>(
     bhcParams<false> &params, const IORI2<false> &NPts);
-extern template void extsetup_bathymetry<true>(
+extern template BHC_API void extsetup_bathymetry<true>(
     bhcParams<true> &params, const IORI2<true> &NPts);
 /**
  * Reallocate the top reflection coefficients to the given size. This also sets
@@ -207,8 +219,8 @@ extern template void extsetup_bathymetry<true>(
  * 'V' (vacuum). Also set params.refl->top.inDegrees to the appropriate value.
  */
 template<bool O3D> void extsetup_trc(bhcParams<O3D> &params, int32_t NPts);
-extern template void extsetup_trc<false>(bhcParams<false> &params, int32_t NPts);
-extern template void extsetup_trc<true>(bhcParams<true> &params, int32_t NPts);
+extern template BHC_API void extsetup_trc<false>(bhcParams<false> &params, int32_t NPts);
+extern template BHC_API void extsetup_trc<true>(bhcParams<true> &params, int32_t NPts);
 /**
  * Reallocate the bottom reflection coefficients to the given size. This also sets
  * params.Bdry->Bot.hs.Opt[0] to 'F' (file) to use the reflection coefficients.
@@ -216,8 +228,8 @@ extern template void extsetup_trc<true>(bhcParams<true> &params, int32_t NPts);
  * 'R' (rigid). Also set params.refl->bot.inDegrees to the appropriate value.
  */
 template<bool O3D> void extsetup_brc(bhcParams<O3D> &params, int32_t NPts);
-extern template void extsetup_brc<false>(bhcParams<false> &params, int32_t NPts);
-extern template void extsetup_brc<true>(bhcParams<true> &params, int32_t NPts);
+extern template BHC_API void extsetup_brc<false>(bhcParams<false> &params, int32_t NPts);
+extern template BHC_API void extsetup_brc<true>(bhcParams<true> &params, int32_t NPts);
 /**
  * Set up and/or reallocate the SSP for quad mode (2D only). NPts is the number
  * of depths. Fill in params.ssp->z, params.ssp->Seg.r, and params.ssp->cMat[z *
@@ -241,7 +253,7 @@ extern template void extsetup_brc<true>(bhcParams<true> &params, int32_t NPts);
  *   above
  * - set the dirty flag
  */
-extern void extsetup_ssp_quad(bhcParams<false> &params, int32_t NPts, int32_t Nr);
+extern BHC_API void extsetup_ssp_quad(bhcParams<false> &params, int32_t NPts, int32_t Nr);
 /**
  * Set up and/or reallocate the SSP for hexahedral mode (3D/Nx2D only). Fill in
  * the X, Y, and Z coordinates (all monotonically increasing, but not
@@ -261,7 +273,7 @@ extern void extsetup_ssp_quad(bhcParams<false> &params, int32_t NPts, int32_t Nr
  * To set the SSP to a mode other than quad or hexahedral, an extsetup call is
  * not needed; see the doc for extsetup_ssp_quad() for more info.
  */
-extern void extsetup_ssp_hexahedral(
+extern BHC_API void extsetup_ssp_hexahedral(
     bhcParams<true> &params, int32_t Nx, int32_t Ny, int32_t Nz);
 
 /**
