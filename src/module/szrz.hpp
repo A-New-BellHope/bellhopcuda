@@ -43,7 +43,7 @@ public:
     virtual void Default(bhcParams<O3D> &params) const override
     {
         trackallocate(params, "default source z-coordinates", params.Pos->Sz, 1);
-        params.Pos->Sz[0] = RL(567.8);
+        params.Pos->Sz[0] = FL(567.8);
 
         params.Pos->NRz = 11;
         trackallocate(
@@ -120,8 +120,8 @@ public:
                 << "Warning in ReadSzRz : Receiver below or too near the bottom bdry has "
                    "been moved up\n";
 
-        ValidateVector(params, Pos->Sz, Pos->NSz, DescriptionS);
-        ValidateVector(params, Pos->Rz, Pos->NRz, DescriptionR);
+        ValidateVector(params, Pos->Sz, Pos->NSz, DescriptionS, true);
+        ValidateVector(params, Pos->Rz, Pos->NRz, DescriptionR, true);
     }
     virtual void Echo(bhcParams<O3D> &params) const override
     {

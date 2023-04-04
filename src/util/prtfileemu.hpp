@@ -19,7 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 #ifndef _BHC_INCLUDING_COMPONENTS_
-#error "Must be included from common_setup.hpp!"
+#error "Must be included from common.hpp!"
 #endif
 
 namespace bhc {
@@ -36,7 +36,8 @@ public:
         if(prtCallback == nullptr) {
             ofs.open(FileRoot + ".prt");
             if(!ofs.good()) {
-                ExternalError(internal, "Could not open print file: %s.prt", FileRoot);
+                ExternalError(
+                    internal, "Could not open print file: %s.prt", FileRoot.c_str());
             }
             ofs << std::unitbuf;
         } else {

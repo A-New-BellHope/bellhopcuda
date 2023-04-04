@@ -89,9 +89,10 @@ public:
                 / sizeof(rayPt<R3D>);
             rayinfo->isCopyMode = true;
         } else {
-            rayinfo->MaxPointsPerRay = (GetInternal(params)->maxMemory
-                                        - GetInternal(params)->usedMemory)
-                / ((size_t)rayinfo->NRays * sizeof(rayPt<R3D>));
+            rayinfo->MaxPointsPerRay = (int32_t)std::min(
+                (GetInternal(params)->maxMemory - GetInternal(params)->usedMemory)
+                    / ((size_t)rayinfo->NRays * sizeof(rayPt<R3D>)),
+                (size_t)0x7FFFFFFF);
             if(rayinfo->MaxPointsPerRay == 0) {
                 EXTERR("Insufficient memory to allocate any rays at all");
             } else if(rayinfo->MaxPointsPerRay < 500) {

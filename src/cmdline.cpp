@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 #if BHC_DIM_ONLY > 0
     if(dimmode != BHC_DIM_ONLY) {
         std::cout << "This version of " BHC_PROGRAMNAME " was compiled to only support ";
-        if(BHC_DIM_ONLY == 4) {
+        if constexpr(BHC_DIM_ONLY == 4) {
             std::cout << "Nx2D";
         } else {
             std::cout << BHC_DIM_ONLY << "D";

@@ -48,7 +48,9 @@ template<bool O3D, bool R3D> void PostProcessArrivals(
                             if constexpr(R3D) {
                                 factor = FL(1.0);
                             } else {
-                                if(!O3D && IsLineSource(params.Beam)) {
+                                bool line = false; // Silence MSVC warning
+                                if constexpr(!O3D) line = IsLineSource(params.Beam);
+                                if(line) {
                                     factor = FL(4.0) * STD::sqrt(REAL_PI);
                                 } else if(Pos->Rr[ir] == FL(0.0)) {
                                     // avoid /0 at origin

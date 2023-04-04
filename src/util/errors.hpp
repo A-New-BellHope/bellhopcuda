@@ -22,8 +22,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #error "Must be included from common.hpp!"
 #endif
 
-#include <cstdarg>
-
 namespace bhc {
 
 struct bhcInternal;

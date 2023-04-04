@@ -54,7 +54,8 @@ public:
         // (the rest for rays).
         constexpr size_t hitsMemFraction = 500;
         size_t mem     = GetInternal(params)->maxMemory - GetInternal(params)->usedMemory;
-        eigen->memsize = mem / (hitsMemFraction * sizeof(EigenHit));
+        eigen->memsize = (int32_t)
+            std::min(mem / (hitsMemFraction * sizeof(EigenHit)), (size_t)0x7FFFFFFF);
         if(eigen->memsize == 0) {
             EXTERR("Insufficient memory to allocate any eigen hits at all");
         } else if(eigen->memsize < 10000) {

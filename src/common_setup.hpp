@@ -20,6 +20,14 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "common.hpp"
 
+#include <cctype>
+#include <vector>
+#include <string>
+#include <locale>
+#include <algorithm>
+//#include <cfenv>
+#include <exception>
+
 // More includes below.
 
 namespace bhc {
@@ -127,52 +135,11 @@ inline bool endswith(const std::string &source, const std::string &target)
 } // namespace bhc
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
-#include "util/prtfileemu.hpp"
 #include "util/ldio.hpp"
 #include "util/bino.hpp"
-#include "util/timing.hpp"
-#ifdef BHC_BUILD_CUDA
-#include "util/UtilsCUDA.cuh"
-#endif
 #undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {
-
-////////////////////////////////////////////////////////////////////////////////
-// Internal
-////////////////////////////////////////////////////////////////////////////////
-
-struct bhcInternal {
-    void (*outputCallback)(const char *message);
-    std::string FileRoot;
-    PrintFileEmu PRTFile;
-    std::atomic<int32_t> sharedJobID;
-    int gpuIndex, d_multiprocs; // d_warp, d_maxthreads
-    int32_t numThreads;
-    size_t maxMemory;
-    size_t usedMemory;
-    bool useRayCopyMode;
-    bool noEnvFil;
-    uint8_t dim;
-
-    bhcInternal(const bhcInit &init, bool o3d, bool r3d)
-        : outputCallback(init.outputCallback),
-          FileRoot(
-              init.FileRoot == nullptr ? "error_incorrect_use_of_" BHC_PROGRAMNAME
-                                       : init.FileRoot),
-          PRTFile(this, this->FileRoot, init.prtCallback), gpuIndex(init.gpuIndex),
-          numThreads(ModifyNumThreads(init.numThreads)), maxMemory(init.maxMemory),
-          usedMemory(0), useRayCopyMode(init.useRayCopyMode),
-          noEnvFil(init.FileRoot == nullptr), dim(r3d       ? 3
-                                                      : o3d ? 4
-                                                            : 2)
-    {}
-};
-
-template<bool O3D> inline bhcInternal *GetInternal(const bhcParams<O3D> &params)
-{
-    return reinterpret_cast<bhcInternal *>(params.internal);
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // CUDA memory
@@ -238,12 +205,15 @@ template<> inline void Sort(cpx *arr, size_t n)
 /**
  * mbp: tests whether an input vector is strictly monotonically increasing
  */
-template<typename REAL> HOST_DEVICE inline bool monotonic(REAL *arr, size_t n)
+template<typename REAL> HOST_DEVICE inline bool monotonic(
+    REAL *arr, size_t n, bool repeatOK = false)
 {
     CHECK_REAL_T();
     if(n < 2) return true;
     for(size_t i = 0; i < n - 1; ++i) {
-        if(arr[i + 1] <= arr[i]) return false;
+        REAL next = arr[i + 1];
+        REAL cur  = arr[i];
+        if(next < cur || (next == cur && !repeatOK)) return false;
     }
     return true;
 }
@@ -350,10 +320,11 @@ template<bool O3D, typename REAL> inline void ReadVector(
 }
 
 template<bool O3D, typename REAL> inline void ValidateVector(
-    bhcParams<O3D> &params, REAL *&x, int32_t &Nx, const char *Description)
+    bhcParams<O3D> &params, REAL *&x, int32_t &Nx, const char *Description,
+    bool repeatOK = false)
 {
     if(Nx <= 0) { EXTERR("ValidateVector: Number of %s must be positive", Description); }
-    if(!monotonic(x, Nx)) {
+    if(!monotonic(x, Nx, repeatOK)) {
         EXTERR("ValidateVector: %s are not monotonically increasing", Description);
     }
 }

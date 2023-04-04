@@ -19,8 +19,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "field.hpp"
 #include "../common_run.hpp"
 
-#include <vector>
-
 namespace bhc { namespace mode {
 
 template<char RT, char IT, bool O3D, bool R3D> inline void RunFieldModesSelSSP(

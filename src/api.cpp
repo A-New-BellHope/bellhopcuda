@@ -341,7 +341,7 @@ template<bool O3D, bool R3D> inline mode::ModeModule<O3D, R3D> *GetMode(
         return new mode::Arr<O3D, R3D>();
     } else {
         EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
-        return nullptr;
+        // return nullptr;
     }
 }
 

@@ -30,20 +30,16 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <windows.h>
 #endif
 
-#include <iostream>
 #include <fstream>
 #include <sstream>
-#include <cstdio>
+#include <iostream>
 #include <iomanip>
-#include <cctype>
-#include <cinttypes>
+#include <cstdio>
 #include <cstring>
-#include <string>
-#include <locale>
-#include <algorithm>
-//#include <cfenv>
+#include <cinttypes>
+#include <cstdarg>
 #include <chrono>
-#include <exception>
+#include <thread>
 
 #define GLM_FORCE_EXPLICIT_CTOR 1
 #include <glm/common.hpp>
@@ -56,6 +52,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #ifdef BHC_BUILD_CUDA
 #include "cuda_runtime.h"
+#include "util/UtilsCUDA.cuh"
 #define HOST_DEVICE __host__ __device__
 // Requires the version of libcudacxx in CUDA 11.5 or later; use the newest CUDA
 // version available
@@ -399,5 +396,47 @@ HOST_DEVICE inline size_t GetFieldAddr(
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
 #include "util/errors.hpp"
+#include "util/prtfileemu.hpp"
+#include "util/timing.hpp"
 #include "runtype.hpp"
 #undef _BHC_INCLUDING_COMPONENTS_
+
+namespace bhc {
+
+////////////////////////////////////////////////////////////////////////////////
+// Internal
+////////////////////////////////////////////////////////////////////////////////
+
+struct bhcInternal {
+    void (*outputCallback)(const char *message);
+    std::string FileRoot;
+    PrintFileEmu PRTFile;
+    std::atomic<int32_t> sharedJobID;
+    int gpuIndex, d_multiprocs; // d_warp, d_maxthreads
+    int32_t numThreads;
+    size_t maxMemory;
+    size_t usedMemory;
+    bool useRayCopyMode;
+    bool noEnvFil;
+    uint8_t dim;
+
+    bhcInternal(const bhcInit &init, bool o3d, bool r3d)
+        : outputCallback(init.outputCallback),
+          FileRoot(
+              init.FileRoot == nullptr ? "error_incorrect_use_of_" BHC_PROGRAMNAME
+                                       : init.FileRoot),
+          PRTFile(this, this->FileRoot, init.prtCallback), gpuIndex(init.gpuIndex),
+          numThreads(ModifyNumThreads(init.numThreads)), maxMemory(init.maxMemory),
+          usedMemory(0), useRayCopyMode(init.useRayCopyMode),
+          noEnvFil(init.FileRoot == nullptr), dim(r3d       ? 3
+                                                      : o3d ? 4
+                                                            : 2)
+    {}
+};
+
+template<bool O3D> inline bhcInternal *GetInternal(const bhcParams<O3D> &params)
+{
+    return reinterpret_cast<bhcInternal *>(params.internal);
+}
+
+} // namespace bhc

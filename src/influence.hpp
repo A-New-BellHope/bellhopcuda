@@ -481,20 +481,22 @@ template<bool O3D, bool R3D> inline void PreRun_Influence(bhcParams<O3D> &params
             EXTERR(
                 IsCartesianInfl(params.Beam) ? "Run Type 'C' not supported at this time"
                                              : "Invalid Run Type");
-        } else if constexpr(O3D) {
-            if(IsCartesianInfl(params.Beam)) {
+        } else {
+            if constexpr(O3D) {
+                if(IsCartesianInfl(params.Beam)) {
 #ifdef BHC_LIMIT_FEATURES
-                EXTERR("Nx2D Cerveny Cartesian is not supported by BELLHOP3D "
-                       "but can be supported by " BHC_PROGRAMNAME " if you turn off "
-                       "BHC_LIMIT_FEATURES");
+                    EXTERR("Nx2D Cerveny Cartesian is not supported by BELLHOP3D "
+                           "but can be supported by " BHC_PROGRAMNAME " if you turn off "
+                           "BHC_LIMIT_FEATURES");
 #else
-                EXTWARN("Warning: Nx2D Cerveny Cartesian is not supported by "
-                        "BELLHOP3D, but is supported by " BHC_PROGRAMNAME);
+                    EXTWARN("Warning: Nx2D Cerveny Cartesian is not supported by "
+                            "BELLHOP3D, but is supported by " BHC_PROGRAMNAME);
 #endif
+                }
             }
-        }
-        if(!IsTLRun(params.Beam)) {
-            EXTERR("Cerveny influence does not support eigenrays or arrivals");
+            if(!IsTLRun(params.Beam)) {
+                EXTERR("Cerveny influence does not support eigenrays or arrivals");
+            }
         }
     } else if(IsSGBInfl(params.Beam)) {
         if constexpr(R3D) { EXTERR("Invalid Run Type"); }
@@ -908,9 +910,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
     }
     real qFinal = QScalar(qInterp);
 
-    real n1prime; // LP: equal to n1 in 2D, rotated & normalized in 3D (were a, b)
-    [[maybe_unused]] real n2prime;
-    real sigma, sigma_orig; // beam radius
+    real n1prime, sigma; // LP: equal to n1 in 2D, rotated & normalized in 3D (were a, b)
+    [[maybe_unused]] real n2prime, sigma_orig; // sigma = beam radius
     real beamCoordDist;
     if constexpr(R3D) {
         if constexpr(CFG::infl::IsCartesian()) {
@@ -1084,7 +1085,8 @@ Step_InfluenceGeoRayCen(
                 if(itheta >= Pos->Ntheta) break;
             }
 
-            real mA, mB, nA, nB, rA, rB;
+            [[maybe_unused]] real mA, mB;
+            real nA, nB, rA, rB;
             int32_t irA, irB;
             if constexpr(R3D) {
                 if(Compute_M_N_R_IR(

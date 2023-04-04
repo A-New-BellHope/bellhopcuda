@@ -321,7 +321,11 @@ public:
 
             // LP: BUG: Geoacoustics are supported for altimetry, but the
             // header for geoacoustics is only supported for bathymetry.
-            if(ISTOP || bdinfotb->type[1] == 'S' || bdinfotb->type[1] == ' ') {
+            bool shortFormat = true;
+            if constexpr(!ISTOP) {
+                shortFormat = bdinfotb->type[1] == 'S' || bdinfotb->type[1] == ' ';
+            }
+            if(shortFormat) {
                 if constexpr(!ISTOP) {
                     PRTFile << "Short format (" << s_altimetrybathymetry << " only)\n";
                 }

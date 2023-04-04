@@ -130,7 +130,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     ErrState *errState)
 {
     VEC23<R3D> nBdry_ray = OceanToRayT<O3D, R3D>(nBdry, org);
-    if(O3D && !R3D) nBdry_ray *= RL(1.0) / glm::length(nBdry_ray);
+    if constexpr(O3D && !R3D) nBdry_ray *= RL(1.0) / glm::length(nBdry_ray);
 
     real Th = glm::dot(oldPoint.t, nBdry_ray); // component of ray tangent, normal to
                                                // boundary

@@ -68,6 +68,7 @@ set(common_source
     mode/eigen.hpp
     mode/field.cpp
     mode/field.hpp
+    mode/fieldimpl.hpp
     mode/modemodule.hpp
     mode/ray.cpp
     mode/ray.hpp

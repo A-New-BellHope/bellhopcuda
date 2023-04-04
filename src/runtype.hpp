@@ -198,8 +198,10 @@ template<bool O3D> HOST_DEVICE inline const char *GetBeamTypeTag(
         if constexpr(O3D) return "Geometric beam, hat-shaped, Cart. coord.";
         [[fallthrough]];
     case 'g':
-        if constexpr(O3D) return "Geometric beam, hat-shaped, Ray coord.";
-        return "Geometric hat beams";
+        if constexpr(O3D)
+            return "Geometric beam, hat-shaped, Ray coord.";
+        else
+            return "Geometric hat beams";
     case 'B':
         if constexpr(O3D)
             return "Geometric beam, Gaussian-shaped, Cart. coord.";

@@ -71,18 +71,20 @@ struct rxyz_vector {
 };
 
 struct SSPStructure {
-    int32_t NPts, Nr, Nx, Ny, Nz;
-    real z[MaxSSP], rho[MaxSSP];
+    // LP: Start with complex values for alignment reasons.
     cpx c[MaxSSP], cz[MaxSSP], n2[MaxSSP], n2z[MaxSSP], cSpline[4][MaxSSP];
     cpx cCoef[4][MaxSSP], CSWork[4][MaxSSP]; // for PCHIP coefs.
     real *cMat, *czMat; // LP: No need for separate cMat3 / czMat3 as we don't have to
                         // specify the dimension here.
     rxyz_vector Seg;
-    char Type;
-    char AttenUnit[2];
+    real z[MaxSSP], rho[MaxSSP];
     real alphaR[MaxSSP], alphaI[MaxSSP];
     // LP: Not actually used, but echoed, so with new system need to store them
     real betaR[MaxSSP], betaI[MaxSSP];
+
+    int32_t NPts, Nr, Nx, Ny, Nz;
+    char Type;
+    char AttenUnit[2];
     bool rangeInKm; // Ranges (R, X, Y) specified in km, will be automatically converted
                     // to meters
     bool dirty;     // reset and update derived params
@@ -98,8 +100,8 @@ template<> struct SSPOutputsExtras<true> {
     real cxx, cyy, cxy, cxz, cyz;
 };
 template<bool X3D> struct SSPOutputs : public SSPOutputsExtras<X3D> {
-    cpx ccpx;
     VEC23<X3D> gradc;
+    cpx ccpx;
     real rho, czz;
 };
 
@@ -402,6 +404,8 @@ template<> struct rayPtExtras<true> {
     // real DetQ; LP: Precomputed at the start of Influence functions, only used
     // for detecting phase inversions. Changed to compute when needed.
     real phi;
+    // MSVC warns about rayPt<true> not being aligned for the cpx member
+    real dummy;
 };
 template<bool R3D> struct rayPt : public rayPtExtras<R3D> {
     int32_t NumTopBnc, NumBotBnc;
@@ -466,13 +470,13 @@ template<bool R3D> struct InfluenceRayInfo {
     real rcp_q0, rcp_qhat0;
     // LP: Variables carried over between iterations.
     real phase;
-    real qOld; // LP: Det_QOld in 3D
-    VEC23<R3D> x;
+    real qOld;               // LP: Det_QOld in 3D
     VEC23<R3D> rayn1, rayn2; // LP: rayn1 was rn, zn in 2D
+    VEC23<R3D> x;
+    cpx gamma;
     bool lastValid;
     int32_t kmah;
     int32_t ir;
-    cpx gamma;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

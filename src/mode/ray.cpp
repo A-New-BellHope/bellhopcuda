@@ -19,8 +19,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "ray.hpp"
 #include "../trace.hpp"
 
-#include <vector>
-
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> bool RunRay(

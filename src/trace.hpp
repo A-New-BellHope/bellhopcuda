@@ -396,7 +396,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     bool leftbox, escapedboundaries, toomanysmallsteps;
-    bool escaped0bdry, escapedNbdry;
     if constexpr(O3D) {
         vec3 x_o = RayToOceanX(point.x, org);
         vec3 t_o = RayToOceanT(point.t, org);
@@ -413,6 +412,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         real maxy = bhc::min(
             bdinfo->bot.bd[bdinfo->bot.NPts.y - 1].x.y,
             bdinfo->top.bd[bdinfo->top.NPts.y - 1].x.y);
+        bool escaped0bdry, escapedNbdry;
         escaped0bdry = x_o.x < minx || x_o.y < miny;
         escapedNbdry = x_o.x > maxx || x_o.y > maxy;
         // LP: See discussion in GetBdrySeg for why this was changed from the
@@ -426,8 +426,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     } else {
         leftbox = IsOutsideBeamBoxDim<false, 0>(point.x, Beam, xs)
             || IsOutsideBeamBoxDim<false, 1>(point.x, Beam, xs);
-        escaped0bdry = escapedNbdry = false;
-        escapedboundaries           = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0))
+        escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0))
             || (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
         toomanysmallsteps = false; // LP: The small step counter is never checked in 2D.
     }

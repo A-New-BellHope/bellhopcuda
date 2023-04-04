@@ -513,8 +513,12 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     // z-component of unit tangent is sin( theta ); we want cos( theta )
     // rmat[0][0] *= (FL(1.0) - SQ(ray.c * ray.t.z))
 
-    if(REFLECTVERSION && rmat[0][0] == RL(0.0) && rmat[0][1] == RL(0.0)
-       && rmat[1][1] == RL(0.0)) {
+    bool noCurvatureChange = false; // Silence MSVC warning
+    if constexpr(REFLECTVERSION) {
+        noCurvatureChange = rmat[0][0] == RL(0.0) && rmat[0][1] == RL(0.0)
+            && rmat[1][1] == RL(0.0);
+    }
+    if(noCurvatureChange) {
         // LP: There is no curvature change, but rotating p forward and back
         // can change it slightly due to floating-point imprecision, leading to
         // long-term divergence.

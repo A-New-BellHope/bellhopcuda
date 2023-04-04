@@ -19,8 +19,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "eigen.hpp"
 #include "../common_run.hpp"
 
-#include <vector>
-
 namespace bhc { namespace mode {
 
 template<bool O3D, bool R3D> void EigenModePostWorker(

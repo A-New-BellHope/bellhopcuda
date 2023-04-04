@@ -192,8 +192,10 @@ public:
 private:
     BdryPtSmall &GetBdry(const bhcParams<O3D> &params) const
     {
-        if constexpr(ISTOP) return params.Bdry->Top;
-        return params.Bdry->Bot;
+        if constexpr(ISTOP)
+            return params.Bdry->Top;
+        else
+            return params.Bdry->Bot;
     }
 };
 

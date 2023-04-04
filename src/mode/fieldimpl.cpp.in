@@ -16,10 +16,9 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#include "@CMAKE_SOURCE_DIR@/src/mode/field.hpp"
+#include "@CMAKE_SOURCE_DIR@/src/mode/fieldimpl.hpp"
 #include "@CMAKE_SOURCE_DIR@/src/trace.hpp"
 
-#include <thread>
 #include <vector>
 
 namespace bhc { namespace mode {
@@ -31,6 +30,7 @@ template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
     bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs,
     ErrState *errState)
 {
+    SetupThread();
     while(true) {
         int32_t job = GetInternal(params)->sharedJobID++;
         RayInitInfo rinit;
