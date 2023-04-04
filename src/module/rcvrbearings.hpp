@@ -60,7 +60,7 @@ public:
     void ExtSetup(bhcParams<O3D> &params, int32_t Ntheta) const
     {
         params.Pos->Ntheta = Ntheta;
-        trackallocate(params, DescriptionS, params.Pos->theta, params.Pos->Ntheta);
+        trackallocate(params, Description, params.Pos->theta, params.Pos->Ntheta);
     }
     virtual void Validate(bhcParams<O3D> &params) const override
     {

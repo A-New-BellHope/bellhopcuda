@@ -83,12 +83,12 @@ set(common_source
     module/freqvec.hpp
     module/nmedia.hpp
     module/paramsmodule.hpp
-    module/pat.hpp
     module/rayangles.hpp
     module/rcvrbearings.hpp
     module/rcvrranges.hpp
     module/reflcoef.hpp
     module/runtype.hpp
+    module/sbp.hpp
     module/ssp.hpp
     module/sxsy.hpp
     module/szrz.hpp

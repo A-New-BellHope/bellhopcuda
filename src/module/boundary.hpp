@@ -179,12 +179,12 @@ public:
         if constexpr(O3D) bdinfotb->type[1] = ' ';
     }
 
-    void ExtSetup(bhcParams<O3D> &params, const IORI2<O3D> &size) const
+    void ExtSetup(bhcParams<O3D> &params, const IORI2<O3D> &NPts) const
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         GetModeFlag(params)           = '~';
         bdinfotb->dirty               = true;
-        bdinfotb->NPts                = size;
+        bdinfotb->NPts                = NPts;
         if constexpr(O3D) {
             trackallocate(
                 params, s_altimetrybathymetry, bdinfotb->bd,

@@ -82,7 +82,7 @@ public:
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         GetModeFlag(params)          = 'F';
-        refltb->NPts                 = size;
+        refltb->NPts                 = NPts;
         trackallocate(params, "reflection coefficients", refltb->r, refltb->NPts);
     }
 
