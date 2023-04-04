@@ -265,6 +265,20 @@ extern void extsetup_ssp_hexahedral(
     bhcParams<true> &params, int32_t Nx, int32_t Ny, int32_t Nz);
 
 /**
+ * Validates the state of params and writes a summary of the state to the
+ * PRTFile or callback. This is done automatically as part of setup() if you
+ * started from an environment file, but if you started from defaults and then
+ * wrote your own data in, you might want to check whether that data is correct.
+ * (The validation step is also performed as part of run().)
+ */
+template<bool O3D> bool echo(bhcParams<O3D> &params);
+
+/// 2D version, see template.
+extern template BHC_API bool echo<false>(bhcParams<false> &params);
+/// 3D or Nx2D version, see template.
+extern template BHC_API bool echo<true>(bhcParams<true> &params);
+
+/**
  * Runs the selected run type and places the results in the appropriate struct
  * within outputs.
  *
@@ -276,7 +290,7 @@ template<bool O3D, bool R3D> bool run(
 /// 2D version, see template.
 extern template BHC_API bool run<false, false>(
     bhcParams<false> &params, bhcOutputs<false, false> &outputs);
-/// Nx2D or 2D-3D version, see template.
+/// Nx2D version, see template.
 extern template BHC_API bool run<true, false>(
     bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
@@ -296,7 +310,7 @@ template<bool O3D, bool R3D> bool writeout(
 /// 2D version, see template.
 extern template BHC_API bool writeout<false, false>(
     const bhcParams<false> &params, const bhcOutputs<false, false> &outputs);
-/// Nx2D or 2D-3D version, see template.
+/// Nx2D version, see template.
 extern template BHC_API bool writeout<true, false>(
     const bhcParams<true> &params, const bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
@@ -313,7 +327,7 @@ template<bool O3D, bool R3D> void finalize(
 /// 2D version, see template.
 extern template BHC_API void finalize<false, false>(
     bhcParams<false> &params, bhcOutputs<false, false> &outputs);
-/// Nx2D or 2D-3D version, see template.
+/// Nx2D version, see template.
 extern template BHC_API void finalize<true, false>(
     bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.

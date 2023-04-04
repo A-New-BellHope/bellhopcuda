@@ -249,6 +249,7 @@ template<bool O3D, bool R3D> bool setup(
                 m->Default(params);
                 m->SetupPost(params);
             }
+            for(auto *m : modules.list()) { m->Validate(params); }
         } else {
             // Values only initialized once--reused from top to ssp, and ssp to bot
             HSInfo RecycledHS;
@@ -274,10 +275,10 @@ template<bool O3D, bool R3D> bool setup(
                 m->Read(params, ENVFile, RecycledHS);
                 m->SetupPost(params);
             }
-        }
-        for(auto *m : modules.list()) {
-            m->Validate(params);
-            m->Echo(params);
+            for(auto *m : modules.list()) {
+                m->Validate(params);
+                m->Echo(params);
+            }
         }
 
         sw.tock("setup");
@@ -300,6 +301,29 @@ template bool BHC_API setup<true, false>(
 #if BHC_ENABLE_3D
 template bool BHC_API setup<true, true>(
     const bhcInit &init, bhcParams<true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+template<bool O3D> bool echo(bhcParams<O3D> &params)
+{
+    try {
+        module::ModulesList<O3D> modules;
+        for(auto *m : modules.list()) {
+            m->Validate(params);
+            m->Echo(params);
+        }
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::echo(): %s\n", e.what());
+        return false;
+    }
+
+    return true;
+}
+
+#if BHC_ENABLE_2D
+template BHC_API bool echo<false>(bhcParams<false> &params);
+#endif
+#if BHC_ENABLE_NX2D || BHC_ENABLE_3D
+template BHC_API bool echo<true>(bhcParams<true> &params);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
