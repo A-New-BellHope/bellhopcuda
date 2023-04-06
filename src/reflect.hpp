@@ -1,8 +1,8 @@
 /*
-bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP / BELLHOP3D underwater acoustics
-simulator Copyright (C) 2021-2023 The Regents of the University of California Marine
-Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu Based on BELLHOP /
-BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP(3D) underwater acoustics simulator
+Copyright (C) 2021-2023 The Regents of the University of California
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
