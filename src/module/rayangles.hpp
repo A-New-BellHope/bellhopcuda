@@ -142,6 +142,7 @@ public:
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         AngleInfo &a          = GetAngle(params);
+        if(a.n <= 0) { EXTERR("%s number of beams = %d is invalid", FuncName, a.n); }
 
         if constexpr(BEARING) {
             if(GetInternal(params)->dim == 4 && !IsRayRun(params.Beam)) {

@@ -466,13 +466,13 @@ private:
     void AllocateArrays(bhcParams<O3D> &params) const
     {
         SSPStructure *ssp = params.ssp;
-        if constexpr(!O3D) {
+        if(ssp->Type == 'Q') {
             // quad
             trackallocate(params, "quad SSP", ssp->cMat, ssp->NPts * ssp->Nr);
             trackallocate(
                 params, "quad SSP derivatives", ssp->czMat, (ssp->NPts - 1) * ssp->Nr);
             trackallocate(params, "quad SSP ranges", ssp->Seg.r, ssp->Nr);
-        } else {
+        } else if(ssp->Type == 'H') {
             // hexahedral
             trackallocate(
                 params, "hexahedral SSP values", ssp->cMat, ssp->Nx * ssp->Ny * ssp->Nz);

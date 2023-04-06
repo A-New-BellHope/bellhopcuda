@@ -46,6 +46,11 @@ public:
     {
         ReadVector(params, params.Pos->Rr, params.Pos->NRr, ENVFile, Description2);
     }
+    virtual void SetupPost(bhcParams<O3D> &params) const override
+    {
+        // RayAngles::EstimateNumAngles uses Rr[NRr-1], must be in meters by then
+        Preprocess(params);
+    }
     void ExtSetup(bhcParams<O3D> &params, int32_t NRr) const
     {
         params.Pos->NRr = NRr;
