@@ -77,6 +77,8 @@ public:
         }
     }
 
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const { TODO(); }
+
     void ExtSetup(bhcParams<O3D> &params, int32_t NSBPPts) const
     {
         params.sbp->NSBPPts = NSBPPts;

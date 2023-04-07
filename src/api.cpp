@@ -326,6 +326,41 @@ template BHC_API bool echo<false>(bhcParams<false> &params);
 template BHC_API bool echo<true>(bhcParams<true> &params);
 #endif
 
+template<bool O3D> bool writeenv(const bhcParams<O3D> &params, const char *FileRoot)
+{
+    try {
+        module::ModulesList<O3D> modules;
+        for(auto *m : modules.list()) {
+            m->Validate(params);
+            m->Preprocess(params);
+        }
+
+        GetInternal(params)->FileRoot = FileRoot;
+        LDOFile ENVFile;
+        ENVFile.open(std::string(FileRoot) + ".env");
+        if(!ENVFile.good()) {
+            PRTFile << "ENVFile = " << FileRoot << ".env\n";
+            EXTERR(BHC_PROGRAMNAME
+                   " - writeenv: Unable to open the new environmental file");
+        }
+        for(auto *m : modules.list()) m->writeenv(params, ENVFile);
+
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::writeenv(): %s\n", e.what());
+        return false;
+    }
+
+    return true;
+}
+
+#if BHC_ENABLE_2D
+template BHC_API bool writeenv<false>(
+    const bhcParams<false> &params, const char *FileRoot);
+#endif
+#if BHC_ENABLE_NX2D || BHC_ENABLE_3D
+template BHC_API bool writeenv<true>(const bhcParams<true> &params, const char *FileRoot);
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> inline mode::ModeModule<O3D, R3D> *GetMode(

@@ -68,6 +68,24 @@ public:
             }
         }
     }
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        ENVFile << std::string(params.Bdry->Top.hs.Opt, 6);
+        ENVFile.write("! SSP(");
+        switch(params.Bdry->Top.hs.Opt[0]) {
+        case 'N': ENVFile.write("n2linear"); break;
+        case 'C': ENVFile.write("clinear"); break;
+        case 'P': ENVFile.write("pchip"); break;
+        case 'S': ENVFile.write("spline"); break;
+        case 'Q': ENVFile.write("quad"); break;
+        case 'H': ENVFile.write("hexahedral"); break;
+        case 'A': ENVFile.write("analytic"); break;
+        default: ENVFile.write("error!");
+        }
+        ENVFile.write("), top bc (");
+        BoundaryCond<O3D, true>::WriteBCTag(params.Bdry->Top.hs.Opt[1], ENVFile);
+        ENVFile.write("), atten units, add vol atten, altimetry, dev mode / broadband\n");
+    }
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         params.ssp->Type         = params.Bdry->Top.hs.Opt[0];
@@ -78,6 +96,12 @@ public:
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
+        // Copy values back to TopOpt in case the user modified the other ones
+        params.Bdry->Top.hs.Opt[0] = params.ssp->Type;
+        params.Bdry->Top.hs.Opt[1] = params.Bdry->Top.hs.bc;
+        params.Bdry->Top.hs.Opt[2] = params.ssp->AttenUnit[0];
+        params.Bdry->Top.hs.Opt[3] = params.ssp->AttenUnit[1];
 
         // SSP approximation options
 

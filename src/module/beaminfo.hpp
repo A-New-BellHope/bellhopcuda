@@ -96,6 +96,30 @@ public:
             ENVFile.Read(Beam->Component);
         }
     }
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        BeamStructure<O3D> *Beam = params.Beam;
+
+        ENVFile << Beam->deltas;
+        if constexpr(O3D) {
+            ENVFile << Beam->Box;
+            ENVFile.write("! deltas, box X, box Y, box depth\n");
+        } else {
+            ENVFile << Beam->Box.y << Beam->Box.x; // LP: z then r
+            ENVFile.write("! deltas, box depth, box range\n");
+        }
+
+        if(IsRayRun(Beam)) return;
+
+        if(IsCervenyInfl(Beam)) {
+            ENVFile << std::string(&Beam->Type[1], 2);
+            ENVFile << Beam->epsMultiplier << Beam->rLoop << (int32_t)0;
+            ENVFile.write("! 'Width Curvature' epsMultiplier rLoop ISINGL (ignored)\n");
+
+            ENVFile << Beam->Nimage << Beam->iBeamWindow << Beam->Component;
+            ENVFile.write("! Nimage iBeamWindow Component\n");
+        }
+    }
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         BeamStructure<O3D> *Beam = params.Beam;

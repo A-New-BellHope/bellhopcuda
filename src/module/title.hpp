@@ -38,6 +38,11 @@ public:
         ENVFile.Read(TempTitle);
         SetTitle(params, TempTitle);
     }
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        ENVFile << std::string(params.Title);
+        ENVFile.write("! TITLE\n");
+    }
     virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;

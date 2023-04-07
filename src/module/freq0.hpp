@@ -36,6 +36,11 @@ public:
         LIST(ENVFile);
         ENVFile.Read(params.freqinfo->freq0);
     }
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        ENVFile << params.freqinfo->freq0;
+        ENVFile.write("! FREQ (Hz)\n");
+    }
     virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;

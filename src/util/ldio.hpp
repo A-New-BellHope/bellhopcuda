@@ -446,6 +446,12 @@ public:
             this->operator<<('\n');
         }
     }
+    template<typename T> void writescale(const T *v, int32_t n, T scale)
+    {
+        for(int32_t i = 0; i < n; ++i) { this->operator<<(v[i] * scale); }
+    }
+
+    void write(const char *s) { ostr << s; }
 
 private:
     std::ofstream ostr;

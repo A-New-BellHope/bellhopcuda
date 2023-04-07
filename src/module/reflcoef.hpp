@@ -78,6 +78,8 @@ public:
         refltb->inDegrees = true;
     }
 
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const { TODO(); }
+
     void ExtSetup(bhcParams<O3D> &params, int32_t NPts) const
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);

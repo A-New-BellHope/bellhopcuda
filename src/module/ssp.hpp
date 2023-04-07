@@ -164,6 +164,8 @@ public:
         }
     }
 
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const { TODO(); }
+
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         // Depth of top boundary is taken from first SSP point

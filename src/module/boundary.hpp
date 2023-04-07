@@ -173,6 +173,8 @@ public:
         }
     }
 
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const { TODO(); }
+
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);

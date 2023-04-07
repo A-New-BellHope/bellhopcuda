@@ -36,6 +36,11 @@ public:
         LIST(ENVFile);
         ENVFile.Read(params.atten->NMedia);
     }
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        ENVFile << params.atten->NMedia;
+        ENVFile.write("! NMEDIA\n");
+    }
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         if(params.atten->NMedia != 1) {

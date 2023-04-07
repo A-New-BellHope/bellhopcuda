@@ -93,6 +93,23 @@ public:
         }
     }
 
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        if constexpr(!BEARING || O3D) {
+            AngleInfo &a = GetAngle(params);
+            ENVFile << a.n;
+            if constexpr(BEARING)
+                ENVFile.write("! Nbeta\n");
+            else
+                ENVFile.write("! NBEAMS\n");
+            ENVFile.write(a.angles, a.n, RadDeg);
+            if constexpr(BEARING)
+                ENVFile.write("! beta (degrees) bearing angle fan\n");
+            else
+                ENVFile.write("! ALPHA (degrees)\n");
+        }
+    }
+
     void ExtSetup(bhcParams<O3D> &params, int32_t n) const
     {
         AngleInfo &a = GetAngle(params);
