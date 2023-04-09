@@ -64,7 +64,7 @@ public:
         LDIFile SBPFile(GetInternal(params), GetInternal(params)->FileRoot, ".sbp");
         if(!SBPFile.Good()) {
             PRTFile << "SBPFile = " << GetInternal(params)->FileRoot << ".sbp\n";
-            EXTERR("BELLHOP-ReadPat: Unable to open source beampattern file");
+            EXTERR(BHC_PROGRAMNAME "-ReadPat: Unable to open source beampattern file");
         }
 
         LIST(SBPFile);
@@ -77,7 +77,26 @@ public:
         }
     }
 
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const { TODO(); }
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+        SBPInfo *sbp          = params.sbp;
+        if(sbp->SBPFlag != '*') return;
+
+        LDOFile SBPFile;
+        SBPFile.open(GetInternal(params)->FileRoot, ".sbp");
+        if(!SBPFile.good()) {
+            PRTFile << "SBPFile = " << GetInternal(params)->FileRoot << ".sbp\n";
+            EXTERR(BHC_PROGRAMNAME
+                   "-WritePat: Unable to open new source beampattern file");
+        }
+
+        SBPFile << sbp->NSBPPts;
+        SBPFile.write("! " BHC_PROGRAMNAME "- Source Beam Pattern file for ");
+        SBPFile.write(params.Title.c_str());
+        SBPFile << '\n';
+        SBPFile.write(sbp->SrcBmPat, sbp->NSBPPts, 2);
+    }
 
     void ExtSetup(bhcParams<O3D> &params, int32_t NSBPPts) const
     {
@@ -89,7 +108,8 @@ public:
     {
         SBPInfo *sbp = params.sbp;
         if(!monotonic(sbp->SrcBmPat, sbp->NSBPPts, 2, 0)) {
-            EXTERR("BELLHOP-ReadPat: Source beam pattern angles are not monotonic");
+            EXTERR(BHC_PROGRAMNAME
+                   "-ReadPat: Source beam pattern angles are not monotonic");
         }
     }
 

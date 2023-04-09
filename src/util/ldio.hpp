@@ -450,6 +450,10 @@ public:
     {
         for(int32_t i = 0; i < n; ++i) { this->operator<<(v[i] * scale); }
     }
+    template<typename T> void writestride(const T *v, int32_t n, int32_t stride_T)
+    {
+        for(int32_t i = 0; i < n; ++i) { this->operator<<(v[i * stride_T]); }
+    }
 
     void write(const char *s) { ostr << s; }
 

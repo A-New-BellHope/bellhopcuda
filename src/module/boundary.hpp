@@ -173,7 +173,70 @@ public:
         }
     }
 
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const { TODO(); }
+    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        if(!IsFile(params)) return;
+
+        BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
+
+        LDOFile BDRYFile;
+        BDRYFile.open(GetInternal(params)->FileRoot + "." + s_atibty);
+        if(!BDRYFile.good()) {
+            PRTFile << s_ATIBTY << "File = " << GetInternal(params)->FileRoot << "."
+                    << s_atibty << "\n";
+            EXTERR("Read%s: Unable to open new %s file", s_ATIBTY, s_altimetrybathymetry);
+        }
+
+        BDRYFile << std::string(bdinfotb->type, 2);
+        BDRYFile.write("! " BHC_PROGRAMNAME "- ");
+        BDRYFile.write(s_altimetrybathymetry);
+        BDRYFile.write(" file for ");
+        BDRYFile.write(params.Title.c_str());
+        BDRYFile << "\n";
+
+        if constexpr(O3D) {
+            // x values
+            BDRYFile << bdinfotb->NPts.x;
+            BDRYFile.write("! NPts.x\n");
+            BDRYFile.writestride(
+                &bdinfotb->bd[0].x.x, bdinfotb->NPts.x,
+                bdinfotb->NPts.y * sizeof(bdinfotb->bd) / sizeof(bdinfotb->bd[0].x.x));
+            BDRYFile << '\n';
+
+            // y values
+            BDRYFile << bdinfotb->NPts.y;
+            BDRYFile.write("! NPts.y\n");
+            BDRYFile.writestride(
+                &bdinfotb->bd[0].x.y, bdinfotb->NPts.y,
+                sizeof(bdinfotb->bd) / sizeof(bdinfotb->bd[0].x.y));
+            BDRYFile << '\n';
+
+            // z values
+            for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
+                for(int32_t ix = 0; ix < bdinfotb->NPts.x; ++ix) {
+                    vec3 &x = bdinfotb->bd[ix * bdinfotb->NPts.y + iy].x;
+                    BDRYFile << x.z;
+                }
+                BDRYFile << '\n';
+            }
+        } else {
+            BDRYFile << bdinfotb->NPts - 2;
+            BDRYFile.write("! NPts\n");
+
+            for(int32_t ii = 1; ii < bdinfotb->NPts - 1; ++ii) {
+                BDRYFile << bdinfotb->bd[ii].x;
+                if(bdinfotb->type[1] == 'L') {
+                    BDRYFile << bdinfotb->bd[ii].hs.alphaR;
+                    BDRYFile << bdinfotb->bd[ii].hs.betaR;
+                    BDRYFile << bdinfotb->bd[ii].hs.rho;
+                    BDRYFile << bdinfotb->bd[ii].hs.alphaI;
+                    BDRYFile << bdinfotb->bd[ii].hs.betaI;
+                }
+                BRTYFile << '\n';
+            }
+        }
+    }
 
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {
