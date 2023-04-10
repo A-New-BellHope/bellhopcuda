@@ -79,7 +79,7 @@ public:
         }
     }
 
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
     {
         HSInfo &hs   = GetBdry(params).hs;
         HSExtra &hsx = GetBdry(params).hsx;

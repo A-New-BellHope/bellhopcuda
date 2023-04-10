@@ -336,14 +336,14 @@ extern template BHC_API bool writeout<true, true>(
  *
  * returns: false if an error occurred, true if no errors.
  */
-template<bool O3D> bool writeenv(const bhcParams<O3D> &params, const char *FileRoot);
+template<bool O3D> bool writeenv(bhcParams<O3D> &params, const char *FileRoot);
 
 /// 2D version, see template.
 extern template BHC_API bool writeenv<false>(
-    const bhcParams<false> &params, const char *FileRoot);
+    bhcParams<false> &params, const char *FileRoot);
 /// 3D or Nx2D version, see template.
 extern template BHC_API bool writeenv<true>(
-    const bhcParams<true> &params, const char *FileRoot);
+    bhcParams<true> &params, const char *FileRoot);
 
 /**
  * Frees memory. You may call run() many times (with changed parameters), you do

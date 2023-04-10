@@ -173,7 +173,7 @@ public:
         }
     }
 
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &) const
     {
         if(!IsFile(params)) return;
 
@@ -181,6 +181,7 @@ public:
         PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
 
         LDOFile BDRYFile;
+        BDRYFile.setStyle(true);
         BDRYFile.open(GetInternal(params)->FileRoot + "." + s_atibty);
         if(!BDRYFile.good()) {
             PRTFile << s_ATIBTY << "File = " << GetInternal(params)->FileRoot << "."
@@ -192,25 +193,20 @@ public:
         BDRYFile.write("! " BHC_PROGRAMNAME "- ");
         BDRYFile.write(s_altimetrybathymetry);
         BDRYFile.write(" file for ");
-        BDRYFile.write(params.Title.c_str());
+        BDRYFile.write(params.Title);
         BDRYFile << "\n";
 
         if constexpr(O3D) {
             // x values
-            BDRYFile << bdinfotb->NPts.x;
-            BDRYFile.write("! NPts.x\n");
-            BDRYFile.writestride(
-                &bdinfotb->bd[0].x.x, bdinfotb->NPts.x,
+            UnSubTab(
+                BDRYFile, &bdinfotb->bd[0].x.x, bdinfotb->NPts.x, "NPts.x", nullptr,
+                RL(1.0),
                 bdinfotb->NPts.y * sizeof(bdinfotb->bd) / sizeof(bdinfotb->bd[0].x.x));
-            BDRYFile << '\n';
 
             // y values
-            BDRYFile << bdinfotb->NPts.y;
-            BDRYFile.write("! NPts.y\n");
-            BDRYFile.writestride(
-                &bdinfotb->bd[0].x.y, bdinfotb->NPts.y,
-                sizeof(bdinfotb->bd) / sizeof(bdinfotb->bd[0].x.y));
-            BDRYFile << '\n';
+            UnSubTab(
+                BDRYFile, &bdinfotb->bd[0].x.y, bdinfotb->NPts.y, "NPts.y", nullptr,
+                RL(1.0), sizeof(bdinfotb->bd) / sizeof(bdinfotb->bd[0].x.y));
 
             // z values
             for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
@@ -233,7 +229,7 @@ public:
                     BDRYFile << bdinfotb->bd[ii].hs.alphaI;
                     BDRYFile << bdinfotb->bd[ii].hs.betaI;
                 }
-                BRTYFile << '\n';
+                BDRYFile << '\n';
             }
         }
     }

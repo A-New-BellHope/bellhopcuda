@@ -365,7 +365,7 @@ private:
 
 class LDOFile {
 public:
-    LDOFile() : iwidth(12), fwidth(15), dwidth(24) {}
+    LDOFile() : iwidth(12), fwidth(15), dwidth(24), envStyle(false) {}
     ~LDOFile()
     {
         if(ostr.is_open()) ostr.close();
@@ -386,16 +386,20 @@ public:
     LDOFile &operator<<(const std::string &s)
     {
         ostr << "'" << s << "'";
+        if(envStyle) ostr << ' ';
         return *this;
     }
+
+    void setStyle(bool s) { envStyle = s; }
 
     void intwidth(int32_t iw) { iwidth = iw; }
     LDOFile &operator<<(const int32_t &i)
     {
-        if(iwidth > 0) {
+        if(iwidth > 0 && !envStyle) {
             ostr << std::setiosflags(std::ios_base::right) << std::setw(iwidth);
         }
         ostr << i;
+        if(envStyle) ostr << ' ';
         return *this;
     }
 
@@ -460,9 +464,33 @@ public:
 private:
     std::ofstream ostr;
     int32_t iwidth, fwidth, dwidth;
+    bool envStyle;
 
     void writedouble(double r, int32_t width, bool exp3)
     {
+        if(envStyle) {
+            std::stringstream ss;
+            ss << r;
+            std::string s = ss.str();
+            if(s.find(".") == std::string::npos) {
+                ostr << std::defaultfloat;
+                ostr << std::showpoint;
+                ostr << std::setiosflags(std::ios_base::fixed);
+                ostr << std::setprecision(1);
+            } else if(std::abs(r) < RL(1e-6)) {
+                ostr << std::defaultfloat;
+                ostr << std::noshowpoint;
+                ostr << std::setiosflags(std::ios_base::scientific);
+                ostr << std::setw(13);
+                ostr << std::setprecision(6);
+            } else {
+                ostr << std::defaultfloat;
+                ostr << std::noshowpoint;
+                ostr << std::setprecision(6);
+            }
+            ostr << std::setiosflags(std::ios_base::uppercase) << r << ' ';
+            return;
+        }
         if(width <= 0) {
             ostr << r;
             return;

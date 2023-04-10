@@ -19,7 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "../common_setup.hpp"
 #include "paramsmodule.hpp"
-#include "boundarycound.hpp"
+#include "boundarycond.hpp"
 
 namespace bhc { namespace module {
 
@@ -38,7 +38,7 @@ public:
         ENVFile.Read(params.Bdry->Bot.hs.Opt, 6); // LP: LDIFile fills rest with ' '
         ENVFile.Read(params.Bdry->Bot.hsx.Sigma);
     }
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
     {
         ENVFile << std::string(params.Bdry->Bot.hs.Opt, 6) << params.Bdry->Bot.hsx.Sigma;
         ENVFile.write("! bot bc (");

@@ -36,7 +36,7 @@ public:
         LIST(ENVFile);
         ENVFile.Read(params.atten->NMedia);
     }
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
     {
         ENVFile << params.atten->NMedia;
         ENVFile.write("! NMEDIA\n");

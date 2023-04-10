@@ -78,13 +78,14 @@ public:
         refltb->inDegrees = true;
     }
 
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &) const
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);
         PrintFileEmu &PRTFile        = GetInternal(params)->PRTFile;
-        if(!IsFile(params) return;
-        
+        if(!IsFile(params)) return;
+
         LDOFile xRCFile;
+        xRCFile.setStyle(true);
         xRCFile.open(GetInternal(params)->FileRoot + s_extension);
         if(!xRCFile.good()) {
             PRTFile << s_RC << "File = " << GetInternal(params)->FileRoot << s_extension
@@ -94,14 +95,14 @@ public:
                 "Coefficient file",
                 s_TopBottom);
         }
-        
+
         xRCFile << refltb->NPts;
         xRCFile.write("! " BHC_PROGRAMNAME "- ");
         xRCFile.write(s_TopBottom);
         xRCFile.write(" Reflection Coefficient file for");
-        xRCFile.write(params.Title.c_str());
+        xRCFile.write(params.Title);
         xRCFile << '\n';
-        
+
         for(int32_t itheta = 0; itheta < refltb->NPts; ++itheta) {
             xRCFile << refltb->r[itheta].theta;
             xRCFile << refltb->r[itheta].r;

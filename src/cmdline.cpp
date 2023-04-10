@@ -19,14 +19,20 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "common_setup.hpp"
 
 static bhc::bhcInit init;
+static bool doWriteEnv;
+static std::string outFileRoot;
 
 template<bool O3D, bool R3D> int mainmain()
 {
     bhc::bhcParams<O3D> params;
     bhc::bhcOutputs<O3D, R3D> outputs;
     if(!bhc::setup<O3D, R3D>(init, params, outputs)) return 1;
-    if(!bhc::run<O3D, R3D>(params, outputs)) return 1;
-    if(!bhc::writeout<O3D, R3D>(params, outputs)) return 1;
+    if(doWriteEnv) {
+        if(!bhc::writeenv<O3D>(params, outFileRoot.c_str())) return 1;
+    } else {
+        if(!bhc::run<O3D, R3D>(params, outputs)) return 1;
+        if(!bhc::writeout<O3D, R3D>(params, outputs)) return 1;
+    }
     bhc::finalize<O3D, R3D>(params, outputs);
     return 0;
 }
@@ -75,12 +81,17 @@ void showhelp(const char *argv0)
            "-mem=X, -memory=X: Sets the amount of memory " BHC_PROGRAMNAME
            " should use.\n"
            "    X may have a wide range of suffixes, examples: 16GiB, 8M, 100000kB\n"
-           "    non-examples: 4gI, 2m, 5.3G. Default: 4GiB\n";
+           "    non-examples: 4gI, 2m, 5.3G. Default: 4GiB\n"
+           "-writeenv=\"path/to/newFileRoot\": For testing purposes, writes out\n"
+           "    a copy of all the input data read from the environment file etc.\n"
+           "    to a new environment file and other data files. Does not run the\n"
+           "    simulation\n";
 }
 
 int main(int argc, char **argv)
 {
     int dimmode = BHC_DIM_ONLY;
+    doWriteEnv  = false;
     std::string FileRoot;
     for(int32_t i = 1; i < argc; ++i) {
         std::string s = argv[i];
@@ -145,6 +156,24 @@ int main(int argc, char **argv)
                         return 1;
                     }
                     init.maxMemory = multiplier * std::stoi(value);
+                } else if(key == "-writeenv") {
+                    if(value.length() > 1 && value[0] == '"') { value = value.substr(1); }
+                    if(value.length() > 1 && bhc::endswith(value, "\"")) {
+                        value = value.substr(0, value.length() - 1);
+                    }
+                    if(value.empty()) {
+                        std::cout << "Empty value for --writeenv, try " << argv[0]
+                                  << " --help\n";
+                        return 1;
+                    }
+                    if(doWriteEnv) {
+                        std::cout << "Multiple values specified for --writeenv, "
+                                  << "last value " << outFileRoot << ", new value "
+                                  << value << "\n";
+                        return 1;
+                    }
+                    doWriteEnv  = true;
+                    outFileRoot = value;
                 } else {
                     std::cout << "Unknown command-line option \"-" << key << "=" << value
                               << "\", try " << argv[0] << " --help\n";

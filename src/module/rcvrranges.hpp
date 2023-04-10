@@ -46,12 +46,10 @@ public:
     {
         ReadVector(params, params.Pos->Rr, params.Pos->NRr, ENVFile, Description2);
     }
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
     {
-        ENVFile << params.Pos->NRr;
-        ENVFile.write("! NR\n");
-        ENVFile.writescale(params.Pos->Rr, params.Pos->NRr, FL(0.001));
-        ENVFile.write("! R(1:NR ) (km)\n");
+        UnSubTab(
+            ENVFile, params.Pos->Rr, params.Pos->NRr, "NR", "R(1:NR ) (km)", FL(0.001));
     }
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {

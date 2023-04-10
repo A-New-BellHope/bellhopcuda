@@ -19,6 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "../common_setup.hpp"
 #include "paramsmodule.hpp"
+#include "boundarycond.hpp"
 
 namespace bhc { namespace module {
 
@@ -68,10 +69,10 @@ public:
             }
         }
     }
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
     {
         ENVFile << std::string(params.Bdry->Top.hs.Opt, 6);
-        ENVFile.write("! SSP(");
+        ENVFile.write("! SSP (");
         switch(params.Bdry->Top.hs.Opt[0]) {
         case 'N': ENVFile.write("n2linear"); break;
         case 'C': ENVFile.write("clinear"); break;

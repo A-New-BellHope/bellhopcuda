@@ -77,14 +77,15 @@ public:
         }
     }
 
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &) const
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
         SBPInfo *sbp          = params.sbp;
         if(sbp->SBPFlag != '*') return;
 
         LDOFile SBPFile;
-        SBPFile.open(GetInternal(params)->FileRoot, ".sbp");
+        SBPFile.setStyle(true);
+        SBPFile.open(GetInternal(params)->FileRoot + ".sbp");
         if(!SBPFile.good()) {
             PRTFile << "SBPFile = " << GetInternal(params)->FileRoot << ".sbp\n";
             EXTERR(BHC_PROGRAMNAME
@@ -93,7 +94,7 @@ public:
 
         SBPFile << sbp->NSBPPts;
         SBPFile.write("! " BHC_PROGRAMNAME "- Source Beam Pattern file for ");
-        SBPFile.write(params.Title.c_str());
+        SBPFile.write(params.Title);
         SBPFile << '\n';
         SBPFile.write(sbp->SrcBmPat, sbp->NSBPPts, 2);
     }

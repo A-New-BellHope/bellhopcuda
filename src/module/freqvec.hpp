@@ -61,13 +61,12 @@ public:
             Default(params);
         }
     }
-    virtual void Write(const bhcParams<O3D> &params, LDOFile &ENVFile) const
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
     {
         if(params.Bdry->Top.hs.Opt[5] == 'B') {
-            ENVFile << params.freqinfo->Nfreq;
-            ENVFile.write("! Nfreq\n");
-            ENVFile.write(params.freqinfo->freqVec, params.freqinfo->Nfreq);
-            ENVFile.write("! freqVec (Hz)\n");
+            UnSubTab(
+                ENVFile, params.freqinfo->freqVec, params.freqinfo->Nfreq, "Nfreq",
+                "freqVec (Hz)");
         }
     }
     void ExtSetup(bhcParams<O3D> &params, int32_t Nfreq) const
