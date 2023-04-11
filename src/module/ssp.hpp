@@ -191,8 +191,15 @@ public:
             ENVFile.write("/ ! Dummy profile, overwritten by .ssp file\n");
         } else {
             for(int32_t i = 0; i < ssp->NPts; ++i) {
-                ENVFile << ssp->z[i] << ssp->alphaR[i] << ssp->betaR[i];
-                ENVFile << ssp->rho[i] << ssp->alphaI[i] << ssp->betaI[i] << '\n';
+                if(i >= 1 && ssp->betaR[i] == ssp->betaR[i - 1]
+                   && ssp->rho[i] == ssp->rho[i - 1]
+                   && ssp->alphaI[i] == ssp->alphaI[i - 1]
+                   && ssp->betaI[i] == ssp->betaI[i - 1]) {
+                    ENVFile << ssp->z[i] << ssp->alphaR[i] << '/' << '\n';
+                } else {
+                    ENVFile << ssp->z[i] << ssp->alphaR[i] << ssp->betaR[i];
+                    ENVFile << ssp->rho[i] << ssp->alphaI[i] << ssp->betaI[i] << '\n';
+                }
             }
         }
 

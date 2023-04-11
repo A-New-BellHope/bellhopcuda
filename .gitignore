@@ -28,3 +28,4 @@ test/in/gen_*
 test/in/genperf_*
 test/in/genrev_*
 
+test/in/*.prt
