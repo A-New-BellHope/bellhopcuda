@@ -46,7 +46,7 @@ public:
 
         ssp->NPts = 2;
         ssp->z[0] = RL(0.0);
-        ssp->z[1] = RL(5000.0);
+        ssp->z[1] = DefaultDepth;
 
         ssp->Nr = ssp->Nx = ssp->Ny = 0;
         ssp->Nz                     = ssp->NPts;
@@ -55,7 +55,10 @@ public:
         ssp->rangeInKm = false;
     }
 
-    virtual void Default(bhcParams<O3D> &) const override {}
+    virtual void Default(bhcParams<O3D> &params) const override
+    {
+        params.Bdry->Bot.hs.Depth = DefaultDepth;
+    }
 
     virtual void Read(
         bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
@@ -534,6 +537,8 @@ public:
     }
 
 private:
+    constexpr static real DefaultDepth = RL(5000.0);
+
     inline void SegZToZ(bhcParams<O3D> &params) const
     {
         SSPStructure *ssp = params.ssp;
