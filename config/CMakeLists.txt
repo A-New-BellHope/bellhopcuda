@@ -43,3 +43,7 @@ add_subdirectory(cxx)
 if(BHC_ENABLE_CUDA AND NOT(APPLE OR DEFINED ENV{BHC_NO_CUDA}))
     add_subdirectory(cuda)
 endif()
+
+if(BHC_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()

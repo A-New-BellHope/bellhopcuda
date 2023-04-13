@@ -46,7 +46,7 @@ public:
 
         ssp->NPts = 2;
         ssp->z[0] = RL(0.0);
-        ssp->z[1] = DefaultDepth;
+        ssp->z[1] = RL(5000.0);
 
         ssp->Nr = ssp->Nx = ssp->Ny = 0;
         ssp->Nz                     = ssp->NPts;
@@ -57,7 +57,15 @@ public:
 
     virtual void Default(bhcParams<O3D> &params) const override
     {
-        params.Bdry->Bot.hs.Depth = DefaultDepth;
+        SSPStructure *ssp         = params.ssp;
+        params.Bdry->Bot.hs.Depth = ssp->z[1];
+        for(int32_t i = 0; i < 2; ++i) {
+            ssp->alphaR[i] = RL(1500.0);
+            ssp->alphaI[i] = RL(0.0);
+            ssp->rho[i]    = RL(1.0);
+            ssp->betaR[i]  = RL(0.0);
+            ssp->betaI[i]  = RL(0.0);
+        }
     }
 
     virtual void Read(
@@ -450,8 +458,6 @@ public:
     }
 
 private:
-    constexpr static real DefaultDepth = RL(5000.0);
-
     inline void SegZToZ(bhcParams<O3D> &params) const
     {
         SSPStructure *ssp = params.ssp;
