@@ -325,7 +325,7 @@ struct FreqInfo {
  * in the FORTRAN, and is called Beam.
  */
 template<bool O3D> struct BeamStructure {
-    // LP: NSteps moved out of this struct as it's a property of a single beam.
+    // LP: Nsteps moved out of this struct as it's a property of a single beam.
     int32_t NBeams, Nimage, iBeamWindow;
     char Component;
     char Type[4];
