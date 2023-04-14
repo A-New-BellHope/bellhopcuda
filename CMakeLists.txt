@@ -1,7 +1,7 @@
-# bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-# Copyright (C) 2021-2022 The Regents of the University of California
-# c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-# Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+# bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP / BELLHOP3D underwater acoustics simulator
+# Copyright (C) 2021-2023 The Regents of the University of California
+# Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+# Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 # 
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ project(bellhoptoplevel LANGUAGES NONE)
 option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
 option(CUDA_ALL_ARCHES "Build CUDA device code for all GPUs in system, not just newest one" OFF)
 
+option(BHC_BUILD_EXAMPLES "Build example programs" ON)
 option(BHC_LIMIT_FEATURES "Limit bellhopcxx/bellhopcuda to only features supported by BELLHOP/BELLHOP3D" OFF)
 option(BHC_USE_FLOATS  "Perform all floating-point arithmetic as 32-bit" OFF)
 

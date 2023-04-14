@@ -1,7 +1,7 @@
-# bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+# bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP / BELLHOP3D underwater acoustics simulator
 # Copyright (C) 2021-2023 The Regents of the University of California
-# c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-# Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+# Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+# Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 # 
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -62,41 +62,61 @@ set(common_includes
 )
 
 set(common_source
-    angles.hpp
-    arrivals.cpp
+    mode/arr.cpp
+    mode/arr.hpp
+    mode/eigen.cpp
+    mode/eigen.hpp
+    mode/field.cpp
+    mode/field.hpp
+    mode/fieldimpl.hpp
+    mode/modemodule.hpp
+    mode/ray.cpp
+    mode/ray.hpp
+    mode/tl.cpp
+    mode/tl.hpp
+    module/atten.cpp
+    module/atten.hpp
+    module/beaminfo.hpp
+    module/botopt.hpp
+    module/boundarycond.hpp
+    module/boundary.hpp
+    module/freq0.hpp
+    module/freqvec.hpp
+    module/nmedia.hpp
+    module/paramsmodule.hpp
+    module/rayangles.hpp
+    module/rcvrbearings.hpp
+    module/rcvrranges.hpp
+    module/reflcoef.hpp
+    module/runtype.hpp
+    module/sbp.hpp
+    module/ssp.hpp
+    module/sxsy.hpp
+    module/szrz.hpp
+    module/title.hpp
+    module/topopt.hpp
+    util/atomics.hpp
+    util/bino.hpp
+    util/errors.cpp
+    util/errors.hpp
+    util/ldio.hpp
+    util/prtfileemu.hpp
+    util/timing.cpp
+    util/timing.hpp
+    util/UtilsCUDA.cuh
+    api.cpp
     arrivals.hpp
-    atomics.hpp
-    attenuation.cpp
-    attenuation.hpp
-    beams.hpp
-    bino.hpp
     boundary.hpp
     common.hpp
+    common_run.hpp
+    common_setup.hpp
     curves.hpp
-    eigenrays.cpp
     eigenrays.hpp
-    errors.cpp
-    errors.hpp
     influence.hpp
-    jobs.hpp
-    ldio.hpp
-    prtfileemu.hpp
-    raymode.cpp
-    raymode.hpp
-    readenv.cpp
-    readenv.hpp
     reflect.hpp
-    run.cpp
-    run.hpp
-    setup.cpp
-    sourcereceiver.hpp
-    ssp.cpp
+    runtype.hpp
     ssp.hpp
     step.hpp
-    timing.cpp
-    timing.hpp
-    tlmode.cpp
-    tlmode.hpp
     trace.hpp
 )
 
@@ -109,7 +129,7 @@ endif()
 
 find_package(Threads)
 
-function(bhc_setup_target target_name)
+function(bhc_setup_target target_name defs use_addl)
     if(BHC_USE_FLOATS)
         target_compile_definitions(${target_name} PUBLIC BHC_USE_FLOATS=1)
     endif()
@@ -121,6 +141,11 @@ function(bhc_setup_target target_name)
     #     target_link_options(${target_name} PUBLIC -pg)
     # endif()
     target_compile_definitions(${target_name} PRIVATE BHC_DLL_EXPORT=1)
+    target_compile_definitions(${target_name} PUBLIC "${defs}")
+    if(use_addl)
+        target_compile_definitions(${target_name} PRIVATE "${addl_defs}")
+        target_include_directories(${target_name} PRIVATE "${addl_includes}")
+    endif()
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/include")
     target_include_directories(${target_name} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
     target_link_libraries(${target_name} PUBLIC Threads::Threads)
@@ -134,8 +159,7 @@ function(bhc_create_executable target_name defs)
         $<TARGET_OBJECTS:${objlibname}>
         ${CMAKE_SOURCE_DIR}/src/cmdline.cpp
     )
-    bhc_setup_target(${target_name})
-    target_compile_definitions(${target_name} PUBLIC BHC_CMDLINE=1 ${defs})
+    bhc_setup_target(${target_name} "${defs};BHC_CMDLINE=1" 1)
 endfunction()
 
 include(${CMAKE_SOURCE_DIR}/config/GenTemplates.cmake)
@@ -150,9 +174,7 @@ function(bhc_add_libs_exes type_name gen_extension addl_sources addl_includes ad
         ${gen_sources}
         ${addl_sources}
     )
-    bhc_setup_target(${objlibname})
     set_property(TARGET ${objlibname} PROPERTY POSITION_INDEPENDENT_CODE 1)
-    target_include_directories(${objlibname} PRIVATE ${addl_includes})
     set(enab2d 0)
     set(enab3d 0)
     set(enabnx2d 0)
@@ -166,16 +188,16 @@ function(bhc_add_libs_exes type_name gen_extension addl_sources addl_includes ad
         set(enabnx2d 1)
     endif()
     set(dim_enables "BHC_ENABLE_2D=${enab2d};BHC_ENABLE_3D=${enab3d};BHC_ENABLE_NX2D=${enabnx2d}")
-    target_compile_definitions(${objlibname} PUBLIC ${dim_enables} ${addl_defs})
+    bhc_setup_target(${objlibname} "${dim_enables}" 1)
     if(BHC_LIMIT_FEATURES)
         target_compile_definitions(${objlibname} PRIVATE BHC_LIMIT_FEATURES=1)
     endif()
     add_gen_template_defs(${objlibname})
     # Targets using object library
     add_library(${exename}lib SHARED $<TARGET_OBJECTS:${objlibname}>)
-    bhc_setup_target(${exename}lib)
+    bhc_setup_target(${exename}lib "${dim_enables}" 0)
     add_library(${exename}static STATIC $<TARGET_OBJECTS:${objlibname}>)
-    bhc_setup_target(${exename}static)
+    bhc_setup_target(${exename}static "${dim_enables}" 0)
     bhc_create_executable(${exename} "${dim_enables};BHC_DIM_ONLY=0")
     if(BHC_DIM_ENABLE_2D)
         bhc_create_executable(${exename}2d   "BHC_ENABLE_2D=1;BHC_DIM_ONLY=2")

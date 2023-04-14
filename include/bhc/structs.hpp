@@ -1,8 +1,8 @@
 /*
-bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
-Copyright (C) 2021-2022 The Regents of the University of California
-c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP(3D) underwater acoustics simulator
+Copyright (C) 2021-2023 The Regents of the University of California
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -71,17 +71,23 @@ struct rxyz_vector {
 };
 
 struct SSPStructure {
-    int32_t NPts, Nr, Nx, Ny, Nz;
-    real z[MaxSSP], rho[MaxSSP];
+    // LP: Start with complex values for alignment reasons.
     cpx c[MaxSSP], cz[MaxSSP], n2[MaxSSP], n2z[MaxSSP], cSpline[4][MaxSSP];
     cpx cCoef[4][MaxSSP], CSWork[4][MaxSSP]; // for PCHIP coefs.
     real *cMat, *czMat; // LP: No need for separate cMat3 / czMat3 as we don't have to
                         // specify the dimension here.
     rxyz_vector Seg;
+    real z[MaxSSP], rho[MaxSSP];
+    real alphaR[MaxSSP], alphaI[MaxSSP];
+    // LP: Not actually used, but echoed, so with new system need to store them
+    real betaR[MaxSSP], betaI[MaxSSP];
+
+    int32_t NPts, Nr, Nx, Ny, Nz;
     char Type;
     char AttenUnit[2];
-    real alphaR[MaxSSP], alphaI[MaxSSP];
-    bool dirty; // reset and update derived params
+    bool rangeInKm; // Ranges (R, X, Y) specified in km, will be automatically converted
+                    // to meters
+    bool dirty;     // reset and update derived params
 };
 
 // SSPOutputs is templated as O3D during computation, but R3D when returned,
@@ -94,8 +100,8 @@ template<> struct SSPOutputsExtras<true> {
     real cxx, cyy, cxy, cxz, cyz;
 };
 template<bool X3D> struct SSPOutputs : public SSPOutputsExtras<X3D> {
-    cpx ccpx;
     VEC23<X3D> gradc;
+    cpx ccpx;
     real rho, czz;
 };
 
@@ -112,8 +118,14 @@ struct HSInfo {
     char Opt[6];
 };
 
+struct HSExtra {
+    real zTemp, Mz;
+    real Sigma; // Read and echoed but never used
+};
+
 struct BdryPtSmall {
     HSInfo hs;
+    HSExtra hsx;
 };
 
 /**
@@ -155,10 +167,13 @@ template<bool O3D> struct BdryPtFull : public BdryPtFullExtras<O3D>,
     real Len; // 2D: length of a segment / 3D: length of tangent (temporary variable to
               // normalize tangent)
 };
+template<bool O3D> constexpr int32_t BdryStride = sizeof(BdryPtFull<O3D>) / sizeof(real);
 
 template<bool O3D> struct BdryInfoTopBot {
     IORI2<O3D> NPts;
     char type[2];        // In 3D, only first char is used
+    bool dirty;          // Set to indicate that derived values need updating
+    bool rangeInKm;      // R, X, Y values in km; automatically converted to meters
     BdryPtFull<O3D> *bd; // 2D: 1D array / 3D: 2D array
 };
 /**
@@ -209,7 +224,7 @@ template<bool O3D> struct BdryState {
 };
 
 /**
- * LP: In 2D-3D mode, describes the position of the 2D ray space relative to the
+ * LP: In Nx2D mode, describes the position of the 2D ray space relative to the
  * 3D ocean. Unused (empty struct) in 2D and full 3D mode.
  */
 template<bool O3D, bool R3D> struct Origin {};
@@ -228,6 +243,7 @@ struct ReflectionCoef {
 
 struct ReflectionInfoTopBot {
     int32_t NPts;
+    bool inDegrees; // Angles in degrees, converted to radians at preprocess
     ReflectionCoef *r;
 };
 struct ReflectionInfo {
@@ -249,6 +265,7 @@ struct AttenInfo {
     bioStructure bio[MaxBioLayers];
     real t, Salinity, pH, z_bar, fg; // Francois-Garrison volume attenuation; temperature,
                                      // salinity, ...
+    int32_t NMedia;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -258,13 +275,19 @@ struct AttenInfo {
 struct Position {
     int32_t NSx, NSy, NSz, NRz, NRr, Ntheta; // number of x, y, z, r, theta coordinates
     int32_t NRz_per_range;
+    bool SxSyInKm, RrInKm; // Values in km, converted to meters in preprocess
+    /// Whether a duplicate angle (e.g. 360.0 when 0.0 also exists) was removed
+    /// while reading the environment file. If manually setting theta, set this
+    /// to false and do not include any duplicate angles.
+    bool thetaDuplRemoved;
     real Delta_r, Delta_theta;
-    int32_t *iSz, *iRz;
+    // int32_t *iSz, *iRz; // LP: Not used.
     // LP: These are really floats, not reals.
-    float *Sx, *Sy, *Sz;      // Source x, y, z coordinates
-    float *Rr, *Rz, *ws, *wr; // Receiver r, z coordinates and weights for interpolation
-    float *theta;             // Receiver bearings
-    vec2 *t_rcvr;             // Receiver directions (cos(theta), sin(theta))
+    float *Sx, *Sy, *Sz; // Source x, y, z coordinates
+    float *Rr, *Rz;      // Receiver r, z coordinates
+    // float *ws, *wr; // weights for interpolation LP: Not used.
+    float *theta; // Receiver bearings
+    vec2 *t_rcvr; // Receiver directions (cos(theta), sin(theta))
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -275,6 +298,7 @@ struct AngleInfo {
     int32_t n, iSingle;
     real d; // angular spacing between beams
     real *angles;
+    bool inDegrees; // Angles in degrees, converted to radians at preprocess
 };
 
 struct AnglesStructure {
@@ -301,23 +325,25 @@ struct FreqInfo {
  * in the FORTRAN, and is called Beam.
  */
 template<bool O3D> struct BeamStructure {
-    // LP: NSteps moved out of this struct as it's a property of a single beam.
+    // LP: Nsteps moved out of this struct as it's a property of a single beam.
     int32_t NBeams, Nimage, iBeamWindow;
-    real deltas, epsMultiplier, rLoop;
     char Component;
     char Type[4];
     char RunType[7];
+    bool rangeInKm;  // Box R, X, Y specified in km, converted to meters in preprocess
+    bool autoDeltas; // stores whether deltas was automatically computed, for echo
+    real deltas, epsMultiplier, rLoop;
     VEC23<O3D> Box;
 };
 
 /**
- * LP: TODO: rename to something with SBP, this is not the same kind of beam
- * as BeamStructure.
+ * LP: Source Beam Pattern info.
  */
-struct BeamInfo {
+struct SBPInfo {
+    char SBPFlag;
+    bool SBPIndB; // SrcBmPat values in dB, auto converted to linear in preprocess
     int32_t NSBPPts;
     real *SrcBmPat;
-    char SBPFlag;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -334,8 +360,8 @@ struct EigenHit {
 };
 
 struct EigenInfo {
-    uint32_t neigen;
-    uint32_t memsize;
+    int32_t neigen;
+    int32_t memsize;
     EigenHit *hits;
 };
 
@@ -357,7 +383,6 @@ struct ArrInfo {
     int32_t *NArr;
     int32_t *MaxNPerSource;
     int32_t MaxNArr;
-    size_t ArrMemSize;
     bool AllowMerging;
 };
 
@@ -379,6 +404,8 @@ template<> struct rayPtExtras<true> {
     // real DetQ; LP: Precomputed at the start of Influence functions, only used
     // for detecting phase inversions. Changed to compute when needed.
     real phi;
+    // MSVC warns about rayPt<true> not being aligned for the cpx member
+    real dummy;
 };
 template<bool R3D> struct rayPt : public rayPtExtras<R3D> {
     int32_t NumTopBnc, NumBotBnc;
@@ -408,11 +435,14 @@ template<bool O3D, bool R3D> struct RayResult {
 };
 
 template<bool O3D, bool R3D> struct RayInfo {
-    rayPt<R3D> *raymem;
-    uint32_t NPoints;
-    uint32_t MaxPoints;
     RayResult<O3D, R3D> *results;
+    rayPt<R3D> *RayMem;
+    rayPt<R3D> *WorkRayMem;
+    size_t RayMemCapacity;
+    size_t RayMemPoints;
+    int32_t MaxPointsPerRay;
     int32_t NRays;
+    bool isCopyMode;
 };
 
 struct RayInitInfo {
@@ -440,23 +470,74 @@ template<bool R3D> struct InfluenceRayInfo {
     real rcp_q0, rcp_qhat0;
     // LP: Variables carried over between iterations.
     real phase;
-    real qOld; // LP: Det_QOld in 3D
-    VEC23<R3D> x;
+    real qOld;               // LP: Det_QOld in 3D
     VEC23<R3D> rayn1, rayn2; // LP: rayn1 was rn, zn in 2D
+    VEC23<R3D> x;
+    cpx gamma;
     bool lastValid;
     int32_t kmah;
     int32_t ir;
-    cpx gamma;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // Meta-structures
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool O3D, bool R3D> struct bhcParams {
-    /// Initialized to -1 meaning "one thread per logical core"; after setup
-    /// (but before run), can set to 1 or some other value.
-    int32_t maxThreads;
+struct bhcInit {
+    /// Number of worker threads to run. -1 means "all logical cores".
+    int32_t numThreads = -1;
+    /// Maximum amount of memory (in bytes) this instance should use.
+    size_t maxMemory = 4ull * 1024ull * 1024ull * 1024ull; // 4 GiB
+    /// If there is not enough memory to hold the requested number of rays
+    /// where each is maximum length, whether to solve this by reducing the
+    /// maximum length (false), or by using copy mode (true). Copy mode can fit
+    /// more ray data in memory but is slower. This only affects ray and
+    /// eigenray runs (no effect on TL or arrivals).
+    bool useRayCopyMode = false;
+    /// Index of the GPU to use (ignored if not in CUDA mode). This is the order
+    /// the GPUs are enumerated in CUDA, usually with the most powerful GPU
+    /// as index 0.
+    int gpuIndex = 0;
+    /**
+     * If not null: Relative path to environment file, without the .env
+     * extension. E.g. path/to/MunkB_ray_rot (where path/to/MunkB_ray_rot.env
+     * and also path/to/MunkB_ray_rot.ssp, path/to/MunkB_ray_rot.bty, etc.
+     * exist). The string passed here will be copied internally and may be
+     * deleted by the caller after bhc::setup() returns.
+
+     * If null: Sets up the environment with some very basic defaults.
+     * prtCallback must not be null, because if there is no environment file, a
+     * real *.prt file cannot be created. bhc::writeout() also cannot be used.
+     */
+    const char *FileRoot = nullptr;
+    /**
+     * prtCallback, outputCallback: There are two different types of output
+     * messages which can be produced by BELLHOP(3D) and therefore bellhopcxx /
+     * bellhopcuda: outputs which form the PRTFile (print file *.prt), and
+     * outputs which are printed in the terminal (usually fatal error messages).
+     * Two callbacks are provided here to receive these messages; you may handle
+     * them or pass nullptr for either/both. If prtCallback is nullptr, a *.prt
+     * file will be created with the PRTFile outputs. If outputCallback is
+     * nullptr, these messages will be printed to standard output.
+     *
+     * If you are using multiple instances (multiple calls to setup with
+     * different params), any callback you pass for either of these must be
+     * thread-safe, as it may be called by multiple threads in parallel.
+     * Furthermore, if you are using multiple instances and you set prtCallback
+     * to nullptr so it writes PRTFiles, each instance must use a different
+     * FileRoot or there will be issues with the multiple instances trying to
+     * write to the same PRTFile.
+     *
+     * The memory pointed to by message will be freed immediately after the
+     * callback function returns, so your callback function must copy the string
+     * rather than storing the pointer.
+     */
+    void (*prtCallback)(const char *message) = nullptr;
+    /// See documentation for prtCallback above.
+    void (*outputCallback)(const char *message) = nullptr;
+};
+
+template<bool O3D> struct bhcParams {
     char Title[80]; // Size determined by WriteHeader for TL
     real fT;
     BdryType *Bdry;
@@ -468,7 +549,7 @@ template<bool O3D, bool R3D> struct bhcParams {
     AnglesStructure *Angles;
     FreqInfo *freqinfo;
     BeamStructure<O3D> *Beam;
-    BeamInfo *beaminfo;
+    SBPInfo *sbp;
     /// Pointer to internal data structure for program (non-marine-related) state.
     void *internal;
 };

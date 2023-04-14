@@ -1,8 +1,8 @@
 /*
-bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP(3D) underwater acoustics simulator
 Copyright (C) 2021-2023 The Regents of the University of California
-c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
+#include "common_run.hpp"
 #include "step.hpp"
 
 namespace bhc {
@@ -91,87 +91,9 @@ HOST_DEVICE inline void InterpolateReflectionCoefficient(
     }
 }
 
-/**
- * Optionally read in reflection coefficient for Top or Bottom boundary
- *
- * flag set to 'F' if refl. coef. is to be read from a File
- */
-template<bool O3D, bool R3D> inline void ReadReflectionCoefficient(
-    bhcParams<O3D, R3D> &params)
-{
-    PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-    ReflectionInfo *refl  = params.refl;
-
-    if(params.Bdry->Bot.hs.Opt[0] == 'F') {
-        PRTFile << "_____________________________________________________________________"
-                   "_____\n\n";
-        PRTFile << "Using tabulated bottom reflection coef.\n";
-        LDIFile BRCFile(GetInternal(params), GetInternal(params)->FileRoot + ".brc");
-        if(!BRCFile.Good()) {
-            PRTFile << "BRCFile = " << GetInternal(params)->FileRoot + ".brc\n";
-            EXTERR("ReadReflectionCoefficient: Unable to open Bottom Reflection "
-                   "Coefficient file");
-        }
-
-        LIST(BRCFile);
-        BRCFile.Read(refl->bot.NPts);
-        PRTFile << "Number of points in bottom reflection coefficient = "
-                << refl->bot.NPts << "\n";
-
-        checkallocate(refl->bot.r, refl->bot.NPts);
-
-        LIST(BRCFile);
-        for(int32_t itheta = 0; itheta < refl->bot.NPts; ++itheta) {
-            BRCFile.Read(refl->bot.r[itheta].theta);
-            BRCFile.Read(refl->bot.r[itheta].r);
-            BRCFile.Read(refl->bot.r[itheta].phi);
-            refl->bot.r[itheta].phi *= DegRad; // convert to radians
-        }
-    } else { // should allocate something anyway, since variable is passed
-        checkallocate(refl->bot.r, 1);
-    }
-
-    // Optionally read in top reflection coefficient
-
-    if(params.Bdry->Top.hs.Opt[1] == 'F') {
-        PRTFile << "_____________________________________________________________________"
-                   "_____\n\n";
-        PRTFile << "Using tabulated top    reflection coef.\n";
-        LDIFile TRCFile(GetInternal(params), GetInternal(params)->FileRoot + ".trc");
-        if(!TRCFile.Good()) {
-            PRTFile << "TRCFile = " << GetInternal(params)->FileRoot + ".trc\n";
-            EXTERR("ReadReflectionCoefficient: Unable to open Top Reflection "
-                   "Coefficient file");
-        }
-
-        LIST(TRCFile);
-        TRCFile.Read(refl->top.NPts);
-        PRTFile << "Number of points in top reflection coefficient = " << refl->top.NPts
-                << "\n";
-
-        checkallocate(refl->top.r, refl->top.NPts);
-
-        LIST(TRCFile);
-        for(int32_t itheta = 0; itheta < refl->top.NPts; ++itheta) {
-            TRCFile.Read(refl->top.r[itheta].theta);
-            TRCFile.Read(refl->top.r[itheta].r);
-            TRCFile.Read(refl->top.r[itheta].phi);
-            refl->top.r[itheta].phi *= DegRad; // convert to radians
-        }
-    } else { // should allocate something anyway, since variable is passed
-        checkallocate(refl->top.r, 1);
-    }
-
-    // Optionally read in internal reflection coefficient data
-
-    if(params.Bdry->Bot.hs.Opt[0] == 'P') {
-        EXTERR("Internal reflections not supported by BELLHOP and therefore "
-               "not supported by " BHC_PROGRAMNAME);
-    }
-}
-
 template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCurvature(
-    const ReflCurvature<O3D> &rcurv, const Origin<O3D, R3D> &org, bool isTop)
+    const ReflCurvature<O3D> &rcurv, const Origin<O3D, R3D> &org,
+    [[maybe_unused]] bool isTop)
 {
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
     if constexpr(O3D && !R3D) {
@@ -186,7 +108,6 @@ template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCur
         if(isTop) rcurv_out.kappa = -rcurv_out.kappa;
         return rcurv_out;
     } else {
-        IGNORE_UNUSED(isTop);
         return rcurv;
     }
 }
@@ -204,12 +125,12 @@ template<bool O3D, bool R3D> HOST_DEVICE inline ReflCurvature<R3D> OceanToRayCur
 template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     const rayPt<R3D> &oldPoint, rayPt<R3D> &newPoint, const HSInfo &hs, bool isTop,
     VEC23<R3D> tBdry, const VEC23<O3D> &nBdry, const ReflCurvature<O3D> &rcurv, real freq,
-    const ReflectionInfoTopBot &rtb, const BeamStructure<O3D> *Beam,
+    const ReflectionInfoTopBot &rtb, [[maybe_unused]] const BeamStructure<O3D> *Beam,
     const Origin<O3D, R3D> &org, const SSPStructure *ssp, SSPSegState &iSeg,
     ErrState *errState)
 {
     VEC23<R3D> nBdry_ray = OceanToRayT<O3D, R3D>(nBdry, org);
-    if(O3D && !R3D) nBdry_ray *= RL(1.0) / glm::length(nBdry_ray);
+    if constexpr(O3D && !R3D) nBdry_ray *= RL(1.0) / glm::length(nBdry_ray);
 
     real Th = glm::dot(oldPoint.t, nBdry_ray); // component of ray tangent, normal to
                                                // boundary
@@ -246,8 +167,6 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
     newPoint.tau = oldPoint.tau;
 
     if constexpr(R3D) {
-        IGNORE_UNUSED(Beam);
-
         vec3 rayt, rayn1, rayn2, rayt_tilde, rayn1_tilde, rayn2_tilde;
         CalcTangent_Normals(
             oldPoint, o.ccpx.real(), nBdry, rayt, rayn1, rayn2, RL(-1.0)); // incident

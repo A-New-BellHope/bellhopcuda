@@ -1,8 +1,8 @@
 /*
-bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP(3D) underwater acoustics simulator
 Copyright (C) 2021-2023 The Regents of the University of California
-c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,10 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
+
+#ifndef _BHC_INCLUDING_COMPONENTS_
+#error "Must be included from common.hpp!"
+#endif
 
 namespace bhc {
 
@@ -175,31 +178,41 @@ template<bool O3D> HOST_DEVICE inline bool IsGaussianGeomInfl(
     return t == 'B' || t == 'b';
 }
 
-template<bool O3D, bool R3D> HOST_DEVICE inline const char *GetBeamTypeTag(
+template<bool O3D> HOST_DEVICE inline const char *GetBeamTypeTag(
     const BeamStructure<O3D> *Beam)
 {
     switch(Beam->Type[0]) {
     case 'C':
-    case 'R': return R3D ? "Cerveny style beam" : "Paraxial beams";
+    case 'R':
+        if constexpr(O3D)
+            return "Cerveny style beam";
+        else
+            return "Paraxial beams";
     case '^':
     case ' ':
-        if constexpr(!R3D)
+        if constexpr(!O3D)
             return "Warning, Beam->Type[0] = ^ or ' ' not properly handled in BELLHOP "
                    "(2D)";
         [[fallthrough]];
     case 'G':
-        if constexpr(R3D) return "Geometric beam, hat-shaped, Cart. coord.";
+        if constexpr(O3D) return "Geometric beam, hat-shaped, Cart. coord.";
         [[fallthrough]];
     case 'g':
-        if constexpr(R3D) return "Geometric beam, hat-shaped, Ray coord.";
-        return "Geometric hat beams";
+        if constexpr(O3D)
+            return "Geometric beam, hat-shaped, Ray coord.";
+        else
+            return "Geometric hat beams";
     case 'B':
-        return R3D ? "Geometric beam, Gaussian-shaped, Cart. coord."
-                   : "Geometric Gaussian beams";
+        if constexpr(O3D)
+            return "Geometric beam, Gaussian-shaped, Cart. coord.";
+        else
+            return "Geometric Gaussian beams";
     case 'b':
-        return R3D
-            ? "Geometric beam, Gaussian-shaped, Ray coord."
-            : "Geo Gaussian beams in ray-cent. coords. not implemented in BELLHOP (2D)";
+        if constexpr(O3D)
+            return "Geometric beam, Gaussian-shaped, Ray coord.";
+        else
+            return "Geo Gaussian beams in ray-cent. coords. not implemented in BELLHOP "
+                   "(2D)";
     case 'S': return "Simple Gaussian beams";
     default: return "Invalid Beam->Type[0]";
     }

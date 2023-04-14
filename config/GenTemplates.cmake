@@ -1,7 +1,7 @@
-# bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+# bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP / BELLHOP3D underwater acoustics simulator
 # Copyright (C) 2021-2023 The Regents of the University of California
-# c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-# Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+# Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+# Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 # 
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -101,7 +101,7 @@ function(gen_templates_inner EXTENSION SOURCE_LIST_INNER_VAR)
                 set(OUT_FILENAME "field_${DIM_NAME}_${RUN_NAME}_${INFL_NAME}_${SSP_NAME}.${EXTENSION}")
                 set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/gen_templates/${OUT_FILENAME}")
                 configure_file(
-                    "${CMAKE_SOURCE_DIR}/src/runfieldmodesimpl.${EXTENSION}.in"
+                    "${CMAKE_SOURCE_DIR}/src/mode/fieldimpl.${EXTENSION}.in"
                     "${OUT_FILE}"
                 )
                 list(APPEND SOURCE_LIST_INNER "${OUT_FILE}")

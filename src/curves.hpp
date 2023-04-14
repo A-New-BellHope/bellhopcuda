@@ -1,8 +1,8 @@
 /*
-bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP(3D) underwater acoustics simulator
 Copyright (C) 2021-2023 The Regents of the University of California
-c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
+#include "common_run.hpp"
 
 namespace bhc {
 
@@ -75,10 +75,8 @@ namespace bhc {
  */
 HOST_DEVICE inline void cSpline(
     const real *tau, cpx *c1, cpx *c2, cpx *c3, cpx *c4, int32_t n, int32_t ibcbeg,
-    int32_t ibcend, int32_t ndim)
+    int32_t ibcend, [[maybe_unused]] int32_t ndim)
 {
-    IGNORE_UNUSED(ndim);
-
     cpx g, dtau, divdf1, divdf3;
 
     int32_t l = n - 1;

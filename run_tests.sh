@@ -18,6 +18,8 @@
 
 #set -x
 
+memopt="--mem=18G"
+
 if [[ -z $1 || -z $2 ]]; then
     echo "Usage: ./run_tests.sh (ray/tl/eigen/arr)(2D/3D/Nx2D) tests_list [(nothing)/shouldfail/shouldnotmatch] [ignore/nocompare]"
     exit 1
@@ -143,7 +145,7 @@ run_cxx1 () {
     envfil=$1
     runname="bellhopcxx single-threaded"
     echo $runname
-    ./bin/bellhopcxx$dotexe -1 $threedopt test/cxx1/$envfil
+    ./bin/bellhopcxx$dotexe -1 $threedopt $memopt test/cxx1/$envfil
     check_fail $? "$runname" $envfil
 }
 
@@ -153,7 +155,7 @@ run_check_and_compare () {
     dir=$3
     envfil=$4
     echo $runname
-    $prog $threedopt test/$dir/$envfil
+    $prog $threedopt $memopt test/$dir/$envfil
     check_fail $? "$runname" $envfil || return 1
     compare_results "$runname" $dir $envfil || return 2
     return 0

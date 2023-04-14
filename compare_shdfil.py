@@ -49,7 +49,7 @@ def compare_files(cxxf, forf):
         print('Record lengths differ: {} vs {}'.format(cxxreclen, forreclen))
         sys.exit(1)
     reclen = cxxreclen
-    if len(cxxdata) % reclen != 0:
+    if len(cxxdata) % (reclen*4) != 0:
         print('File length {} is not a multiple of the record length {}'.format(
             len(cxxdata), reclen))
         sys.exit(1)
@@ -109,7 +109,7 @@ def compare_files(cxxf, forf):
 
     errors = 0
     maxerrors = 100
-    for rec in range(10, len(cxxdata) // reclen):
+    for rec in range(10, len(cxxdata) // (reclen*4)):
         for Rr in range(0, NRr):
             addr = rec * reclen * 4 + Rr * 8
             cxxd = cxxdata[addr:addr+8]
@@ -193,11 +193,16 @@ def compare_files(cxxf, forf):
                 errs = p_int + errs
             print(p_addr + errs)
         
-        for addr in range(rec * reclen + NRr * 8, (rec+1) * reclen, 4):
+        for addr in range(rec * reclen * 4 + NRr * 8, (rec+1) * reclen * 4, 4):
             cxxd = cxxdata[addr:addr+4]
             ford = fordata[addr:addr+4]
             if cxxd != b'\0\0\0\0' or ford != b'\0\0\0\0':
-                print('Files contain non-zero padding at {:08X}'.format(addr))
+                if cxxd == ford:
+                    print(('Data in what is supposed to be padding region at {:08X}, '
+                        + 'same in both files, likely bug in parse script. Record {} reclen {}'
+                        ).format(addr, rec, reclen))
+                else:
+                    print('Data in padding region at {:08X}'.format(addr))
                 sys.exit(1)
 
     if errors >= maxerrors:

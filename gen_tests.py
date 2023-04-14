@@ -27,6 +27,11 @@ dims = {
     3: '3D',
     4: 'Nx2D'
 }
+dim_ids = {
+    2: ' ',
+    3: '3',
+    4: '2'
+}
 run_types = {
     'R': 'ray',
     'C': 'coherent',
@@ -78,11 +83,17 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
         envfil.write('\'Gen: ' + title + '\' ! TITLE\n')
         envfil.write('50.0       ! FREQ (Hz)\n')
         envfil.write('1          ! NMEDIA\n')
-        envfil.write('\'' + st + 'VW - \'   ! SSP (' + ssp_types[st] 
-            + '), top bc (vacuum), atten units, add vol atten, altimetry, dev mode\n')
+        envfil.write('\'' + st + ('F' if p['trc'] else 'V') + 'W '
+            + ('~' if p['ati'] else '-')
+            + ('B' if p['Nfreq'] > 0 else ' ') + '\'   ! SSP (' + ssp_types[st] 
+            + '), top bc (' + ('file' if p['trc'] else 'vacuum') 
+            + '), atten units, add vol atten, altimetry, dev mode / broadband\n')
         envfil.write('0  0.0 5000.0 ! NPts (ignored), Sigma (ignored), bot depth\n')
         if st != 'A':
-            if p['ssp']['NPts'] == 3:
+            if p['ssp']['pts'] is not None:
+                for (z, c) in p['ssp']['pts']:
+                    envfil.write('{:6.1f} {:6.1f} /\n'.format(z, c))
+            elif p['ssp']['NPts'] == 3:
                 envfil.write('   0.0 1547.0 /\n')
                 envfil.write('1234.5 1500.0 /\n')
                 envfil.write('5000.0 1560.0 /\n')
@@ -94,7 +105,10 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
                         1547.0 - 47.0 * z / 1234.5,
                         1500.0 + (z - 1234.5) / (5000.0 - 1234.5) * 60.0)
                     envfil.write('{:6.1f} {:6.1f} /\n'.format(z, c))
-        envfil.write('\'R-    \' 0.0  ! bot bc (rigid), bathymetry, 4 spaces; Sigma (printed but ignored)\n')
+        envfil.write('\'' + ('F' if p['brc'] else 'R')
+            + ('~' if p['bty'] else '-')
+            + '    \' 0.0  ! bot bc (' + ('file' if p['brc'] else 'rigid')
+            + '), bathymetry, 4 spaces; Sigma (printed but ignored)\n')
         if dim != 2:
             envfil.write(f"{p['NSx']}            ! NSX\n")
             envfil.write(f"{' '.join(map(str, p['Sx']))} /  ! SX(1:NSX) (km)\n")
@@ -109,8 +123,11 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
         if dim != 2:
             envfil.write(f"{p['Ntheta']}         ! Ntheta (number of bearings)\n")
             envfil.write(f"{' '.join(map(str, p['theta']))} /  ! bearing angles (degrees)\n")
-        envfil.write('\'' + rt + it + ' RR' + ('3' if dim == 3 else '2') 
-            + '\'      ! RunType, infl/beam type, ignored, point source, rectilinear grid, dim\n')
+        if p['Nfreq'] > 0:
+            envfil.write(f"{p['Nfreq']}          ! Nfreq (number of frequencies)\n")
+            envfil.write(f"{' '.join(map(str, p['freqVec']))} / ! wideband frequencies (Hz)\n")
+        envfil.write('\'' + rt + it + ('*' if p['SrcBmPat'] else ' ') + 'RR' + dim_ids[dim]
+            + '\'      ! RunType, infl/beam type, beam pat, point source, rectilinear grid, dim\n')
         envfil.write(f"{p['Nalpha']}            ! NBEAMS\n")
         envfil.write(f"{' '.join(map(str, p['alpha']))} /  ! ALPHA1, 2 (degrees)\n")
         if dim != 2:
@@ -136,18 +153,49 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
                     sspfil.write(' '.join('{:.2f}'.format(gen_ssp(r, z)) for r in range(Nr)) + '\n')
             else:
                 Nx, Ny, Nz = ssp['Nx'], ssp['Ny'], ssp['Nz']
-                xymin, xymax, zmax = ssp['xymin'], ssp['xymax'], ssp['zmax']
+                xmin, xmax, ymin, ymax, zmin, zmax = ssp['xmin'], ssp['xmax'], \
+                    ssp['ymin'], ssp['ymax'], ssp['zmin'], ssp['zmax']
                 def gen_ssp(x, y, z):
                     return 1500.0 + 50.0 * x / Nx - 50.0 * y / Ny + 50.0 * z / Nz
                 sspfil.write(str(Nx) + '\n')
-                sspfil.write(' '.join('{:.2f}'.format(xymin+(xymax-xymin)*x/(Nx-1)) for x in range(Nx)) + '\n')
+                sspfil.write(' '.join('{:.2f}'.format(xmin+(xmax-xmin)*x/(Nx-1)) for x in range(Nx)) + '\n')
                 sspfil.write(str(Ny) + '\n')
-                sspfil.write(' '.join('{:.2f}'.format(xymin+(xymax-xymin)*y/(Ny-1)) for y in range(Ny)) + '\n')
+                sspfil.write(' '.join('{:.2f}'.format(ymin+(ymax-ymin)*y/(Ny-1)) for y in range(Ny)) + '\n')
                 sspfil.write(str(Nz) + '\n')
-                sspfil.write(' '.join('{:.2f}'.format(zmax*z/(Nz-1)) for z in range(Nz)) + '\n')
+                sspfil.write(' '.join('{:.2f}'.format(zmin+(zmax-zmin)*z/(Nz-1)) for z in range(Nz)) + '\n')
                 for z in range(Nz):
                     for y in range(Ny):
                         sspfil.write(' '.join('{:.2f}'.format(gen_ssp(x, y, z)) for x in range(Nx)) + '\n')
+    def write_vector(fil, v, Nv = None):
+        if Nv is None:
+            Nv = len(v)
+        fil.write(str(Nv) + '\n')
+        for pt in v:
+            try:
+                s = ' '.join(map(str, pt))
+            except TypeError:
+                s = str(pt)
+            fil.write(s + '\n')
+    if p['SrcBmPat']:
+        with open('test/in/' + env_name + '.sbp', 'w') as sbpfil:
+            write_vector(sbpfil, p['SrcBmPat'])
+    if p['trc']:
+        with open('test/in/' + env_name + '.trc', 'w') as trcfil:
+            write_vector(trcfil, p['trc'])
+    if p['brc']:
+        with open('test/in/' + env_name + '.brc', 'w') as brcfil:
+            write_vector(brcfil, p['brc'])
+    for extension in ['ati', 'bty']:
+        if p[extension]:
+            with open('test/in/' + env_name + '.' + extension, 'w') as fil:
+                if dim == 2:
+                    write_vector(fil, p[extension])
+                else:
+                    write_vector(fil, p[extension]['Globalx'], p[extension]['Nx'])
+                    write_vector(fil, p[extension]['Globaly'], p[extension]['Ny'])
+                    for pt in p[extension]['z']:
+                        fil.write(' '.join(map(str, pt)) + '\n')
+                    
     
 def get_default_p(rt):
     p = {}
@@ -178,17 +226,36 @@ def get_default_p(rt):
     p['deltas'] = 1000.0
     p['ssp'] = {
         'NPts': 3,
+        'pts': None,
         'Nr': 5,
         'Rmin': -102.0,
         'Rmax': 102.0,
         'Nx': 4,
         'Ny': 6,
         'Nz': 5,
-        'xymin': -150.0,
-        'xymax': 150.0,
+        'xmin': -150.0,
+        'xmax': 150.0,
+        'ymin': -150.0,
+        'ymax': 150.0,
+        'zmin': 0.0,
         'zmax': 5000.0,
     }
+    p['Nfreq'] = 0
+    p['freqVec'] = None
+    p['SrcBmPat'] = None
+    p['trc'] = None
+    p['brc'] = None
+    p['ati'] = None
+    p['bty'] = None
     return p
+    
+def create_test_inner(dim, rt, it, st, p, subnames, shouldwork, gensuffix, passtxt, failtxt):
+    env_name = 'gen' + gensuffix + '_' + '_'.join(subnames)
+    title = ', '.join(subnames)
+    if gensuffix == 'rev':
+        title += ' reversed'
+    write_env_etc(dim, rt, it, st, p, env_name, title)
+    (passtxt if shouldwork else failtxt).write(env_name + '\n')
     
 def gen_all_it_st_combos(passtxt, failtxt, dim, rt):
     p = get_default_p(rt)
@@ -197,11 +264,10 @@ def gen_all_it_st_combos(passtxt, failtxt, dim, rt):
     it_list = ['G'] if rt == 'R' else infl_types.keys()
     for it in it_list:
         for st in ssp_types.keys():
-            subnames = [dims[dim], run_types[rt], infl_types[it], ssp_types[st]]
-            env_name = 'gen_' + '_'.join(subnames)
-            title = ', '.join(subnames)
-            write_env_etc(dim, rt, it, st, p, env_name, title)
-            (passtxt if should_work(dim, rt, it, st) else failtxt).write(env_name + '\n')
+            create_test_inner(dim, rt, it, st, p,
+                [dims[dim], run_types[rt], infl_types[it], ssp_types[st]],
+                should_work(dim, rt, it, st),
+                '', passtxt, failtxt)
 
 def gen_coverage_tests():
     for dim in [2, 3, 4]:
@@ -216,6 +282,157 @@ def gen_coverage_tests():
         gen_coverage_tests_type('tl', ['C', 'S', 'I'])
         gen_coverage_tests_type('eigen', ['E'])
         gen_coverage_tests_type('arr', ['A', 'a'])
+
+def gen_reverse_tests():
+    rt = 'C'
+    it = 'G'
+    for dim in [2, 3]:
+        with open('genrev_{}_pass.txt'.format(dims[dim]), 'w') as passtxt, \
+            open('genrev_{}_fail.txt'.format(dims[dim]), 'w') as failtxt:
+            continue_k = True
+            k = -1
+            while continue_k:
+                k += 1
+                for subtab in [False, True]:
+                    p = get_default_p(rt)
+                    st = 'C'
+                    shouldwork = True
+                    if k == 0:
+                        revname = 'Sx'
+                        if dim == 2: continue
+                        p['NSx'] = 10 if subtab else 2
+                        p['Sx'] = [5.0, -5.0]
+                    elif k == 1:
+                        revname = 'Sy'
+                        if dim == 2: continue
+                        p['NSy'] = 10 if subtab else 2
+                        p['Sy'] = [5.0, -5.0]
+                    elif k == 2:
+                        revname = 'Sz'
+                        p['NSz'] = 10 if subtab else 2
+                        p['Sz'] = [1500.0, 200.0]
+                    elif k == 3:
+                        revname = 'Rz'
+                        p['NRz'] = 10 if subtab else 2
+                        p['Rz'] = [4234.0, 123.4]
+                    elif k == 4:
+                        revname = 'Rr'
+                        p['NRr'] = 10 if subtab else 2
+                        p['Rr'] = [51.0, 4.1]
+                    elif k == 5:
+                        revname = 'theta'
+                        if dim == 2: continue
+                        p['Ntheta'] = 10 if subtab else 2
+                        p['theta'] = [359.0, 1.0]
+                    elif k == 6:
+                        revname = 'alpha'
+                        p['Nalpha'] = 10 if subtab else 2
+                        p['alpha'] = [51.2, -51.2]
+                    elif k == 7:
+                        revname = 'beta'
+                        if dim == 2: continue
+                        if subtab:
+                            p['Nbeta'] = 7
+                            p['beta'] = [182.0, 92.0]
+                        else:
+                            p['Nbeta'] = 3
+                            p['beta'] = [182.0, 137.0, 92.0]
+                    elif k == 8:
+                        revname = 'NPts'
+                        if subtab: continue
+                        shouldwork = False
+                        p['ssp']['NPts'] = 4
+                        p['ssp']['pts'] = [
+                            (0.0, 1500.0),
+                            (2123.0, 1490.0),
+                            (1123.0, 1520.0),
+                            (5000.0, 1550.0),
+                        ]
+                    elif k == 9:
+                        revname = 'Nr'
+                        if dim != 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        st = 'Q'
+                        p['ssp']['Rmin'] = 50.0
+                        p['ssp']['Rmax'] = 1.0
+                    elif k == 10:
+                        revname = 'Nx'
+                        if dim == 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        st = 'H'
+                        p['ssp']['xmin'] = 10.0
+                        p['ssp']['xmax'] = -10.0
+                    elif k == 11:
+                        revname = 'Ny'
+                        if dim == 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        st = 'H'
+                        p['ssp']['ymin'] = 10.0
+                        p['ssp']['ymax'] = -10.0
+                    elif k == 12:
+                        revname = 'Nz'
+                        if dim == 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        st = 'H'
+                        p['ssp']['zmin'] = 4000.0
+                        p['ssp']['zmax'] = 1000.0
+                    elif k == 13:
+                        revname = 'Freq'
+                        p['Nfreq'] = 10 if subtab else 2
+                        shouldwork = False
+                        p['freqVec'] = [500.0, 50.0]
+                    elif k == 14:
+                        revname = 'Pat'
+                        if subtab: continue
+                        shouldwork = False
+                        p['SrcBmPat'] = [
+                            (20.0, 0.0),
+                            (0.0, -1.0),
+                            (-20.0, -2.0),
+                        ]
+                    elif k in {15, 16}:
+                        revname = 'TRC' if k == 15 else 'BRC'
+                        if subtab: continue
+                        shouldwork = False
+                        p[revname.lower()] = [
+                            (90.0, 1.0, 1.0),
+                            (45.0, 0.5, 0.5),
+                        ]
+                    elif k in {17, 18}:
+                        revname = 'Altimetry_range' if k == 17 else 'Bathymetry_range'
+                        if dim != 2: continue
+                        if subtab: continue
+                        shouldwork = False
+                        p['ati' if k == 17 else 'bty'] = [
+                            (50.0, 0.0),
+                            (10.0, 0.0),
+                        ]
+                    elif k in {19, 20, 21, 22}:
+                        revname = 'Altimetry_' if k < 21 else 'Bathymetry_'
+                        revname += 'x' if (k&1) else 'y'
+                        if dim == 2: continue
+                        shouldwork = False
+                        Globalx = [50.0, 10.0]
+                        Globaly = [10.0, 50.0]
+                        if not k&1:
+                            Globalx, Globaly = Globaly, Globalx
+                        Nx = 10 if subtab and (k&1) else 2
+                        Ny = 10 if subtab and not (k&1) else 2
+                        p['ati' if k < 21 else 'bty'] = {
+                            'Nx': Nx, 'Ny': Ny, 'Globalx': Globalx, 'Globaly': Globaly,
+                            'z': [[5000.0] * Nx] * Ny
+                        }
+                    else:
+                        continue_k = False
+                        break
+                    subnames = [dims[dim], revname]
+                    if subtab: subnames.append('tab')
+                    create_test_inner(dim, rt, it, st, p, subnames,
+                        shouldwork, 'rev', passtxt, failtxt)
 
 def gen_perf_ray_tests():
     for dim in [2, 3, 4]:
@@ -379,7 +596,8 @@ def gen_perf_arr_tests():
                         write_env_etc(dim, rt, it, st, p, env_name, title)
                 
 
-gen_coverage_tests()
-gen_perf_ray_tests()
-gen_perf_tl_tests()
-gen_perf_arr_tests()
+# gen_coverage_tests()
+gen_reverse_tests()
+# gen_perf_ray_tests()
+# gen_perf_tl_tests()
+# gen_perf_arr_tests()

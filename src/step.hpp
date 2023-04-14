@@ -1,8 +1,8 @@
 /*
-bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP(3D) underwater acoustics simulator
 Copyright (C) 2021-2023 The Regents of the University of California
-c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,11 +17,9 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
-#include "runtype.hpp"
-#include "ssp.hpp"
+#include "common_run.hpp"
 #include "boundary.hpp"
-#include "beams.hpp"
+#include "ssp.hpp"
 
 namespace bhc {
 
@@ -515,8 +513,12 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
     // z-component of unit tangent is sin( theta ); we want cos( theta )
     // rmat[0][0] *= (FL(1.0) - SQ(ray.c * ray.t.z))
 
-    if(REFLECTVERSION && rmat[0][0] == RL(0.0) && rmat[0][1] == RL(0.0)
-       && rmat[1][1] == RL(0.0)) {
+    bool noCurvatureChange = false; // Silence MSVC warning
+    if constexpr(REFLECTVERSION) {
+        noCurvatureChange = rmat[0][0] == RL(0.0) && rmat[0][1] == RL(0.0)
+            && rmat[1][1] == RL(0.0);
+    }
+    if(noCurvatureChange) {
         // LP: There is no curvature change, but rotating p forward and back
         // can change it slightly due to floating-point imprecision, leading to
         // long-term divergence.

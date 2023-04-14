@@ -1,0 +1,66 @@
+/*
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP / BELLHOP3D underwater acoustics simulator
+Copyright (C) 2021-2023 The Regents of the University of California
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+#include "@CMAKE_SOURCE_DIR@/src/mode/fieldimpl.hpp"
+#include "@CMAKE_SOURCE_DIR@/src/trace.hpp"
+
+namespace bhc { namespace mode {
+
+#define NUM_THREADS 256
+#define LAUNCH_BOUNDS __launch_bounds__(NUM_THREADS, 1)
+
+using GENCFG = CfgSel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@>;
+
+template<typename CFG, bool O3D, bool R3D> __global__ void LAUNCH_BOUNDS
+FieldModesKernel(bhcParams<O3D> params, bhcOutputs<O3D, R3D> outputs,
+    ErrState *errState);
+
+template<> __global__ void LAUNCH_BOUNDS
+FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+    bhcParams<@BHCGENO3D@> params,
+    bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> outputs,
+    ErrState *errState)
+{
+    for(int32_t job = blockIdx.x * blockDim.x + threadIdx.x; true;
+        job += gridDim.x * blockDim.x) {
+        RayInitInfo rinit;
+        if(!GetJobIndices<@BHCGENO3D@>(rinit, job, params.Pos, params.Angles)) break;
+
+        MainFieldModes<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+            rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
+            params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
+            params.sbp, outputs.eigen, outputs.arrinfo, errState);
+    }
+}
+
+template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
+    bhcParams<@BHCGENO3D@> &params,
+    bhcOutputs<@BHCGENO3D@, @BHCGENR3D@> &outputs)
+{
+    ErrState *errState;
+    checkCudaErrors(cudaMallocManaged(&errState, sizeof(ErrState)));
+    ResetErrState(errState);
+    FieldModesKernel<GENCFG, @BHCGENO3D@, @BHCGENR3D@>
+        <<<GetInternal(params)->d_multiprocs, NUM_THREADS>>>(params, outputs, errState);
+    syncAndCheckKernelErrors("FieldModesKernel<@BHCGENRUN@, @BHCGENINFL@, @BHCGENSSP@, "
+                             "@BHCGENO3D@, @BHCGENR3D@>");
+    CheckReportErrors(GetInternal(params), errState);
+    checkCudaErrors(cudaFree(errState));
+}
+
+}} // namespace bhc::mode

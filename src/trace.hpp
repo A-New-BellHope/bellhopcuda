@@ -1,8 +1,8 @@
 /*
-bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP(3D) underwater acoustics simulator
 Copyright (C) 2021-2023 The Regents of the University of California
-c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,10 +17,11 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
-#include "runtype.hpp"
+#include "common_run.hpp"
 #include "step.hpp"
 #include "reflect.hpp"
+#include "boundary.hpp"
+#include "influence.hpp"
 
 namespace bhc {
 
@@ -48,14 +49,13 @@ template<bool O3D> HOST_DEVICE inline void Distances(
  * before the Nx2D/3D split, so it is only dependent on the ocean's dimensionality.
  */
 template<typename CFG, bool O3D> HOST_DEVICE inline SSPOutputs<O3D> RayStartNominalSSP(
-    int32_t isx, int32_t isy, int32_t isz, real alpha, SSPSegState &iSeg,
+    int32_t isx, int32_t isy, int32_t isz, [[maybe_unused]] real alpha, SSPSegState &iSeg,
     const Position *Pos, const SSPStructure *ssp, ErrState *errState, VEC23<O3D> &xs,
     VEC23<O3D> &tinit)
 {
     if constexpr(O3D) {
         xs    = vec3(Pos->Sx[isx], Pos->Sy[isy], Pos->Sz[isz]);
         tinit = vec3(FL(0.0), FL(0.0), FL(1.0));
-        IGNORE_UNUSED(alpha);
     } else {
         xs    = vec2(FL(0.0), Pos->Sz[isz]); // x-y [LP: r-z] coordinate of the source
         tinit = vec2(STD::cos(alpha), STD::sin(alpha));
@@ -79,7 +79,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
     BdryState<O3D> &bds, BdryType &Bdry, const BdryType *ConstBdry,
     const BdryInfo<O3D> *bdinfo, const SSPStructure *ssp, const Position *Pos,
     const AnglesStructure *Angles, const FreqInfo *freqinfo,
-    const BeamStructure<O3D> *Beam, const BeamInfo *beaminfo, ErrState *errState)
+    const BeamStructure<O3D> *Beam, const SBPInfo *sbp, ErrState *errState)
 {
     if(rinit.isz < 0 || rinit.isz >= Pos->NSz || rinit.ialpha < 0
        || rinit.ialpha >= Angles->alpha.n
@@ -101,7 +101,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         rinit.beta         = Angles->beta.angles[rinit.ibeta];
         rinit.SrcAzimAngle = RadDeg * rinit.beta; // take-off azimuthal   angle in degrees
     } else {
-        rinit.beta = rinit.SrcAzimAngle = DEBUG_LARGEVAL;
+        rinit.beta = rinit.SrcAzimAngle = NAN;
     }
 
     iSeg.x = iSeg.y = iSeg.z = iSeg.r = 0;
@@ -133,17 +133,16 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
         }
     }
 
-    int32_t ibp = BinarySearchLEQ(
-        beaminfo->SrcBmPat, beaminfo->NSBPPts, 2, 0, rinit.SrcDeclAngle);
+    int32_t ibp = BinarySearchLEQ(sbp->SrcBmPat, sbp->NSBPPts, 2, 0, rinit.SrcDeclAngle);
     // LP: Our function won't ever go outside the table, but we need to limit it
     // to 2 from the end.
-    ibp = bhc::min(ibp, beaminfo->NSBPPts - 2);
+    ibp = bhc::min(ibp, sbp->NSBPPts - 2);
 
     // linear interpolation to get amplitude
-    real s = (rinit.SrcDeclAngle - beaminfo->SrcBmPat[2 * ibp + 0])
-        / (beaminfo->SrcBmPat[2 * (ibp + 1) + 0] - beaminfo->SrcBmPat[2 * ibp + 0]);
-    float Amp0 = (FL(1.0) - s) * beaminfo->SrcBmPat[2 * ibp + 1]
-        + s * beaminfo->SrcBmPat[2 * (ibp + 1) + 1]; // initial amplitude
+    real s = (rinit.SrcDeclAngle - sbp->SrcBmPat[2 * ibp + 0])
+        / (sbp->SrcBmPat[2 * (ibp + 1) + 0] - sbp->SrcBmPat[2 * ibp + 0]);
+    float Amp0 = (FL(1.0) - s) * sbp->SrcBmPat[2 * ibp + 1]
+        + s * sbp->SrcBmPat[2 * (ibp + 1) + 1]; // initial amplitude
 
     // Lloyd mirror pattern for semi-coherent option
     if(IsSemiCoherentRun(Beam)) {
@@ -217,9 +216,9 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
 
     if(DistBegTop <= FL(0.0) || DistBegBot <= FL(0.0)) {
         RunWarning(errState, BHC_WARN_SOURCE_OUTSIDE_BOUNDARIES);
-        // printf("Terminating the ray trace because the source is on or outside the "
-        //           "boundaries\n");
-        // /*
+#ifdef STEP_DEBUGGING
+        printf("Terminating the ray trace because the source is on or outside the "
+               "boundaries\n");
         if(DistBegTop <= FL(0.0)) {
             if constexpr(R3D) {
                 printf(
@@ -259,7 +258,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayInit(
                     bds.bot.n.y, DistBegBot);
             }
         }
-        // */
+#endif
         return false; // source must be within the medium
     }
 
@@ -392,11 +391,11 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool RayUpdate(
 template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     const rayPt<R3D> &point, int32_t &Nsteps, int32_t is, const VEC23<O3D> &xs,
     const int32_t &iSmallStepCtr, real &DistBegTop, real &DistBegBot,
-    const real &DistEndTop, const real &DistEndBot, const Origin<O3D, R3D> &org,
-    const BdryInfo<O3D> *bdinfo, const BeamStructure<O3D> *Beam, ErrState *errState)
+    const real &DistEndTop, const real &DistEndBot, int32_t MaxPointsPerRay,
+    const Origin<O3D, R3D> &org, [[maybe_unused]] const BdryInfo<O3D> *bdinfo,
+    const BeamStructure<O3D> *Beam, ErrState *errState)
 {
     bool leftbox, escapedboundaries, toomanysmallsteps;
-    bool escaped0bdry, escapedNbdry;
     if constexpr(O3D) {
         vec3 x_o = RayToOceanX(point.x, org);
         vec3 t_o = RayToOceanT(point.t, org);
@@ -413,6 +412,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         real maxy = bhc::min(
             bdinfo->bot.bd[bdinfo->bot.NPts.y - 1].x.y,
             bdinfo->top.bd[bdinfo->top.NPts.y - 1].x.y);
+        bool escaped0bdry, escapedNbdry;
         escaped0bdry = x_o.x < minx || x_o.y < miny;
         escapedNbdry = x_o.x > maxx || x_o.y > maxy;
         // LP: See discussion in GetBdrySeg for why this was changed from the
@@ -424,11 +424,9 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
         escapedboundaries = escaped0bdry || escapedNbdry;
         toomanysmallsteps = iSmallStepCtr > 50;
     } else {
-        IGNORE_UNUSED(bdinfo);
         leftbox = IsOutsideBeamBoxDim<false, 0>(point.x, Beam, xs)
             || IsOutsideBeamBoxDim<false, 1>(point.x, Beam, xs);
-        escaped0bdry = escapedNbdry = false;
-        escapedboundaries           = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0))
+        escapedboundaries = (DistBegTop < FL(0.0) && DistEndTop < FL(0.0))
             || (DistBegBot < FL(0.0) && DistEndBot < FL(0.0));
         toomanysmallsteps = false; // LP: The small step counter is never checked in 2D.
     }
@@ -466,7 +464,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
 #endif
         Nsteps = is + 1;
         return true;
-    } else if(is >= MaxN - 3) {
+    } else if(is >= MaxPointsPerRay - 3) {
         RunWarning(errState, BHC_WARN_ONERAY_OUTOFMEMORY);
         // printf("Warning in TraceRay: Insufficient storage for ray trajectory\n");
         Nsteps = is;
@@ -476,6 +474,118 @@ template<bool O3D, bool R3D> HOST_DEVICE inline bool RayTerminate(
     DistBegTop = DistEndTop;
     DistBegBot = DistEndBot;
     return false;
+}
+
+/**
+ * Main ray tracing function for ray path output mode.
+ */
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainRayMode(
+    RayInitInfo &rinit, rayPt<R3D> *ray, int32_t &Nsteps, int32_t MaxPointsPerRay,
+    Origin<O3D, R3D> &org, const BdryType *ConstBdry, const BdryInfo<O3D> *bdinfo,
+    const ReflectionInfo *refl, const SSPStructure *ssp, const Position *Pos,
+    const AnglesStructure *Angles, const FreqInfo *freqinfo,
+    const BeamStructure<O3D> *Beam, const SBPInfo *sbp, ErrState *errState)
+{
+    real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
+    SSPSegState iSeg;
+    VEC23<O3D> xs, gradc;
+    BdryState<O3D> bds;
+    BdryType Bdry;
+
+    if(!RayInit<CFG, O3D, R3D>(
+           rinit, xs, ray[0], gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
+           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, sbp, errState)) {
+        Nsteps = 1;
+        return;
+    }
+
+    int32_t iSmallStepCtr = 0;
+    int32_t is            = 0; // index for a step along the ray
+
+    while(true) {
+        if(HasErrored(errState)) break;
+        bool twoSteps = RayUpdate<CFG, O3D, R3D>(
+            ray[is], ray[is + 1], ray[is + 2], DistEndTop, DistEndBot, iSmallStepCtr, org,
+            iSeg, bds, Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
+        if(Nsteps >= 0 && is >= Nsteps) {
+            Nsteps = is + 2;
+            break;
+        }
+        is += (twoSteps ? 2 : 1);
+        if(RayTerminate<O3D, R3D>(
+               ray[is], Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
+               DistEndBot, MaxPointsPerRay, org, bdinfo, Beam, errState))
+            break;
+    }
+}
+
+/**
+ * Main ray tracing function for TL, eigen, and arrivals runs.
+ */
+template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void MainFieldModes(
+    RayInitInfo &rinit, cpxf *uAllSources, const BdryType *ConstBdry,
+    const BdryInfo<O3D> *bdinfo, const ReflectionInfo *refl, const SSPStructure *ssp,
+    const Position *Pos, const AnglesStructure *Angles, const FreqInfo *freqinfo,
+    const BeamStructure<O3D> *Beam, const SBPInfo *sbp, EigenInfo *eigen,
+    const ArrInfo *arrinfo, ErrState *errState)
+{
+    real DistBegTop, DistEndTop, DistBegBot, DistEndBot;
+    SSPSegState iSeg;
+    VEC23<O3D> xs, gradc;
+    BdryState<O3D> bds;
+    BdryType Bdry;
+    Origin<O3D, R3D> org;
+
+    rayPt<R3D> point0, point1, point2;
+    point2.c = NAN; // Silence incorrect g++ warning about maybe uninitialized;
+    // it is always set when doing two steps, and not used otherwise
+    InfluenceRayInfo<R3D> inflray;
+
+    if(!RayInit<CFG, O3D, R3D>(
+           rinit, xs, point0, gradc, DistBegTop, DistBegBot, org, iSeg, bds, Bdry,
+           ConstBdry, bdinfo, ssp, Pos, Angles, freqinfo, Beam, sbp, errState)) {
+        return;
+    }
+
+    Init_Influence<CFG, O3D, R3D>(
+        inflray, point0, rinit, gradc, Pos, org, ssp, iSeg, Angles, freqinfo, Beam,
+        errState);
+
+    int32_t iSmallStepCtr = 0;
+    int32_t is            = 0; // index for a step along the ray
+    int32_t Nsteps        = 0; // not actually needed in TL mode, debugging only
+
+    while(true) {
+        if(HasErrored(errState)) break;
+        bool twoSteps = RayUpdate<CFG, O3D, R3D>(
+            point0, point1, point2, DistEndTop, DistEndBot, iSmallStepCtr, org, iSeg, bds,
+            Bdry, bdinfo, refl, ssp, freqinfo, Beam, xs, errState);
+        if(!Step_Influence<CFG, O3D, R3D>(
+               point0, point1, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg, Pos,
+               Beam, eigen, arrinfo, errState)) {
+#ifdef STEP_DEBUGGING
+            printf("Step_Influence terminated ray\n");
+#endif
+            break;
+        }
+        ++is;
+        if(twoSteps) {
+            if(!Step_Influence<CFG, O3D, R3D>(
+                   point1, point2, inflray, is, uAllSources, ConstBdry, org, ssp, iSeg,
+                   Pos, Beam, eigen, arrinfo, errState))
+                break;
+            point0 = point2;
+            ++is;
+        } else {
+            point0 = point1;
+        }
+        if(RayTerminate<O3D, R3D>(
+               point0, Nsteps, is, xs, iSmallStepCtr, DistBegTop, DistBegBot, DistEndTop,
+               DistEndBot, MaxN, org, bdinfo, Beam, errState))
+            break;
+    }
+
+    // printf("Nsteps %d\n", Nsteps);
 }
 
 } // namespace bhc

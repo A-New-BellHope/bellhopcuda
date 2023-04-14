@@ -1,8 +1,8 @@
 /*
-bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP underwater acoustics simulator
+bellhopcxx / bellhopcuda - C++/CUDA port of BELLHOP(3D) underwater acoustics simulator
 Copyright (C) 2021-2023 The Regents of the University of California
-c/o Jules Jaffe team at SIO / UCSD, jjaffe@ucsd.edu
-Based on BELLHOP, which is Copyright (C) 1983-2020 Michael B. Porter
+Marine Physical Lab at Scripps Oceanography, c/o Jules Jaffe, jjaffe@ucsd.edu
+Based on BELLHOP / BELLHOP3D, which is Copyright (C) 1983-2022 Michael B. Porter
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,20 +17,21 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "common.hpp"
+#include "common_run.hpp"
 #include "curves.hpp"
 
 namespace bhc {
 
 #define SSP_2D_FN_ARGS \
     const vec2 &x, const vec2 &t, SSPOutputs<false> &o, const SSPStructure *ssp, \
-        SSPSegState &iSeg, ErrState *errState
+        SSPSegState &iSeg, [[maybe_unused]] ErrState *errState
 #define SSP_3D_FN_ARGS \
     const vec3 &x, const vec3 &t, SSPOutputs<true> &o, const SSPStructure *ssp, \
         SSPSegState &iSeg, ErrState *errState
 #define SSP_TEMPL_FN_ARGS \
-    const VEC23<O3D> &x, const VEC23<O3D> &t, SSPOutputs<O3D> &o, \
-        const SSPStructure *ssp, SSPSegState &iSeg, ErrState *errState
+    const VEC23<O3D> &x, [[maybe_unused]] const VEC23<O3D> &t, SSPOutputs<O3D> &o, \
+        [[maybe_unused]] const SSPStructure *ssp, SSPSegState &iSeg, \
+        [[maybe_unused]] ErrState *errState
 
 HOST_DEVICE inline void UpdateSSPSegment(
     real x, real t, const real *array, int32_t n, int32_t &iSeg)
@@ -62,7 +63,6 @@ HOST_DEVICE inline real LinInterpDensity(
  */
 HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
 {
-    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     real w = LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -80,7 +80,6 @@ HOST_DEVICE inline void n2Linear(SSP_2D_FN_ARGS)
  */
 HOST_DEVICE inline void cLinear(SSP_2D_FN_ARGS)
 {
-    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -133,7 +132,6 @@ HOST_DEVICE inline void cPCHIP(SSP_2D_FN_ARGS)
  */
 HOST_DEVICE inline void cCubic(SSP_2D_FN_ARGS)
 {
-    IGNORE_UNUSED(errState);
     UpdateSSPSegment(x.y, t.y, ssp->z, ssp->NPts, iSeg.z);
     LinInterpDensity(x.y, ssp, iSeg, o.rho);
 
@@ -310,10 +308,6 @@ HOST_DEVICE inline void Hexahedral(SSP_3D_FN_ARGS)
 
 template<bool O3D> HOST_DEVICE inline void Analytic(SSP_TEMPL_FN_ARGS)
 {
-    IGNORE_UNUSED(t);
-    IGNORE_UNUSED(ssp);
-    IGNORE_UNUSED(errState);
-
     iSeg.z  = 0;
     real c0 = FL(1500.0);
     o.rho   = FL(1.0);
@@ -420,7 +414,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         }
     } else if constexpr(CFG::ssp::Is2D()) {
         if constexpr(O3D) {
-            // Should already have been checked in InitializeSSP
+            // Should already have been checked in SSP::Validate
             RunError(errState, BHC_ERR_TEMPLATE);
             o_proc.ccpx  = cpx(NAN, NAN);
             o_proc.gradc = vec3(NAN, NAN, NAN);
@@ -469,19 +463,5 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
         o = o_proc;
     }
 }
-
-template<bool O3D, bool R3D> void UpdateSSP(bhcParams<O3D, R3D> &params);
-extern template void UpdateSSP<false, false>(bhcParams<false, false> &params);
-extern template void UpdateSSP<true, false>(bhcParams<true, false> &params);
-extern template void UpdateSSP<true, true>(bhcParams<true, true> &params);
-
-template<bool O3D, bool R3D> void InitializeSSP(
-    bhcParams<O3D, R3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
-extern template void InitializeSSP<false, false>(
-    bhcParams<false, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
-extern template void InitializeSSP<true, false>(
-    bhcParams<true, false> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
-extern template void InitializeSSP<true, true>(
-    bhcParams<true, true> &params, LDIFile &ENVFile, HSInfo &RecycledHS);
 
 } // namespace bhc
