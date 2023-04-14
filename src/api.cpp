@@ -337,7 +337,7 @@ template<bool O3D> bool writeenv(bhcParams<O3D> &params, const char *FileRoot)
 
         GetInternal(params)->FileRoot = FileRoot;
         LDOFile ENVFile;
-        ENVFile.setStyle(true);
+        ENVFile.setStyle(LDOFile::Style::WRITTEN_BY_HAND);
         ENVFile.open(std::string(FileRoot) + ".env");
         if(!ENVFile.good()) {
             PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;

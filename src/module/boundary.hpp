@@ -181,7 +181,13 @@ public:
         PrintFileEmu &PRTFile         = GetInternal(params)->PRTFile;
 
         LDOFile BDRYFile;
-        BDRYFile.setStyle(true);
+        int32_t NPts;
+        if constexpr(O3D)
+            NPts = bdinfotb->NPts.x * bdinfotb->NPts.y;
+        else
+            NPts = bdinfotb->NPts;
+        BDRYFile.setStyle(
+            NPts <= 10 ? LDOFile::Style::WRITTEN_BY_HAND : LDOFile::Style::MATLAB_OUTPUT);
         BDRYFile.open(GetInternal(params)->FileRoot + "." + s_atibty);
         if(!BDRYFile.good()) {
             PRTFile << s_ATIBTY << "File = " << GetInternal(params)->FileRoot << "."
@@ -194,19 +200,19 @@ public:
         BDRYFile.write(s_altimetrybathymetry);
         BDRYFile.write(" file for ");
         BDRYFile.write(params.Title);
-        BDRYFile << "\n";
+        BDRYFile << '\n';
 
         if constexpr(O3D) {
             // x values
             UnSubTab(
                 BDRYFile, &bdinfotb->bd[0].x.x, bdinfotb->NPts.x, "NPts.x", nullptr,
-                RL(1.0),
-                bdinfotb->NPts.y * sizeof(bdinfotb->bd) / sizeof(bdinfotb->bd[0].x.x));
+                RL(0.001),
+                bdinfotb->NPts.y * sizeof(bdinfotb->bd[0]) / sizeof(bdinfotb->bd[0].x.x));
 
             // y values
             UnSubTab(
                 BDRYFile, &bdinfotb->bd[0].x.y, bdinfotb->NPts.y, "NPts.y", nullptr,
-                RL(1.0), sizeof(bdinfotb->bd) / sizeof(bdinfotb->bd[0].x.y));
+                RL(0.001), sizeof(bdinfotb->bd[0]) / sizeof(bdinfotb->bd[0].x.y));
 
             // z values
             for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
@@ -221,7 +227,7 @@ public:
             BDRYFile.write("! NPts\n");
 
             for(int32_t ii = 1; ii < bdinfotb->NPts - 1; ++ii) {
-                BDRYFile << bdinfotb->bd[ii].x;
+                BDRYFile << bdinfotb->bd[ii].x.x * RL(0.001) << bdinfotb->bd[ii].x.y;
                 if(bdinfotb->type[1] == 'L') {
                     BDRYFile << bdinfotb->bd[ii].hs.alphaR;
                     BDRYFile << bdinfotb->bd[ii].hs.betaR;

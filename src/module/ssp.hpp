@@ -214,7 +214,9 @@ public:
         if(ssp->Type == 'Q') {
             // write out extra SSP data for 2D
             LDOFile SSPFile;
-            SSPFile.setStyle(true);
+            SSPFile.setStyle(
+                ssp->NPts * ssp->Nr <= 50 ? LDOFile::Style::WRITTEN_BY_HAND
+                                          : LDOFile::Style::MATLAB_OUTPUT);
             SSPFile.open(GetInternal(params)->FileRoot + ".ssp");
             if(!SSPFile.good()) {
                 PRTFile << "SSPFile = " << GetInternal(params)->FileRoot << ".ssp\n";
@@ -230,7 +232,7 @@ public:
         } else if(ssp->Type == 'H') {
             // write out extra SSP data for 3D
             LDOFile SSPFile;
-            SSPFile.setStyle(true);
+            SSPFile.setStyle(LDOFile::Style::MATLAB_OUTPUT);
             SSPFile.open(GetInternal(params)->FileRoot + ".ssp");
             if(!SSPFile.good()) {
                 PRTFile << "SSPFile = " << GetInternal(params)->FileRoot << ".ssp\n";

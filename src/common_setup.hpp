@@ -319,9 +319,9 @@ template<typename REAL> inline void UnSubTab(
         lastx       = x[stridereals * (Nx - 1)];
         REAL deltax = (lastx - firstx) / (REAL)(Nx - 1);
         REAL curx   = firstx;
-        REAL thresh = (REAL)(10 * Nx)
+        REAL thresh = (REAL)(3 * Nx)
             * spacing(std::max(std::abs(firstx), std::abs(lastx)));
-        thresh = std::max(std::min(thresh, (REAL)(0.01)), (REAL)(1e-7));
+        thresh = std::max(thresh, (REAL)(1e-7));
         for(int32_t i = 1; i < Nx - 1; ++i) {
             curx += deltax;
             if(abs(x[stridereals * i] - curx) > thresh) {

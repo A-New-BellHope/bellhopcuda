@@ -84,7 +84,7 @@ public:
         if(sbp->SBPFlag != '*') return;
 
         LDOFile SBPFile;
-        SBPFile.setStyle(true);
+        SBPFile.setStyle(LDOFile::Style::WRITTEN_BY_HAND);
         SBPFile.open(GetInternal(params)->FileRoot + ".sbp");
         if(!SBPFile.good()) {
             PRTFile << "SBPFile = " << GetInternal(params)->FileRoot << ".sbp\n";

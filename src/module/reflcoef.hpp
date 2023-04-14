@@ -85,7 +85,7 @@ public:
         if(!IsFile(params)) return;
 
         LDOFile xRCFile;
-        xRCFile.setStyle(true);
+        xRCFile.setStyle(LDOFile::Style::WRITTEN_BY_HAND);
         xRCFile.open(GetInternal(params)->FileRoot + s_extension);
         if(!xRCFile.good()) {
             PRTFile << s_RC << "File = " << GetInternal(params)->FileRoot << s_extension
