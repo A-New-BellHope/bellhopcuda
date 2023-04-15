@@ -61,7 +61,7 @@ public:
             return;
         }
 
-        LDIFile SBPFile(GetInternal(params), GetInternal(params)->FileRoot, ".sbp");
+        LDIFile SBPFile(GetInternal(params), GetInternal(params)->FileRoot + ".sbp");
         if(!SBPFile.Good()) {
             PRTFile << "SBPFile = " << GetInternal(params)->FileRoot << ".sbp\n";
             EXTERR(BHC_PROGRAMNAME "-ReadPat: Unable to open source beampattern file");
@@ -96,7 +96,10 @@ public:
         SBPFile.write("! " BHC_PROGRAMNAME "- Source Beam Pattern file for ");
         SBPFile.write(params.Title);
         SBPFile << '\n';
-        SBPFile.write(sbp->SrcBmPat, sbp->NSBPPts, 2);
+        for(int32_t i = 0; i < sbp->NSBPPts; ++i) {
+            real dB = FL(20.0) * STD::log10(sbp->SrcBmPat[2 * i + 1]);
+            SBPFile << sbp->SrcBmPat[2 * i] << dB << '\n';
+        }
     }
 
     void ExtSetup(bhcParams<O3D> &params, int32_t NSBPPts) const

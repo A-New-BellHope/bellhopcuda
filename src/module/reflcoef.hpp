@@ -106,7 +106,7 @@ public:
         for(int32_t itheta = 0; itheta < refltb->NPts; ++itheta) {
             xRCFile << refltb->r[itheta].theta;
             xRCFile << refltb->r[itheta].r;
-            xRCFile << refltb->r[itheta].phi;
+            xRCFile << (refltb->r[itheta].phi * RadDeg);
             xRCFile << '\n';
         }
     }

@@ -163,12 +163,16 @@ public:
         case '-':
         case '_':
         case ' ': break;
-        default: EXTERR("ReadEnvironment: Unknown top option letter in fifth position\n");
+        default: EXTERR("ReadEnvironment: Unknown top option letter in fifth position");
         }
 
         switch(params.Bdry->Top.hs.Opt[5]) {
         case 'I': break;
         case ' ': break;
+        case 'B':
+            EXTERR("ReadEnvironment: BELLHOP/BELLHOP3D does not properly support "
+                   "wideband runs / freqvec / TopOpt[5] == 'B'");
+            [[fallthrough]]; // LP: break here would be unreachable
         default: EXTERR("ReadEnvironment: Unknown top option letter in sixth position\n");
         }
     }
