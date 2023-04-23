@@ -18,6 +18,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #include "tl.hpp"
 #include "../trace.hpp"
+#include "../module/title.hpp"
+#include "../module/szrz.hpp"
 
 namespace bhc { namespace mode {
 
@@ -261,14 +263,16 @@ template void WriteOutTL<true, true>(
 template<bool O3D, bool R3D> void ReadOutTL(
     bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot)
 {
-    const Position *Pos      = params.Pos;
-    const FreqInfo *freqinfo = params.freqinfo;
+    Position *Pos      = params.Pos;
+    FreqInfo *freqinfo = params.freqinfo;
 
     DirectIFile SHDFile(GetInternal(params));
     SHDFile.open(std::string(FileRoot) + ".shd");
     DIFREC(SHDFile, 0);
     DIFSKIP(SHDFile, 4);
-    params.Title = DIFREADS(SHDFile, 80);
+    std::string TempTitle = DIFREADS(SHDFile, 80);
+    bhc::module::Title<O3D> title;
+    title.SetTitle(params, TempTitle);
     DIFREC(SHDFile, 1);
     std::string PlotType = DIFREADS(SHDFile, 10);
     bool isTL            = (PlotType[0] == 'T' && PlotType[1] == 'L');
@@ -277,6 +281,7 @@ template<bool O3D, bool R3D> void ReadOutTL(
         EXTERR("PlotType (irregular grid) setting in SHDFile being loaded does not match "
                "env file");
     }
+
     DIFREC(SHDFile, 2);
     DIFREADV(SHDFile, freqinfo->Nfreq);
     DIFREADV(SHDFile, Pos->Ntheta);
@@ -332,6 +337,8 @@ template<bool O3D, bool R3D> void ReadOutTL(
     DIFREC(SHDFile, 9);
     DIFREAD(SHDFile, Pos->Rr, Pos->NRr * sizeof(Pos->Rr[0]));
 
+    module::SzRz<O3D> szrz;
+    szrz.Preprocess(params); // sets NRz_per_range
     TL<O3D, R3D> tl;
     tl.Preprocess(params, outputs);
 
@@ -342,6 +349,7 @@ template<bool O3D, bool R3D> void ReadOutTL(
                     for(int32_t Irz1 = 0; Irz1 < Pos->NRz_per_range; ++Irz1) {
                         DIFREC(SHDFile, GetRecNum(params, isx, isy, itheta, isz, Irz1));
                         for(int32_t r = 0; r < Pos->NRr; ++r) {
+                            cpxf v;
                             DIFREADV(SHDFile, v);
                             outputs.uAllSources
                                 [GetFieldAddr(isx, isy, isz, itheta, Irz1, r, params.Pos)]

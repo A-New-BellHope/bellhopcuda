@@ -49,7 +49,6 @@ public:
         PRTFile << BHC_PROGRAMNAME "- " << params.Title << "\n";
     }
 
-private:
     inline void SetTitle(bhcParams<O3D> &params, const std::string &TempTitle) const
     {
         size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());

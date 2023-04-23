@@ -426,11 +426,13 @@ run<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> bool writeout(
-    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs,
+    const char *FileRoot)
 {
     try {
         Stopwatch sw(GetInternal(params));
         sw.tick();
+        if(FileRoot != nullptr) { GetInternal(params)->FileRoot = FileRoot; }
         auto *mo = GetMode<O3D, R3D>(params);
         mo->Writeout(params, outputs);
         sw.tock("writeout");
@@ -444,21 +446,25 @@ template<bool O3D, bool R3D> bool writeout(
 
 #if BHC_ENABLE_2D
 template bool BHC_API writeout<false, false>(
-    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs,
+    const char *FileRoot);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API writeout<true, false>(
-    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs,
+    const char *FileRoot);
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API writeout<true, true>(
-    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs,
+    const char *FileRoot);
 #endif
 
 template<bool O3D, bool R3D> bool readout(
     bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot)
 {
     try {
+        if(FileRoot == nullptr) { FileRoot = GetInternal(params)->FileRoot.c_str(); }
         auto *mo = GetMode<O3D, R3D>(params);
         mo->Readout(params, outputs, FileRoot);
         delete mo;

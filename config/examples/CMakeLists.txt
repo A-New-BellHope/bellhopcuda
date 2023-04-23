@@ -30,3 +30,5 @@ function(create_example EXNAME)
 endfunction()
 
 create_example(defaults)
+create_example(readout)
+create_example(writeenv)

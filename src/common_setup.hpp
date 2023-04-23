@@ -136,7 +136,8 @@ inline bool endswith(const std::string &source, const std::string &target)
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
 #include "util/ldio.hpp"
-#include "util/bino.hpp"
+#include "util/directio.hpp"
+#include "util/unformattedio.hpp"
 #undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {
