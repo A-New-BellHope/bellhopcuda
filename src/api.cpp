@@ -455,6 +455,35 @@ template bool BHC_API writeout<true, true>(
     const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
 #endif
 
+template<bool O3D, bool R3D> bool readout(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot)
+{
+    try {
+        auto *mo = GetMode<O3D, R3D>(params);
+        mo->Readout(params, outputs, FileRoot);
+        delete mo;
+        module::ModulesList<O3D> modules;
+        for(auto *m : modules.list()) m->Validate(params);
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::readout(): %s\n", e.what());
+        return false;
+    }
+    return true;
+}
+
+#if BHC_ENABLE_2D
+template BHC_API bool readout<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+#endif
+#if BHC_ENABLE_NX2D
+template BHC_API bool readout<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+#endif
+#if BHC_ENABLE_3D
+template BHC_API bool readout<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> void finalize(

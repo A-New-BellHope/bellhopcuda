@@ -330,6 +330,30 @@ extern template BHC_API bool writeout<true, true>(
     const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
 
 /**
+ * Read saved results from a past run (a ray file, TL / shade file, or arrivals
+ * file) to memory (the outputs struct). params should have already been
+ * initialized with the same or a similar environment file (and other input data
+ * files) which produced these outputs. If basic parameters in the output file
+ * (e.g number of sources) contradict the state in params, params will be
+ * updated to match the output file. However, if there are major
+ * incompatibilities such as dimensionality or run type, errors will be thrown.
+ *
+ * returns: false if an error occurred, true if no errors.
+ */
+template<bool O3D, bool R3D> bool readout(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot);
+
+/// 2D version, see template.
+extern template BHC_API bool readout<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+/// Nx2D version, see template.
+extern template BHC_API bool readout<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+/// 3D version, see template.
+extern template BHC_API bool readout<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
+
+/**
  * Write the current params state to an environment file and any other "input"
  * file types (e.g. SSP, bathymetry, etc.), so that the state can be loaded
  * later.

@@ -43,7 +43,7 @@ public:
     Arr() {}
     virtual ~Arr() {}
 
-    virtual void Init(bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Init(bhcOutputs<O3D, R3D> &outputs) const override
     {
         outputs.arrinfo->Arr           = nullptr;
         outputs.arrinfo->NArr          = nullptr;
@@ -51,7 +51,8 @@ public:
         outputs.arrinfo->MaxNArr       = 1;
     }
 
-    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         Field<O3D, R3D>::Preprocess(params, outputs);
         ArrInfo *arrinfo = outputs.arrinfo;
@@ -89,18 +90,20 @@ public:
         // MaxNPerSource does not have to be initialized
     }
 
-    virtual void Postprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Postprocess(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         PostProcessArrivals<O3D, R3D>(params, outputs.arrinfo);
     }
 
     virtual void Writeout(
-        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const override
     {
         WriteOutArrivals<O3D>(params, outputs.arrinfo);
     }
 
-    virtual void Finalize(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         trackdeallocate(params, outputs.arrinfo->Arr);
         trackdeallocate(params, outputs.arrinfo->NArr);

@@ -40,17 +40,27 @@ extern template void WriteOutTL<true, false>(
 extern template void WriteOutTL<true, true>(
     const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
 
+template<bool O3D, bool R3D> void ReadOutTL(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot);
+extern template void ReadOutTL<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+extern template void ReadOutTL<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+extern template void ReadOutTL<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
+
 template<bool O3D, bool R3D> class TL : public Field<O3D, R3D> {
 public:
     TL() {}
     virtual ~TL() {}
 
-    virtual void Init(bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Init(bhcOutputs<O3D, R3D> &outputs) const override
     {
         outputs.uAllSources = nullptr;
     }
 
-    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         Field<O3D, R3D>::Preprocess(params, outputs);
 
@@ -63,18 +73,27 @@ public:
         memset(outputs.uAllSources, 0, n * sizeof(cpxf));
     }
 
-    virtual void Postprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Postprocess(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         PostProcessTL<O3D, R3D>(params, outputs);
     }
 
     virtual void Writeout(
-        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const override
     {
         WriteOutTL<O3D, R3D>(params, outputs);
     }
 
-    virtual void Finalize(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Readout(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs,
+        const char *FileRoot) const override
+    {
+        ReadOutTL<O3D, R3D>(params, outputs, FileRoot);
+    }
+
+    virtual void Finalize(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         trackdeallocate(params, outputs.uAllSources);
     }

@@ -37,14 +37,15 @@ public:
     Eigen() {}
     virtual ~Eigen() {}
 
-    virtual void Init(bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Init(bhcOutputs<O3D, R3D> &outputs) const override
     {
         outputs.eigen->hits    = nullptr;
         outputs.eigen->neigen  = 0;
         outputs.eigen->memsize = 0;
     }
 
-    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         Field<O3D, R3D>::Preprocess(params, outputs);
 
@@ -68,19 +69,21 @@ public:
         eigen->neigen = 0;
     }
 
-    virtual void Postprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Postprocess(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         PostProcessEigenrays<O3D, R3D>(params, outputs);
     }
 
     virtual void Writeout(
-        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const override
     {
         Ray<O3D, R3D> raymode;
         raymode.Writeout(params, outputs);
     }
 
-    virtual void Finalize(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Finalize(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         trackdeallocate(params, outputs.eigen->hits);
     }

@@ -70,22 +70,6 @@ public:
         bytesWrittenThisRecord = 0;
     }
 
-    void checkAndIncrement(const char *file, int fline, size_t bytes)
-    {
-        if(bytesWrittenThisRecord + bytes > recl) {
-            ExternalError(
-                _internal,
-                "%s:%d: DirectOFile overflow, %" PRIuMAX
-                " bytes already written, rec size %" PRIuMAX ", tried to write %" PRIuMAX
-                " more",
-                file, fline, bytesWrittenThisRecord, recl, bytes);
-        }
-        bytesWrittenThisRecord += bytes;
-        if(record == highestRecord) {
-            bytesWrittenHighestRecord = bytesWrittenThisRecord;
-        }
-    }
-
 #define DOFWRITE(d, data, bytes) d.write(__FILE__, __LINE__, data, bytes)
     void write(const char *file, int fline, const void *data, size_t bytes)
     {
@@ -112,6 +96,117 @@ private:
     size_t bytesWrittenThisRecord;
     size_t highestRecord;
     size_t bytesWrittenHighestRecord;
+
+    void checkAndIncrement(const char *file, int fline, size_t bytes)
+    {
+        if(bytesWrittenThisRecord + bytes > recl) {
+            ExternalError(
+                _internal,
+                "%s:%d: DirectOFile overflow, %" PRIuMAX
+                " bytes already written, rec size %" PRIuMAX ", tried to write %" PRIuMAX
+                " more",
+                file, fline, bytesWrittenThisRecord, recl, bytes);
+        }
+        bytesWrittenThisRecord += bytes;
+        if(record == highestRecord) {
+            bytesWrittenHighestRecord = bytesWrittenThisRecord;
+        }
+    }
+};
+
+class DirectIFile {
+public:
+    DirectIFile(bhcInternal *internal) : _internal(internal), recl(0) {}
+    ~DirectIFile()
+    {
+        if(!istr.is_open()) return;
+        istr.close();
+    }
+
+    void open(const std::string &path)
+    {
+        istr.open(path, std::ios::binary);
+        if(!(istr.good() && istr.is_open())) {
+            ExternalError(_internal, "Failed to open DirectIFile %s", path.c_str());
+        }
+        istr.read(&recl, 4);
+        istr.seekg(0, istr.end);
+        fileLen = istr.tellg();
+        if((fileLen % recl) != 0) {
+            ExternalError(
+                _internal,
+                "DirectIFile %s file length %" PRIuMAX
+                " is not multiple of record length %" PRIuMAX,
+                path.c_str(), fileLen, recl);
+        }
+    }
+
+#define DIFREC(d, r) d.rec(__FILE__, __LINE__, r)
+    void rec(const char *file, int fline, size_t r)
+    {
+        size_t a = r * recl;
+        if(a >= fileLen) {
+            ExternalError(
+                _internal,
+                "%s:%d: DirectIFile record %" PRIuMAX
+                " out of bounds, record length is %" PRIuMAX ", file length is %" PRIuMAX,
+                file, fline, r, recl, fileLen);
+        }
+        record = r;
+        istr.seekg(a);
+        bytesReadThisRecord = 0;
+    }
+
+#define DIFREAD(d, data, bytes) d.read(__FILE__, __LINE__, data, bytes)
+    void read(const char *file, int fline, void *data, size_t bytes)
+    {
+        checkAndIncrement(file, fline, bytes);
+        ostr.read((char *)data, bytes);
+    }
+
+#define DIFREADS(d, bytes) d.readstring(__FILE__, __LINE__, bytes)
+    std::string readstring(const char *file, int fline, size_t bytes)
+    {
+        char *s = new char[bytes];
+        read(file, fline, s, bytes);
+        std::string ret(s, bytes);
+        delete[] s;
+        return ret;
+    }
+
+#define DIFREADV(d, data) d.read(__FILE__, __LINE__, data)
+    template<typename T> void read(const char *file, int fline, T v)
+    {
+        read(file, fline, &v, sizeof(T));
+    }
+
+#define DIFSKIP(d, bytes) d.skip(__FILE__, __LINE__, bytes)
+    void skip(const char *file, int fline, size_t bytes)
+    {
+        checkAndIncrement(file, fline, bytes);
+        ostr.seekg((int)bytes, ostr.cur);
+    }
+
+private:
+    bhcInternal *_internal;
+    std::ifstream istr;
+    size_t recl;
+    size_t record;
+    size_t bytesReadThisRecord;
+    size_t fileLen;
+
+    void checkAndIncrement(const char *file, int fline, size_t bytes)
+    {
+        if(bytesReadThisRecord + bytes > recl) {
+            ExternalError(
+                _internal,
+                "%s:%d: DirectIFile overflow, %" PRIuMAX
+                " bytes already read, rec size %" PRIuMAX ", tried to read %" PRIuMAX
+                " more",
+                file, fline, bytesReadThisRecord, recl, bytes);
+        }
+        bytesReadThisRecord += bytes;
+    }
 };
 
 /**
