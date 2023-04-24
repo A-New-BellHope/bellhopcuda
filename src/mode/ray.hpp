@@ -44,6 +44,15 @@ extern template void RunRayMode<true, false>(
 extern template void RunRayMode<true, true>(
     bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
+template<bool O3D, bool R3D> void ReadOutRay(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot);
+extern template void ReadOutRay<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+extern template void ReadOutRay<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+extern template void ReadOutRay<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
+
 template<bool O3D, bool R3D> class Ray : public ModeModule<O3D, R3D> {
 public:
     Ray() {}
@@ -135,6 +144,13 @@ public:
             if(res->ray == nullptr) continue;
             WriteRay(RAYFile, res);
         }
+    }
+
+    virtual void Readout(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs,
+        const char *FileRoot) const override
+    {
+        ReadOutRay<O3D, R3D>(params, outputs, FileRoot);
     }
 
     virtual void Finalize(

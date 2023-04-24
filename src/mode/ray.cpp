@@ -181,4 +181,121 @@ template void RunRayMode<true, true>(
     bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
+template<bool O3D, bool R3D> void ReadOutRay(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot)
+{
+    if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)) {
+        EXTERR("ReadOutRay not in ray trace or eigenrays mode");
+    }
+    LDIFile RAYFile(GetInternal(params), std::string(FileRoot) + ".ray");
+
+    std::string TempTitle;
+    LIST(RAYFile);
+    RAYFile.Read(TempTitle);
+    bhc::module::Title<O3D> title;
+    title.SetTitle(params, TempTitle);
+
+    LIST(RAYFile);
+    RAYFile.Read(params.freqinfo->freq0);
+
+    LIST(RAYFile);
+    RAYFile.Read(params.Pos->NSx);
+    RAYFile.Read(params.Pos->NSy);
+    RAYFile.Read(params.Pos->NSz);
+    if constexpr(!O3D) {
+        if(Pos->NSx != 1 || Pos->NSy != 1) {
+            EXTERR("NSx or NSy in RAYFile being loaded are not 1, must be for 2D");
+        }
+    }
+    trackallocate(params, "source x-coordinates", Pos->Sx, Pos->NSx);
+    trackallocate(params, "source y-coordinates", Pos->Sy, Pos->NSy);
+    trackallocate(params, "source z-coordinates", Pos->Sz, Pos->NSz);
+
+    int32_t alphaN, betaN;
+    LIST(RAYFile);
+    RAYFile.Read(alphaN);
+    RAYFile.Read(betaN);
+    if(alphaN != params.Angles->alpha.n) {
+        EXTWARN(
+            "Warning, RAYFile has alphaN = %d, but env file has %d", alphaN,
+            params.Angles->alpha.n);
+    }
+    if(betaN != params.Angles->beta.n) {
+        EXTWARN(
+            "Warning, RAYFile has betaN = %d, but env file has %d", betaN,
+            params.Angles->beta.n);
+    }
+
+    real TopDepth, BotDepth;
+    LIST(RAYFile);
+    RAYFile.Read(TopDepth);
+    RAYFile.Read(BotDepth);
+    if(TopDepth != params.Bdry->Top.hs.Depth) {
+        EXTWARN(
+            "Warning, RAYFile has top depth = %f, but env file has %f", TopDepth,
+            params.Bdry->Top.hs.Depth);
+    }
+    if(BotDepth != params.Bdry->Bot.hs.Depth) {
+        EXTWARN(
+            "Warning, RAYFile has bot depth = %f, but env file has %f", BotDepth,
+            params.Bdry->Bot.hs.Depth);
+    }
+
+    std::string dim;
+    LIST(RAYFile);
+    RAYFile.Read(dim);
+    if constexpr(O3D) {
+        if(dim != "xyz") {
+            EXTERR("Dimensionality in RAYFile is '%s', must be 'xyz' for 3D/Nx2D", dim);
+        }
+    } else {
+        if(dim != "rz") {
+            EXTERR("Dimensionality in RAYFile is '%s', must be 'rz' for 2D", dim);
+        }
+    }
+
+    auto pre_rays_pos = RAYFile.StateSave();
+    int32_t NRays;
+    size_t TotalPoints;
+    while(!RAYFile.EndOfFile()) {
+        float alpha0 = NAN;
+        LIST(RAYFile);
+        RAYFile.Read(alpha0);
+        if(!std::isfinite(alpha0)) break; // Nothing written, out of data
+
+        int32_t Nsteps = -1;
+        LIST(RAYFile);
+        RAYFile.Read(Nsteps);
+        if(Nsteps <= 0) { EXTERR("<= 0 points in ray in RAYFile"); }
+        TotalPoints += (size_t)Nsteps;
+        ++NRays;
+
+        int32_t NumTopBnc = -1, NumBotBnc = -1;
+        LIST(RAYFile);
+        RAYFile.Read(NumTopBnc);
+        RAYFile.Read(NumBotBnc);
+        if(NumTopBnc < 0 || NumBotBnc < 0) {
+            EXTERR("Invalid number of bounces in ray in RAYFile");
+        }
+        for(int32_t is = 0; is < Nsteps; ++is) {
+            VEC23<O3D> v;
+            LIST(RAYFile);
+            RAYFile.Read(v);
+        }
+    }
+}
+
+#if BHC_ENABLE_2D
+template void ReadOutRay<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+#endif
+#if BHC_ENABLE_NX2D
+template void ReadOutRay<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+#endif
+#if BHC_ENABLE_3D
+template void ReadOutRay<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
+#endif
+
 }} // namespace bhc::mode

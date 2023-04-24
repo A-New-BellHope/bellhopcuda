@@ -54,6 +54,27 @@ public:
 
     bool Good() { return f.good(); }
 
+    struct State {
+        size_t s;
+        int l;
+    };
+    State StateSave()
+    {
+        isafterslash = false;
+        if(!isafternewline) { IgnoreRestOfLine(); }
+        return {f.tellg(), line};
+    }
+
+    void StateLoad(const State &s)
+    {
+        isafterslash   = false;
+        isafternewline = true;
+        f.seekg(s.s);
+        line = s.l;
+    }
+
+    bool EndOfFile() { return f.eof(); }
+
 #define LIST(ldif) ldif.List(__FILE__, __LINE__)
 #define LIST_WARNLINE(ldif) ldif.List(__FILE__, __LINE__, true)
     void List(const char *file, int fline, bool warnline = false)
@@ -120,6 +141,22 @@ public:
         if(s == nullitem) Error("Only specified part of a vec2!");
         if(!isReal(s)) Error("String " + s + " is not a real number");
         v.y = strtod(s.c_str(), nullptr);
+    }
+    void Read(vec3 &v)
+    {
+        LDIFILE_READPREFIX();
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v.x = strtod(s.c_str(), nullptr);
+        if(f.eof() && !isafterslash) Error("End of file");
+        s = GetNextItem();
+        if(s == nullitem) Error("Only specified part of a vec3!");
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v.y = strtod(s.c_str(), nullptr);
+        if(f.eof() && !isafterslash) Error("End of file");
+        s = GetNextItem();
+        if(s == nullitem) Error("Only specified part of a vec3!");
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v.z = strtod(s.c_str(), nullptr);
     }
     void Read(cpx &v)
     {
