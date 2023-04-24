@@ -18,6 +18,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #include "ray.hpp"
 #include "../trace.hpp"
+#include "../module/title.hpp"
+#include <vector>
 
 namespace bhc { namespace mode {
 
@@ -184,6 +186,7 @@ template void RunRayMode<true, true>(
 template<bool O3D, bool R3D> void ReadOutRay(
     bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot)
 {
+    RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
     if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)) {
         EXTERR("ReadOutRay not in ray trace or eigenrays mode");
     }
@@ -198,18 +201,17 @@ template<bool O3D, bool R3D> void ReadOutRay(
     LIST(RAYFile);
     RAYFile.Read(params.freqinfo->freq0);
 
+    int32_t NSx, NSy, NSz;
     LIST(RAYFile);
-    RAYFile.Read(params.Pos->NSx);
-    RAYFile.Read(params.Pos->NSy);
-    RAYFile.Read(params.Pos->NSz);
-    if constexpr(!O3D) {
-        if(Pos->NSx != 1 || Pos->NSy != 1) {
-            EXTERR("NSx or NSy in RAYFile being loaded are not 1, must be for 2D");
-        }
+    RAYFile.Read(NSx);
+    RAYFile.Read(NSy);
+    RAYFile.Read(NSz);
+    if(NSx != params.Pos->NSx || NSy != params.Pos->NSy || NSz != params.Pos->NSz) {
+        EXTWARN(
+            "NSx = %d, NSy = %d, NSz = %d in RAYFile being loaded, but "
+            "%d, %d, %d in env file",
+            NSx, NSy, NSz, params.Pos->NSx, params.Pos->NSy, params.Pos->NSz);
     }
-    trackallocate(params, "source x-coordinates", Pos->Sx, Pos->NSx);
-    trackallocate(params, "source y-coordinates", Pos->Sy, Pos->NSy);
-    trackallocate(params, "source z-coordinates", Pos->Sz, Pos->NSz);
 
     int32_t alphaN, betaN;
     LIST(RAYFile);
@@ -254,34 +256,96 @@ template<bool O3D, bool R3D> void ReadOutRay(
         }
     }
 
-    auto pre_rays_pos = RAYFile.StateSave();
-    int32_t NRays;
-    size_t TotalPoints;
+    trackdeallocate(params, rayinfo->RayMem);
+    trackdeallocate(params, rayinfo->WorkRayMem);
+
+    [[maybe_unused]] std::vector<VEC23<O3D>> firstpoints;
+    [[maybe_unused]] std::vector<VEC23<O3D>> lastpoints;
+
+    auto pre_rays_pos  = RAYFile.StateSave();
+    int32_t NRays      = 0;
+    size_t TotalPoints = 0;
     while(!RAYFile.EndOfFile()) {
-        float alpha0 = NAN;
+        real alpha0 = NAN;
         LIST(RAYFile);
         RAYFile.Read(alpha0);
         if(!std::isfinite(alpha0)) break; // Nothing written, out of data
 
-        int32_t Nsteps = -1;
+        int32_t Nsteps = -1, NumTopBnc = -1, NumBotBnc = -1;
         LIST(RAYFile);
         RAYFile.Read(Nsteps);
-        if(Nsteps <= 0) { EXTERR("<= 0 points in ray in RAYFile"); }
-        TotalPoints += (size_t)Nsteps;
-        ++NRays;
-
-        int32_t NumTopBnc = -1, NumBotBnc = -1;
-        LIST(RAYFile);
         RAYFile.Read(NumTopBnc);
         RAYFile.Read(NumBotBnc);
+        if(Nsteps <= 0) EXTERR("<= 0 points in ray in RAYFile");
         if(NumTopBnc < 0 || NumBotBnc < 0) {
             EXTERR("Invalid number of bounces in ray in RAYFile");
         }
+        TotalPoints += (size_t)Nsteps;
+        ++NRays;
+
+        VEC23<O3D> v;
+        for(int32_t is = 0; is < Nsteps; ++is) {
+            LIST(RAYFile);
+            RAYFile.Read(v);
+            if constexpr(O3D && !R3D) {
+                if(is == 0) firstpoints.push_back(v);
+            }
+        }
+        if constexpr(O3D && !R3D) { lastpoints.push_back(v); }
+    }
+
+    rayinfo->NRays        = NRays;
+    rayinfo->RayMemPoints = rayinfo->RayMemCapacity = TotalPoints;
+    rayinfo->MaxPointsPerRay                        = MaxN;
+    trackallocate(params, "ray metadata", rayinfo->results, rayinfo->NRays);
+    trackallocate(params, "rays", rayinfo->RayMem, rayinfo->RayMemCapacity);
+    memset(rayinfo->RayMem, 0, rayinfo->RayMemCapacity * sizeof(rayPt<R3D>));
+
+    RAYFile.StateLoad(pre_rays_pos);
+    NRays       = 0;
+    TotalPoints = 0;
+    while(!RAYFile.EndOfFile()) {
+        real alpha0 = NAN;
+        LIST(RAYFile);
+        RAYFile.Read(alpha0);
+        if(!std::isfinite(alpha0)) break; // Nothing written, out of data
+        if constexpr(O3D) alpha0 *= RadDeg;
+        rayinfo->results[NRays].SrcDeclAngle = alpha0;
+
+        int32_t Nsteps = -1, NumTopBnc = -1, NumBotBnc = -1;
+        LIST(RAYFile);
+        RAYFile.Read(Nsteps);
+        RAYFile.Read(NumTopBnc);
+        RAYFile.Read(NumBotBnc);
+        if(Nsteps <= 0) EXTERR("Internal error in RAYFile read second pass");
+        if(NumTopBnc < 0 || NumBotBnc < 0) {
+            EXTERR("Internal error in RAYFile read second pass");
+        }
+        rayinfo->results[NRays].Nsteps = Nsteps;
+        rayinfo->results[NRays].ray    = &rayinfo->RayMem[TotalPoints];
+        VEC23<R3D> t(RL(0.0));
+        if constexpr(O3D && !R3D) {
+            rayinfo->results[NRays].org.xs = firstpoints[NRays];
+            t = XYCOMP(lastpoints[NRays] - firstpoints[NRays]);
+            t *= RL(1.0) / glm::length(t);
+            rayinfo->results[NRays].org.tradial = t;
+        }
+        rayinfo->results[NRays].ray[Nsteps - 1].NumTopBnc = NumTopBnc;
+        rayinfo->results[NRays].ray[Nsteps - 1].NumBotBnc = NumBotBnc;
+
+        ErrState errState;
+        ResetErrState(&errState);
         for(int32_t is = 0; is < Nsteps; ++is) {
             VEC23<O3D> v;
             LIST(RAYFile);
             RAYFile.Read(v);
+            rayinfo->results[NRays].ray[is].x
+                = OceanToRayX(v, rayinfo->results[NRays].org, t, -1, &errState);
         }
+        CheckReportErrors(GetInternal(params), &errState);
+
+        TotalPoints += (size_t)Nsteps;
+        ++NRays;
     }
 }
 

@@ -180,25 +180,26 @@ def compare_raydata(cxxd, ford):
         sys.exit(1)
     print('Ray files matched')
 
-if len(sys.argv) not in {2, 3}:
-    print('Usage: python3 compare_ray.py MunkB_ray [cxx1/cxxmulti/cuda]')
-    print('No paths, no .ray')
-    sys.exit(1)
+if __name__ == '__main__':
+    if len(sys.argv) not in {2, 3}:
+        print('Usage: python3 compare_ray.py MunkB_ray [cxx1/cxxmulti/cuda]')
+        print('No paths, no .ray')
+        sys.exit(1)
 
-rayfil = sys.argv[1]
-if len(sys.argv) == 3:
-    comparisons = [sys.argv[2]]
-else:
-    comparisons = ['cxx1', 'cxxmulti', 'cuda']
+    rayfil = sys.argv[1]
+    if len(sys.argv) == 3:
+        comparisons = [sys.argv[2]]
+    else:
+        comparisons = ['cxx1', 'cxxmulti', 'cuda']
 
-for c in comparisons:
-    with open('test/FORTRAN/{}.ray'.format(rayfil), 'r') as forf:
-        ford = load_rayfil(forf)
-    cxxfile = 'test/{}/{}.ray'.format(c, rayfil)
-    try:
-        with open(cxxfile, 'r') as cxxf:
-            print('Ray comparison FORTRAN vs. {}:'.format(c))
-            cxxd = load_rayfil(cxxf)
-        compare_raydata(cxxd, ford)
-    except FileNotFoundError:
-        print('{} not found, skipping {}'.format(cxxfile, c))
+    for c in comparisons:
+        with open('test/FORTRAN/{}.ray'.format(rayfil), 'r') as forf:
+            ford = load_rayfil(forf)
+        cxxfile = 'test/{}/{}.ray'.format(c, rayfil)
+        try:
+            with open(cxxfile, 'r') as cxxf:
+                print('Ray comparison FORTRAN vs. {}:'.format(c))
+                cxxd = load_rayfil(cxxf)
+            compare_raydata(cxxd, ford)
+        except FileNotFoundError:
+            print('{} not found, skipping {}'.format(cxxfile, c))

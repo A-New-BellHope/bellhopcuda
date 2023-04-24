@@ -218,7 +218,7 @@ HOST_DEVICE inline void RayNormal_unit(const vec3 &t, real phi, vec3 &e1, vec3 &
 // Nx2D conversions
 ////////////////////////////////////////////////////////////////////////////////
 
-template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanX(
+template<bool O3D, bool R3D> HOST_DEVICE inline VEC23<O3D> RayToOceanX(
     const VEC23<R3D> &x, const Origin<O3D, R3D> &org)
 {
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
@@ -229,7 +229,7 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanX(
     }
 }
 
-template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanT(
+template<bool O3D, bool R3D> HOST_DEVICE inline VEC23<O3D> RayToOceanT(
     const VEC23<R3D> &t, const Origin<O3D, R3D> &org)
 {
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");
@@ -250,7 +250,7 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<O3D> RayToOceanT(
  *  1: Snap to Y
  *  2: Snap to Z
  */
-template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
+template<bool O3D, bool R3D> HOST_DEVICE inline VEC23<R3D> OceanToRayX(
     const VEC23<O3D> &x, const Origin<O3D, R3D> &org, const VEC23<R3D> &t,
     [[maybe_unused]] const int32_t &snapDim, ErrState *errState)
 {
@@ -305,7 +305,7 @@ template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayX(
     }
 }
 
-template<bool O3D, bool R3D> HOST_DEVICE VEC23<R3D> OceanToRayT(
+template<bool O3D, bool R3D> HOST_DEVICE inline VEC23<R3D> OceanToRayT(
     const VEC23<O3D> &t, const Origin<O3D, R3D> &org)
 {
     static_assert(O3D || !R3D, "2D ocean but 3D rays not allowed!");

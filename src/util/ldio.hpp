@@ -55,7 +55,7 @@ public:
     bool Good() { return f.good(); }
 
     struct State {
-        size_t s;
+        long int s;
         int l;
     };
     State StateSave()

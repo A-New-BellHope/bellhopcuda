@@ -19,6 +19,7 @@ test/out/
 .vs/
 
 .DS_Store
+__pycache__/
 
 gen_*_pass.txt
 gen_*_fail.txt
