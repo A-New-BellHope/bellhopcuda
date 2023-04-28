@@ -61,7 +61,8 @@ These fixes are of course also incorporated into `bellhopcxx` / `bellhopcuda`.
 ### Can I use `bellhopcxx` / `bellhopcuda` with MATLAB?
 
 Yes. `bellhopcxx` and `bellhopcuda` read the same `.env` and other input files
-and produce output files in the same formats as `BELLHOP` / `BELLHOP3D`.
+and produce output files in the same formats as `BELLHOP` / `BELLHOP3D`. It is
+a drop-in replacement.
 
 The normal `bellhopcxx.exe` and `bellhopcuda.exe` executables select their
 dimensionality with command-line flags (e.g. `--2D`, `--3D`, `--Nx2D`). The
@@ -125,7 +126,7 @@ put workarounds in place in the `bellhopcxx` / `bellhopcuda` codebase. However,
 if you run into any of these problems, always first upgrade to the latest CUDA
 version. If that does not solve the problem, let us know and also try the
 following:
-- Upgrade from Visual Studio 2017 to 2019 or 2022.
+- Upgrade from Visual Studio 2017, to 2019 or 2022.
 - Download the libcudacxx source manually and replace `include/cuda` and
 `include/nv` in your CUDA installation with the appropriate directories from
 the Git repo.
@@ -147,6 +148,22 @@ library version, and we can't know in advance which version you will use.
     - Windows static library: `bellhopcxxstatic.lib`
     - Linux shared library: `libbellhopcxxlib.so`
     - Linux static library: `libbellhopcxxstatic.a`
+
+### What additional functionality is available in library mode?
+
+- You can set up the library without an initial environment file. All parameters
+are set to reasonable basic defaults. You can modify these up one at a time from
+your host program.
+- The `extsetup` functions allow you to allocate arrays with the run parameters,
+for example to change the number of sources in Z to 100. After allocating the
+array with your chosen size, you can fill in the data directly. 
+- The `writeenv` function allows you to save the current state of the run
+parameters to an environment file and other required input files (e.g. SSP,
+bathymetry). This does not have to be relative to the same FileRoot provided at
+setup time.
+- The `readout` function allows you to read results from a past run (ray file,
+TL / shade file, or arrivals) into memory, so your host program can display or
+manipulate these results.
 
 ### How do I report bugs?
 
@@ -190,7 +207,7 @@ are many thousands of cores. However, experimentally, the speedup does not stop
 once this number is reached--running hundreds of thousands or millions of rays
 continues to bring additional, though diminishing, performance gain over
 `BELLHOP` / `BELLHOP3D`. Of course, whether more rays is useful or not is very
-application- dependent.
+application-dependent.
 
 #### File I/O
 
@@ -200,8 +217,8 @@ be written to disk. In some runs, the file I/O is trivial, whereas in others,
 it takes 10x-100x the time compared to actually computing the results. Normally,
 we count the file I/O time in our version in order to compare most fairly to
 the original version, but if file I/O can be avoided in a particular
-application using the library version, this may have a substantial impact on the
-performance.
+application using the library version, this may lead to a substantial gain in
+effective overall performance in some cases.
 
 #### Receivers layout
 
@@ -302,8 +319,8 @@ conditions--documented in [the readme of our modified Fortran
 version](https://github.com/A-New-BellHope/bellhop)--which made it impossible to
 parallelize the computation if we wanted to reproduce the original results (with
 the bugs). Instead of abandoning the parallelization--which was one of the main
-goals of the project--we decided to fix the bugs and improve the numerical
-stability.
+goals of the project--we decided to fix (many of) the bugs and improve the
+numerical stability.
 
 Since then, we have been comparing the results of `bellhopcxx` / `bellhopcuda`
 to our modified Fortran version, not to the original `BELLHOP` / `BELLHOP3D`.
