@@ -92,4 +92,76 @@ private:
     int32_t recl;
 };
 
+/**
+ * C++ emulation of reading from FORTRAN unformatted file.
+ */
+class UnformattedIFile {
+public:
+    UnformattedIFile(bhcInternal *internal) : _internal(internal), recl(0), recused(0) {}
+    ~UnformattedIFile()
+    {
+        if(istr.is_open()) {
+            FinishRecord();
+            istr.close();
+        }
+    }
+
+    void open(const std::string &path) { istr.open(path, std::ios::binary); }
+
+    bool good() { return istr.good() && istr.is_open(); }
+
+    void rec()
+    {
+        FinishRecord();
+        recused = 0;
+        istr.read((char *)&recl, 4);
+        auto g = istr.tellg();
+        istr.seekg(recl, istr.cur);
+        uint32_t recl_copy;
+        istr.read((char *)&recl_copy, 4);
+        istr.seekg(g);
+        if(recl != recl_copy) {
+            ExternalError(
+                _internal, "Record length inconsistent in UnformattedIFile at %08X!",
+                (uint32_t)g);
+        }
+    }
+
+    template<typename T> void read(T &v)
+    {
+        if(recused + sizeof(T) > recl) {
+            ExternalError(_internal, "Insufficient data in record in UnformattedIFile!");
+        }
+        istr.read((char *)&v, sizeof(T));
+        recused += (int32_t)sizeof(T);
+    }
+
+    template<typename T> void read(T *arr, size_t n)
+    {
+        if(recused + (n * sizeof(T)) > recl) {
+            ExternalError(_internal, "Insufficient data in record in UnformattedIFile!");
+        }
+        for(size_t i = 0; i < n; ++i) istr.read((char *)&arr[i], sizeof(T));
+        recused += (int32_t)(n * sizeof(T));
+    }
+
+private:
+    void FinishRecord()
+    {
+        if(recused != recl) {
+            ExternalWarning(
+                _internal, "Record in UnformattedIFile not fully read at %08X!",
+                (uint32_t)istr.tellg());
+        }
+        if(recl != 0) {              // Not for beginning of file
+            istr.seekg(4, istr.cur); // Skip end length of current record
+        }
+    }
+
+    bhcInternal *_internal;
+    std::ifstream istr;
+    uint32_t recl;
+    uint32_t recused;
+};
+
 } // namespace bhc

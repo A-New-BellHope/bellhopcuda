@@ -38,6 +38,15 @@ extern template void WriteOutArrivals<false>(
 extern template void WriteOutArrivals<true>(
     const bhcParams<true> &params, const ArrInfo *arrinfo);
 
+template<bool O3D, bool R3D> void ReadOutArrivals(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot);
+extern template void ReadOutArrivals<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+extern template void ReadOutArrivals<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+extern template void ReadOutArrivals<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
+
 template<bool O3D, bool R3D> class Arr : public Field<O3D, R3D> {
 public:
     Arr() {}
@@ -100,6 +109,13 @@ public:
         const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const override
     {
         WriteOutArrivals<O3D>(params, outputs.arrinfo);
+    }
+
+    virtual void Readout(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs,
+        const char *FileRoot) const override
+    {
+        ReadOutArrivals<O3D, R3D>(params, outputs, FileRoot);
     }
 
     virtual void Finalize(

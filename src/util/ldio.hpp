@@ -41,11 +41,21 @@ namespace bhc {
  */
 class LDIFile {
 public:
+    LDIFile(bhcInternal *internal, bool abort_on_error = true)
+        : _internal(internal), _abort_on_error(abort_on_error), lastitemcount(0), line(0),
+          isafterslash(false), isafternewline(true)
+    {}
+
     LDIFile(
         bhcInternal *internal, const std::string &filename, bool abort_on_error = true)
-        : _internal(internal), _filename(filename), _abort_on_error(abort_on_error),
-          lastitemcount(0), line(0), isafterslash(false), isafternewline(true)
+        : LDIFile(internal, abort_on_error)
     {
+        open(filename);
+    }
+
+    void open(const std::string &filename)
+    {
+        _filename = filename;
         f.open(filename);
         if(!f.good()) Error("Failed to open file");
         ++line;

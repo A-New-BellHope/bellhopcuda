@@ -263,31 +263,33 @@ def compare_bin_files(cxxf, forf):
         sys.exit(1)
     print('Binary arrival results matched')
 
-if len(sys.argv) not in {2, 3}:
-    print('Usage: python3 compare_arrivals.py MunkB_Arr [cxx1/cxxmulti/cuda]')
-    print('No paths, no .arr')
-    sys.exit(1)
+def get_arr_binary_props(path):
+    with open(path, 'rb') as f:
+        if f.read(4) == b'\x04\x00\x00\x00':
+            return compare_bin_files, 'rb'
+        else:
+            return compare_asc_files, 'r'
 
-arrfil = sys.argv[1]
-if len(sys.argv) == 3:
-    comparisons = [sys.argv[2]]
-else:
-    comparisons = ['cxx1', 'cxxmulti', 'cuda']
+if __name__ == '__main__':
+    if len(sys.argv) not in {2, 3}:
+        print('Usage: python3 compare_arrivals.py MunkB_Arr [cxx1/cxxmulti/cuda]')
+        print('No paths, no .arr')
+        sys.exit(1)
 
-with open('test/FORTRAN/{}.arr'.format(arrfil), 'rb') as forf:
-    if forf.read(4) == b'\x04\x00\x00\x00':
-        compare_func = compare_bin_files
-        open_flag = 'rb'
+    arrfil = sys.argv[1]
+    if len(sys.argv) == 3:
+        comparisons = [sys.argv[2]]
     else:
-        compare_func = compare_asc_files
-        open_flag = 'r'
+        comparisons = ['cxx1', 'cxxmulti', 'cuda']
 
-for c in comparisons:
-    with open('test/FORTRAN/{}.arr'.format(arrfil), open_flag) as forf:
-        cxxfile = 'test/{}/{}.arr'.format(c, arrfil)
-        try:
-            with open(cxxfile, open_flag) as cxxf:
-                print('Arrivals comparison FORTRAN vs. {}:'.format(c))
-                compare_func(cxxf, forf)
-        except FileNotFoundError:
-            print('{} not found, skipping {}'.format(cxxfile, c))
+    compare_func, open_flag = get_arr_binary_props('test/FORTRAN/{}.arr'.format(arrfil))
+
+    for c in comparisons:
+        with open('test/FORTRAN/{}.arr'.format(arrfil), open_flag) as forf:
+            cxxfile = 'test/{}/{}.arr'.format(c, arrfil)
+            try:
+                with open(cxxfile, open_flag) as cxxf:
+                    print('Arrivals comparison FORTRAN vs. {}:'.format(c))
+                    compare_func(cxxf, forf)
+            except FileNotFoundError:
+                print('{} not found, skipping {}'.format(cxxfile, c))
