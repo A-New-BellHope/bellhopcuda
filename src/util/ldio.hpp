@@ -65,7 +65,7 @@ public:
     bool Good() { return f.good(); }
 
     struct State {
-        long int s;
+        std::streampos s;
         int l;
     };
     State StateSave()
