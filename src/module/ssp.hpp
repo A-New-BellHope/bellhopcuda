@@ -71,7 +71,8 @@ public:
     virtual void Read(
         bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
-        SSPStructure *ssp = params.ssp;
+        SSPStructure *ssp     = params.ssp;
+        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
 
         int32_t NPts; // LP: ignored
         real Sigma;   // LP: ignored
@@ -121,6 +122,10 @@ public:
             ssp->rangeInKm = true;
 
             LDIFile SSPFile(GetInternal(params), GetInternal(params)->FileRoot + ".ssp");
+            if(!SSPFile.Good()) {
+                PRTFile << "SSPFile = " << GetInternal(params)->FileRoot << ".ssp\n";
+                EXTERR("ReadSSP: Unable to open quad SSP file");
+            }
             LIST(SSPFile);
             SSPFile.Read(ssp->Nr);
 
@@ -139,6 +144,10 @@ public:
 
             // Read the 3D SSP matrix
             LDIFile SSPFile(GetInternal(params), GetInternal(params)->FileRoot + ".ssp");
+            if(!SSPFile.Good()) {
+                PRTFile << "SSPFile = " << GetInternal(params)->FileRoot << ".ssp\n";
+                EXTERR("ReadSSP: Unable to open hexahedral SSP file");
+            }
 
             // x coordinates
             LIST(SSPFile);
@@ -170,6 +179,87 @@ public:
                     for(int32_t ix2 = 0; ix2 < ssp->Nx; ++ix2) {
                         SSPFile.Read(ssp->cMat[((ix2)*ssp->Ny + iy2) * ssp->Nz + iz2]);
                     }
+                }
+            }
+        }
+    }
+
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        SSPStructure *ssp     = params.ssp;
+        PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+
+        ENVFile << 0 << FL(0.0) << params.Bdry->Bot.hs.Depth;
+        ENVFile.write("! NPts (ignored), Sigma (ignored), bot depth\n");
+
+        if(ssp->Type == 'A') return;
+
+        if(ssp->Type == 'Q' || ssp->Type == 'H') {
+            ENVFile << params.Bdry->Bot.hs.Depth;
+            ENVFile.write("/ ! Dummy profile, overwritten by .ssp file\n");
+        } else {
+            for(int32_t i = 0; i < ssp->NPts; ++i) {
+                if(i >= 1 && ssp->betaR[i] == ssp->betaR[i - 1]
+                   && ssp->rho[i] == ssp->rho[i - 1]
+                   && ssp->alphaI[i] == ssp->alphaI[i - 1]
+                   && ssp->betaI[i] == ssp->betaI[i - 1]) {
+                    ENVFile << ssp->z[i] << ssp->alphaR[i] << '/' << '\n';
+                } else {
+                    ENVFile << ssp->z[i] << ssp->alphaR[i] << ssp->betaR[i];
+                    ENVFile << ssp->rho[i] << ssp->alphaI[i] << ssp->betaI[i] << '\n';
+                }
+            }
+        }
+
+        if(ssp->Type == 'Q') {
+            // write out extra SSP data for 2D
+            LDOFile SSPFile;
+            SSPFile.setStyle(
+                ssp->NPts * ssp->Nr <= 50 ? LDOFile::Style::WRITTEN_BY_HAND
+                                          : LDOFile::Style::MATLAB_OUTPUT);
+            SSPFile.open(GetInternal(params)->FileRoot + ".ssp");
+            if(!SSPFile.good()) {
+                PRTFile << "SSPFile = " << GetInternal(params)->FileRoot << ".ssp\n";
+                EXTERR("ReadSSP: Unable to open new quad SSP file");
+            }
+            SSPFile << ssp->Nr;
+            SSPFile.write("! " BHC_PROGRAMNAME "- quad SSP file for ");
+            SSPFile.write(params.Title);
+            SSPFile << '\n';
+            SSPFile.writescale(ssp->Seg.r, ssp->Nr, RL(0.001));
+            SSPFile << '\n';
+            SSPFile.write(ssp->cMat, ssp->NPts, ssp->Nr);
+        } else if(ssp->Type == 'H') {
+            // write out extra SSP data for 3D
+            LDOFile SSPFile;
+            SSPFile.setStyle(LDOFile::Style::MATLAB_OUTPUT);
+            SSPFile.open(GetInternal(params)->FileRoot + ".ssp");
+            if(!SSPFile.good()) {
+                PRTFile << "SSPFile = " << GetInternal(params)->FileRoot << ".ssp\n";
+                EXTERR("ReadSSP: Unable to open new hexahedral SSP file");
+            }
+
+            SSPFile << ssp->Nx;
+            SSPFile.write("! " BHC_PROGRAMNAME "- hexahedral SSP file for ");
+            SSPFile.write(params.Title);
+            SSPFile << '\n';
+            SSPFile.writescale(ssp->Seg.x, ssp->Nx, RL(0.001));
+            SSPFile << '\n';
+
+            SSPFile << ssp->Ny << '\n';
+            SSPFile.writescale(ssp->Seg.y, ssp->Ny, RL(0.001));
+            SSPFile << '\n';
+
+            SSPFile << ssp->Nz << '\n';
+            SSPFile.write(ssp->Seg.z, ssp->Nz);
+            SSPFile << '\n';
+
+            for(int32_t iz2 = 0; iz2 < ssp->Nz; ++iz2) {
+                for(int32_t iy2 = 0; iy2 < ssp->Ny; ++iy2) {
+                    for(int32_t ix2 = 0; ix2 < ssp->Nx; ++ix2) {
+                        SSPFile << ssp->cMat[((ix2)*ssp->Ny + iy2) * ssp->Nz + iz2];
+                    }
+                    SSPFile << '\n';
                 }
             }
         }
@@ -306,21 +396,10 @@ public:
             return;
         }
 
-        PRTFile << "\nSound speed profile:\n";
-        PRTFile << "      z         alphaR      betaR     rho        alphaI     betaI\n";
-        PRTFile << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
-
-        for(int32_t i = 0; i < ssp->NPts; ++i) {
-            PRTFile << std::setprecision(2) << ssp->z[i] << " ";
-            PRTFile << ssp->alphaR[i] << " ";
-            PRTFile << ssp->betaR[i] << " ";
-            PRTFile << ssp->rho[i] << " ";
-            PRTFile << std::setprecision(4) << ssp->alphaI[i] << " ";
-            PRTFile << ssp->betaI[i] << "\n";
-        }
-
         switch(ssp->Type) {
         case 'Q':
+            PRTFile << "\nSound speed profile from environment file has been overridden "
+                       "by .ssp file (quad)\n\n";
             PRTFile << "_________________________________________________________________"
                        "_________\n\n";
             PRTFile << "Using range-dependent sound speed\n";
@@ -342,12 +421,29 @@ public:
             }
             break;
         case 'H':
+            PRTFile << "\nSound speed profile from environment file has been overridden "
+                       "by .ssp file (hexahedral)\n\n";
             PRTFile << "\nReading sound speed profile from file\n";
             PRTFile << "\nNumber of points in x = " << ssp->Nx << "\n";
             PRTFile << "\nNumber of points in y = " << ssp->Ny << "\n";
             PRTFile << "\nNumber of points in z = " << ssp->Nz << "\n";
             PRTFile << "\n";
             break;
+        default:
+            PRTFile << "\nSound speed profile:\n";
+            PRTFile
+                << "      z         alphaR      betaR     rho        alphaI     betaI\n";
+            PRTFile
+                << "     (m)         (m/s)      (m/s)   (g/cm^3)      (m/s)     (m/s)\n";
+
+            for(int32_t i = 0; i < ssp->NPts; ++i) {
+                PRTFile << std::setprecision(2) << ssp->z[i] << " ";
+                PRTFile << ssp->alphaR[i] << " ";
+                PRTFile << ssp->betaR[i] << " ";
+                PRTFile << ssp->rho[i] << " ";
+                PRTFile << std::setprecision(4) << ssp->alphaI[i] << " ";
+                PRTFile << ssp->betaI[i] << "\n";
+            }
         }
     }
 
@@ -466,13 +562,19 @@ private:
         }
         // over-ride the SSP%z values read in from the environmental file with these
         // new values
-        ssp->NPts = ssp->Nz;
         for(int32_t iz = 0; iz < ssp->Nz; ++iz) {
             ssp->z[iz] = ssp->Seg.z[iz];
             // LP: These are not well-defined, make sure they're not used
             ssp->c[iz]  = NAN;
             ssp->cz[iz] = NAN;
         }
+        for(int32_t iz = ssp->NPts; iz < ssp->Nz; ++iz) {
+            // LP: These are not well-defined, make sure they're not used
+            ssp->alphaR[iz] = ssp->alphaI[iz] = NAN;
+            ssp->betaR[iz] = ssp->betaI[iz] = NAN;
+            ssp->rho[iz]                    = NAN;
+        }
+        ssp->NPts = ssp->Nz;
     }
     void AllocateArrays(bhcParams<O3D> &params) const
     {

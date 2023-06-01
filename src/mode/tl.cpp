@@ -18,6 +18,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 */
 #include "tl.hpp"
 #include "../trace.hpp"
+#include "../module/title.hpp"
+#include "../module/szrz.hpp"
 
 namespace bhc { namespace mode {
 
@@ -190,6 +192,19 @@ template void PostProcessTL<true, true>(
     const bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
+template<bool O3D> inline size_t GetRecNum(
+    const bhcParams<O3D> &params, int32_t isx, int32_t isy, int32_t itheta, int32_t isz,
+    int32_t Irz1)
+{
+    // clang-format off
+    return        10                     + ((((size_t)isx
+        * (size_t)params.Pos->NSy           + (size_t)isy)
+        * (size_t)params.Pos->Ntheta        + (size_t)itheta)
+        * (size_t)params.Pos->NSz           + (size_t)isz)
+        * (size_t)params.Pos->NRz_per_range + (size_t)Irz1;
+    // clang-format on
+}
+
 /**
  * LP: Write TL results
  */
@@ -219,14 +234,7 @@ template<bool O3D, bool R3D> void WriteOutTL(
             for(int32_t itheta = 0; itheta < params.Pos->Ntheta; ++itheta) {
                 for(int32_t isz = 0; isz < params.Pos->NSz; ++isz) {
                     for(int32_t Irz1 = 0; Irz1 < params.Pos->NRz_per_range; ++Irz1) {
-                        // clang-format off
-                        size_t IRec = 10                     + ((((size_t)isx
-                            * (size_t)params.Pos->NSy           + (size_t)isy)
-                            * (size_t)params.Pos->Ntheta        + (size_t)itheta)
-                            * (size_t)params.Pos->NSz           + (size_t)isz)
-                            * (size_t)params.Pos->NRz_per_range + (size_t)Irz1;
-                        // clang-format on
-                        SHDFile.rec(IRec);
+                        SHDFile.rec(GetRecNum(params, isx, isy, itheta, isz, Irz1));
                         for(int32_t r = 0; r < params.Pos->NRr; ++r) {
                             cpxf v = outputs.uAllSources[GetFieldAddr(
                                 isx, isy, isz, itheta, Irz1, r, params.Pos)];
@@ -250,6 +258,121 @@ template void WriteOutTL<true, false>(
 #if BHC_ENABLE_3D
 template void WriteOutTL<true, true>(
     const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
+#endif
+
+template<bool O3D, bool R3D> void ReadOutTL(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot)
+{
+    Position *Pos      = params.Pos;
+    FreqInfo *freqinfo = params.freqinfo;
+
+    DirectIFile SHDFile(GetInternal(params));
+    SHDFile.open(std::string(FileRoot) + ".shd");
+    DIFREC(SHDFile, 0);
+    DIFSKIP(SHDFile, 4);
+    std::string TempTitle = DIFREADS(SHDFile, 80);
+    bhc::module::Title<O3D> title;
+    title.SetTitle(params, TempTitle);
+    DIFREC(SHDFile, 1);
+    std::string PlotType = DIFREADS(SHDFile, 10);
+    bool isTL            = (PlotType[0] == 'T' && PlotType[1] == 'L');
+    // "irregular " or "rectilin  "
+    if(IsIrregularGrid(params.Beam) != (PlotType[0] == 'i')) {
+        EXTERR("PlotType (irregular grid) setting in SHDFile being loaded does not match "
+               "env file");
+    }
+
+    DIFREC(SHDFile, 2);
+    DIFREADV(SHDFile, freqinfo->Nfreq);
+    DIFREADV(SHDFile, Pos->Ntheta);
+    DIFREADV(SHDFile, Pos->NSx);
+    DIFREADV(SHDFile, Pos->NSy);
+    DIFREADV(SHDFile, Pos->NSz);
+    DIFREADV(SHDFile, Pos->NRz);
+    DIFREADV(SHDFile, Pos->NRr);
+    float temp;
+    DIFREADV(SHDFile, temp);
+    freqinfo->freq0 = temp;
+    float atten;
+    DIFREADV(SHDFile, atten);
+
+    if(freqinfo->Nfreq != 1) { EXTERR("Nfreq in SHDFile being loaded is not 1"); }
+    if constexpr(!O3D) {
+        if(Pos->Ntheta != 1 || Pos->NSx != 1 || Pos->NSy != 1) {
+            EXTERR(
+                "Ntheta, NSx, or NSy in SHDFile being loaded are not 1, must be for 2D");
+        }
+    }
+
+    trackallocate(params, "Frequencies", freqinfo->freqVec, freqinfo->Nfreq);
+    trackallocate(params, "receiver bearings", Pos->theta, Pos->Ntheta);
+    trackallocate(params, "source x-coordinates", Pos->Sx, Pos->NSx);
+    trackallocate(params, "source y-coordinates", Pos->Sy, Pos->NSy);
+    trackallocate(params, "source z-coordinates", Pos->Sz, Pos->NSz);
+    trackallocate(params, "receiver z-coordinates", Pos->Rz, Pos->NRz);
+    trackallocate(params, "receiver r-coordinates", Pos->Rr, Pos->NRr);
+
+    DIFREC(SHDFile, 3);
+    DIFREAD(SHDFile, freqinfo->freqVec, freqinfo->Nfreq * sizeof(freqinfo->freqVec[0]));
+    DIFREC(SHDFile, 4);
+    DIFREAD(SHDFile, Pos->theta, Pos->Ntheta * sizeof(Pos->theta[0]));
+
+    if(!isTL) {
+        DIFREC(SHDFile, 5);
+        DIFREAD(SHDFile, Pos->Sx, Pos->NSx * sizeof(Pos->Sx[0]));
+        DIFREC(SHDFile, 6);
+        DIFREAD(SHDFile, Pos->Sy, Pos->NSy * sizeof(Pos->Sy[0]));
+    } else {
+        DIFREC(SHDFile, 5);
+        DIFREADV(SHDFile, Pos->Sx[0]);
+        DIFREADV(SHDFile, Pos->Sx[Pos->NSx - 1]);
+        DIFREC(SHDFile, 6);
+        DIFREADV(SHDFile, Pos->Sy[0]);
+        DIFREADV(SHDFile, Pos->Sy[Pos->NSy - 1]);
+    }
+    DIFREC(SHDFile, 7);
+    DIFREAD(SHDFile, Pos->Sz, Pos->NSz * sizeof(Pos->Sz[0]));
+    DIFREC(SHDFile, 8);
+    DIFREAD(SHDFile, Pos->Rz, Pos->NRz * sizeof(Pos->Rz[0]));
+    DIFREC(SHDFile, 9);
+    DIFREAD(SHDFile, Pos->Rr, Pos->NRr * sizeof(Pos->Rr[0]));
+
+    module::SzRz<O3D> szrz;
+    szrz.Preprocess(params); // sets NRz_per_range
+    TL<O3D, R3D> tl;
+    tl.Preprocess(params, outputs);
+
+    for(int32_t isx = 0; isx < Pos->NSx; ++isx) {
+        for(int32_t isy = 0; isy < Pos->NSy; ++isy) {
+            for(int32_t itheta = 0; itheta < Pos->Ntheta; ++itheta) {
+                for(int32_t isz = 0; isz < Pos->NSz; ++isz) {
+                    for(int32_t Irz1 = 0; Irz1 < Pos->NRz_per_range; ++Irz1) {
+                        DIFREC(SHDFile, GetRecNum(params, isx, isy, itheta, isz, Irz1));
+                        for(int32_t r = 0; r < Pos->NRr; ++r) {
+                            cpxf v;
+                            DIFREADV(SHDFile, v);
+                            outputs.uAllSources
+                                [GetFieldAddr(isx, isy, isz, itheta, Irz1, r, params.Pos)]
+                                = v;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#if BHC_ENABLE_2D
+template void ReadOutTL<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+#endif
+#if BHC_ENABLE_NX2D
+template void ReadOutTL<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+#endif
+#if BHC_ENABLE_3D
+template void ReadOutTL<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
 #endif
 
 }} // namespace bhc::mode

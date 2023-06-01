@@ -96,14 +96,14 @@ set(common_source
     module/title.hpp
     module/topopt.hpp
     util/atomics.hpp
-    util/bino.hpp
+    util/directio.hpp
     util/errors.cpp
     util/errors.hpp
     util/ldio.hpp
     util/prtfileemu.hpp
     util/timing.cpp
     util/timing.hpp
-    util/UtilsCUDA.cuh
+    util/unformattedio.hpp
     api.cpp
     arrivals.hpp
     boundary.hpp

@@ -41,11 +41,21 @@ namespace bhc {
  */
 class LDIFile {
 public:
+    LDIFile(bhcInternal *internal, bool abort_on_error = true)
+        : _internal(internal), _abort_on_error(abort_on_error), lastitemcount(0), line(0),
+          isafterslash(false), isafternewline(true)
+    {}
+
     LDIFile(
         bhcInternal *internal, const std::string &filename, bool abort_on_error = true)
-        : _internal(internal), _filename(filename), _abort_on_error(abort_on_error),
-          lastitemcount(0), line(0), isafterslash(false), isafternewline(true)
+        : LDIFile(internal, abort_on_error)
     {
+        open(filename);
+    }
+
+    void open(const std::string &filename)
+    {
+        _filename = filename;
         f.open(filename);
         if(!f.good()) Error("Failed to open file");
         ++line;
@@ -53,6 +63,27 @@ public:
     }
 
     bool Good() { return f.good(); }
+
+    struct State {
+        std::streampos s;
+        int l;
+    };
+    State StateSave()
+    {
+        isafterslash = false;
+        if(!isafternewline) { IgnoreRestOfLine(); }
+        return {f.tellg(), line};
+    }
+
+    void StateLoad(const State &s)
+    {
+        isafterslash   = false;
+        isafternewline = true;
+        f.seekg(s.s);
+        line = s.l;
+    }
+
+    bool EndOfFile() { return f.eof(); }
 
 #define LIST(ldif) ldif.List(__FILE__, __LINE__)
 #define LIST_WARNLINE(ldif) ldif.List(__FILE__, __LINE__, true)
@@ -120,6 +151,22 @@ public:
         if(s == nullitem) Error("Only specified part of a vec2!");
         if(!isReal(s)) Error("String " + s + " is not a real number");
         v.y = strtod(s.c_str(), nullptr);
+    }
+    void Read(vec3 &v)
+    {
+        LDIFILE_READPREFIX();
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v.x = strtod(s.c_str(), nullptr);
+        if(f.eof() && !isafterslash) Error("End of file");
+        s = GetNextItem();
+        if(s == nullitem) Error("Only specified part of a vec3!");
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v.y = strtod(s.c_str(), nullptr);
+        if(f.eof() && !isafterslash) Error("End of file");
+        s = GetNextItem();
+        if(s == nullitem) Error("Only specified part of a vec3!");
+        if(!isReal(s)) Error("String " + s + " is not a real number");
+        v.z = strtod(s.c_str(), nullptr);
     }
     void Read(cpx &v)
     {
@@ -365,7 +412,9 @@ private:
 
 class LDOFile {
 public:
-    LDOFile() : iwidth(12), fwidth(15), dwidth(24) {}
+    enum class Style : uint8_t { FORTRAN_OUTPUT, WRITTEN_BY_HAND, MATLAB_OUTPUT };
+
+    LDOFile() : iwidth(12), fwidth(15), dwidth(24), envStyle(Style::FORTRAN_OUTPUT) {}
     ~LDOFile()
     {
         if(ostr.is_open()) ostr.close();
@@ -386,16 +435,20 @@ public:
     LDOFile &operator<<(const std::string &s)
     {
         ostr << "'" << s << "'";
+        if(envStyle != Style::FORTRAN_OUTPUT) ostr << ' ';
         return *this;
     }
+
+    void setStyle(Style s) { envStyle = s; }
 
     void intwidth(int32_t iw) { iwidth = iw; }
     LDOFile &operator<<(const int32_t &i)
     {
-        if(iwidth > 0) {
+        if(iwidth > 0 && envStyle == Style::FORTRAN_OUTPUT) {
             ostr << std::setiosflags(std::ios_base::right) << std::setw(iwidth);
         }
         ostr << i;
+        if(envStyle != Style::FORTRAN_OUTPUT) ostr << ' ';
         return *this;
     }
 
@@ -446,13 +499,59 @@ public:
             this->operator<<('\n');
         }
     }
+    template<typename T> void writescale(const T *v, int32_t n, T scale)
+    {
+        for(int32_t i = 0; i < n; ++i) { this->operator<<(v[i] * scale); }
+    }
+    template<typename T> void writestride(const T *v, int32_t n, int32_t stride_T)
+    {
+        for(int32_t i = 0; i < n; ++i) { this->operator<<(v[i * stride_T]); }
+    }
+
+    void write(const char *s) { ostr << s; }
 
 private:
     std::ofstream ostr;
     int32_t iwidth, fwidth, dwidth;
+    Style envStyle;
 
     void writedouble(double r, int32_t width, bool exp3)
     {
+        if(envStyle == Style::WRITTEN_BY_HAND) {
+            std::stringstream ss;
+            ss << r;
+            std::string s = ss.str();
+            ostr << std::defaultfloat;
+            if(s.find(".") == std::string::npos) {
+                ostr << std::showpoint;
+                ostr << std::setiosflags(std::ios_base::fixed);
+                ostr << std::setprecision(1);
+            } else if(std::abs(r) < RL(1e-6)) {
+                ostr << std::noshowpoint;
+                ostr << std::setiosflags(std::ios_base::scientific);
+                ostr << std::setw(13);
+                ostr << std::setprecision(6);
+            } else {
+                ostr << std::noshowpoint;
+                ostr << std::setprecision(6);
+            }
+            ostr << std::setiosflags(std::ios_base::uppercase) << r << ' ';
+            return;
+        } else if(envStyle == Style::MATLAB_OUTPUT) {
+            ostr << std::defaultfloat;
+            if(std::abs(r) < RL(1e-6)) {
+                ostr << std::noshowpoint;
+                ostr << std::setiosflags(std::ios_base::scientific);
+                ostr << std::setw(13);
+                ostr << std::setprecision(6);
+            } else {
+                ostr << std::showpoint;
+                ostr << std::setiosflags(std::ios_base::fixed);
+                ostr << std::setprecision(6);
+            }
+            ostr << r << ' ';
+            return;
+        }
         if(width <= 0) {
             ostr << r;
             return;

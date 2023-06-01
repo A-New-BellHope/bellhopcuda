@@ -78,6 +78,39 @@ public:
         refltb->inDegrees = true;
     }
 
+    virtual void Write(bhcParams<O3D> &params, LDOFile &) const
+    {
+        ReflectionInfoTopBot *refltb = GetReflTopBot(params);
+        PrintFileEmu &PRTFile        = GetInternal(params)->PRTFile;
+        if(!IsFile(params)) return;
+
+        LDOFile xRCFile;
+        xRCFile.setStyle(LDOFile::Style::WRITTEN_BY_HAND);
+        xRCFile.open(GetInternal(params)->FileRoot + s_extension);
+        if(!xRCFile.good()) {
+            PRTFile << s_RC << "File = " << GetInternal(params)->FileRoot << s_extension
+                    << "\n";
+            EXTERR(
+                "WriteReflectionCoefficient: Unable to open new %s Reflection "
+                "Coefficient file",
+                s_TopBottom);
+        }
+
+        xRCFile << refltb->NPts;
+        xRCFile.write("! " BHC_PROGRAMNAME "- ");
+        xRCFile.write(s_TopBottom);
+        xRCFile.write(" Reflection Coefficient file for");
+        xRCFile.write(params.Title);
+        xRCFile << '\n';
+
+        for(int32_t itheta = 0; itheta < refltb->NPts; ++itheta) {
+            xRCFile << refltb->r[itheta].theta;
+            xRCFile << refltb->r[itheta].r;
+            xRCFile << (refltb->r[itheta].phi * RadDeg);
+            xRCFile << '\n';
+        }
+    }
+
     void ExtSetup(bhcParams<O3D> &params, int32_t NPts) const
     {
         ReflectionInfoTopBot *refltb = GetReflTopBot(params);

@@ -314,20 +314,70 @@ extern template BHC_API bool run<true, true>(
  * a shade file, or an arrivals file. If you only want to use the results in
  * memory, there is no need to call this.
  *
+ * You can pass nullptr for FileRoot to write to output files relative to the
+ * same FileRoot that the environment file was originally loaded from.
+ *
  * returns: false if an error occurred, true if no errors.
  */
 template<bool O3D, bool R3D> bool writeout(
-    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs);
+    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs,
+    const char *FileRoot);
 
 /// 2D version, see template.
 extern template BHC_API bool writeout<false, false>(
-    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs,
+    const char *FileRoot);
 /// Nx2D version, see template.
 extern template BHC_API bool writeout<true, false>(
-    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs,
+    const char *FileRoot);
 /// 3D version, see template.
 extern template BHC_API bool writeout<true, true>(
-    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs,
+    const char *FileRoot);
+
+/**
+ * Read saved results from a past run (a ray file, TL / shade file, or arrivals
+ * file) to memory (the outputs struct). params should have already been
+ * initialized with the same or a similar environment file (and other input data
+ * files) which produced these outputs. If basic parameters in the output file
+ * (e.g number of sources) contradict the state in params, params will be
+ * updated to match the output file. However, if there are major
+ * incompatibilities such as dimensionality or run type, errors will be thrown.
+ *
+ * You can pass nullptr for FileRoot to read from output files relative to the
+ * same FileRoot that the environment file was originally loaded from.
+ *
+ * returns: false if an error occurred, true if no errors.
+ */
+template<bool O3D, bool R3D> bool readout(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot);
+
+/// 2D version, see template.
+extern template BHC_API bool readout<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+/// Nx2D version, see template.
+extern template BHC_API bool readout<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+/// 3D version, see template.
+extern template BHC_API bool readout<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
+
+/**
+ * Write the current params state to an environment file and any other "input"
+ * file types (e.g. SSP, bathymetry, etc.), so that the state can be loaded
+ * later.
+ *
+ * returns: false if an error occurred, true if no errors.
+ */
+template<bool O3D> bool writeenv(bhcParams<O3D> &params, const char *FileRoot);
+
+/// 2D version, see template.
+extern template BHC_API bool writeenv<false>(
+    bhcParams<false> &params, const char *FileRoot);
+/// 3D or Nx2D version, see template.
+extern template BHC_API bool writeenv<true>(
+    bhcParams<true> &params, const char *FileRoot);
 
 /**
  * Frees memory. You may call run() many times (with changed parameters), you do

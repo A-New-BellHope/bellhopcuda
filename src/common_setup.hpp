@@ -136,7 +136,8 @@ inline bool endswith(const std::string &source, const std::string &target)
 
 #define _BHC_INCLUDING_COMPONENTS_ 1
 #include "util/ldio.hpp"
-#include "util/bino.hpp"
+#include "util/directio.hpp"
+#include "util/unformattedio.hpp"
 #undef _BHC_INCLUDING_COMPONENTS_
 
 namespace bhc {
@@ -265,7 +266,7 @@ template<typename REAL> inline void ToMeters(REAL *&x, int32_t &Nx)
  * i.e., a vector is generated with Nx points in [x[0], x[1]]
  * If x[1] == -999.9 then x[0] is repeated into x[1]
  */
-template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
+template<typename REAL> inline void SubTab(REAL *x, int32_t Nx)
 {
     CHECK_REAL_T();
     // LP: Must be literals in the type of REAL. (double)(0.01f) != 0.01 and
@@ -299,6 +300,53 @@ template<typename REAL> HOST_DEVICE inline void SubTab(REAL *x, int32_t Nx)
             }
         }
     }
+}
+
+/**
+ * Reverse the operation of SubTab. Write a vector's length and contents to
+ * the list-directed output file, but if the contents are uniformly spaced,
+ * only write the first and last values and the slash to stop reading.
+ */
+template<typename REAL> inline void UnSubTab(
+    LDOFile &f, REAL *x, int32_t Nx, const char *nLabel, const char *xLabel,
+    REAL scale = (REAL)(1), int32_t stridereals = 1)
+{
+    bool doSubTab = true;
+    REAL firstx = (REAL)(0), lastx = (REAL)(0);
+    if(Nx <= 2) {
+        doSubTab = false;
+    } else {
+        firstx      = x[0];
+        lastx       = x[stridereals * (Nx - 1)];
+        REAL deltax = (lastx - firstx) / (REAL)(Nx - 1);
+        REAL curx   = firstx;
+        REAL thresh = (REAL)(3 * Nx)
+            * spacing(std::max(std::abs(firstx), std::abs(lastx)));
+        thresh = std::max(thresh, (REAL)(1e-7));
+        for(int32_t i = 1; i < Nx - 1; ++i) {
+            curx += deltax;
+            if(abs(x[stridereals * i] - curx) > thresh) {
+                doSubTab = false;
+                break;
+            }
+        }
+    }
+    f << Nx;
+    if(nLabel != nullptr) {
+        f.write("! ");
+        f.write(nLabel);
+    }
+    f << '\n';
+    if(doSubTab) {
+        f << (firstx * scale) << (lastx * scale) << '/' << ' ';
+    } else {
+        for(int32_t i = 0; i < Nx; ++i) { f << (x[stridereals * i] * scale); }
+    }
+    if(xLabel != nullptr) {
+        f.write("! ");
+        f.write(xLabel);
+    }
+    f << '\n';
 }
 
 /**

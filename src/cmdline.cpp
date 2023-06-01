@@ -26,7 +26,7 @@ template<bool O3D, bool R3D> int mainmain()
     bhc::bhcOutputs<O3D, R3D> outputs;
     if(!bhc::setup<O3D, R3D>(init, params, outputs)) return 1;
     if(!bhc::run<O3D, R3D>(params, outputs)) return 1;
-    if(!bhc::writeout<O3D, R3D>(params, outputs)) return 1;
+    if(!bhc::writeout<O3D, R3D>(params, outputs, nullptr)) return 1;
     bhc::finalize<O3D, R3D>(params, outputs);
     return 0;
 }
@@ -75,7 +75,11 @@ void showhelp(const char *argv0)
            "-mem=X, -memory=X: Sets the amount of memory " BHC_PROGRAMNAME
            " should use.\n"
            "    X may have a wide range of suffixes, examples: 16GiB, 8M, 100000kB\n"
-           "    non-examples: 4gI, 2m, 5.3G. Default: 4GiB\n";
+           "    non-examples: 4gI, 2m, 5.3G. Default: 4GiB\n"
+           "-writeenv=\"path/to/newFileRoot\": For testing purposes, writes out\n"
+           "    a copy of all the input data read from the environment file etc.\n"
+           "    to a new environment file and other data files. Does not run the\n"
+           "    simulation\n";
 }
 
 int main(int argc, char **argv)

@@ -57,6 +57,11 @@ public:
         ReadVector(params, params.Pos->Sz, params.Pos->NSz, ENVFile, DescriptionS);
         ReadVector(params, params.Pos->Rz, params.Pos->NRz, ENVFile, DescriptionR);
     }
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        UnSubTab(ENVFile, params.Pos->Sz, params.Pos->NSz, "NSD", "SD(1:NSD) (m)");
+        UnSubTab(ENVFile, params.Pos->Rz, params.Pos->NRz, "NRD", "RD(1:NRD) (m)");
+    }
     void ExtSetupSz(bhcParams<O3D> &params, int32_t NSz) const
     {
         params.Pos->NSz = NSz;

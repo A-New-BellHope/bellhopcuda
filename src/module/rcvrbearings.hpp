@@ -57,6 +57,14 @@ public:
             Default(params);
         }
     }
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        if constexpr(O3D) {
+            UnSubTab(
+                ENVFile, params.Pos->theta, params.Pos->Ntheta,
+                "Ntheta (number of bearings)", "bearing angles (degrees)");
+        }
+    }
     void ExtSetup(bhcParams<O3D> &params, int32_t Ntheta) const
     {
         params.Pos->Ntheta = Ntheta;

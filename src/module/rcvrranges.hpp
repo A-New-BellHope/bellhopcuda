@@ -46,6 +46,11 @@ public:
     {
         ReadVector(params, params.Pos->Rr, params.Pos->NRr, ENVFile, Description2);
     }
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        UnSubTab(
+            ENVFile, params.Pos->Rr, params.Pos->NRr, "NR", "R(1:NR ) (km)", FL(0.001));
+    }
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         // RayAngles::EstimateNumAngles uses Rr[NRr-1], must be in meters by then

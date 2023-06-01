@@ -38,7 +38,9 @@ public:
         hs.cP = hs.cS = hs.rho = FL(0.0);
         params.fT              = RL(1.0e20);
     }
+
     virtual void Default(bhcParams<O3D> &) const override {}
+
     virtual void Read(
         bhcParams<O3D> &params, LDIFile &ENVFile, HSInfo &RecycledHS) const override
     {
@@ -76,6 +78,22 @@ public:
             RecycledHS.rho    = hs.rho;
         }
     }
+
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        HSInfo &hs   = GetBdry(params).hs;
+        HSExtra &hsx = GetBdry(params).hsx;
+
+        if(hs.bc == 'A') { // *** Half-space properties ***
+            ENVFile << hsx.zTemp;
+            ENVFile << hs.alphaR << hs.betaR << hs.rho << hs.alphaI << hs.betaI;
+            ENVFile.write("! zTemp alphaR betaR rho alphaI betaI\n");
+        } else if(hs.bc == 'G') { // *** Grain size (formulas from UW-APL HF Handbook)
+            ENVFile << hsx.zTemp << hsx.Mz;
+            ENVFile.write("! zTemp Mz\n");
+        }
+    }
+
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         switch(GetBdry(params).hs.bc) {
@@ -89,6 +107,21 @@ public:
         default: EXTERR("TopBot: Unknown boundary condition type");
         }
     }
+
+    static void WriteBCTag(char opt, LDOFile &ENVFile)
+    {
+        switch(opt) {
+        case 'V': ENVFile.write("vacuum"); break;
+        case 'R': ENVFile.write("rigid"); break;
+        case 'A': ENVFile.write("acousto-elastic"); break;
+        case 'G': ENVFile.write("grain size"); break;
+        case 'F': ENVFile.write("file"); break;
+        case 'W': ENVFile.write("write IFL"); break;
+        case 'P': ENVFile.write("precalculated IFL"); break;
+        default: ENVFile.write("error!"); break;
+        }
+    }
+
     virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
@@ -129,6 +162,7 @@ public:
             PRTFile << std::setw(10) << hsx.Mz << "\n";
         }
     }
+
     virtual void Preprocess(bhcParams<O3D> &params) const override
     {
         HSInfo &hs   = GetBdry(params).hs;

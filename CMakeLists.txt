@@ -33,7 +33,7 @@ project(bellhoptoplevel LANGUAGES NONE)
 option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
 option(CUDA_ALL_ARCHES "Build CUDA device code for all GPUs in system, not just newest one" OFF)
 
-option(BHC_BUILD_EXAMPLES "Build example programs" ON)
+option(BHC_BUILD_EXAMPLES "Build example programs. Requires 2D, 3D, Nx2D all enabled" ON)
 option(BHC_LIMIT_FEATURES "Limit bellhopcxx/bellhopcuda to only features supported by BELLHOP/BELLHOP3D" OFF)
 option(BHC_USE_FLOATS  "Perform all floating-point arithmetic as 32-bit" OFF)
 

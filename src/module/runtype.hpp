@@ -45,6 +45,12 @@ public:
         LIST(ENVFile);
         ENVFile.Read(params.Beam->RunType, 7);
     }
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        ENVFile << std::string(params.Beam->RunType, 6);
+        ENVFile.write("! RunType, infl/beam type, ignored, point source, rectilinear "
+                      "grid, dim\n");
+    }
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         switch(params.Beam->RunType[0]) {
@@ -88,6 +94,7 @@ public:
             } else if(dim == 2) {
                 EXTWARN("Environment file specifies dimensionality 2, which usually "
                         "means Nx2D, but you are running " BHC_PROGRAMNAME " in 2D mode");
+                params.Beam->RunType[5] = ' ';
             }
             break;
         case ' ':
@@ -97,6 +104,7 @@ public:
             } else if(dim == 4) {
                 EXTWARN("Environment file specifies dimensionality ' ', which usually "
                         "means 2D, but you are running " BHC_PROGRAMNAME " in Nx2D mode");
+                params.Beam->RunType[5] = '2';
             }
             break;
         default:

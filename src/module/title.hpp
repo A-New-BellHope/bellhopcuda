@@ -38,19 +38,21 @@ public:
         ENVFile.Read(TempTitle);
         SetTitle(params, TempTitle);
     }
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        ENVFile << std::string(params.Title);
+        ENVFile.write("! TITLE\n");
+    }
     virtual void Echo(bhcParams<O3D> &params) const override
     {
         PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
-        PRTFile << params.Title << "\n";
+        PRTFile << BHC_PROGRAMNAME "- " << params.Title << "\n";
     }
 
-private:
     inline void SetTitle(bhcParams<O3D> &params, const std::string &TempTitle) const
     {
-        // Prepend model name to title
-        std::string t2 = BHC_PROGRAMNAME "- " + TempTitle;
-        size_t l       = bhc::min(sizeof(params.Title) - 1, t2.size());
-        memcpy(params.Title, t2.c_str(), l);
+        size_t l = bhc::min(sizeof(params.Title) - 1, TempTitle.size());
+        memcpy(params.Title, TempTitle.c_str(), l);
         params.Title[l] = 0;
     }
 };

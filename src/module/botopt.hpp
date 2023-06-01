@@ -19,6 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "../common_setup.hpp"
 #include "paramsmodule.hpp"
+#include "boundarycond.hpp"
 
 namespace bhc { namespace module {
 
@@ -36,6 +37,13 @@ public:
         LIST(ENVFile);
         ENVFile.Read(params.Bdry->Bot.hs.Opt, 6); // LP: LDIFile fills rest with ' '
         ENVFile.Read(params.Bdry->Bot.hsx.Sigma);
+    }
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        ENVFile << std::string(params.Bdry->Bot.hs.Opt, 6) << params.Bdry->Bot.hsx.Sigma;
+        ENVFile.write("! bot bc (");
+        BoundaryCond<O3D, false>::WriteBCTag(params.Bdry->Bot.hs.Opt[0], ENVFile);
+        ENVFile.write("), bathymetry, 4 spaces; Sigma (printed but ignored)\n");
     }
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {

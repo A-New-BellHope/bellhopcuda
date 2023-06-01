@@ -25,96 +25,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 namespace bhc {
 
 /**
- * C++ emulation of FORTRAN direct output (binary). Uses a global record length
- * which is not directly encoded in the file (usually user-encoded as the first
- * word).
- */
-class DirectOFile {
-public:
-    DirectOFile(bhcInternal *internal)
-        : _internal(internal), recl(0), record(777777777),
-          bytesWrittenThisRecord(777777777), highestRecord(0),
-          bytesWrittenHighestRecord(0)
-    {}
-    ~DirectOFile()
-    {
-        if(!ostr.is_open()) return;
-        // End of highest record may not have been filled up, causing the file
-        // length to be too short, if only part of it was written
-        if(bytesWrittenHighestRecord < recl) {
-            ostr.seekp((highestRecord + 1) * recl - 1);
-            ostr.put('\0');
-        }
-        ostr.close();
-    }
-
-    /**
-     * LRecl: record length in bytes
-     */
-    void open(const std::string &path, size_t LRecl)
-    {
-        recl = LRecl;
-        ostr.open(path, std::ios::binary);
-    }
-
-    bool good() { return ostr.good() && ostr.is_open(); }
-
-    void rec(size_t r)
-    {
-        if(r >= highestRecord) {
-            highestRecord             = r;
-            bytesWrittenHighestRecord = 0;
-        }
-        record = r;
-        ostr.seekp(r * recl);
-        bytesWrittenThisRecord = 0;
-    }
-
-    void checkAndIncrement(const char *file, int fline, size_t bytes)
-    {
-        if(bytesWrittenThisRecord + bytes > recl) {
-            ExternalError(
-                _internal,
-                "%s:%d: DirectOFile overflow, %" PRIuMAX
-                " bytes already written, rec size %" PRIuMAX ", tried to write %" PRIuMAX
-                " more",
-                file, fline, bytesWrittenThisRecord, recl, bytes);
-        }
-        bytesWrittenThisRecord += bytes;
-        if(record == highestRecord) {
-            bytesWrittenHighestRecord = bytesWrittenThisRecord;
-        }
-    }
-
-#define DOFWRITE(d, data, bytes) d.write(__FILE__, __LINE__, data, bytes)
-    void write(const char *file, int fline, const void *data, size_t bytes)
-    {
-        checkAndIncrement(file, fline, bytes);
-        ostr.write((const char *)data, bytes);
-    }
-    void write(const char *file, int fline, const std::string &str, size_t bytes)
-    {
-        checkAndIncrement(file, fline, bytes);
-        ostr.write(str.data(), bhc::min(bytes, str.size()));
-        for(size_t b = str.size(); b < bytes; ++b) ostr.put(' ');
-    }
-#define DOFWRITEV(d, data) d.write(__FILE__, __LINE__, data)
-    template<typename T> void write(const char *file, int fline, T v)
-    {
-        write(file, fline, &v, sizeof(T));
-    }
-
-private:
-    bhcInternal *_internal;
-    std::ofstream ostr;
-    size_t recl;
-    size_t record;
-    size_t bytesWrittenThisRecord;
-    size_t highestRecord;
-    size_t bytesWrittenHighestRecord;
-};
-
-/**
  * C++ emulation of FORTRAN unformatted output (binary). Each FORTRAN write
  * statement defines a record, and the record length is encoded as an int32_t
  * at the beginning and end of each record.
@@ -180,6 +90,78 @@ private:
     std::ofstream ostr;
     int32_t recstart;
     int32_t recl;
+};
+
+/**
+ * C++ emulation of reading from FORTRAN unformatted file.
+ */
+class UnformattedIFile {
+public:
+    UnformattedIFile(bhcInternal *internal) : _internal(internal), recl(0), recused(0) {}
+    ~UnformattedIFile()
+    {
+        if(istr.is_open()) {
+            FinishRecord();
+            istr.close();
+        }
+    }
+
+    void open(const std::string &path) { istr.open(path, std::ios::binary); }
+
+    bool good() { return istr.good() && istr.is_open(); }
+
+    void rec()
+    {
+        FinishRecord();
+        recused = 0;
+        istr.read((char *)&recl, 4);
+        auto g = istr.tellg();
+        istr.seekg(recl, istr.cur);
+        uint32_t recl_copy;
+        istr.read((char *)&recl_copy, 4);
+        istr.seekg(g);
+        if(recl != recl_copy) {
+            ExternalError(
+                _internal, "Record length inconsistent in UnformattedIFile at %08X!",
+                (uint32_t)g);
+        }
+    }
+
+    template<typename T> void read(T &v)
+    {
+        if(recused + sizeof(T) > recl) {
+            ExternalError(_internal, "Insufficient data in record in UnformattedIFile!");
+        }
+        istr.read((char *)&v, sizeof(T));
+        recused += (int32_t)sizeof(T);
+    }
+
+    template<typename T> void read(T *arr, size_t n)
+    {
+        if(recused + (n * sizeof(T)) > recl) {
+            ExternalError(_internal, "Insufficient data in record in UnformattedIFile!");
+        }
+        for(size_t i = 0; i < n; ++i) istr.read((char *)&arr[i], sizeof(T));
+        recused += (int32_t)(n * sizeof(T));
+    }
+
+private:
+    void FinishRecord()
+    {
+        if(recused != recl) {
+            ExternalWarning(
+                _internal, "Record in UnformattedIFile not fully read at %08X!",
+                (uint32_t)istr.tellg());
+        }
+        if(recl != 0) {              // Not for beginning of file
+            istr.seekg(4, istr.cur); // Skip end length of current record
+        }
+    }
+
+    bhcInternal *_internal;
+    std::ifstream istr;
+    uint32_t recl;
+    uint32_t recused;
 };
 
 } // namespace bhc

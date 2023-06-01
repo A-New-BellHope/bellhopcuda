@@ -57,6 +57,17 @@ public:
             Default(params);
         }
     }
+    virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
+    {
+        if constexpr(O3D) {
+            UnSubTab(
+                ENVFile, params.Pos->Sx, params.Pos->NSx, "NSX", "SX(1:NSX) (km)",
+                FL(0.001));
+            UnSubTab(
+                ENVFile, params.Pos->Sy, params.Pos->NSy, "NSY", "SY(1:NSY) (km)",
+                FL(0.001));
+        }
+    }
     void ExtSetup(bhcParams<O3D> &params, int32_t NSx, int32_t NSy) const
     {
         params.Pos->NSx = NSx;

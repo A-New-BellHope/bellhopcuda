@@ -15,9 +15,11 @@ test/FORTRAN/
 test/cxx1win/
 test/cxxmultiwin/
 test/cudawin/
+test/out/
 .vs/
 
 .DS_Store
+__pycache__/
 
 gen_*_pass.txt
 gen_*_fail.txt
@@ -27,3 +29,4 @@ test/in/gen_*
 test/in/genperf_*
 test/in/genrev_*
 
+test/in/*.prt

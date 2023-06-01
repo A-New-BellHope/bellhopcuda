@@ -44,6 +44,8 @@ public:
     virtual void Default(bhcParams<O3D> &) const = 0;
     /// Read the parameters from the environment file or other input files.
     virtual void Read(bhcParams<O3D> &, LDIFile &, HSInfo &) const {}
+    /// Write the parameters to an environment file and/or other output files.
+    virtual void Write(bhcParams<O3D> &, LDOFile &) const {}
     /// Called after Default or Read for common setup.
     virtual void SetupPost(bhcParams<O3D> &) const {}
     /// Check if the parameters are valid values. Throws errors if not.

@@ -44,12 +44,21 @@ extern template void RunRayMode<true, false>(
 extern template void RunRayMode<true, true>(
     bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
+template<bool O3D, bool R3D> void ReadOutRay(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot);
+extern template void ReadOutRay<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+extern template void ReadOutRay<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+extern template void ReadOutRay<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
+
 template<bool O3D, bool R3D> class Ray : public ModeModule<O3D, R3D> {
 public:
     Ray() {}
     virtual ~Ray() {}
 
-    virtual void Init(bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Init(bhcOutputs<O3D, R3D> &outputs) const override
     {
         outputs.rayinfo->results    = nullptr;
         outputs.rayinfo->RayMem     = nullptr;
@@ -61,7 +70,8 @@ public:
         outputs.rayinfo->NRays           = 0;
     }
 
-    virtual void Preprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Preprocess(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
 
@@ -107,12 +117,13 @@ public:
         rayinfo->RayMemPoints = 0;
     }
 
-    virtual void Run(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Run(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         RunRayMode<O3D, R3D>(params, outputs);
     }
 
-    virtual void Postprocess(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Postprocess(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
         for(int r = 0; r < rayinfo->NRays; ++r) {
@@ -123,7 +134,7 @@ public:
     }
 
     virtual void Writeout(
-        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const
+        const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const override
     {
         RayInfo<O3D, R3D> *rayinfo = outputs.rayinfo;
         LDOFile RAYFile;
@@ -135,7 +146,15 @@ public:
         }
     }
 
-    virtual void Finalize(bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const
+    virtual void Readout(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs,
+        const char *FileRoot) const override
+    {
+        ReadOutRay<O3D, R3D>(params, outputs, FileRoot);
+    }
+
+    virtual void Finalize(
+        bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
         trackdeallocate(params, outputs.rayinfo->results);
         trackdeallocate(params, outputs.rayinfo->RayMem);

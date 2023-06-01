@@ -326,6 +326,42 @@ template BHC_API bool echo<false>(bhcParams<false> &params);
 template BHC_API bool echo<true>(bhcParams<true> &params);
 #endif
 
+template<bool O3D> bool writeenv(bhcParams<O3D> &params, const char *FileRoot)
+{
+    try {
+        module::ModulesList<O3D> modules;
+        for(auto *m : modules.list()) {
+            m->Validate(params);
+            m->Preprocess(params);
+        }
+
+        GetInternal(params)->FileRoot = FileRoot;
+        LDOFile ENVFile;
+        ENVFile.setStyle(LDOFile::Style::WRITTEN_BY_HAND);
+        ENVFile.open(std::string(FileRoot) + ".env");
+        if(!ENVFile.good()) {
+            PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
+            PRTFile << "ENVFile = " << FileRoot << ".env\n";
+            EXTERR(BHC_PROGRAMNAME
+                   " - writeenv: Unable to open the new environmental file");
+        }
+        for(auto *m : modules.list()) m->Write(params, ENVFile);
+
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::writeenv(): %s\n", e.what());
+        return false;
+    }
+
+    return true;
+}
+
+#if BHC_ENABLE_2D
+template BHC_API bool writeenv<false>(bhcParams<false> &params, const char *FileRoot);
+#endif
+#if BHC_ENABLE_NX2D || BHC_ENABLE_3D
+template BHC_API bool writeenv<true>(bhcParams<true> &params, const char *FileRoot);
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 template<bool O3D, bool R3D> inline mode::ModeModule<O3D, R3D> *GetMode(
@@ -390,11 +426,13 @@ run<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> bool writeout(
-    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs)
+    const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs,
+    const char *FileRoot)
 {
     try {
         Stopwatch sw(GetInternal(params));
         sw.tick();
+        if(FileRoot != nullptr) { GetInternal(params)->FileRoot = FileRoot; }
         auto *mo = GetMode<O3D, R3D>(params);
         mo->Writeout(params, outputs);
         sw.tock("writeout");
@@ -408,15 +446,48 @@ template<bool O3D, bool R3D> bool writeout(
 
 #if BHC_ENABLE_2D
 template bool BHC_API writeout<false, false>(
-    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs);
+    const bhcParams<false> &params, const bhcOutputs<false, false> &outputs,
+    const char *FileRoot);
 #endif
 #if BHC_ENABLE_NX2D
 template bool BHC_API writeout<true, false>(
-    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, false> &outputs,
+    const char *FileRoot);
 #endif
 #if BHC_ENABLE_3D
 template bool BHC_API writeout<true, true>(
-    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs);
+    const bhcParams<true> &params, const bhcOutputs<true, true> &outputs,
+    const char *FileRoot);
+#endif
+
+template<bool O3D, bool R3D> bool readout(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, const char *FileRoot)
+{
+    try {
+        if(FileRoot == nullptr) { FileRoot = GetInternal(params)->FileRoot.c_str(); }
+        auto *mo = GetMode<O3D, R3D>(params);
+        mo->Readout(params, outputs, FileRoot);
+        delete mo;
+        module::ModulesList<O3D> modules;
+        for(auto *m : modules.list()) m->Validate(params);
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::readout(): %s\n", e.what());
+        return false;
+    }
+    return true;
+}
+
+#if BHC_ENABLE_2D
+template BHC_API bool readout<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs, const char *FileRoot);
+#endif
+#if BHC_ENABLE_NX2D
+template BHC_API bool readout<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs, const char *FileRoot);
+#endif
+#if BHC_ENABLE_3D
+template BHC_API bool readout<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs, const char *FileRoot);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////

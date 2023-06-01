@@ -166,16 +166,10 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
                 for z in range(Nz):
                     for y in range(Ny):
                         sspfil.write(' '.join('{:.2f}'.format(gen_ssp(x, y, z)) for x in range(Nx)) + '\n')
-    def write_vector(fil, v, Nv = None):
-        if Nv is None:
-            Nv = len(v)
-        fil.write(str(Nv) + '\n')
+    def write_vector(fil, v):
+        fil.write(str(len(v)) + '\n')
         for pt in v:
-            try:
-                s = ' '.join(map(str, pt))
-            except TypeError:
-                s = str(pt)
-            fil.write(s + '\n')
+            fil.write(' '.join(map(str, pt)) + '\n')
     if p['SrcBmPat']:
         with open('test/in/' + env_name + '.sbp', 'w') as sbpfil:
             write_vector(sbpfil, p['SrcBmPat'])
@@ -189,10 +183,18 @@ def write_env_etc(dim, rt, it, st, p, env_name, title):
         if p[extension]:
             with open('test/in/' + env_name + '.' + extension, 'w') as fil:
                 if dim == 2:
+                    fil.write('\'LS\'\n')
                     write_vector(fil, p[extension])
                 else:
-                    write_vector(fil, p[extension]['Globalx'], p[extension]['Nx'])
-                    write_vector(fil, p[extension]['Globaly'], p[extension]['Ny'])
+                    fil.write('\'R\'\n')
+                    def write_maybe_subtab(n, v):
+                        fil.write(str(n) + '\n')
+                        fil.write(' '.join('{:.2f}'.format(x) for x in v))
+                        if n != len(v):
+                            fil.write(' /')
+                        fil.write('\n')
+                    write_maybe_subtab(p[extension]['Nx'], p[extension]['Globalx'])
+                    write_maybe_subtab(p[extension]['Ny'], p[extension]['Globaly'])
                     for pt in p[extension]['z']:
                         fil.write(' '.join(map(str, pt)) + '\n')
                     
