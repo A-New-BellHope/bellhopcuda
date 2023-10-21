@@ -184,7 +184,7 @@ template<bool O3D> cpx crci(
     ret = cpx(c, alphaT);
 
     if(alphaT > c) {
-        PRTFile << "Complex sound speed: " << ret << "\n";
+        PRTFile << "Complex sound speed: " << std::complex<real>(ret.real(), ret.imag()) << "\n";
         PRTFile << "Usually this means you have an attenuation that is way too high\n";
         EXTWARN("attenuation: crci: The complex sound speed has an imaginary part > "
                 "real part");
