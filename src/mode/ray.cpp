@@ -248,11 +248,13 @@ template<bool O3D, bool R3D> void ReadOutRay(
     RAYFile.Read(dim);
     if constexpr(O3D) {
         if(dim != "xyz") {
-            EXTERR("Dimensionality in RAYFile is '%s', must be 'xyz' for 3D/Nx2D", dim);
+            EXTERR(
+                "Dimensionality in RAYFile is '%s', must be 'xyz' for 3D/Nx2D",
+                dim.c_str());
         }
     } else {
         if(dim != "rz") {
-            EXTERR("Dimensionality in RAYFile is '%s', must be 'rz' for 2D", dim);
+            EXTERR("Dimensionality in RAYFile is '%s', must be 'rz' for 2D", dim.c_str());
         }
     }
 

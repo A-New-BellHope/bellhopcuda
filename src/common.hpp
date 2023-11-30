@@ -392,6 +392,8 @@ HOST_DEVICE inline size_t GetFieldAddr(
     // clang-format on
 }
 
+std::ostream &operator<<(std::ostream &s, const vec2 &v);
+
 } // namespace bhc
 
 #define _BHC_INCLUDING_COMPONENTS_ 1

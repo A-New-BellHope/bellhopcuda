@@ -305,12 +305,14 @@ template<bool O3D, bool R3D> void ReadOutArrivals(
     if constexpr(O3D) {
         if(dim != "'3D'") {
             EXTERR(
-                "Incorrect dimensionality in arrivals file, must be '3D', got %s", dim);
+                "Incorrect dimensionality in arrivals file, must be '3D', got %s",
+                dim.c_str());
         }
     } else {
         if(dim != "'2D'") {
             EXTERR(
-                "Incorrect dimensionality in arrivals file, must be '2D', got %s", dim);
+                "Incorrect dimensionality in arrivals file, must be '2D', got %s",
+                dim.c_str());
         }
     }
 

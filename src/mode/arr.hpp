@@ -79,7 +79,7 @@ public:
         remainingMemory -= nSrcs * sizeof(int32_t);
         remainingMemory -= 32 * 3; // Possible padding used for the three arrays
         remainingMemory  = std::max(remainingMemory, (int64_t)0);
-        arrinfo->MaxNArr = (int32_t)std::min(
+        arrinfo->MaxNArr = (int32_t)std::min<int32_t>(
             remainingMemory / (nSrcsRcvrs * sizeof(Arrival)), (size_t)0x7FFFFFFF);
         if(arrinfo->MaxNArr == 0) {
             EXTERR("Insufficient memory to allocate arrivals");
