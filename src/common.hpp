@@ -40,6 +40,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cstdarg>
 #include <chrono>
 #include <thread>
+#include <mutex>
 
 #define GLM_FORCE_EXPLICIT_CTOR 1
 #include <glm/common.hpp>
@@ -411,6 +412,7 @@ namespace bhc {
 
 struct bhcInternal {
     void (*outputCallback)(const char *message);
+    void (*completedCallback)();
     std::string FileRoot;
     PrintFileEmu PRTFile;
     std::atomic<int32_t> sharedJobID;
@@ -421,9 +423,12 @@ struct bhcInternal {
     bool useRayCopyMode;
     bool noEnvFil;
     uint8_t dim;
+    std::atomic<int32_t> totalJobs;
+    std::atomic<int32_t> activeThreadCount;
+    std::atomic<int32_t> completedRayCount;
 
     bhcInternal(const bhcInit &init, bool o3d, bool r3d)
-        : outputCallback(init.outputCallback),
+        : outputCallback(init.outputCallback), completedCallback(init.completedCallback),
           FileRoot(
               init.FileRoot == nullptr ? "error_incorrect_use_of_" BHC_PROGRAMNAME
                                        : init.FileRoot),
@@ -432,7 +437,8 @@ struct bhcInternal {
           usedMemory(0), useRayCopyMode(init.useRayCopyMode),
           noEnvFil(init.FileRoot == nullptr), dim(r3d       ? 3
                                                       : o3d ? 4
-                                                            : 2)
+                                                            : 2),
+          totalJobs(1), activeThreadCount(0), completedRayCount(0)
     {}
 };
 

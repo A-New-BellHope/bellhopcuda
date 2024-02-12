@@ -310,6 +310,14 @@ extern template BHC_API bool run<true, true>(
     bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 /**
+ * Get the percent progress as an int. Thread safe.
+ * Returns an int from 0 to 100.
+ */
+template<bool O3D> int get_percent_progress(bhcParams<O3D> &params);
+extern template BHC_API int get_percent_progress<true>(bhcParams<true> &params);
+extern template BHC_API int get_percent_progress<false>(bhcParams<false> &params);
+
+/**
  * Write results for the past run to BELLHOP-formatted files, i.e. a ray file,
  * a shade file, or an arrivals file. If you only want to use the results in
  * memory, there is no need to call this.
