@@ -443,6 +443,7 @@ template<bool O3D, bool R3D> struct RayInfo {
     int32_t MaxPointsPerRay;
     int32_t NRays;
     bool isCopyMode;
+    bool blocking = true;
 };
 
 struct RayInitInfo {
@@ -535,6 +536,10 @@ struct bhcInit {
     void (*prtCallback)(const char *message) = nullptr;
     /// See documentation for prtCallback above.
     void (*outputCallback)(const char *message) = nullptr;
+
+    /// Called after all the threads have completed.
+    /// Probably only useful in non-blocking mode.
+    void (*completedCallback)() = nullptr;
 };
 
 template<bool O3D> struct bhcParams {

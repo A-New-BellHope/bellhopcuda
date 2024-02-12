@@ -122,6 +122,8 @@ template bool RunRay<true, true>(
     int32_t worker, RayInitInfo &rinit, int32_t &Nsteps, ErrState *errState);
 #endif
 
+static std::mutex testing_only;
+
 template<bool O3D, bool R3D> void RayModeWorker(
     const bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs, int32_t worker,
     ErrState *errState)
@@ -131,10 +133,42 @@ template<bool O3D, bool R3D> void RayModeWorker(
         int32_t job    = GetInternal(params)->sharedJobID++;
         int32_t Nsteps = -1;
         RayInitInfo rinit;
+        {
+            const std::lock_guard<std::mutex> lock(testing_only);
+            std::cout << "gh101 " << job << " " << GetInternal(params)->completedRayCount
+                      << "\n"
+                      << std::flush;
+        }
         if(!GetJobIndices<O3D>(rinit, job, params.Pos, params.Angles)) break;
+        {
+            const std::lock_guard<std::mutex> lock(testing_only);
+            std::cout << "gh102 " << job << " " << GetInternal(params)->completedRayCount
+                      << "\n"
+                      << std::flush;
+        }
         if(!RunRay<O3D, R3D>(
                outputs.rayinfo, params, job, worker, rinit, Nsteps, errState)) {
             break;
+            {
+                const std::lock_guard<std::mutex> lock(testing_only);
+                std::cout << "gh103 " << job << " "
+                          << GetInternal(params)->completedRayCount << "\n"
+                          << std::flush;
+            }
+        }
+        GetInternal(params)->completedRayCount++;
+        {
+            const std::lock_guard<std::mutex> lock(testing_only);
+            std::cout << "gh10 " << job << " " << GetInternal(params)->completedRayCount
+                      << "\n"
+                      << std::flush;
+        }
+    }
+    GetInternal(params)->activeThreadCount--;
+    if(GetInternal(params)->activeThreadCount == 0) {
+        if(GetInternal(params)->completedCallback != nullptr) {
+            CheckReportErrors(GetInternal(params), errState);
+            GetInternal(params)->completedCallback();
         }
     }
 }
@@ -160,14 +194,21 @@ template<bool O3D, bool R3D> void RunRayMode(
 {
     ErrState errState;
     ResetErrState(&errState);
-    GetInternal(params)->sharedJobID = 0;
-    int32_t numThreads               = GetInternal(params)->numThreads;
+    GetInternal(params)->sharedJobID       = 0;
+    int32_t numThreads                     = GetInternal(params)->numThreads;
+    GetInternal(params)->totalJobs         = GetNumJobs<O3D>(params.Pos, params.Angles);
+    GetInternal(params)->activeThreadCount = numThreads;
+    std::cout << "gh67 " << numThreads << "\n" << std::flush;
     std::vector<std::thread> threads;
     for(int32_t i = 0; i < numThreads; ++i)
         threads.push_back(std::thread(
             RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs), i, &errState));
-    for(int32_t i = 0; i < numThreads; ++i) threads[i].join();
-    CheckReportErrors(GetInternal(params), &errState);
+    if(outputs.rayinfo->blocking) {
+        for(int32_t i = 0; i < numThreads; ++i) threads[i].join();
+        CheckReportErrors(GetInternal(params), &errState);
+    } else {
+        for(int32_t i = 0; i < numThreads; ++i) threads[i].detach();
+    }
 }
 
 #if BHC_ENABLE_2D

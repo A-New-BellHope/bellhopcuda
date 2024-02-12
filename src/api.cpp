@@ -718,4 +718,26 @@ extern BHC_API void extsetup_ssp_hexahedral(
 }
 #endif
 
+template<bool O3D> int get_percent_progress(bhcParams<O3D> &params)
+{
+    try {
+        // std::cout << "gh45 " << GetInternal(params)->completedRayCount << " "
+        //           << GetInternal(params)->totalJobs << "\n"
+        //           << std::flush;
+        return int(
+            100.0 * double(GetInternal(params)->completedRayCount)
+            / double(GetInternal(params)->totalJobs));
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::get_percent_progress(): %s\n", e.what());
+        return 0;
+    }
+}
+
+#if BHC_ENABLE_2D
+template BHC_API int get_percent_progress<false>(bhcParams<false> &params);
+#endif
+#if BHC_ENABLE_NX2D || BHC_ENABLE_3D
+template BHC_API int get_percent_progress<true>(bhcParams<true> &params);
+#endif
+
 } // namespace bhc
