@@ -59,7 +59,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Fixes for some libcudacxx issues for MSVC; won't be needed once a new enough
 // version is included in CUDA releases
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (CUDART_VERSION < 12020)
 
 #if _MSC_VER >= 1930
 #include <../crt/src/stl/xmath.hpp>
