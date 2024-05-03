@@ -40,7 +40,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cstdarg>
 #include <chrono>
 #include <thread>
-#include <mutex>
 
 #define GLM_FORCE_EXPLICIT_CTOR 1
 #include <glm/common.hpp>
@@ -426,6 +425,7 @@ struct bhcInternal {
     std::atomic<int32_t> totalJobs;
     std::atomic<int32_t> activeThreadCount;
     std::atomic<int32_t> completedRayCount;
+    ErrState errState;
 
     bhcInternal(const bhcInit &init, bool o3d, bool r3d)
         : outputCallback(init.outputCallback), completedCallback(init.completedCallback),

@@ -54,11 +54,27 @@ int main()
     // Awkward, but only rays are non-blocking.
     outputs.rayinfo->blocking = false;
 
+    strcpy(params.Beam->RunType, "RG   3");
+
+    // one source
+    bhc::extsetup_sxsy(params, 1, 1);
+    bhc::extsetup_sz(params, 1);
+    params.Pos->Sx[0] = 0.0f;
+    params.Pos->Sy[0] = 0.0f;
+    params.Pos->Sz[0] = 1000.0f;
+
+    // one receiver, mostly ignored in ray mode
+    bhc::extsetup_rcvrbearings(params, 1);
+    bhc::extsetup_rcvrranges(params, 1);
+    bhc::extsetup_rcvrdepths(params, 1);
+    params.Pos->RrInKm   = true;
+    params.Pos->Rr[0]    = 10.0f;
+    params.Pos->theta[0] = 0.0f;
+    params.Pos->Rz[0]    = 1000.0f;
+
     // Request a bunch of rays so it takes a while.
     // May have to increase/decrease the number of rays
     //   to run in a reasonable time on your system.
-    strcpy(params.Beam->RunType, "RG RR3");
-
     int num_rays_per_direction = 100;
     bhc::extsetup_raybearings(params, num_rays_per_direction);
     bhc::extsetup_rayelevations(params, num_rays_per_direction);
@@ -66,9 +82,10 @@ int main()
         // just make the direction reasonable
         params.Angles->alpha.inDegrees = true;
         params.Angles->beta.inDegrees  = true;
-        params.Angles->alpha.angles[i] = 20.0 * double(i)
-            / double(num_rays_per_direction);
-        params.Angles->beta.angles[i] = 20.0 * double(i) / double(num_rays_per_direction);
+        params.Angles->alpha.angles[i] = 90.0
+            + 20.0 * double(i) / double(num_rays_per_direction);
+        params.Angles->beta.angles[i] = 90.0
+            + 20.0 * double(i) / double(num_rays_per_direction);
     }
 
     bhc::echo(params);
