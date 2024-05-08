@@ -721,9 +721,6 @@ extern BHC_API void extsetup_ssp_hexahedral(
 template<bool O3D> int get_percent_progress(bhcParams<O3D> &params)
 {
     try {
-        // std::cout << "gh45 " << GetInternal(params)->completedRayCount << " "
-        //           << GetInternal(params)->totalJobs << "\n"
-        //           << std::flush;
         return int(
             100.0 * double(GetInternal(params)->completedRayCount)
             / double(GetInternal(params)->totalJobs));
