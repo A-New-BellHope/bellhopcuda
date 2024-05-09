@@ -136,6 +136,15 @@ template<bool O3D, bool R3D> void RayModeWorker(
                outputs.rayinfo, params, job, worker, rinit, Nsteps, errState)) {
             break;
         }
+        GetInternal(params)->completedRayCount++;
+    }
+
+    GetInternal(params)->activeThreadCount--;
+    if(GetInternal(params)->activeThreadCount == 0) {
+        if(GetInternal(params)->completedCallback != nullptr) {
+            GetInternal(params)->completedCallback();
+        }
+        CheckReportErrors(GetInternal(params), errState);
     }
 }
 
@@ -158,16 +167,23 @@ template void RayModeWorker<true, true>(
 template<bool O3D, bool R3D> void RunRayMode(
     bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
 {
-    ErrState errState;
-    ResetErrState(&errState);
-    GetInternal(params)->sharedJobID = 0;
-    int32_t numThreads               = GetInternal(params)->numThreads;
+    ResetErrState(&GetInternal(params)->errState);
+    GetInternal(params)->sharedJobID       = 0;
+    int32_t numThreads                     = GetInternal(params)->numThreads;
+    GetInternal(params)->totalJobs         = GetNumJobs<O3D>(params.Pos, params.Angles);
+    GetInternal(params)->activeThreadCount = numThreads;
     std::vector<std::thread> threads;
     for(int32_t i = 0; i < numThreads; ++i)
         threads.push_back(std::thread(
-            RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs), i, &errState));
-    for(int32_t i = 0; i < numThreads; ++i) threads[i].join();
-    CheckReportErrors(GetInternal(params), &errState);
+            RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs), i,
+            &GetInternal(params)->errState));
+    for(int32_t i = 0; i < numThreads; ++i) {
+        if(outputs.rayinfo->blocking) {
+            threads[i].join();
+        } else {
+            threads[i].detach();
+        }
+    }
 }
 
 #if BHC_ENABLE_2D

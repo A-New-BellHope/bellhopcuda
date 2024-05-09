@@ -29,6 +29,7 @@ function(create_example EXNAME)
     target_include_directories(${EXNAME} PUBLIC "${CMAKE_SOURCE_DIR}/glm")
 endfunction()
 
+create_example(background)
 create_example(defaults)
 create_example(readout)
 create_example(writeenv)
