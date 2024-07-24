@@ -19,6 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "../common_setup.hpp"
 #include "field.hpp"
+#include "eigen.hpp"
 
 namespace bhc { namespace mode {
 
@@ -97,6 +98,11 @@ public:
         memset(arrinfo->Arr, 0, nSrcsRcvrs * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
         memset(arrinfo->NArr, 0, nSrcsRcvrs * sizeof(int32_t));
         // MaxNPerSource does not have to be initialized
+
+        if(IsAlsoEigenraysRun(params.Beam)) {
+            Eigen<O3D, R3D> E1;
+            E1.Preprocess(params, outputs);
+        }
     }
 
     virtual void Postprocess(
@@ -109,6 +115,10 @@ public:
         const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const override
     {
         WriteOutArrivals<O3D>(params, outputs.arrinfo);
+        if(params.Beam->RunType[0] == 'v' || params.Beam->RunType[0] == 'V') {
+            Eigen<O3D, R3D> E1;
+            E1.Writeout(params, outputs);
+        }
     }
 
     virtual void Readout(

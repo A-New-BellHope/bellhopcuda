@@ -95,6 +95,7 @@ template<bool O3D> void WriteOutArrivals(
     LDOFile AARRFile;
     UnformattedOFile BARRFile(GetInternal(params));
     switch(params.Beam->RunType[0]) {
+    case 'V': // ascii arrivals and eigenrays
     case 'A': // arrivals calculation, ascii
         isAscii = true;
 
@@ -128,6 +129,7 @@ template<bool O3D> void WriteOutArrivals(
             AARRFile << '\n';
         }
         break;
+    case 'v': // binary arrivals and eigenrays
     case 'a': // arrivals calculation, binary
         isAscii = false;
 
