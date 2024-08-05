@@ -30,3 +30,8 @@ test/in/genperf_*
 test/in/genrev_*
 
 test/in/*.prt
+
+test/individual/**/*.prt
+test/individual/**/*.ray
+test/individual/**/*.arr
+test/individual/**/*.shd
