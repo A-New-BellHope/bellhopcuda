@@ -111,7 +111,7 @@ template<char IT, bool O3D, bool R3D> inline void RunFieldModesSelRun(
         EXTERR("Eigenrays runs (Beam->RunType[0] == 'E') "
                "were not enabled at compile time!");
 #endif
-    } else if(rt == 'A' || rt == 'a') {
+    } else if(rt == 'A' || rt == 'a' || rt == 'V' || rt == 'v') {
 #ifdef BHC_RUN_ENABLE_ARRIVALS
         if constexpr(InflType<IT>::IsCerveny()) {
             EXTERR("Cerveny influence does not support arrivals!");
@@ -119,7 +119,7 @@ template<char IT, bool O3D, bool R3D> inline void RunFieldModesSelRun(
             RunFieldModesSelSSP<'A', IT, O3D, R3D>(params, outputs);
         }
 #else
-        EXTERR("Arrivals runs (Beam->RunType[0] == 'A' or 'a') "
+        EXTERR("Arrivals runs (Beam->RunType[0] == 'A', 'a', 'V', or 'v') "
                "were not enabled at compile time!");
 #endif
     } else if(rt == 'R') {

@@ -77,7 +77,7 @@ public:
 
         trackdeallocate(params, rayinfo->RayMem);
         trackdeallocate(params, rayinfo->WorkRayMem);
-        rayinfo->NRays = IsEigenraysRun(params.Beam)
+        rayinfo->NRays = IsEigenraysRun(params.Beam) || IsAlsoEigenraysRun(params.Beam)
             ? outputs.eigen->neigen
             : GetNumJobs<O3D>(params.Pos, params.Angles);
         trackallocate(params, "ray metadata", rayinfo->results, rayinfo->NRays);
@@ -168,7 +168,8 @@ private:
     inline void OpenRAYFile(
         LDOFile &RAYFile, std::string FileRoot, const bhcParams<O3D> &params) const
     {
-        if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)) {
+        if(!IsRayRun(params.Beam) && !IsEigenraysRun(params.Beam)
+           && !IsAlsoEigenraysRun(params.Beam)) {
             EXTERR("OpenRAYFile not in ray trace or eigenrays mode");
         }
         RAYFile.open(FileRoot + ".ray");

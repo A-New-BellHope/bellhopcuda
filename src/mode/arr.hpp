@@ -64,6 +64,12 @@ public:
     virtual void Preprocess(
         bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
+        // Allocate Room for eigenrays first, if needed
+        if(IsAlsoEigenraysRun(params.Beam)) {
+            Eigen<O3D, R3D> E1;
+            E1.Preprocess(params, outputs);
+        }
+
         Field<O3D, R3D>::Preprocess(params, outputs);
         ArrInfo *arrinfo = outputs.arrinfo;
 
@@ -78,6 +84,7 @@ public:
             - GetInternal(params)->usedMemory;
         remainingMemory -= nSrcsRcvrs * sizeof(int32_t);
         remainingMemory -= nSrcs * sizeof(int32_t);
+        if(IsAlsoEigenraysRun(params.Beam)) { remainingMemory -= remainingMemory / 2; }
         remainingMemory -= 32 * 3; // Possible padding used for the three arrays
         remainingMemory  = std::max(remainingMemory, (int64_t)0);
         arrinfo->MaxNArr = (int32_t)std::min<int32_t>(
@@ -98,11 +105,6 @@ public:
         memset(arrinfo->Arr, 0, nSrcsRcvrs * (size_t)arrinfo->MaxNArr * sizeof(Arrival));
         memset(arrinfo->NArr, 0, nSrcsRcvrs * sizeof(int32_t));
         // MaxNPerSource does not have to be initialized
-
-        if(IsAlsoEigenraysRun(params.Beam)) {
-            Eigen<O3D, R3D> E1;
-            E1.Preprocess(params, outputs);
-        }
     }
 
     virtual void Postprocess(
@@ -115,10 +117,6 @@ public:
         const bhcParams<O3D> &params, const bhcOutputs<O3D, R3D> &outputs) const override
     {
         WriteOutArrivals<O3D>(params, outputs.arrinfo);
-        if(params.Beam->RunType[0] == 'v' || params.Beam->RunType[0] == 'V') {
-            Eigen<O3D, R3D> E1;
-            E1.Writeout(params, outputs);
-        }
     }
 
     virtual void Readout(
