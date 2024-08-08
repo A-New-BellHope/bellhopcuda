@@ -572,7 +572,7 @@ private:
             // LP: These are not well-defined, make sure they're not used
             ssp->alphaR[iz] = ssp->alphaI[iz] = NAN;
             ssp->betaR[iz] = ssp->betaI[iz] = NAN;
-            ssp->rho[iz]                    = NAN;
+            ssp->rho[iz]                    = FL(1.0);
         }
         ssp->NPts = ssp->Nz;
     }

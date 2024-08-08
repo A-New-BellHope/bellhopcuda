@@ -63,7 +63,7 @@ template<bool X3D> using V2M2 = typename TmplVec2Mat2<X3D>::type;
 // SSP / Boundary
 ////////////////////////////////////////////////////////////////////////////////
 
-constexpr int32_t MaxN   = 100000;
+constexpr int32_t MaxN   = 2000000;
 constexpr int32_t MaxSSP = MaxN + 1;
 
 struct rxyz_vector {
