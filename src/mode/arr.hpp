@@ -19,6 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 #include "../common_setup.hpp"
 #include "field.hpp"
+#include "eigen.hpp"
 
 namespace bhc { namespace mode {
 
@@ -63,6 +64,12 @@ public:
     virtual void Preprocess(
         bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs) const override
     {
+        // Allocate Room for eigenrays first, if needed
+        if(IsAlsoEigenraysRun(params.Beam)) {
+            Eigen<O3D, R3D> E1;
+            E1.Preprocess(params, outputs);
+        }
+
         Field<O3D, R3D>::Preprocess(params, outputs);
         ArrInfo *arrinfo = outputs.arrinfo;
 
@@ -77,6 +84,7 @@ public:
             - GetInternal(params)->usedMemory;
         remainingMemory -= nSrcsRcvrs * sizeof(int32_t);
         remainingMemory -= nSrcs * sizeof(int32_t);
+        if(IsAlsoEigenraysRun(params.Beam)) { remainingMemory -= remainingMemory / 2; }
         remainingMemory -= 32 * 3; // Possible padding used for the three arrays
         remainingMemory  = std::max(remainingMemory, (int64_t)0);
         arrinfo->MaxNArr = (int32_t)std::min<int32_t>(

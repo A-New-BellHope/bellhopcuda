@@ -61,6 +61,8 @@ public:
         case 'C': break;
         case 'A': break;
         case 'a': break;
+        case 'V': break;
+        case 'v': break;
         default: EXTERR("ReadEnvironment: Unknown RunType selected");
         }
 
@@ -125,6 +127,8 @@ public:
         case 'C': PRTFile << "Coherent TL calculation\n"; break;
         case 'A': PRTFile << "Arrivals calculation, ASCII  file output\n"; break;
         case 'a': PRTFile << "Arrivals calculation, binary file output\n"; break;
+        case 'V': PRTFile << "Arrival/Eigenray calculation, ASCII  file output\n"; break;
+        case 'v': PRTFile << "Arrival/Eigenray calculation, binary file output\n"; break;
         }
 
         switch(params.Beam->RunType[1]) {

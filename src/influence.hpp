@@ -445,6 +445,10 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
         AddArr<R3D>(
             itheta, iz, ir, cnst * w, omega, phaseInt, delay, inflray.init, RcvrDeclAngle,
             RcvrAzimAngle, point1.NumTopBnc, point1.NumBotBnc, arrinfo, Pos);
+        if(IsAlsoEigenraysRun(Beam)) {
+            // TODO: check how much this if statement costs
+            RecordEigenHit(itheta, ir, iz, is, inflray.init, eigen);
+        }
     } else {
         cpxf dfield;
         if(IsCoherentRun(Beam)) {

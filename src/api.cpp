@@ -376,7 +376,7 @@ template<bool O3D, bool R3D> inline mode::ModeModule<O3D, R3D> *GetMode(
     } else if(IsArrivalsRun(params.Beam)) {
         return new mode::Arr<O3D, R3D>();
     } else {
-        EXTERR("Invalid RunType %c\n", params.Beam->RunType[0]);
+        EXTERR("Invalid RunType (GetMode) %c\n", params.Beam->RunType[0]);
         // return nullptr;
     }
 }
@@ -401,6 +401,9 @@ template<bool O3D, bool R3D> bool run(
 
         sw.tick();
         mo->Postprocess(params, outputs);
+        if(IsAlsoEigenraysRun(params.Beam)) {
+            mode::PostProcessEigenrays(params, outputs);
+        }
         sw.tock("Postprocess");
 
         delete mo;
@@ -435,6 +438,10 @@ template<bool O3D, bool R3D> bool writeout(
         if(FileRoot != nullptr) { GetInternal(params)->FileRoot = FileRoot; }
         auto *mo = GetMode<O3D, R3D>(params);
         mo->Writeout(params, outputs);
+        if(IsAlsoEigenraysRun(params.Beam)) {
+            mode::Eigen<O3D, R3D> E1;
+            E1.Writeout(params, outputs);
+        }
         sw.tock("writeout");
         delete mo;
     } catch(const std::exception &e) {

@@ -110,7 +110,14 @@ template<bool O3D> HOST_DEVICE inline bool IsEigenraysRun(const BeamStructure<O3
 template<bool O3D> HOST_DEVICE inline bool IsArrivalsRun(const BeamStructure<O3D> *Beam)
 {
     char r = Beam->RunType[0];
-    return r == 'A' || r == 'a';
+    return r == 'A' || r == 'a' || r == 'V' || r == 'v';
+}
+
+template<bool O3D> HOST_DEVICE inline bool IsAlsoEigenraysRun(
+    const BeamStructure<O3D> *Beam)
+{
+    char r = Beam->RunType[0];
+    return r == 'V' || r == 'v';
 }
 
 template<bool O3D> HOST_DEVICE inline bool IsCoherentRun(const BeamStructure<O3D> *Beam)
