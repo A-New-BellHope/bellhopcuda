@@ -88,6 +88,18 @@ int main()
             + 20.0 * double(i) / double(num_rays_per_direction);
     }
 
+    bhc::VEC23<true> xSSP;
+    xSSP[0] = 1;
+    xSSP[1] = 1;
+    xSSP[2] = 10;
+    float resSSP;
+    std::cout << "Testing ssp call ... " << std::flush;
+    if(bhc::get_ssp<true, true>(params, xSSP, resSSP)) {
+        std::cout << " success " << resSSP << "\n" << std::flush;
+    } else {
+        std::cout << " failed " << resSSP << "\n" << std::flush;
+    }
+
     bhc::echo(params);
 
     bhc::run(params, outputs);

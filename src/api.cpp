@@ -744,4 +744,30 @@ template BHC_API int get_percent_progress<false>(bhcParams<false> &params);
 template BHC_API int get_percent_progress<true>(bhcParams<true> &params);
 #endif
 
+template<bool O3D, bool R3D> bool get_ssp(
+    bhcParams<O3D> &params, const VEC23<R3D> &x, float &sound_speed)
+{
+    try {
+        return SingleSSP<O3D, R3D>(params, x, sound_speed);
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::get_ssp(): %s\n", e.what());
+        return false;
+    }
+
+    return true;
+}
+
+#if BHC_ENABLE_2D
+template BHC_API bool get_ssp<false, false>(
+    bhcParams<false> &params, const VEC23<false> &x, float &sound_speed);
+#endif
+#if BHC_ENABLE_NX2D
+template BHC_API bool get_ssp<true, false>(
+    bhcParams<true> &params, const VEC23<false> &x, float &sound_speed);
+#endif
+#if BHC_ENABLE_3D
+template BHC_API bool get_ssp<true, true>(
+    bhcParams<true> &params, const VEC23<true> &x, float &sound_speed);
+#endif
+
 } // namespace bhc

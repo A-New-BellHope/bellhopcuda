@@ -404,6 +404,24 @@ extern template BHC_API void finalize<true, false>(
 extern template BHC_API void finalize<true, true>(
     bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
+/**
+ * Return the sound speed (scalar) at the input point.
+ *
+ * returns: false if an error occurred, true if no errors.
+ */
+template<bool O3D, bool R3D> bool get_ssp(
+    bhcParams<O3D> &params, const VEC23<R3D> &x, float &sound_speed);
+
+/// 2D version, see template.
+extern template BHC_API bool get_ssp<false, false>(
+    bhcParams<false> &params, const VEC23<false> &x, float &sound_speed);
+/// Nx2D version, see template.
+extern template BHC_API bool get_ssp<true, false>(
+    bhcParams<true> &params, const VEC23<false> &x, float &sound_speed);
+/// 3D version, see template.
+extern template BHC_API bool get_ssp<true, true>(
+    bhcParams<true> &params, const VEC23<true> &x, float &sound_speed);
+
 } // namespace bhc
 
 #ifdef BHC_UNDEF_STD_AFTER
