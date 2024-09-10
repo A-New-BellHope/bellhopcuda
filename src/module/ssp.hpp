@@ -66,6 +66,9 @@ public:
             ssp->betaR[i]  = RL(0.0);
             ssp->betaI[i]  = RL(0.0);
         }
+
+        ssp->dirty = true;
+        Preprocess(params);
     }
 
     virtual void Read(

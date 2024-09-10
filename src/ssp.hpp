@@ -464,4 +464,52 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void EvaluateSSP(
     }
 }
 
+/* Evaluate ssp at a single point.
+ * Mostly a wrapper for communicating the SSP when using bhc as a library.
+ * return success
+ */
+template<bool O3D, bool R3D> HOST_DEVICE inline bool SingleSSP(
+    bhcParams<O3D> &params, const VEC23<R3D> &x, float &sound_speed)
+{
+    Origin<O3D, R3D> org;
+    char st = params.ssp->Type;
+    VEC23<R3D> t;
+    t *= 0;
+    t[0] = 1;
+    SSPOutputs<R3D> sspo;
+    SSPSegState iSeg;
+    iSeg.r = iSeg.x = iSeg.y = iSeg.z = 0;
+    ErrState errState;
+    sound_speed = -1.0f;
+
+    if(st == 'N') {
+        EvaluateSSP<CfgSel<'R', 'G', 'N'>, O3D, R3D>(
+            x, t, sspo, org, params.ssp, iSeg, &errState);
+    } else if(st == 'C') {
+        EvaluateSSP<CfgSel<'R', 'G', 'C'>, O3D, R3D>(
+            x, t, sspo, org, params.ssp, iSeg, &errState);
+    } else if(st == 'S') {
+        EvaluateSSP<CfgSel<'R', 'G', 'S'>, O3D, R3D>(
+            x, t, sspo, org, params.ssp, iSeg, &errState);
+    } else if(st == 'P') {
+        EvaluateSSP<CfgSel<'R', 'G', 'P'>, O3D, R3D>(
+            x, t, sspo, org, params.ssp, iSeg, &errState);
+    } else if(st == 'Q') {
+        EvaluateSSP<CfgSel<'R', 'G', 'Q'>, O3D, R3D>(
+            x, t, sspo, org, params.ssp, iSeg, &errState);
+    } else if(st == 'H') {
+        EvaluateSSP<CfgSel<'R', 'G', 'H'>, O3D, R3D>(
+            x, t, sspo, org, params.ssp, iSeg, &errState);
+    } else if(st == 'A') {
+        EvaluateSSP<CfgSel<'R', 'G', 'A'>, O3D, R3D>(
+            x, t, sspo, org, params.ssp, iSeg, &errState);
+    } else {
+        RunError(&errState, BHC_ERR_INVALID_SSP_TYPE);
+        return false;
+    }
+
+    sound_speed = sspo.ccpx.real();
+    return true;
+}
+
 } // namespace bhc
