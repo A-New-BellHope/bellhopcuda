@@ -748,6 +748,11 @@ template<bool O3D, bool R3D> bool get_ssp(
     bhcParams<O3D> &params, const VEC23<R3D> &x, float &sound_speed)
 {
     try {
+        if(params.ssp->dirty) {
+            module::SSP<O3D> ms;
+            ms.Preprocess(params);
+            ms.SetupPost(params);
+        }
         return SingleSSP<O3D, R3D>(params, x, sound_speed);
     } catch(const std::exception &e) {
         EXTWARN("Exception caught in bhc::get_ssp(): %s\n", e.what());
