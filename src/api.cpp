@@ -397,14 +397,16 @@ template<bool O3D, bool R3D> bool run(
 
         sw.tick();
         mo->Run(params, outputs);
-        sw.tock("Run");
+        if(GetInternal(params)->blocking) {
+            sw.tock("Run");
 
-        sw.tick();
-        mo->Postprocess(params, outputs);
-        if(IsAlsoEigenraysRun(params.Beam)) {
-            mode::PostProcessEigenrays(params, outputs);
+            sw.tick();
+            mo->Postprocess(params, outputs);
+            if(IsAlsoEigenraysRun(params.Beam)) {
+                mode::PostProcessEigenrays(params, outputs);
+            }
+            sw.tock("Postprocess");
         }
-        sw.tock("Postprocess");
 
         delete mo;
     } catch(const std::exception &e) {
@@ -426,6 +428,38 @@ run<true, false>(bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #if BHC_ENABLE_3D
 template bool BHC_API
 run<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+template<bool O3D, bool R3D> bool postprocess(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    try {
+        auto *mo = GetMode<O3D, R3D>(params);
+        mo->Postprocess(params, outputs);
+        if(IsAlsoEigenraysRun(params.Beam)) {
+            mode::PostProcessEigenrays(params, outputs);
+        }
+        delete mo;
+
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::postprocess(): %s\n", e.what());
+        return false;
+    }
+
+    return true;
+}
+
+#if BHC_ENABLE_2D
+template bool BHC_API
+postprocess<false, false>(bhcParams<false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template bool BHC_API
+postprocess<true, false>(bhcParams<true> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template bool BHC_API
+postprocess<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> bool writeout(

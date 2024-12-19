@@ -52,10 +52,17 @@ int main()
     init.completedCallback = CompletedCallback;
 
     bhc::setup(init, params, outputs);
-    // Awkward, but only rays are non-blocking.
+
+    // request non-blocking calculation
     bhc::extsetup_blocking(params, false);
 
+    // setup the beam and bounds
     strcpy(params.Beam->RunType, "RG   3");
+    params.Beam->rangeInKm = false;
+    params.Beam->deltas    = 1.01;
+    params.Beam->Box.x     = 2000.0;
+    params.Beam->Box.y     = 2000.0;
+    params.Beam->Box.z     = 2000.0;
 
     // one source
     bhc::extsetup_sxsy(params, 1, 1);
@@ -83,9 +90,9 @@ int main()
         // just make the direction reasonable
         params.Angles->alpha.inDegrees = true;
         params.Angles->beta.inDegrees  = true;
-        params.Angles->alpha.angles[i] = 90.0
+        params.Angles->alpha.angles[i] = -10.0
             + 20.0 * double(i) / double(num_rays_per_direction);
-        params.Angles->beta.angles[i] = 90.0
+        params.Angles->beta.angles[i] = -10.0
             + 20.0 * double(i) / double(num_rays_per_direction);
     }
 
@@ -122,6 +129,20 @@ int main()
     }
     std::cout << bhc::get_percent_progress(params) << "% threads finished\n"
               << std::flush;
+    bhc::postprocess(params, outputs);
+
+    std::cout << "\n\nStarting the transmission loss calculation\n" << std::flush;
+    strcpy(params.Beam->RunType, "CG   3");
+
+    bhc::run(params, outputs);
+    going = true;
+    while(going) {
+        std::cout << "   " << bhc::get_percent_progress(params) << "% done\n "
+                  << std::flush;
+    }
+    std::cout << bhc::get_percent_progress(params) << "% threads finished\n"
+              << std::flush;
+    bhc::postprocess(params, outputs);
 
     bhc::finalize(params, outputs);
     return 0;

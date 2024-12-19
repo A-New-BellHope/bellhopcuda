@@ -319,6 +319,26 @@ extern template BHC_API bool run<true, true>(
     bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 /**
+ * Postprocess the computation.
+ * Only needed if the run is done in the background, e.g.,
+ *   if you call bhc::extsetup_blocking(true)
+ *
+ * returns: false if an error occurred, true if no errors.
+ */
+template<bool O3D, bool R3D> bool postprocess(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
+
+/// 2D version, see template.
+extern template BHC_API bool postprocess<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
+/// Nx2D version, see template.
+extern template BHC_API bool postprocess<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
+/// 3D version, see template.
+extern template BHC_API bool postprocess<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
+
+/**
  * Get the percent progress as an int. Thread safe.
  * Returns an int from 0 to 100.
  */

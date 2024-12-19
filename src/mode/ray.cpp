@@ -171,6 +171,7 @@ template<bool O3D, bool R3D> void RunRayMode(
     GetInternal(params)->sharedJobID       = 0;
     int32_t numThreads                     = GetInternal(params)->numThreads;
     GetInternal(params)->totalJobs         = GetNumJobs<O3D>(params.Pos, params.Angles);
+    GetInternal(params)->completedRayCount = 0;
     GetInternal(params)->activeThreadCount = numThreads;
     std::vector<std::thread> threads;
     for(int32_t i = 0; i < numThreads; ++i)
