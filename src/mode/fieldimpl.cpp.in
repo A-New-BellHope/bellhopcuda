@@ -40,6 +40,15 @@ template<> void FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
             rinit, outputs.uAllSources, params.Bdry, params.bdinfo, params.refl,
             params.ssp, params.Pos, params.Angles, params.freqinfo, params.Beam,
             params.sbp, outputs.eigen, outputs.arrinfo, errState);
+        GetInternal(params)->completedRayCount++;
+    }
+
+    GetInternal(params)->activeThreadCount--;
+    if(GetInternal(params)->activeThreadCount == 0) {
+        if(GetInternal(params)->completedCallback != nullptr) {
+            GetInternal(params)->completedCallback();
+        }
+        CheckReportErrors(GetInternal(params), errState);
     }
 }
 
@@ -56,8 +65,13 @@ template<> void RunFieldModesImpl<GENCFG, @BHCGENO3D@, @BHCGENR3D@>(
         threads.push_back(std::thread(
             FieldModesWorker<GENCFG, @BHCGENO3D@, @BHCGENR3D@>, std::ref(params),
             std::ref(outputs), &errState));
-    for(int32_t i = 0; i < numThreads; ++i) threads[i].join();
-    CheckReportErrors(GetInternal(params), &errState);
+    for(int32_t i = 0; i < numThreads; ++i) {
+        if(GetInternal(params)->blocking) {
+            threads[i].join();
+        } else {
+            threads[i].detach();
+        }
+    }
 }
 
 }} // namespace bhc::mode
