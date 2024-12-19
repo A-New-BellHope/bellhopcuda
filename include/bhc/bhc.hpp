@@ -277,6 +277,15 @@ extern BHC_API void extsetup_ssp_hexahedral(
     bhcParams<true> &params, int32_t Nx, int32_t Ny, int32_t Nz);
 
 /**
+ * Request background execution of the calculations.
+ */
+template<bool O3D> void extsetup_blocking(bhcParams<O3D> &params, const bool &blocking);
+extern template BHC_API void extsetup_blocking<true>(
+    bhcParams<true> &params, const bool &blocking);
+extern template BHC_API void extsetup_blocking<false>(
+    bhcParams<false> &params, const bool &blocking);
+
+/**
  * Validates the state of params and writes a summary of the state to the
  * PRTFile or callback. This is done automatically as part of setup() if you
  * started from an environment file, but if you started from defaults and then

@@ -421,6 +421,7 @@ struct bhcInternal {
     size_t usedMemory;
     bool useRayCopyMode;
     bool noEnvFil;
+    bool blocking;
     uint8_t dim;
     STD::atomic<int32_t> totalJobs;
     STD::atomic<int32_t> activeThreadCount;
@@ -435,9 +436,9 @@ struct bhcInternal {
           PRTFile(this, this->FileRoot, init.prtCallback), gpuIndex(init.gpuIndex),
           numThreads(ModifyNumThreads(init.numThreads)), maxMemory(init.maxMemory),
           usedMemory(0), useRayCopyMode(init.useRayCopyMode),
-          noEnvFil(init.FileRoot == nullptr), dim(r3d       ? 3
-                                                      : o3d ? 4
-                                                            : 2),
+          noEnvFil(init.FileRoot == nullptr), blocking(true), dim(r3d       ? 3
+                                                                      : o3d ? 4
+                                                                            : 2),
           totalJobs(1), activeThreadCount(0), completedRayCount(0)
     {}
 };

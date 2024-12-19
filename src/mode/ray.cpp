@@ -178,7 +178,7 @@ template<bool O3D, bool R3D> void RunRayMode(
             RayModeWorker<O3D, R3D>, std::ref(params), std::ref(outputs), i,
             &GetInternal(params)->errState));
     for(int32_t i = 0; i < numThreads; ++i) {
-        if(outputs.rayinfo->blocking) {
+        if(GetInternal(params)->blocking) {
             threads[i].join();
         } else {
             threads[i].detach();

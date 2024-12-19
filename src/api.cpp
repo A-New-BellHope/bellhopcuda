@@ -725,6 +725,24 @@ extern BHC_API void extsetup_ssp_hexahedral(
 }
 #endif
 
+template<bool O3D> void extsetup_blocking(bhcParams<O3D> &params, const bool &blocking)
+{
+    try {
+        GetInternal(params)->blocking = blocking;
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::extsetup_blocking(): %s\n", e.what());
+        return;
+    }
+}
+#if BHC_ENABLE_2D
+template BHC_API void extsetup_blocking<false>(
+    bhcParams<false> &params, const bool &blocking);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template BHC_API void extsetup_blocking<true>(
+    bhcParams<true> &params, const bool &blocking);
+#endif
+
 template<bool O3D> int get_percent_progress(bhcParams<O3D> &params)
 {
     try {

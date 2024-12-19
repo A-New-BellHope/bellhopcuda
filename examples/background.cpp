@@ -53,7 +53,7 @@ int main()
 
     bhc::setup(init, params, outputs);
     // Awkward, but only rays are non-blocking.
-    outputs.rayinfo->blocking = false;
+    bhc::extsetup_blocking(params, false);
 
     strcpy(params.Beam->RunType, "RG   3");
 

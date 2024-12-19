@@ -446,7 +446,6 @@ template<bool O3D, bool R3D> struct RayInfo {
     int32_t MaxPointsPerRay;
     int32_t NRays;
     bool isCopyMode;
-    bool blocking = true;
 };
 
 struct RayInitInfo {
