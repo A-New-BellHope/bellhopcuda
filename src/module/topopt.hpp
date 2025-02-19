@@ -112,6 +112,7 @@ public:
         case 'P': break;
         case 'S': break;
         case 'Q': {
+            if(GetInternal(params)->noEnvFil) { break; }
             // LP: This just checks for existence, moved actual open for reading
             // to InitQuad.
             std::ifstream SSPFile;
@@ -122,6 +123,7 @@ public:
             }
         } break;
         case 'H': {
+            if(GetInternal(params)->noEnvFil) { break; }
             // LP: This just checks for existence, moved actual open for reading
             // to InitHexahedral.
             std::ifstream SSPFile;
