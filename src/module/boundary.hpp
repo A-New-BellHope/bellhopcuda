@@ -195,7 +195,7 @@ public:
             EXTERR("Read%s: Unable to open new %s file", s_ATIBTY, s_altimetrybathymetry);
         }
 
-        BDRYFile << std::string(bdinfotb->type, 2);
+        BDRYFile << std::string(bdinfotb->type, O3D ? 1 : 2);
         BDRYFile.write("! " BHC_PROGRAMNAME "- ");
         BDRYFile.write(s_altimetrybathymetry);
         BDRYFile.write(" file for ");
