@@ -246,7 +246,7 @@ public:
             EXTERR("Read%s: Unable to open new %s file", s_ATIBTY, s_altimetrybathymetry);
         }
 
-        BDRYFile << std::string(bdinfotb->type, O3D ? 1 : 2);
+        BDRYFile << std::string(bdinfotb->type, 2);
         BDRYFile.write("! " BHC_PROGRAMNAME "- ");
         BDRYFile.write(s_altimetrybathymetry);
         BDRYFile.write(" file for ");
@@ -272,6 +272,24 @@ public:
                     BDRYFile << x.z;
                 }
                 BDRYFile << '\n';
+            }
+
+            if(bdinfotb->type[1] == 'L') {
+                for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
+                    for(int32_t ix = 0; ix < bdinfotb->NPts.x; ++ix) {
+                        int32_t &prov = bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province;
+                        BDRYFile << prov << " ";
+                    }
+                    BDRYFile << '\n';
+                }
+                BDRYFile << bdinfotb->NBotProvinces << '\n';
+                for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
+                    BDRYFile << bdinfotb->BotProv[iProv].alphaR << " "
+                             << bdinfotb->BotProv[iProv].betaR << " "
+                             << bdinfotb->BotProv[iProv].rho << " "
+                             << bdinfotb->BotProv[iProv].alphaI << " "
+                             << bdinfotb->BotProv[iProv].betaI << "\n";
+                }
             }
         } else {
             BDRYFile << bdinfotb->NPts - 2;
