@@ -57,6 +57,7 @@ public:
 
         if constexpr(O3D) {
             bdinfotb->type[0] = 'R';
+            bdinfotb->type[1] = 'S';
             bdinfotb->NPts    = int2(2, 2);
             trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2 * 2);
 
@@ -98,7 +99,7 @@ public:
         }
 
         LIST(BDRYFile);
-        BDRYFile.Read(bdinfotb->type, O3D ? 1 : 2);
+        BDRYFile.Read(bdinfotb->type, 2);
         SetupPost(params);
 
         if constexpr(O3D) {
@@ -143,6 +144,56 @@ public:
 
             trackdeallocate(params, Globalx);
             trackdeallocate(params, Globaly);
+
+            int32_t maxProvince = 0;
+            int32_t minProvince = 0;
+            if(bdinfotb->type[1] == 'L') {
+                PRTFile << "Province type\n";
+                // province numbers
+                for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
+                    LIST(BDRYFile); // read a row of provinces
+                    for(int32_t ix = 0; ix < bdinfotb->NPts.x; ++ix) {
+                        int32_t &x = bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province;
+                        BDRYFile.Read(x);
+                        minProvince = bhc::min(
+                            minProvince,
+                            bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province);
+                        maxProvince = bhc::max(
+                            maxProvince,
+                            bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province);
+                    }
+                    PRTFile << bdinfotb->bd[iy].Province << "\n";
+                }
+
+                LIST(BDRYFile);
+                BDRYFile.Read(bdinfotb->NBotProvinces);
+                PRTFile << "\n\nProvince geoacoustic properties\n";
+                PRTFile << "Number of bottom provinces = " << bdinfotb->NBotProvinces
+                        << "\n";
+                trackallocate(
+                    params, s_altimetrybathymetry, bdinfotb->BotProv,
+                    bdinfotb->NBotProvinces);
+                PRTFile
+                    << "Province  alphaR      betaR     rho        alphaI     betaI\n";
+                for(int iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
+                    LIST(BDRYFile);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].alphaR);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].betaR);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].rho);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].alphaI);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].betaI);
+                    PRTFile << bdinfotb->BotProv[iProv].alphaR << " "
+                            << bdinfotb->BotProv[iProv].betaR << " "
+                            << bdinfotb->BotProv[iProv].rho << " "
+                            << bdinfotb->BotProv[iProv].alphaI << " "
+                            << bdinfotb->BotProv[iProv].betaI << "\n";
+                }
+
+                if(minProvince < 0 || maxProvince >= bdinfotb->NBotProvinces) {
+                    EXTERR("BELLHOP3D: ReadBTY3D Matrix of provinces contains indices "
+                           "for which province is undefined");
+                }
+            }
         } else {
             LIST(BDRYFile);
             BDRYFile.Read(bdinfotb->NPts);
@@ -388,20 +439,19 @@ public:
 
             // LP: BUG: Geoacoustics are supported for altimetry, but the
             // header for geoacoustics is only supported for bathymetry.
-            bool shortFormat = true;
-            if constexpr(!ISTOP) {
-                shortFormat = bdinfotb->type[1] == 'S' || bdinfotb->type[1] == ' ';
-            }
-            if(shortFormat) {
-                if constexpr(!ISTOP) {
-                    PRTFile << "Short format (" << s_altimetrybathymetry << " only)\n";
-                }
+            // JS: Note, this bug seems to be resolved in the fortran version.
+            switch(bdinfotb->type[1]) {
+            case 'S':
+            case ' ':
+                PRTFile << "Short format (" << s_altimetrybathymetry << " only)\n";
                 PRTFile << "\n Range (km)  Depth (m)\n";
-            } else if(bdinfotb->type[1] == 'L') {
+                break;
+            case 'L':
                 PRTFile << "Long format (" << s_altimetrybathymetry
                         << " and geoacoustics)\n";
                 PRTFile << "Range (km)  Depth (m)  alphaR (m/s)  betaR  rho (g/cm^3)  "
                            "alphaI     betaI\n";
+                break;
             }
 
             for(int32_t ii = 1; ii < bdinfotb->NPts - 1; ++ii) {
