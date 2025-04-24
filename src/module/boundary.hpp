@@ -342,11 +342,7 @@ public:
             }
             break;
         case 'C': break;
-        case 'L':
-            if constexpr(O3D) {
-                EXTERR("%sType L not supported for 3D runs\n", s_atibty);
-            }
-            break;
+        case 'L': break;
         default:
             EXTERR(
                 "Read%s: Unknown option for selecting %s interpolation", s_ATIBTY,
