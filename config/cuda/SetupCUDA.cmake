@@ -17,7 +17,7 @@
 
 option(CUDA_PRINT_REGISTERS "Print kernel register use" OFF)
 option(CUDA_DISASSEMBLY "Save temp outputs for disassembly" OFF)
-set(CUDA_ARCH_OVERRIDE "" CACHE STRING "Compile for this GPU architecture (e.g. 86)")
+##set(CUDA_ARCH_OVERRIDE "" CACHE STRING "Compile for this GPU architecture (e.g. 86)")
 
 set(CMAKE_CUDA_STANDARD 17) # C++17
 #set(CMAKE_CUDA_SEPARABLE_COMPILATION ON) # Issues on Windows
@@ -137,9 +137,9 @@ function(get_gencode_args OUT_VAR)
     set(${OUT_VAR} ${TEMP} PARENT_SCOPE)
 endfunction()
 
-get_gencode_args(NVCC_GENCODE_FLAGS)
-message(STATUS "Using gencode args: " ${NVCC_GENCODE_FLAGS})
-string(REPLACE " " ";" EXTRA_CXX_FLAGS_LIST ${EXTRA_CXX_FLAGS})
-prepend(CXX_TO_CUDA_FLAGS "-Xcompiler=" ${EXTRA_CXX_FLAGS_LIST})
-set(CMAKE_CUDA_FLAGS "${NVCC_GENCODE_FLAGS} ${NVCC_DEBUG_FLAGS} ${CXX_TO_CUDA_FLAGS} ${CUDA_EXTRA_FLAGS}")
+#get_gencode_args(NVCC_GENCODE_FLAGS)
+#message(STATUS "Using gencode args: " ${NVCC_GENCODE_FLAGS})
+#string(REPLACE " " ";" EXTRA_CXX_FLAGS_LIST ${EXTRA_CXX_FLAGS})
+#prepend(CXX_TO_CUDA_FLAGS "-Xcompiler=" ${EXTRA_CXX_FLAGS_LIST})
+#set(CMAKE_CUDA_FLAGS "${NVCC_GENCODE_FLAGS} ${NVCC_DEBUG_FLAGS} ${CXX_TO_CUDA_FLAGS} ${CUDA_EXTRA_FLAGS}")
 message(STATUS "Full CUDA flags: ${CMAKE_CUDA_FLAGS}")
