@@ -61,9 +61,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 // version is included in CUDA releases
 #if defined(_MSC_VER) && (CUDART_VERSION < 12020)
 
-#if _MSC_VER >= 1930
-#include <../crt/src/stl/xmath.hpp>
-#endif
+// #if _MSC_VER >= 1930
+// #include <../crt/src/stl/xmath.hpp>
+// #endif
 
 // Yes, I'm aware this is not GCC--this is a hack for the buggy libcudacxx MSVC
 // support
