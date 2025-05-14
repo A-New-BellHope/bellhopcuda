@@ -1367,7 +1367,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
 
                     // linear interpolation of q's.
                     // proportional distance along ray
-                    real s = glm::dot(x_rcvr_ray, rayt);
+                    real s = 0.0;//glm::dot(x_rcvr_ray, rayt);
+		    //if (s < -10.0 || s > 10.0) continue;
 
                     // normal distance to ray
                     real n1 = STD::abs(glm::dot(x_rcvr_ray, rayn1));
