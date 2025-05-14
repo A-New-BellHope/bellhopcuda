@@ -21,6 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <atomic>
+#include <cstring>
 
 #define BHC_DLL_IMPORT 1
 #include <bhc/bhc.hpp>
