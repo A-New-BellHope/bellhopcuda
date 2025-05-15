@@ -156,6 +156,7 @@ template<> struct BdryPtFullExtras<true> {
                  // selected from those
     vec3 Noden_unscaled;
     real phi_xx, phi_xy, phi_yy;
+    int32_t Province;
 };
 template<bool O3D> struct BdryPtFull : public BdryPtFullExtras<O3D>,
                                        public ReflCurvature<O3D> {
@@ -171,10 +172,12 @@ template<bool O3D> constexpr int32_t BdryStride = sizeof(BdryPtFull<O3D>) / size
 
 template<bool O3D> struct BdryInfoTopBot {
     IORI2<O3D> NPts;
-    char type[2];        // In 3D, only first char is used
+    char type[2];        // In 3D, 2nd char is bathymetry type
     bool dirty;          // Set to indicate that derived values need updating
     bool rangeInKm;      // R, X, Y values in km; automatically converted to meters
     BdryPtFull<O3D> *bd; // 2D: 1D array / 3D: 2D array
+    int32_t NBotProvinces;
+    HSInfo *BotProv;
 };
 /**
  * LP: There are three boundary structures. This one represents static/global
