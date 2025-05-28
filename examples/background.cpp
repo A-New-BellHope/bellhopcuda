@@ -101,7 +101,7 @@ int main()
         std::cout << " failed " << resSSP << "\n" << std::flush;
     }
 
-    params.ssp->alphaR[0] = RL(1000.0);
+    params.ssp->alphaR[0] = 1000.0;
     params.ssp->dirty     = true;
     std::cout << "Testing ssp call after update ... " << std::flush;
     if(bhc::get_ssp<true, true>(params, xSSP, resSSP)) {
