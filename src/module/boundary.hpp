@@ -518,15 +518,13 @@ public:
         if constexpr(!O3D) {
             // convert range-dependent geoacoustic parameters from user to program units
             if(bdinfotb->type[1] == 'L') {
-                for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg) {
-                    // compressional wave speed
-                    bdinfotb->bd[iSeg].hs.cP = crci(
-                        params, RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
-                        bdinfotb->bd[iSeg].hs.alphaI, {'W', ' '});
-                    // shear         wave speed
-                    bdinfotb->bd[iSeg].hs.cS = crci(
-                        params, RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR,
-                        bdinfotb->bd[iSeg].hs.betaI, {'W', ' '});
+                for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
+                    bdinfotb->BotProv[iProv].cP = crci(
+                        params, RL(1.0e20), bdinfotb->BotProv[iProv].alphaR,
+                        bdinfotb->BotProv[iProv].alphaI, {'W', ' '});
+                    bdinfotb->BotProv[iProv].cS = crci(
+                        params, RL(1.0e20), bdinfotb->BotProv[iProv].betaR,
+                        bdinfotb->BotProv[iProv].betaI, {'W', ' '});
                 }
             }
         }
