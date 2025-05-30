@@ -414,7 +414,7 @@ struct bhcInternal {
     void (*completedCallback)();
     std::string FileRoot;
     PrintFileEmu PRTFile;
-    std::atomic<int32_t> sharedJobID;
+    STD::atomic<int32_t> sharedJobID;
     int gpuIndex, d_multiprocs; // d_warp, d_maxthreads
     int32_t numThreads;
     size_t maxMemory;
@@ -422,9 +422,9 @@ struct bhcInternal {
     bool useRayCopyMode;
     bool noEnvFil;
     uint8_t dim;
-    std::atomic<int32_t> totalJobs;
-    std::atomic<int32_t> activeThreadCount;
-    std::atomic<int32_t> completedRayCount;
+    STD::atomic<int32_t> totalJobs;
+    STD::atomic<int32_t> activeThreadCount;
+    STD::atomic<int32_t> completedRayCount;
     ErrState errState;
 
     bhcInternal(const bhcInit &init, bool o3d, bool r3d)
