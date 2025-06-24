@@ -353,8 +353,9 @@ template<bool O3D> HOST_DEVICE inline void StepToBdry(
 #ifdef STEP_DEBUGGING
     printf("StepToBdry\n");
 #endif
+    // don't use Original step
     // Original step due to maximum step size
-    h       = Beam->deltas;
+    // h       = Beam->deltas;
     x2      = x0 + h * urayt;
     snapDim = -1;
 
