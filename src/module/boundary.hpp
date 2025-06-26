@@ -528,6 +528,7 @@ public:
     virtual void Finalize(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        if(bdinfotb->type[1] == 'L') { trackdeallocate(params, bdinfotb->BotProv); }
         trackdeallocate(params, bdinfotb->bd);
     }
 
