@@ -146,7 +146,7 @@ public:
             trackdeallocate(params, Globaly);
 
             int32_t maxProvince = 0;
-            int32_t minProvince = 0;
+            int32_t minProvince = 1;
             if(bdinfotb->type[1] == 'L') {
                 PRTFile << "Province type\n";
                 // province numbers
@@ -189,7 +189,10 @@ public:
                             << bdinfotb->BotProv[iProv].betaI << "\n";
                 }
 
-                if(minProvince < 0 || maxProvince >= bdinfotb->NBotProvinces) {
+                if(minProvince < 1 || maxProvince > bdinfotb->NBotProvinces) {
+                    std::cout << "gh10 " << minProvince << " " << maxProvince << " "
+                              << bdinfotb->NBotProvinces << "\n"
+                              << std::flush;
                     EXTERR("BELLHOP3D: ReadBTY3D Matrix of provinces contains indices "
                            "for which province is undefined");
                 }
@@ -312,7 +315,6 @@ public:
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
-        if constexpr(O3D) bdinfotb->type[1] = ' ';
     }
 
     void ExtSetup(bhcParams<O3D> &params, const IORI2<O3D> &NPts) const
@@ -350,11 +352,6 @@ public:
         }
 
         if constexpr(O3D) {
-            if(bdinfotb->type[1] != ' ') {
-                EXTERR(
-                    "Read%s: %s option (type[1]) must be ' ' in Nx2D/3D mode\n", s_ATIBTY,
-                    s_altimetrybathymetry);
-            }
             if(!monotonic(
                    &bdinfotb->bd[0].x.x, bdinfotb->NPts.x,
                    bdinfotb->NPts.y * BdryStride<O3D>, 0)) {
@@ -515,17 +512,15 @@ public:
 
         ComputeBdryTangentNormal(params, bdinfotb);
 
-        if constexpr(!O3D) {
-            // convert range-dependent geoacoustic parameters from user to program units
-            if(bdinfotb->type[1] == 'L') {
-                for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
-                    bdinfotb->BotProv[iProv].cP = crci(
-                        params, RL(1.0e20), bdinfotb->BotProv[iProv].alphaR,
-                        bdinfotb->BotProv[iProv].alphaI, {'W', ' '});
-                    bdinfotb->BotProv[iProv].cS = crci(
-                        params, RL(1.0e20), bdinfotb->BotProv[iProv].betaR,
-                        bdinfotb->BotProv[iProv].betaI, {'W', ' '});
-                }
+        // convert range-dependent geoacoustic parameters from user to program units
+        if(bdinfotb->type[1] == 'L') {
+            for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
+                bdinfotb->BotProv[iProv].cP = crci(
+                    params, RL(1.0e20), bdinfotb->BotProv[iProv].alphaR,
+                    bdinfotb->BotProv[iProv].alphaI, {'W', ' '});
+                bdinfotb->BotProv[iProv].cS = crci(
+                    params, RL(1.0e20), bdinfotb->BotProv[iProv].betaR,
+                    bdinfotb->BotProv[iProv].betaI, {'W', ' '});
             }
         }
     }

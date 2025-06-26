@@ -135,7 +135,7 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
 
         if(bdinfotb->type[1] == 'L') {
             // grab the geoacoustic info for the new segment
-            int32_t iProv = bdinfotb->bd[bds.Iseg.x * ny + bds.Iseg.y].Province;
+            int32_t iProv = bdinfotb->bd[bds.Iseg.x * ny + bds.Iseg.y].Province - 1;
             CopyHSInfo(Bdry.hs, bdinfotb->BotProv[iProv]);
         }
 

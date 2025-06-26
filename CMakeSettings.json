@@ -24,7 +24,7 @@
       "variables": [
         {
           "name": "BHC_ENABLE_CUDA",
-          "value": "True",
+          "value": "False",
           "type": "BOOL"
         }
       ]
