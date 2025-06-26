@@ -161,8 +161,9 @@ public:
                         maxProvince = bhc::max(
                             maxProvince,
                             bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province);
+                        PRTFile << x << " ";
                     }
-                    PRTFile << bdinfotb->bd[iy].Province << "\n";
+                    PRTFile << "\n";
                 }
 
                 LIST(BDRYFile);
@@ -190,9 +191,6 @@ public:
                 }
 
                 if(minProvince < 1 || maxProvince > bdinfotb->NBotProvinces) {
-                    std::cout << "gh10 " << minProvince << " " << maxProvince << " "
-                              << bdinfotb->NBotProvinces << "\n"
-                              << std::flush;
                     EXTERR("BELLHOP3D: ReadBTY3D Matrix of provinces contains indices "
                            "for which province is undefined");
                 }
