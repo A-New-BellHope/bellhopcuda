@@ -25,6 +25,7 @@ template<bool O3D, bool R3D> int mainmain()
     bhc::bhcParams<O3D> params;
     bhc::bhcOutputs<O3D, R3D> outputs;
     if(!bhc::setup<O3D, R3D>(init, params, outputs)) return 1;
+    outputs.rayinfo->blocking = true;
     if(!bhc::run<O3D, R3D>(params, outputs)) return 1;
     if(!bhc::writeout<O3D, R3D>(params, outputs, nullptr)) return 1;
     bhc::finalize<O3D, R3D>(params, outputs);
