@@ -172,12 +172,12 @@ template<bool O3D> constexpr int32_t BdryStride = sizeof(BdryPtFull<O3D>) / size
 
 template<bool O3D> struct BdryInfoTopBot {
     IORI2<O3D> NPts;
-    char type[2];        // In 3D, 2nd char is bathymetry type
-    bool dirty;          // Set to indicate that derived values need updating
-    bool rangeInKm;      // R, X, Y values in km; automatically converted to meters
-    BdryPtFull<O3D> *bd; // 2D: 1D array / 3D: 2D array
-    int32_t NBotProvinces;
-    HSInfo *BotProv;
+    char type[2];          // In 3D, 2nd char is bathymetry type
+    bool dirty;            // Set to indicate that derived values need updating
+    bool rangeInKm;        // R, X, Y values in km; automatically converted to meters
+    BdryPtFull<O3D> *bd;   // 2D: 1D array / 3D: 2D array
+    int32_t NBotProvinces; // only used in 3D
+    HSInfo *BotProv;       // only used in 3D
 };
 /**
  * LP: There are three boundary structures. This one represents static/global

@@ -35,6 +35,8 @@ public:
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         bdinfotb->bd                  = nullptr;
+        bdinfotb->NBotProvinces       = 0;
+        bdinfotb->BotProv             = nullptr;
     }
 
     virtual void SetupPre(bhcParams<O3D> &params) const override
@@ -315,16 +317,26 @@ public:
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
     }
 
-    void ExtSetup(bhcParams<O3D> &params, const IORI2<O3D> &NPts) const
+    void ExtSetup(
+        bhcParams<O3D> &params, const IORI2<O3D> &NPts,
+        const int32_t &NBotProvinces = 0) const
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         GetModeFlag(params)           = '~';
         bdinfotb->dirty               = true;
         bdinfotb->NPts                = NPts;
         if constexpr(O3D) {
+            bdinfotb->NBotProvinces = NBotProvinces;
             trackallocate(
                 params, s_altimetrybathymetry, bdinfotb->bd,
                 bdinfotb->NPts.x * bdinfotb->NPts.y);
+            if(bdinfotb->NBotProvinces == 0) {
+                trackdeallocate(params, bdinfotb->BotProv);
+            } else {
+                trackallocate(
+                    params, s_altimetrybathymetry, bdinfotb->BotProv,
+                    bdinfotb->NBotProvinces);
+            }
         } else {
             trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, bdinfotb->NPts);
         }
@@ -526,7 +538,7 @@ public:
     virtual void Finalize(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
-        if(bdinfotb->type[1] == 'L') { trackdeallocate(params, bdinfotb->BotProv); }
+        trackdeallocate(params, bdinfotb->BotProv);
         trackdeallocate(params, bdinfotb->bd);
     }
 

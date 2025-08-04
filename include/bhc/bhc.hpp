@@ -207,11 +207,11 @@ extern template BHC_API void extsetup_altimetry<true>(
     bhcParams<true> &params, const IORI2<true> &NPts);
 /// See extsetup_altimetry.
 template<bool O3D> void extsetup_bathymetry(
-    bhcParams<O3D> &params, const IORI2<O3D> &NPts);
+    bhcParams<O3D> &params, const IORI2<O3D> &NPts, const int32_t &NBotProvinces);
 extern template BHC_API void extsetup_bathymetry<false>(
-    bhcParams<false> &params, const IORI2<false> &NPts);
+    bhcParams<false> &params, const IORI2<false> &NPts, const int32_t &NBotProvinces);
 extern template BHC_API void extsetup_bathymetry<true>(
-    bhcParams<true> &params, const IORI2<true> &NPts);
+    bhcParams<true> &params, const IORI2<true> &NPts, const int32_t &NBotProvinces);
 /**
  * Reallocate the top reflection coefficients to the given size. This also sets
  * params.Bdry->Top.hs.Opt[1] to 'F' (file) to use the reflection coefficients.
