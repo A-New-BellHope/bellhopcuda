@@ -270,6 +270,8 @@ template<bool O3D, bool R3D> bool setup(
                        " - ReadEnvironment: Unable to open the environmental file");
             }
 
+            GetInternal(params)->blocking = true;
+
             for(auto *m : modules.list()) {
                 m->SetupPre(params);
                 m->Read(params, ENVFile, RecycledHS);
