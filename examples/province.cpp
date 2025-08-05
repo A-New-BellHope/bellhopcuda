@@ -84,7 +84,6 @@ int GetProvince(int ix, int iy)
     }
 
     // shouldn't get here
-    return 1;
 }
 
 int main()
@@ -98,9 +97,9 @@ int main()
 
     bhc::setup(init, params, outputs);
 
-    strcpy(params.Title, "library province test");
+    strcpy_s(params.Title, sizeof(params.Title), "library province test");
 
-    strcpy(params.Beam->RunType, "IG   3");
+    strcpy_s(params.Beam->RunType, sizeof(params.Beam->RunType), "IG   3");
 
     params.freqinfo->freq0 = 100.0;
 
@@ -120,7 +119,7 @@ int main()
     params.ssp->dirty = true;
 
     // bottom params, mostly overridden, but makes the output file.
-    strcpy(params.Bdry->Bot.hs.Opt, "A~    ");
+    memcpy(params.Bdry->Bot.hs.Opt, "A~    ", 6);
     params.Bdry->Bot.hs.bc     = 'A';
     params.Bdry->Bot.hsx.Sigma = 0.0;
     params.Bdry->Bot.hsx.zTemp = 20000.0;
@@ -154,7 +153,7 @@ int main()
         params.bdinfo->bot.BotProv[cnt].betaI  = 0.0;
         ++cnt;
     }
-    strcpy(params.bdinfo->bot.type, "RL");
+    memcpy(params.bdinfo->bot.type, "RL", 2);
 
     params.bdinfo->top.dirty = true;
     params.bdinfo->bot.dirty = true;
