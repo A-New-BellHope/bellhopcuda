@@ -281,17 +281,17 @@ public:
                 for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
                     for(int32_t ix = 0; ix < bdinfotb->NPts.x; ++ix) {
                         int32_t &prov = bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province;
-                        BDRYFile << prov << " ";
+                        BDRYFile << prov << ' ';
                     }
                     BDRYFile << '\n';
                 }
                 BDRYFile << bdinfotb->NBotProvinces << '\n';
                 for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
-                    BDRYFile << bdinfotb->BotProv[iProv].alphaR << " "
-                             << bdinfotb->BotProv[iProv].betaR << " "
-                             << bdinfotb->BotProv[iProv].rho << " "
-                             << bdinfotb->BotProv[iProv].alphaI << " "
-                             << bdinfotb->BotProv[iProv].betaI << "\n";
+                    BDRYFile << bdinfotb->BotProv[iProv].alphaR << ' '
+                             << bdinfotb->BotProv[iProv].betaR << ' '
+                             << bdinfotb->BotProv[iProv].rho << ' '
+                             << bdinfotb->BotProv[iProv].alphaI << ' '
+                             << bdinfotb->BotProv[iProv].betaI << '\n';
                 }
             }
         } else {

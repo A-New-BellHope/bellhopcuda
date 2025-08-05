@@ -54,8 +54,8 @@ void FlatBoundary3D(
 {
     Boundary.dirty     = true;
     Boundary.rangeInKm = true;
-    Boundary.NPts[0]   = GridX.size();
-    Boundary.NPts[1]   = GridY.size();
+    Boundary.NPts[0]   = (int)GridX.size();
+    Boundary.NPts[1]   = (int)GridY.size();
 
     for(int iy = 0; iy < GridY.size(); ++iy) {
         for(int ix = 0; ix < GridX.size(); ++ix) {
@@ -117,9 +117,11 @@ int main()
         params.ssp->betaR[i]  = 0.0;
         params.ssp->betaI[i]  = 0.0;
     }
+    params.ssp->dirty = true;
 
     // bottom params, mostly overridden, but makes the output file.
     strcpy(params.Bdry->Bot.hs.Opt, "A~    ");
+    params.Bdry->Bot.hs.bc     = 'A';
     params.Bdry->Bot.hsx.Sigma = 0.0;
     params.Bdry->Bot.hsx.zTemp = 20000.0;
     params.Bdry->Bot.hs.alphaR = 1600.0;
@@ -171,7 +173,7 @@ int main()
     bhc::extsetup_rcvrranges(params, 1001);
     SetupVector(params.Pos->Rr, 0.0f, 15.0f, 1001);
     bhc::extsetup_rcvrdepths(params, 1);
-    params.Pos->Rz[0] = 50.0f;
+    params.Pos->Rz[0] = 100.0f;
 
     // source beams
     params.Angles->alpha.inDegrees = true;
@@ -190,7 +192,10 @@ int main()
     bhc::echo(params);
     bhc::run(params, outputs);
 
+    // generate the .env and associated files
     bhc::writeenv(params, "test_province");
+
+    // save the shd file for external use
     bhc::writeout(params, outputs, "test_province");
 
     bhc::finalize(params, outputs);
