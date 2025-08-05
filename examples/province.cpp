@@ -101,7 +101,9 @@ int main()
 
     strcpy_s(params.Beam->RunType, sizeof(params.Beam->RunType), "IG   3");
 
-    params.freqinfo->freq0 = 100.0;
+    // awkward -- freq0 and freqVec are both used and not coordinated.
+    params.freqinfo->freq0      = 100.0;
+    params.freqinfo->freqVec[0] = params.freqinfo->freq0;
 
     // flat sound speed
     params.ssp->NPts = 3;
