@@ -671,18 +671,18 @@ template BHC_API void extsetup_altimetry<true>(
 #endif
 
 template<bool O3D> void extsetup_bathymetry(
-    bhcParams<O3D> &params, const IORI2<O3D> &NPts)
+    bhcParams<O3D> &params, const IORI2<O3D> &NPts, const int32_t &NBotProvinces = 0)
 {
     module::Bathymetry<O3D> pm;
-    pm.ExtSetup(params, NPts);
+    pm.ExtSetup(params, NPts, NBotProvinces);
 }
 #if BHC_ENABLE_2D
 template BHC_API void extsetup_bathymetry<false>(
-    bhcParams<false> &params, const IORI2<false> &NPts);
+    bhcParams<false> &params, const IORI2<false> &NPts, const int32_t &NBotProvinces = 0);
 #endif
 #if BHC_ENABLE_3D || BHC_ENABLE_NX2D
 template BHC_API void extsetup_bathymetry<true>(
-    bhcParams<true> &params, const IORI2<true> &NPts);
+    bhcParams<true> &params, const IORI2<true> &NPts, const int32_t &NBotProvinces = 0);
 #endif
 
 template<bool O3D> void extsetup_trc(bhcParams<O3D> &params, int32_t NPts)

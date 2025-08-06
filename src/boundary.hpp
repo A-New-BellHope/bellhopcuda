@@ -133,6 +133,12 @@ template<bool O3D> HOST_DEVICE inline void GetBdrySeg(
         bds.xmid = (bds.x + bdinfotb->bd[(bds.Iseg.x + 1) * ny + (bds.Iseg.y + 1)].x)
             * RL(0.5);
 
+        if(bdinfotb->type[1] == 'L') {
+            // grab the geoacoustic info for the new segment
+            int32_t iProv = bdinfotb->bd[bds.Iseg.x * ny + bds.Iseg.y].Province - 1;
+            CopyHSInfo(Bdry.hs, bdinfotb->BotProv[iProv]);
+        }
+
         // printf("Iseg%s %d %d\n", isTop ? "Top" : "Bot", bds.Iseg.x+1, bds.Iseg.y+1);
         // printf("Bdryx %g,%g,%g x %g,%g,%g\n", bds.x.x, bds.x.y, bds.x.z, x.x, x.y,
         // x.z);

@@ -31,5 +31,6 @@ endfunction()
 
 create_example(background)
 create_example(defaults)
+create_example(province)
 create_example(readout)
 create_example(writeenv)
