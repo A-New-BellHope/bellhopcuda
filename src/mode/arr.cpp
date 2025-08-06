@@ -261,7 +261,7 @@ template<typename T> void ReadArrivalsValue(
 
 template<bool O3D> inline void ReadArrivalsArray(
     bhcParams<O3D> &params, LDIFile &AARRFile, UnformattedIFile &BARRFile, bool isAscii,
-    float *&v, int32_t &nv, const char *description)
+    real *&v, int32_t &nv, const char *description)
 {
     ReadArrivalsValue(AARRFile, BARRFile, isAscii, nv, true);
     trackallocate(params, description, v, nv);

@@ -49,7 +49,7 @@ public:
     virtual void Write(bhcParams<O3D> &params, LDOFile &ENVFile) const
     {
         UnSubTab(
-            ENVFile, params.Pos->Rr, params.Pos->NRr, "NR", "R(1:NR ) (km)", FL(0.001));
+            ENVFile, params.Pos->Rr, params.Pos->NRr, "NR", "R(1:NR ) (km)", RL(0.001));
     }
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {
@@ -69,7 +69,7 @@ public:
     {
         Preprocess(params);
         EchoVectorWDescr(
-            params, params.Pos->Rr, params.Pos->NRr, FL(0.001), Description, Units);
+            params, params.Pos->Rr, params.Pos->NRr, RL(0.001), Description, Units);
     }
     virtual void Preprocess(bhcParams<O3D> &params) const override
     {

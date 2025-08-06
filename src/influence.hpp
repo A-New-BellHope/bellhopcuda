@@ -1555,7 +1555,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline void ScalePressure(
     real Dalpha, [[maybe_unused]] real Dbeta, real c, [[maybe_unused]] cpx epsilon1,
-    [[maybe_unused]] cpx epsilon2, float *r, cpxf *u, int32_t Ntheta, int32_t NRz,
+    [[maybe_unused]] cpx epsilon2, real *r, cpxf *u, int32_t Ntheta, int32_t NRz,
     int32_t Nr, real freq, const BeamStructure<O3D> *Beam)
 {
     real cnst;
