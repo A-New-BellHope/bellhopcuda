@@ -131,9 +131,9 @@ public:
     virtual void Echo(bhcParams<O3D> &params) const override
     {
         EchoVectorWDescr(
-            params, params.Pos->Sz, params.Pos->NSz, RL(1.0), DescriptionS, Units);
+            params, params.Pos->Sz, params.Pos->NSz, FL(1.0), DescriptionS, Units);
         EchoVectorWDescr(
-            params, params.Pos->Rz, params.Pos->NRz, RL(1.0), DescriptionR, Units);
+            params, params.Pos->Rz, params.Pos->NRz, FL(1.0), DescriptionR, Units);
     }
     virtual void Preprocess(bhcParams<O3D> &params) const override
     {
