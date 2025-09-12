@@ -285,11 +285,12 @@ struct Position {
     bool thetaDuplRemoved;
     real Delta_r, Delta_theta;
     // int32_t *iSz, *iRz; // LP: Not used.
-    // LP: These are really floats, not reals.
-    float *Sx, *Sy, *Sz; // Source x, y, z coordinates
-    float *Rr, *Rz;      // Receiver r, z coordinates
+    real *Sx, *Sy; // Source x, y coordinates
+    float *Sz; // Source z coordinates
+    real *Rr; // Receiver r coordinates
+    float *Rz; // Receiver z coordinates
     // float *ws, *wr; // weights for interpolation LP: Not used.
-    float *theta; // Receiver bearings
+    real *theta;  // Receiver bearings
     vec2 *t_rcvr; // Receiver directions (cos(theta), sin(theta))
 };
 

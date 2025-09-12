@@ -86,10 +86,10 @@ public:
             PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
             Preprocess(params);
             EchoVectorWDescr(
-                params, params.Pos->theta, params.Pos->Ntheta, FL(1.0), Description,
+                params, params.Pos->theta, params.Pos->Ntheta, RL(1.0), Description,
                 Units);
             if(params.Pos->thetaDuplRemoved) {
-                PRTFile << "(Duplicate angle at " << params.Pos->theta[0] + FL(360.0)
+                PRTFile << "(Duplicate angle at " << params.Pos->theta[0] + RL(360.0)
                         << " degrees removed--this occurs in BELLHOP(3D) too,\n"
                            "but that version echoes the vector before removing the "
                            "duplicate)\n";

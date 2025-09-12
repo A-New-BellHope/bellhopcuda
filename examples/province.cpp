@@ -170,11 +170,11 @@ int main()
     // disk of receivers
     params.Pos->RrInKm = true;
     bhc::extsetup_rcvrbearings(params, 181);
-    SetupVector(params.Pos->theta, 0.0f, 360.0f, 181);
+    SetupVector(params.Pos->theta, 0.0, 360.0, 181);
     bhc::extsetup_rcvrranges(params, 1001);
-    SetupVector(params.Pos->Rr, 0.0f, 15.0f, 1001);
+    SetupVector(params.Pos->Rr, 0.0, 15.0, 1001);
     bhc::extsetup_rcvrdepths(params, 1);
-    params.Pos->Rz[0] = 100.0f;
+    params.Pos->Rz[0] = 100.0;
 
     // source beams
     params.Angles->alpha.inDegrees = true;
