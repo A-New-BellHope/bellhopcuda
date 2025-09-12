@@ -22,9 +22,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include "eigenrays.hpp"
 #include "arrivals.hpp"
 
-// #define INFL_DEBUGGING_ITHETA 0
-// #define INFL_DEBUGGING_IZ 52
-// #define INFL_DEBUGGING_IR 230
+#include "common_setup.hpp"
+#define INFL_DEBUGGING_ITHETA 0
+#define INFL_DEBUGGING_IZ 0
+#define INFL_DEBUGGING_IR 117
 
 namespace bhc {
 
@@ -468,6 +469,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void ApplyContribu
             dfield = cpxf((float)v, 0.0f);
         }
         // printf("ApplyContribution dfield (%g,%g)\n", dfield.real(), dfield.imag());
+        // if(fabs(dfield.real()) > 1e7) { printf("gh1 %g %g %d %d %d\n", dfield.real(), dfield.imag(), itheta, ir, iz); }
         AddToField<R3D>(uAllSources, dfield, itheta, ir, iz, inflray, Pos);
     }
 }
@@ -990,6 +992,15 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
     real cfactor = point1.c;
     if constexpr(!R3D) cfactor = STD::sqrt(cfactor);
     real cnst = inflray.Ratio1 * cfactor * point1.Amp / STD::sqrt(STD::abs(qFinal));
+#ifdef INFL_DEBUGGING_IR
+    if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
+       && iz == INFL_DEBUGGING_IZ) {
+        printf(
+            "is itheta iz ir %3d %3d %3d %3d: cnst inflray.Ratio1 cfactor point1.Amp "
+            "qFinal %g %g %g %g %g\n",
+            is, itheta, iz, ir, cnst, inflray.Ratio1, cfactor, point1.Amp, qFinal);
+    }
+#endif
     real w;
     if constexpr(R3D) {
         if(isGaussian) {
@@ -1012,8 +1023,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
     if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
        && iz == INFL_DEBUGGING_IZ) {
         printf(
-            "is itheta iz ir %3d %3d %3d %3d: cnst w delay phaseInt %g %g (%g,%g) %g\n",
-            is, itheta, iz, ir, cnst, w, delay.real(), delay.imag(), phaseInt);
+            "is itheta iz ir %3d %3d %3d %3d: cnst qFinal w delay phaseInt %g %g %g (%g,%g) %g\n",
+            is, itheta, iz, ir, cnst, qFinal, w, delay.real(), delay.imag(), phaseInt);
     }
 #endif
     // printf("%d\n", iz);

@@ -23,7 +23,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace bhc {
 
-// #define STEP_DEBUGGING 1
+#define STEP_DEBUGGING 1
 
 #ifdef BHC_USE_FLOATS
 #define INFINITESIMAL_STEP_SIZE (RL(1e-3))
@@ -682,8 +682,8 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Step(
             bds.bot.td.side ? 'T' : 'F');
     } else {
         printf(
-            "\nray0 x t (%20.17f,%20.17f) (%20.17e,%20.17e)\n", ray0.x.x, ray0.x.y,
-            ray0.t.x, ray0.t.y);
+            "\nray0 x t Amp (%20.17f,%20.17f) (%20.17e,%20.17e) %20.17e\n", ray0.x.x, ray0.x.y,
+            ray0.t.x, ray0.t.y, ray0.Amp);
         printf("iSegr iSegz %d %d\n", iSeg.r + 1, iSeg.z + 1);
     }
 // if(ray0.x.x > RL(10.0)){

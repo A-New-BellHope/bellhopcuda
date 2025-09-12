@@ -29,10 +29,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <exception>
 
 #ifdef __NVCC__
-inline __device__ int __isinf(double __a) { return __nv_isinfd(__a); }
-inline __device__ int __isinff(float __a) { return __nv_isinff(__a); }
-inline __device__ int __isnan(double __a) { return __nv_isnand(__a); }
-inline __device__ int __isnanf(float __a) { return __nv_isnanf(__a); }
+//inline __device__ int __isinf(double __a) { return __nv_isinfd(__a); }
+//inline __device__ int __isinff(float __a) { return __nv_isinff(__a); }
+//inline __device__ int __isnan(double __a) { return __nv_isnand(__a); }
+//inline __device__ int __isnanf(float __a) { return __nv_isnanf(__a); }
 #else
 #include <cmath>
 inline int __isinf(double __a) { return std::isinf(__a); }
