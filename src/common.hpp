@@ -203,6 +203,12 @@ HOST_DEVICE constexpr inline cpx Cpxf2Cpx(const cpxf &c)
     return cpx((real)c.real(), (real)c.imag());
 }
 
+inline HOST_DEVICE bool NearlyZero(const cpx &x) { return STD::abs(x) < REAL_EPSILON; }
+inline HOST_DEVICE bool NotNearlyZero(const cpx &x)
+{
+    return STD::abs(x) >= REAL_EPSILON;
+}
+
 // CUDA::std::cpx<double> and glm::mat2x2 do not like operators being applied
 // with float literals, due to template type deduction issues.
 #ifndef BHC_USE_FLOATS
@@ -234,6 +240,12 @@ HOST_DEVICE inline mat2x2 operator*(float a, const mat2x2 &b) { return (double)a
 #define CUBE(a) ((a) * (a) * (a))
 constexpr real RadDeg = RL(180.0) / REAL_PI;
 constexpr real DegRad = REAL_PI / RL(180.0);
+
+inline HOST_DEVICE bool NearlyZero(const real &x) { return STD::fabs(x) < REAL_EPSILON; }
+inline HOST_DEVICE bool NotNearlyZero(const real &x)
+{
+    return STD::fabs(x) >= REAL_EPSILON;
+}
 
 template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v)
 {

@@ -513,8 +513,8 @@ template<bool REFLECTVERSION> HOST_DEVICE inline void CurvatureCorrection3D(
 
     bool noCurvatureChange = false; // Silence MSVC warning
     if constexpr(REFLECTVERSION) {
-        noCurvatureChange = rmat[0][0] == RL(0.0) && rmat[0][1] == RL(0.0)
-            && rmat[1][1] == RL(0.0);
+        noCurvatureChange = NearlyZero(rmat[0][0]) && NearlyZero(rmat[0][1])
+            && NearlyZero(rmat[1][1]);
     }
     if(noCurvatureChange) {
         // LP: There is no curvature change, but rotating p forward and back

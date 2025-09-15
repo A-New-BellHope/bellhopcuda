@@ -130,16 +130,16 @@ template<bool O3D> cpx crci(
         alphaT = alpha * freq / RL(8685.8896);
         break;
     case 'W': // dB/wavelength
-        if(c != FL(0.0)) alphaT = alpha * freq / (RL(8.6858896) * c);
+        if(NotNearlyZero(c)) alphaT = alpha * freq / (RL(8.6858896) * c);
         // The following lines give f^1.25 frequency dependence
         // real FAC = STD::sqrt(STD::sqrt(freq / FL(50.0)));
         // if(c != FL(0.0)) alphaT = FAC * alpha * freq / (RL(8.6858896) * c);
         break;
     case 'Q': // Quality factor
-        if(c * alpha != FL(0.0)) alphaT = omega / (FL(2.0) * c * alpha);
+        if(NotNearlyZero(c * alpha)) alphaT = omega / (FL(2.0) * c * alpha);
         break;
     case 'L': // loss parameter
-        if(c != FL(0.0)) alphaT = alpha * omega / c;
+        if(NotNearlyZero(c)) alphaT = alpha * omega / c;
         break;
     }
 

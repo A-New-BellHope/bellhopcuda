@@ -73,7 +73,7 @@ public:
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         if constexpr(!O3D) {
-            if(params.Pos->Ntheta != 1 || params.Pos->theta[0] != RL(0.0)) {
+            if(params.Pos->Ntheta != 1 || NotNearlyZero(params.Pos->theta[0])) {
                 EXTERR("Invalid receiver bearings setup for 2D");
             }
         } else {
