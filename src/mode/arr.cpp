@@ -52,7 +52,7 @@ template<bool O3D, bool R3D> void PostProcessArrivals(
                                 if constexpr(!O3D) line = IsLineSource(params.Beam);
                                 if(line) {
                                     factor = FL(4.0) * STD::sqrt(REAL_PI);
-                                } else if(Pos->Rr[ir] == FL(0.0)) {
+                                } else if(NearlyZero(Pos->Rr[ir])) {
                                     // avoid /0 at origin
                                     factor = FL(1e5);
                                 } else {

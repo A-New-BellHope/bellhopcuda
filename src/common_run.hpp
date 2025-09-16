@@ -146,7 +146,7 @@ HOST_DEVICE inline void RayNormalImpl(
 {
     real rl = glm::length(vec2(t.x, t.y));
 
-    if(phi != RL(0.0) || ignorephi0) {
+    if(NotNearlyZero(phi) || ignorephi0) {
         real cosphi = STD::cos(phi), sinphi = STD::sin(phi);
 
         // e1

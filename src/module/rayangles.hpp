@@ -120,7 +120,7 @@ public:
     {
         AngleInfo &a = GetAngle(params);
         if constexpr(BEARING && !O3D) {
-            if(a.n != 1 || a.angles[0] != RL(0.0)) {
+            if(a.n != 1 || NotNearlyZero(a.angles[0])) {
                 EXTERR("Invalid beam bearing angles setup for 2D");
             }
         } else {

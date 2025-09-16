@@ -84,7 +84,7 @@ public:
         }
         if constexpr(!O3D) {
             if(params.Pos->NSx != 1 || params.Pos->NSy != 1
-               || params.Pos->Sx[0] != RL(0.0) || params.Pos->Sy[0] != RL(0.0)) {
+               || NotNearlyZero(params.Pos->Sx[0]) || NotNearlyZero(params.Pos->Sy[0])) {
                 EXTERR("Invalid Sx/Sy setup for 2D case");
             }
         } else {

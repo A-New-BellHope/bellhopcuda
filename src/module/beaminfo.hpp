@@ -230,7 +230,7 @@ public:
         }
 
         // Automatic step size selection
-        if(Beam->deltas == FL(0.0)) {
+        if(NearlyZero(Beam->deltas)) {
             Beam->deltas = (params.Bdry->Bot.hs.Depth - params.Bdry->Top.hs.Depth)
                 / FL(10.0);
             Beam->autoDeltas = true;
