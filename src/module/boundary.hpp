@@ -524,13 +524,21 @@ public:
 
         // convert range-dependent geoacoustic parameters from user to program units
         if(bdinfotb->type[1] == 'L') {
-            for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
-                bdinfotb->BotProv[iProv].cP = crci(
-                    params, RL(1.0e20), bdinfotb->BotProv[iProv].alphaR,
-                    bdinfotb->BotProv[iProv].alphaI, {'W', ' '});
-                bdinfotb->BotProv[iProv].cS = crci(
-                    params, RL(1.0e20), bdinfotb->BotProv[iProv].betaR,
-                    bdinfotb->BotProv[iProv].betaI, {'W', ' '});
+            if constexpr(O3D) {
+                for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
+                    bdinfotb->BotProv[iProv].cP = crci(
+                        params, RL(1.0e20), bdinfotb->BotProv[iProv].alphaR,
+                        bdinfotb->BotProv[iProv].alphaI, {'W', ' '});
+                    bdinfotb->BotProv[iProv].cS = crci(
+                        params, RL(1.0e20), bdinfotb->BotProv[iProv].betaR,
+                        bdinfotb->BotProv[iProv].betaI, {'W', ' '});
+                }
+            } else {
+                for(int32_t ii = 0; ii < bdinfotb->NPts; ++ii) {
+                    bhc::HSInfo &hs = bdinfotb->bd[ii].hs;
+                    hs.cP = crci(params, RL(1.0e20), hs.alphaR, hs.alphaI, {'W', ' '});
+                    hs.cS = crci(params, RL(1.0e20), hs.betaR, hs.betaI, {'W', ' '});
+                }
             }
         }
     }
