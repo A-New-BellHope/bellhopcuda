@@ -17,6 +17,11 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#ifdef __GNUC__
+// for strcpy_s on GCC
+#define __STDC_WANT_LIB_EXT1__ 1
+#endif
+
 #include <iostream>
 #include <vector>
 #include <cstring>
