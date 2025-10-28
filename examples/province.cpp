@@ -19,6 +19,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 // This define must be set before including the header if you're using the DLL
 // version on Windows, and it must NOT be set if you're using the static library
@@ -57,8 +58,8 @@ void FlatBoundary3D(
     Boundary.NPts[0]   = (int)GridX.size();
     Boundary.NPts[1]   = (int)GridY.size();
 
-    for(int iy = 0; iy < GridY.size(); ++iy) {
-        for(int ix = 0; ix < GridX.size(); ++ix) {
+    for(auto iy = 0; iy < GridY.size(); ++iy) {
+        for(auto ix = 0; ix < GridX.size(); ++ix) {
             Boundary.bd[ix * GridY.size() + iy].x.x = GridX[ix];
             Boundary.bd[ix * GridY.size() + iy].x.y = GridY[iy];
             Boundary.bd[ix * GridY.size() + iy].x.z = Depth;
