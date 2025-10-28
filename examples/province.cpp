@@ -17,11 +17,6 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifdef __GNUC__
-// for strcpy_s on GCC
-#define __STDC_WANT_LIB_EXT1__ 1
-#endif
-
 #include <iostream>
 #include <vector>
 #include <cstring>
@@ -103,9 +98,9 @@ int main()
 
     bhc::setup(init, params, outputs);
 
-    strcpy_s(params.Title, sizeof(params.Title), "library province test");
+    strcpy(params.Title, "library province test");
 
-    strcpy_s(params.Beam->RunType, sizeof(params.Beam->RunType), "IG   3");
+    strcpy(params.Beam->RunType, "IG   3");
 
     // awkward -- freq0 and freqVec are both used and not coordinated.
     params.freqinfo->freq0      = 100.0;
