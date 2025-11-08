@@ -705,7 +705,7 @@ template BHC_API void extsetup_altimetry<true>(
 #endif
 
 template<bool O3D> void extsetup_bathymetry(
-    bhcParams<O3D> &params, const IORI2<O3D> &NPts, const int32_t &NBotProvinces = 0)
+    bhcParams<O3D> &params, const IORI2<O3D> &NPts, const int32_t &NBotProvinces)
 {
     module::Bathymetry<O3D> pm;
     pm.ExtSetup(params, NPts, NBotProvinces);
