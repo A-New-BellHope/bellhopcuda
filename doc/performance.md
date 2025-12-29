@@ -36,7 +36,7 @@ runs: these run types will work best when the user is interested in finding a
 handful of rays which reach an area of interest out of a large number of rays
 initially traced.
 
-![Receiver layout effect on performance](images/receiver_layout_performance.png)]
+![Receiver layout effect on performance](images/slow_down_receivers.png)
 
 The receiver layout limits the performance of the GPU model, especially on consumer
 GPUs with less memory bandwidth. Each ray must check at each step whether it influences
@@ -44,7 +44,7 @@ any receivers, and if so, read and write data to memory for each influenced rece
 GPU, many rays are being processed simultaneously, and if many of them influence
 receivers at the same time, this can lead to memory access bottlenecks which
 limit the performance. On server-grade GPUs with higher memory bandwidth, this
-effect is less pronounced.
+effect is less pronounced. CPUs are generally unnaffected.
 
 ## Run type
 
