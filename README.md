@@ -47,6 +47,11 @@ to resolve this issue. This issue affects both CPU
 multithreaded and CUDA modes. It is also present in the original `BELLHOP` /
 `BELLHOP3D` code.
 
+## Compilation
+
+We use a CMake-based build system. Please see the
+[doc/compilation.md](doc/compilation.md) document for detailed instructions.
+
 ## Speed
 
 - The speedup in multithreaded mode roughly scales with the number of
