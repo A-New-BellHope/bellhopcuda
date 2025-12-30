@@ -91,41 +91,15 @@ option was enabled.
 The current version of `bellhopcxx` / `bellhopcuda` matches on all the coverage
 tests.
 
-### Dr. Michael B. Porter's Tests
+### OALIB MATLAB Tests
 
-Dr. Porter provided a set of test cases with the Acoustics Toolbox. These have
-been sorted by dimensionality and run type. The specific runs comprising this
-data are in the text files included in the root of this repo, e.g.
-`ray_3d_pass.txt`, `tl_long.txt`, etc. This table is just counts of the entries
-in those files.
+Dr. Porter provided a set of test cases with the Acoustics Toolbox. We have
+run these test cases in all three dimensionalities and all run types, where possible.
+Test cases that do not involve Bellhop are not considered here. The results are plotted 
+in MATLAB and compared visually across three versions, OALIB 2024, bellhopcxx, and bellhopcuda.
 
-The "Both fail" column is for tests which fail to run in `BELLHOP` / `BELLHOP3D`
-at all, either because they may be for one of the other Acoustics Toolbox
-simulators or because the environment file syntax has changed since they were
-written. Our version produces the same behavior as the original version on all
-of these test cases (though often with more descriptive error messages), so this
-"Both fail" case is actually a "pass" for our version.
+In 2D, all run types match very well visually. In 3D there is one case where shallow angles
+from reflections off a seamount lead to sufficient numerical differences that the results do not match.
 
-|     | Match | Do not match | Both fail |
-| --- | --- | --- | --- |
-| 2D ray | 12 | 0 | 8 |
-| 2D TL | 48 | [1] | 0 |
-| 2D eigen | 1 | 0 | 0 |
-| 2D arrivals | 6 | 1 | 0 |
-| 3D ray | 12 | 0 | 2 |
-| 3D TL | 42 | 8 | 12 |
-| 3D eigen | 0 | 0 | [2] |
-| 3D arrivals | 0 | 0 | 0 |
-| Nx2D ray | 4 | 0 | 0 |
-| Nx2D TL | 13 | 5 | 6 |
-| Nx2D eigen | 0 | 0 | 0 |
-| Nx2D arrivals | 0 | 0 | 0 |
-
-[1]: There are two runs which consistently match in single-threaded mode, but
-sometimes do and sometimes don't match in multithreaded or CUDA mode. \
-[2]: There is only one environment file; it runs out of memory after over 3
-hours, so this has not been investigated further.
-
-Note that some of the TL tests take several hours (one about 12 hours), and we
-do not guarantee we will re-run those tests after every change, so some of the
-numbers here may be slightly out of date.
+The full comparison files are available externally 
+[here](https://drive.google.com/file/d/1Zutv8WRyhSAXvqsJ2-jKeZPwTjNaoPXg)
