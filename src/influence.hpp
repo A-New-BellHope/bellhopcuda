@@ -228,7 +228,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
             } else {
                 halfwidth  = REAL_MAX;
                 real cz    = DEP(gradc);
-                epsilonOpt = (cz == FL(0.0))
+                epsilonOpt = NearlyZero(cz)
                     ? RL(1e10)
                     : ((-STD::sin(angle) / STD::cos(SQ(angle))) * c * c / cz);
             }
@@ -258,8 +258,8 @@ template<bool O3D, bool R3D> HOST_DEVICE inline cpx PickEpsilon(
         epsilonOpt = FL(0.0);
     } else if(defaultEps) {
         if(defaultHalfwidth) {
-            halfwidth = (Dangle == FL(0.0)) ? FL(0.0)
-                                            : (FL(2.0) / ((omega / c) * Dangle));
+            halfwidth = (NearlyZero(Dangle)) ? FL(0.0)
+                                             : (FL(2.0) / ((omega / c) * Dangle));
         }
         epsilonOpt = J * FL(0.5) * omega * SQ(halfwidth);
     }
@@ -290,7 +290,7 @@ template<typename CFG, bool O3D> HOST_DEVICE inline cpx Compute_gamma(
     real Tr = rayt.x;
     real Tz = rayt.y;
 
-    if(qB != RL(0.0)) {
+    if(NotNearlyZero(qB)) {
         return FL(0.5)
             * (pB / qB * SQ(Tr) + FL(2.0) * cN / csq * Tz * Tr - cS / csq * SQ(Tz));
     } else {
@@ -921,7 +921,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
         if constexpr(CFG::infl::IsCartesian()) {
             real l1 = glm::length(glm::row(qInterp, 0));
             real l2 = glm::length(glm::row(qInterp, 1));
-            if(l1 == FL(0.0) || l2 == FL(0.0)) {
+            if(NearlyZero(l1) || NearlyZero(l2)) {
 #ifdef INFL_DEBUGGING_IR
                 if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
                    && iz == INFL_DEBUGGING_IZ) {
@@ -934,7 +934,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void InfluenceGeoC
             }
         }
 
-        if(qFinal == FL(0.0)) {
+        if(NearlyZero(qFinal)) {
 // receiver is outside the beam
 #ifdef INFL_DEBUGGING_IR
             if(itheta == INFL_DEBUGGING_ITHETA && ir == INFL_DEBUGGING_IR
@@ -1555,7 +1555,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline bool Step_Influenc
  */
 template<bool O3D, bool R3D> HOST_DEVICE inline void ScalePressure(
     real Dalpha, [[maybe_unused]] real Dbeta, real c, [[maybe_unused]] cpx epsilon1,
-    [[maybe_unused]] cpx epsilon2, float *r, cpxf *u, int32_t Ntheta, int32_t NRz,
+    [[maybe_unused]] cpx epsilon2, real *r, cpxf *u, int32_t Ntheta, int32_t NRz,
     int32_t Nr, real freq, const BeamStructure<O3D> *Beam)
 {
     real cnst;
@@ -1610,7 +1610,7 @@ template<bool O3D, bool R3D> HOST_DEVICE inline void ScalePressure(
                 const float local_pi = 3.14159265f;
                 factor               = FL(-4.0) * STD::sqrt(local_pi) * cnst;
             } else {
-                if(r[ir] == 0.0f) {
+                if(NearlyZero(r[ir])) {
                     factor = RL(0.0); // avoid /0 at origin, return pressure = 0
                 } else {
                     factor = cnst / (real)STD::sqrt(STD::abs(r[ir]));

@@ -156,6 +156,7 @@ template<> struct BdryPtFullExtras<true> {
                  // selected from those
     vec3 Noden_unscaled;
     real phi_xx, phi_xy, phi_yy;
+    int32_t Province;
 };
 template<bool O3D> struct BdryPtFull : public BdryPtFullExtras<O3D>,
                                        public ReflCurvature<O3D> {
@@ -171,10 +172,12 @@ template<bool O3D> constexpr int32_t BdryStride = sizeof(BdryPtFull<O3D>) / size
 
 template<bool O3D> struct BdryInfoTopBot {
     IORI2<O3D> NPts;
-    char type[2];        // In 3D, only first char is used
-    bool dirty;          // Set to indicate that derived values need updating
-    bool rangeInKm;      // R, X, Y values in km; automatically converted to meters
-    BdryPtFull<O3D> *bd; // 2D: 1D array / 3D: 2D array
+    char type[2];          // In 3D, 2nd char is bathymetry type
+    bool dirty;            // Set to indicate that derived values need updating
+    bool rangeInKm;        // R, X, Y values in km; automatically converted to meters
+    BdryPtFull<O3D> *bd;   // 2D: 1D array / 3D: 2D array
+    int32_t NBotProvinces; // only used in 3D
+    HSInfo *BotProv;       // only used in 3D
 };
 /**
  * LP: There are three boundary structures. This one represents static/global
@@ -282,11 +285,12 @@ struct Position {
     bool thetaDuplRemoved;
     real Delta_r, Delta_theta;
     // int32_t *iSz, *iRz; // LP: Not used.
-    // LP: These are really floats, not reals.
-    float *Sx, *Sy, *Sz; // Source x, y, z coordinates
-    float *Rr, *Rz;      // Receiver r, z coordinates
+    real *Sx, *Sy; // Source x, y coordinates
+    float *Sz; // Source z coordinates
+    real *Rr; // Receiver r coordinates
+    float *Rz; // Receiver z coordinates
     // float *ws, *wr; // weights for interpolation LP: Not used.
-    float *theta; // Receiver bearings
+    real *theta;  // Receiver bearings
     vec2 *t_rcvr; // Receiver directions (cos(theta), sin(theta))
 };
 
@@ -443,7 +447,6 @@ template<bool O3D, bool R3D> struct RayInfo {
     int32_t MaxPointsPerRay;
     int32_t NRays;
     bool isCopyMode;
-    bool blocking = true;
 };
 
 struct RayInitInfo {

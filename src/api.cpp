@@ -397,14 +397,16 @@ template<bool O3D, bool R3D> bool run(
 
         sw.tick();
         mo->Run(params, outputs);
-        sw.tock("Run");
+        if(GetInternal(params)->blocking) {
+            sw.tock("Run");
 
-        sw.tick();
-        mo->Postprocess(params, outputs);
-        if(IsAlsoEigenraysRun(params.Beam)) {
-            mode::PostProcessEigenrays(params, outputs);
+            sw.tick();
+            mo->Postprocess(params, outputs);
+            if(IsAlsoEigenraysRun(params.Beam)) {
+                mode::PostProcessEigenrays(params, outputs);
+            }
+            sw.tock("Postprocess");
         }
-        sw.tock("Postprocess");
 
         delete mo;
     } catch(const std::exception &e) {
@@ -426,6 +428,38 @@ run<true, false>(bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 #if BHC_ENABLE_3D
 template bool BHC_API
 run<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
+#endif
+
+template<bool O3D, bool R3D> bool postprocess(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs)
+{
+    try {
+        auto *mo = GetMode<O3D, R3D>(params);
+        mo->Postprocess(params, outputs);
+        if(IsAlsoEigenraysRun(params.Beam)) {
+            mode::PostProcessEigenrays(params, outputs);
+        }
+        delete mo;
+
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::postprocess(): %s\n", e.what());
+        return false;
+    }
+
+    return true;
+}
+
+#if BHC_ENABLE_2D
+template bool BHC_API
+postprocess<false, false>(bhcParams<false> &params, bhcOutputs<false, false> &outputs);
+#endif
+#if BHC_ENABLE_NX2D
+template bool BHC_API
+postprocess<true, false>(bhcParams<true> &params, bhcOutputs<true, false> &outputs);
+#endif
+#if BHC_ENABLE_3D
+template bool BHC_API
+postprocess<true, true>(bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 #endif
 
 template<bool O3D, bool R3D> bool writeout(
@@ -671,18 +705,18 @@ template BHC_API void extsetup_altimetry<true>(
 #endif
 
 template<bool O3D> void extsetup_bathymetry(
-    bhcParams<O3D> &params, const IORI2<O3D> &NPts)
+    bhcParams<O3D> &params, const IORI2<O3D> &NPts, const int32_t &NBotProvinces)
 {
     module::Bathymetry<O3D> pm;
-    pm.ExtSetup(params, NPts);
+    pm.ExtSetup(params, NPts, NBotProvinces);
 }
 #if BHC_ENABLE_2D
 template BHC_API void extsetup_bathymetry<false>(
-    bhcParams<false> &params, const IORI2<false> &NPts);
+    bhcParams<false> &params, const IORI2<false> &NPts, const int32_t &NBotProvinces = 0);
 #endif
 #if BHC_ENABLE_3D || BHC_ENABLE_NX2D
 template BHC_API void extsetup_bathymetry<true>(
-    bhcParams<true> &params, const IORI2<true> &NPts);
+    bhcParams<true> &params, const IORI2<true> &NPts, const int32_t &NBotProvinces = 0);
 #endif
 
 template<bool O3D> void extsetup_trc(bhcParams<O3D> &params, int32_t NPts)
@@ -725,6 +759,24 @@ extern BHC_API void extsetup_ssp_hexahedral(
 }
 #endif
 
+template<bool O3D> void extsetup_blocking(bhcParams<O3D> &params, const bool &blocking)
+{
+    try {
+        GetInternal(params)->blocking = blocking;
+    } catch(const std::exception &e) {
+        EXTWARN("Exception caught in bhc::extsetup_blocking(): %s\n", e.what());
+        return;
+    }
+}
+#if BHC_ENABLE_2D
+template BHC_API void extsetup_blocking<false>(
+    bhcParams<false> &params, const bool &blocking);
+#endif
+#if BHC_ENABLE_3D || BHC_ENABLE_NX2D
+template BHC_API void extsetup_blocking<true>(
+    bhcParams<true> &params, const bool &blocking);
+#endif
+
 template<bool O3D> int get_percent_progress(bhcParams<O3D> &params)
 {
     try {
@@ -748,6 +800,11 @@ template<bool O3D, bool R3D> bool get_ssp(
     bhcParams<O3D> &params, const VEC23<R3D> &x, float &sound_speed)
 {
     try {
+        if(params.ssp->dirty) {
+            module::SSP<O3D> ms;
+            ms.Preprocess(params);
+            ms.SetupPost(params);
+        }
         return SingleSSP<O3D, R3D>(params, x, sound_speed);
     } catch(const std::exception &e) {
         EXTWARN("Exception caught in bhc::get_ssp(): %s\n", e.what());

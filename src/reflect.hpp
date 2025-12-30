@@ -341,7 +341,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
                 // Intel and GFortran compilers return different branches of the SQRT for
                 // negative reals LP: looks like this just means we want the positive
                 // branch
-                if(kzP.real() == RL(0.0) && kzP.imag() < RL(0.0)) kzP = -kzP;
+                if(NearlyZero(kzP.real()) && kzP.imag() < RL(0.0)) kzP = -kzP;
                 f = kzP;
                 g = hs.rho;
             }
@@ -395,7 +395,7 @@ template<typename CFG, bool O3D, bool R3D> HOST_DEVICE inline void Reflect(
                     real ssi = SQ(si);
 
                     cpx delta;
-                    if(si != FL(0.0)) {
+                    if(NotNearlyZero(si)) {
                         delta = a * co / si / (ck * sb * d); // Do we need an abs() on
                                                              // this???
                     } else {

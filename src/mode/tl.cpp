@@ -36,7 +36,7 @@ namespace bhc { namespace mode {
  * "TL" in BELLHOP]
  */
 template<bool O3D> inline void WriteHeader(
-    const bhcParams<O3D> &params, DirectOFile &SHDFile, float atten,
+    const bhcParams<O3D> &params, DirectOFile &SHDFile, real atten,
     const std::string &PlotType)
 {
     const Position *Pos      = params.Pos;
@@ -71,7 +71,7 @@ template<bool O3D> inline void WriteHeader(
     DOFWRITEV(SHDFile, Pos->NSz);
     DOFWRITEV(SHDFile, Pos->NRz);
     DOFWRITEV(SHDFile, Pos->NRr);
-    DOFWRITEV(SHDFile, (float)freqinfo->freq0);
+    DOFWRITEV(SHDFile, freqinfo->freq0);
     DOFWRITEV(SHDFile, atten);
     SHDFile.rec(3);
     DOFWRITE(SHDFile, freqinfo->freqVec, freqinfo->Nfreq * sizeof(freqinfo->freqVec[0]));

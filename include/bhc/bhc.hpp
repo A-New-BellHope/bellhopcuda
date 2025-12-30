@@ -207,11 +207,11 @@ extern template BHC_API void extsetup_altimetry<true>(
     bhcParams<true> &params, const IORI2<true> &NPts);
 /// See extsetup_altimetry.
 template<bool O3D> void extsetup_bathymetry(
-    bhcParams<O3D> &params, const IORI2<O3D> &NPts);
+    bhcParams<O3D> &params, const IORI2<O3D> &NPts, const int32_t &NBotProvinces);
 extern template BHC_API void extsetup_bathymetry<false>(
-    bhcParams<false> &params, const IORI2<false> &NPts);
+    bhcParams<false> &params, const IORI2<false> &NPts, const int32_t &NBotProvinces);
 extern template BHC_API void extsetup_bathymetry<true>(
-    bhcParams<true> &params, const IORI2<true> &NPts);
+    bhcParams<true> &params, const IORI2<true> &NPts, const int32_t &NBotProvinces);
 /**
  * Reallocate the top reflection coefficients to the given size. This also sets
  * params.Bdry->Top.hs.Opt[1] to 'F' (file) to use the reflection coefficients.
@@ -277,6 +277,15 @@ extern BHC_API void extsetup_ssp_hexahedral(
     bhcParams<true> &params, int32_t Nx, int32_t Ny, int32_t Nz);
 
 /**
+ * Request background execution of the calculations.
+ */
+template<bool O3D> void extsetup_blocking(bhcParams<O3D> &params, const bool &blocking);
+extern template BHC_API void extsetup_blocking<true>(
+    bhcParams<true> &params, const bool &blocking);
+extern template BHC_API void extsetup_blocking<false>(
+    bhcParams<false> &params, const bool &blocking);
+
+/**
  * Validates the state of params and writes a summary of the state to the
  * PRTFile or callback. This is done automatically as part of setup() if you
  * started from an environment file, but if you started from defaults and then
@@ -307,6 +316,26 @@ extern template BHC_API bool run<true, false>(
     bhcParams<true> &params, bhcOutputs<true, false> &outputs);
 /// 3D version, see template.
 extern template BHC_API bool run<true, true>(
+    bhcParams<true> &params, bhcOutputs<true, true> &outputs);
+
+/**
+ * Postprocess the computation.
+ * Only needed if the run is done in the background, e.g.,
+ *   if you call bhc::extsetup_blocking(true)
+ *
+ * returns: false if an error occurred, true if no errors.
+ */
+template<bool O3D, bool R3D> bool postprocess(
+    bhcParams<O3D> &params, bhcOutputs<O3D, R3D> &outputs);
+
+/// 2D version, see template.
+extern template BHC_API bool postprocess<false, false>(
+    bhcParams<false> &params, bhcOutputs<false, false> &outputs);
+/// Nx2D version, see template.
+extern template BHC_API bool postprocess<true, false>(
+    bhcParams<true> &params, bhcOutputs<true, false> &outputs);
+/// 3D version, see template.
+extern template BHC_API bool postprocess<true, true>(
     bhcParams<true> &params, bhcOutputs<true, true> &outputs);
 
 /**

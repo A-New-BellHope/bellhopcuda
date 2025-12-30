@@ -73,7 +73,7 @@ public:
     virtual void Validate(bhcParams<O3D> &params) const override
     {
         if constexpr(!O3D) {
-            if(params.Pos->Ntheta != 1 || params.Pos->theta[0] != RL(0.0)) {
+            if(params.Pos->Ntheta != 1 || NotNearlyZero(params.Pos->theta[0])) {
                 EXTERR("Invalid receiver bearings setup for 2D");
             }
         } else {
@@ -86,10 +86,10 @@ public:
             PrintFileEmu &PRTFile = GetInternal(params)->PRTFile;
             Preprocess(params);
             EchoVectorWDescr(
-                params, params.Pos->theta, params.Pos->Ntheta, FL(1.0), Description,
+                params, params.Pos->theta, params.Pos->Ntheta, RL(1.0), Description,
                 Units);
             if(params.Pos->thetaDuplRemoved) {
-                PRTFile << "(Duplicate angle at " << params.Pos->theta[0] + FL(360.0)
+                PRTFile << "(Duplicate angle at " << params.Pos->theta[0] + RL(360.0)
                         << " degrees removed--this occurs in BELLHOP(3D) too,\n"
                            "but that version echoes the vector before removing the "
                            "duplicate)\n";

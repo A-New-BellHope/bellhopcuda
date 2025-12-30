@@ -35,6 +35,8 @@ public:
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         bdinfotb->bd                  = nullptr;
+        bdinfotb->NBotProvinces       = 0;
+        bdinfotb->BotProv             = nullptr;
     }
 
     virtual void SetupPre(bhcParams<O3D> &params) const override
@@ -57,6 +59,7 @@ public:
 
         if constexpr(O3D) {
             bdinfotb->type[0] = 'R';
+            bdinfotb->type[1] = 'S';
             bdinfotb->NPts    = int2(2, 2);
             trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, 2 * 2);
 
@@ -98,7 +101,7 @@ public:
         }
 
         LIST(BDRYFile);
-        BDRYFile.Read(bdinfotb->type, O3D ? 1 : 2);
+        BDRYFile.Read(bdinfotb->type, 2);
         SetupPost(params);
 
         if constexpr(O3D) {
@@ -143,6 +146,57 @@ public:
 
             trackdeallocate(params, Globalx);
             trackdeallocate(params, Globaly);
+
+            int32_t maxProvince = 0;
+            int32_t minProvince = 1;
+            if(bdinfotb->type[1] == 'L') {
+                PRTFile << "Province type\n";
+                // province numbers
+                for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
+                    LIST(BDRYFile); // read a row of provinces
+                    for(int32_t ix = 0; ix < bdinfotb->NPts.x; ++ix) {
+                        int32_t &x = bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province;
+                        BDRYFile.Read(x);
+                        minProvince = bhc::min(
+                            minProvince,
+                            bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province);
+                        maxProvince = bhc::max(
+                            maxProvince,
+                            bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province);
+                        PRTFile << x << " ";
+                    }
+                    PRTFile << "\n";
+                }
+
+                LIST(BDRYFile);
+                BDRYFile.Read(bdinfotb->NBotProvinces);
+                PRTFile << "\n\nProvince geoacoustic properties\n";
+                PRTFile << "Number of bottom provinces = " << bdinfotb->NBotProvinces
+                        << "\n";
+                trackallocate(
+                    params, s_altimetrybathymetry, bdinfotb->BotProv,
+                    bdinfotb->NBotProvinces);
+                PRTFile
+                    << "Province  alphaR      betaR     rho        alphaI     betaI\n";
+                for(int iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
+                    LIST(BDRYFile);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].alphaR);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].betaR);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].rho);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].alphaI);
+                    BDRYFile.Read(bdinfotb->BotProv[iProv].betaI);
+                    PRTFile << bdinfotb->BotProv[iProv].alphaR << " "
+                            << bdinfotb->BotProv[iProv].betaR << " "
+                            << bdinfotb->BotProv[iProv].rho << " "
+                            << bdinfotb->BotProv[iProv].alphaI << " "
+                            << bdinfotb->BotProv[iProv].betaI << "\n";
+                }
+
+                if(minProvince < 1 || maxProvince > bdinfotb->NBotProvinces) {
+                    EXTERR("BELLHOP3D: ReadBTY3D Matrix of provinces contains indices "
+                           "for which province is undefined");
+                }
+            }
         } else {
             LIST(BDRYFile);
             BDRYFile.Read(bdinfotb->NPts);
@@ -222,6 +276,24 @@ public:
                 }
                 BDRYFile << '\n';
             }
+
+            if(bdinfotb->type[1] == 'L') {
+                for(int32_t iy = 0; iy < bdinfotb->NPts.y; ++iy) {
+                    for(int32_t ix = 0; ix < bdinfotb->NPts.x; ++ix) {
+                        int32_t &prov = bdinfotb->bd[ix * bdinfotb->NPts.y + iy].Province;
+                        BDRYFile << prov << ' ';
+                    }
+                    BDRYFile << '\n';
+                }
+                BDRYFile << bdinfotb->NBotProvinces << '\n';
+                for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
+                    BDRYFile << bdinfotb->BotProv[iProv].alphaR << ' '
+                             << bdinfotb->BotProv[iProv].betaR << ' '
+                             << bdinfotb->BotProv[iProv].rho << ' '
+                             << bdinfotb->BotProv[iProv].alphaI << ' '
+                             << bdinfotb->BotProv[iProv].betaI << '\n';
+                }
+            }
         } else {
             BDRYFile << bdinfotb->NPts - 2;
             BDRYFile.write("! NPts\n");
@@ -243,19 +315,28 @@ public:
     virtual void SetupPost(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
-        if constexpr(O3D) bdinfotb->type[1] = ' ';
     }
 
-    void ExtSetup(bhcParams<O3D> &params, const IORI2<O3D> &NPts) const
+    void ExtSetup(
+        bhcParams<O3D> &params, const IORI2<O3D> &NPts,
+        const int32_t &NBotProvinces = 0) const
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
         GetModeFlag(params)           = '~';
         bdinfotb->dirty               = true;
         bdinfotb->NPts                = NPts;
         if constexpr(O3D) {
+            bdinfotb->NBotProvinces = NBotProvinces;
             trackallocate(
                 params, s_altimetrybathymetry, bdinfotb->bd,
                 bdinfotb->NPts.x * bdinfotb->NPts.y);
+            if(bdinfotb->NBotProvinces == 0) {
+                trackdeallocate(params, bdinfotb->BotProv);
+            } else {
+                trackallocate(
+                    params, s_altimetrybathymetry, bdinfotb->BotProv,
+                    bdinfotb->NBotProvinces);
+            }
         } else {
             trackallocate(params, s_altimetrybathymetry, bdinfotb->bd, bdinfotb->NPts);
         }
@@ -273,11 +354,7 @@ public:
             }
             break;
         case 'C': break;
-        case 'L':
-            if constexpr(O3D) {
-                EXTERR("%sType L not supported for 3D runs\n", s_atibty);
-            }
-            break;
+        case 'L': break;
         default:
             EXTERR(
                 "Read%s: Unknown option for selecting %s interpolation", s_ATIBTY,
@@ -285,11 +362,6 @@ public:
         }
 
         if constexpr(O3D) {
-            if(bdinfotb->type[1] != ' ') {
-                EXTERR(
-                    "Read%s: %s option (type[1]) must be ' ' in Nx2D/3D mode\n", s_ATIBTY,
-                    s_altimetrybathymetry);
-            }
             if(!monotonic(
                    &bdinfotb->bd[0].x.x, bdinfotb->NPts.x,
                    bdinfotb->NPts.y * BdryStride<O3D>, 0)) {
@@ -388,20 +460,19 @@ public:
 
             // LP: BUG: Geoacoustics are supported for altimetry, but the
             // header for geoacoustics is only supported for bathymetry.
-            bool shortFormat = true;
-            if constexpr(!ISTOP) {
-                shortFormat = bdinfotb->type[1] == 'S' || bdinfotb->type[1] == ' ';
-            }
-            if(shortFormat) {
-                if constexpr(!ISTOP) {
-                    PRTFile << "Short format (" << s_altimetrybathymetry << " only)\n";
-                }
+            // JS: Note, this bug seems to be resolved in the fortran version.
+            switch(bdinfotb->type[1]) {
+            case 'S':
+            case ' ':
+                PRTFile << "Short format (" << s_altimetrybathymetry << " only)\n";
                 PRTFile << "\n Range (km)  Depth (m)\n";
-            } else if(bdinfotb->type[1] == 'L') {
+                break;
+            case 'L':
                 PRTFile << "Long format (" << s_altimetrybathymetry
                         << " and geoacoustics)\n";
                 PRTFile << "Range (km)  Depth (m)  alphaR (m/s)  betaR  rho (g/cm^3)  "
                            "alphaI     betaI\n";
+                break;
             }
 
             for(int32_t ii = 1; ii < bdinfotb->NPts - 1; ++ii) {
@@ -451,18 +522,22 @@ public:
 
         ComputeBdryTangentNormal(params, bdinfotb);
 
-        if constexpr(!O3D) {
-            // convert range-dependent geoacoustic parameters from user to program units
-            if(bdinfotb->type[1] == 'L') {
-                for(int32_t iSeg = 0; iSeg < bdinfotb->NPts; ++iSeg) {
-                    // compressional wave speed
-                    bdinfotb->bd[iSeg].hs.cP = crci(
-                        params, RL(1.0e20), bdinfotb->bd[iSeg].hs.alphaR,
-                        bdinfotb->bd[iSeg].hs.alphaI, {'W', ' '});
-                    // shear         wave speed
-                    bdinfotb->bd[iSeg].hs.cS = crci(
-                        params, RL(1.0e20), bdinfotb->bd[iSeg].hs.betaR,
-                        bdinfotb->bd[iSeg].hs.betaI, {'W', ' '});
+        // convert range-dependent geoacoustic parameters from user to program units
+        if(bdinfotb->type[1] == 'L') {
+            if constexpr(O3D) {
+                for(int32_t iProv = 0; iProv < bdinfotb->NBotProvinces; ++iProv) {
+                    bdinfotb->BotProv[iProv].cP = crci(
+                        params, RL(1.0e20), bdinfotb->BotProv[iProv].alphaR,
+                        bdinfotb->BotProv[iProv].alphaI, {'W', ' '});
+                    bdinfotb->BotProv[iProv].cS = crci(
+                        params, RL(1.0e20), bdinfotb->BotProv[iProv].betaR,
+                        bdinfotb->BotProv[iProv].betaI, {'W', ' '});
+                }
+            } else {
+                for(int32_t ii = 0; ii < bdinfotb->NPts; ++ii) {
+                    bhc::HSInfo &hs = bdinfotb->bd[ii].hs;
+                    hs.cP = crci(params, RL(1.0e20), hs.alphaR, hs.alphaI, {'W', ' '});
+                    hs.cS = crci(params, RL(1.0e20), hs.betaR, hs.betaI, {'W', ' '});
                 }
             }
         }
@@ -471,6 +546,7 @@ public:
     virtual void Finalize(bhcParams<O3D> &params) const override
     {
         BdryInfoTopBot<O3D> *bdinfotb = GetBdryInfoTopBot(params);
+        trackdeallocate(params, bdinfotb->BotProv);
         trackdeallocate(params, bdinfotb->bd);
     }
 

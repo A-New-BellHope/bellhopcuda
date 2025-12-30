@@ -21,6 +21,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <atomic>
+#include <cstring>
 
 #define BHC_DLL_IMPORT 1
 #include <bhc/bhc.hpp>
@@ -51,26 +52,33 @@ int main()
     init.completedCallback = CompletedCallback;
 
     bhc::setup(init, params, outputs);
-    // Awkward, but only rays are non-blocking.
-    outputs.rayinfo->blocking = false;
 
+    // request non-blocking calculation
+    bhc::extsetup_blocking(params, false);
+
+    // setup the beam and bounds
     strcpy(params.Beam->RunType, "RG   3");
+    params.Beam->rangeInKm = true;
+    params.Beam->deltas    = 1.01;
+    params.Beam->Box.x     = 20.0;
+    params.Beam->Box.y     = 20.0;
+    params.Beam->Box.z     = 2000.0;
 
     // one source
     bhc::extsetup_sxsy(params, 1, 1);
     bhc::extsetup_sz(params, 1);
     params.Pos->Sx[0] = 0.0f;
     params.Pos->Sy[0] = 0.0f;
-    params.Pos->Sz[0] = 1000.0f;
+    params.Pos->Sz[0] = 990.0f;
 
-    // one receiver, mostly ignored in ray mode
-    bhc::extsetup_rcvrbearings(params, 1);
-    bhc::extsetup_rcvrranges(params, 1);
+    // receivers for TL, mostly ignored in ray mode
+    bhc::extsetup_rcvrbearings(params, 100);
+    bhc::extsetup_rcvrranges(params, 100);
     bhc::extsetup_rcvrdepths(params, 1);
-    params.Pos->RrInKm   = true;
-    params.Pos->Rr[0]    = 10.0f;
-    params.Pos->theta[0] = 0.0f;
-    params.Pos->Rz[0]    = 1000.0f;
+    params.Pos->RrInKm = true;
+    for(int i = 0; i < 100; ++i) { params.Pos->Rr[i] = float(i + 1) / 10.0f; }
+    for(int i = 0; i < 100; ++i) { params.Pos->theta[i] = float(i); }
+    params.Pos->Rz[0] = 1000.0f;
 
     // Request a bunch of rays so it takes a while.
     // May have to increase/decrease the number of rays
@@ -82,10 +90,10 @@ int main()
         // just make the direction reasonable
         params.Angles->alpha.inDegrees = true;
         params.Angles->beta.inDegrees  = true;
-        params.Angles->alpha.angles[i] = 90.0
-            + 20.0 * double(i) / double(num_rays_per_direction);
-        params.Angles->beta.angles[i] = 90.0
-            + 20.0 * double(i) / double(num_rays_per_direction);
+        params.Angles->alpha.angles[i] = -60.0
+            + 120.0 * double(i) / double(num_rays_per_direction);
+        params.Angles->beta.angles[i] = -10.0
+            + 200.0 * double(i) / double(num_rays_per_direction);
     }
 
     bhc::VEC23<true> xSSP;
@@ -94,6 +102,15 @@ int main()
     xSSP[2] = 10;
     float resSSP;
     std::cout << "Testing ssp call ... " << std::flush;
+    if(bhc::get_ssp<true, true>(params, xSSP, resSSP)) {
+        std::cout << " success " << resSSP << "\n" << std::flush;
+    } else {
+        std::cout << " failed " << resSSP << "\n" << std::flush;
+    }
+
+    params.ssp->alphaR[0] = 1000.0;
+    params.ssp->dirty     = true;
+    std::cout << "Testing ssp call after update ... " << std::flush;
     if(bhc::get_ssp<true, true>(params, xSSP, resSSP)) {
         std::cout << " success " << resSSP << "\n" << std::flush;
     } else {
@@ -112,6 +129,25 @@ int main()
     }
     std::cout << bhc::get_percent_progress(params) << "% threads finished\n"
               << std::flush;
+    bhc::postprocess(params, outputs);
+
+    bhc::writeenv(params, "background_ray");
+
+    std::cout << "\n\nStarting the transmission loss calculation\n" << std::flush;
+    strcpy(params.Beam->RunType, "CG   3");
+
+    bhc::run(params, outputs);
+    going = true;
+    while(going) {
+        std::cout << "   " << bhc::get_percent_progress(params) << "% done\n "
+                  << std::flush;
+    }
+    std::cout << bhc::get_percent_progress(params) << "% threads finished\n"
+              << std::flush;
+    bhc::postprocess(params, outputs);
+
+    bhc::writeenv(params, "background_tl");
+    bhc::writeout(params, outputs, "background_tl");
 
     bhc::finalize(params, outputs);
     return 0;

@@ -61,9 +61,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 // version is included in CUDA releases
 #if defined(_MSC_VER) && (CUDART_VERSION < 12020)
 
-#if _MSC_VER >= 1930
-#include <../crt/src/stl/xmath.hpp>
-#endif
+// #if _MSC_VER >= 1930
+// #include <../crt/src/stl/xmath.hpp>
+// #endif
 
 // Yes, I'm aware this is not GCC--this is a hack for the buggy libcudacxx MSVC
 // support
@@ -203,6 +203,12 @@ HOST_DEVICE constexpr inline cpx Cpxf2Cpx(const cpxf &c)
     return cpx((real)c.real(), (real)c.imag());
 }
 
+inline HOST_DEVICE bool NearlyZero(const cpx &x) { return STD::abs(x) < REAL_EPSILON; }
+inline HOST_DEVICE bool NotNearlyZero(const cpx &x)
+{
+    return STD::abs(x) >= REAL_EPSILON;
+}
+
 // CUDA::std::cpx<double> and glm::mat2x2 do not like operators being applied
 // with float literals, due to template type deduction issues.
 #ifndef BHC_USE_FLOATS
@@ -234,6 +240,12 @@ HOST_DEVICE inline mat2x2 operator*(float a, const mat2x2 &b) { return (double)a
 #define CUBE(a) ((a) * (a) * (a))
 constexpr real RadDeg = RL(180.0) / REAL_PI;
 constexpr real DegRad = REAL_PI / RL(180.0);
+
+inline HOST_DEVICE bool NearlyZero(const real &x) { return STD::fabs(x) < REAL_EPSILON; }
+inline HOST_DEVICE bool NotNearlyZero(const real &x)
+{
+    return STD::fabs(x) >= REAL_EPSILON;
+}
 
 template<typename REAL> HOST_DEVICE inline REAL spacing(REAL v)
 {
@@ -414,17 +426,18 @@ struct bhcInternal {
     void (*completedCallback)();
     std::string FileRoot;
     PrintFileEmu PRTFile;
-    std::atomic<int32_t> sharedJobID;
+    STD::atomic<int32_t> sharedJobID;
     int gpuIndex, d_multiprocs; // d_warp, d_maxthreads
     int32_t numThreads;
     size_t maxMemory;
     size_t usedMemory;
     bool useRayCopyMode;
     bool noEnvFil;
+    bool blocking;
     uint8_t dim;
-    std::atomic<int32_t> totalJobs;
-    std::atomic<int32_t> activeThreadCount;
-    std::atomic<int32_t> completedRayCount;
+    STD::atomic<int32_t> totalJobs;
+    STD::atomic<int32_t> activeThreadCount;
+    STD::atomic<int32_t> completedRayCount;
     ErrState errState;
 
     bhcInternal(const bhcInit &init, bool o3d, bool r3d)
@@ -435,9 +448,9 @@ struct bhcInternal {
           PRTFile(this, this->FileRoot, init.prtCallback), gpuIndex(init.gpuIndex),
           numThreads(ModifyNumThreads(init.numThreads)), maxMemory(init.maxMemory),
           usedMemory(0), useRayCopyMode(init.useRayCopyMode),
-          noEnvFil(init.FileRoot == nullptr), dim(r3d       ? 3
-                                                      : o3d ? 4
-                                                            : 2),
+          noEnvFil(init.FileRoot == nullptr), blocking(true), dim(r3d       ? 3
+                                                                      : o3d ? 4
+                                                                            : 2),
           totalJobs(1), activeThreadCount(0), completedRayCount(0)
     {}
 };

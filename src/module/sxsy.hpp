@@ -62,10 +62,10 @@ public:
         if constexpr(O3D) {
             UnSubTab(
                 ENVFile, params.Pos->Sx, params.Pos->NSx, "NSX", "SX(1:NSX) (km)",
-                FL(0.001));
+                RL(0.001));
             UnSubTab(
                 ENVFile, params.Pos->Sy, params.Pos->NSy, "NSY", "SY(1:NSY) (km)",
-                FL(0.001));
+                RL(0.001));
         }
     }
     void ExtSetup(bhcParams<O3D> &params, int32_t NSx, int32_t NSy) const
@@ -84,7 +84,7 @@ public:
         }
         if constexpr(!O3D) {
             if(params.Pos->NSx != 1 || params.Pos->NSy != 1
-               || params.Pos->Sx[0] != RL(0.0) || params.Pos->Sy[0] != RL(0.0)) {
+               || NotNearlyZero(params.Pos->Sx[0]) || NotNearlyZero(params.Pos->Sy[0])) {
                 EXTERR("Invalid Sx/Sy setup for 2D case");
             }
         } else {
@@ -97,9 +97,9 @@ public:
         if constexpr(O3D) {
             Preprocess(params);
             EchoVectorWDescr(
-                params, params.Pos->Sx, params.Pos->NSx, FL(0.001), DescriptionX, Units);
+                params, params.Pos->Sx, params.Pos->NSx, RL(0.001), DescriptionX, Units);
             EchoVectorWDescr(
-                params, params.Pos->Sy, params.Pos->NSy, FL(0.001), DescriptionY, Units);
+                params, params.Pos->Sy, params.Pos->NSy, RL(0.001), DescriptionY, Units);
         }
     }
     virtual void Preprocess(bhcParams<O3D> &params) const override

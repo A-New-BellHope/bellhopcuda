@@ -175,6 +175,7 @@ function(bhc_add_libs_exes type_name gen_extension addl_sources addl_includes ad
         ${addl_sources}
     )
     set_property(TARGET ${objlibname} PROPERTY POSITION_INDEPENDENT_CODE 1)
+    set_property(TARGET ${objlibname} PROPERTY CUDA_ARCHITECTURES native)
     set(enab2d 0)
     set(enab3d 0)
     set(enabnx2d 0)

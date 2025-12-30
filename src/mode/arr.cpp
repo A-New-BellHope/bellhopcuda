@@ -52,7 +52,7 @@ template<bool O3D, bool R3D> void PostProcessArrivals(
                                 if constexpr(!O3D) line = IsLineSource(params.Beam);
                                 if(line) {
                                     factor = FL(4.0) * STD::sqrt(REAL_PI);
-                                } else if(Pos->Rr[ir] == FL(0.0)) {
+                                } else if(NearlyZero(Pos->Rr[ir])) {
                                     // avoid /0 at origin
                                     factor = FL(1e5);
                                 } else {
@@ -259,9 +259,9 @@ template<typename T> void ReadArrivalsValue(
     }
 }
 
-template<bool O3D> inline void ReadArrivalsArray(
+template<bool O3D, class T> inline void ReadArrivalsArray(
     bhcParams<O3D> &params, LDIFile &AARRFile, UnformattedIFile &BARRFile, bool isAscii,
-    float *&v, int32_t &nv, const char *description)
+    T *&v, int32_t &nv, const char *description)
 {
     ReadArrivalsValue(AARRFile, BARRFile, isAscii, nv, true);
     trackallocate(params, description, v, nv);

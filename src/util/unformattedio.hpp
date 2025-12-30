@@ -88,8 +88,8 @@ private:
 
     bhcInternal *_internal;
     std::ofstream ostr;
-    int32_t recstart;
-    int32_t recl;
+    int64_t recstart;
+    int64_t recl;
 };
 
 /**
@@ -133,7 +133,7 @@ public:
             ExternalError(_internal, "Insufficient data in record in UnformattedIFile!");
         }
         istr.read((char *)&v, sizeof(T));
-        recused += (int32_t)sizeof(T);
+        recused += (uint64_t)sizeof(T);
     }
 
     template<typename T> void read(T *arr, size_t n)
@@ -142,7 +142,7 @@ public:
             ExternalError(_internal, "Insufficient data in record in UnformattedIFile!");
         }
         for(size_t i = 0; i < n; ++i) istr.read((char *)&arr[i], sizeof(T));
-        recused += (int32_t)(n * sizeof(T));
+        recused += (uint64_t)(n * sizeof(T));
     }
 
 private:
@@ -151,7 +151,7 @@ private:
         if(recused != recl) {
             ExternalWarning(
                 _internal, "Record in UnformattedIFile not fully read at %08X!",
-                (uint32_t)istr.tellg());
+                (uint64_t)istr.tellg());
         }
         if(recl != 0) {              // Not for beginning of file
             istr.seekg(4, istr.cur); // Skip end length of current record
@@ -160,8 +160,8 @@ private:
 
     bhcInternal *_internal;
     std::ifstream istr;
-    uint32_t recl;
-    uint32_t recused;
+    uint64_t recl;
+    uint64_t recused;
 };
 
 } // namespace bhc
