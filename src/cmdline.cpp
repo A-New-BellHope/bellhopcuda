@@ -77,6 +77,8 @@ void showhelp(const char *argv0)
            " should use.\n"
            "    X may have a wide range of suffixes, examples: 16GiB, 8M, 100000kB\n"
            "    non-examples: 4gI, 2m, 5.3G. Default: 4GiB\n"
+           "-ncore=num: Sets the number of worker threads to use for CPU computation. Default: -1\n"
+           "    (all logical cores)\n"
            "-writeenv=\"path/to/newFileRoot\": For testing purposes, writes out\n"
            "    a copy of all the input data read from the environment file etc.\n"
            "    to a new environment file and other data files. Does not run the\n"
@@ -123,6 +125,14 @@ int main(int argc, char **argv)
                         return 1;
                     }
                     init.gpuIndex = std::stoi(value);
+                } else if(key == "-ncore") {
+                    if(!bhc::isInt(value, true)) {
+                        std::cout << "Value \"" << value
+                                  << "\" for --ncore argument is invalid, try " << argv[0]
+                                  << " --help\n";
+                        return 1;
+                    }
+                    init.numThreads = std::stoi(value);
                 } else if(key == "-mem" || key == "-memory") {
                     size_t multiplier = 1u;
                     size_t base       = 1000u;
