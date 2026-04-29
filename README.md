@@ -70,6 +70,10 @@ document.
 The accuracy characteristics of `bellhopcxx` / `bellhopcuda` are discussed in
 the [doc/accuracy.md](doc/accuracy.md) document.
 
+See results of comparison tests between `bellhopcxx`, `bellhopcuda`, and the
+acoustic toolbox version 
+[here](https://drive.google.com/file/d/1Zutv8WRyhSAXvqsJ2-jKeZPwTjNaoPXg/view?usp=sharing).
+
 # Miscellaneous
 
 ## Comments
