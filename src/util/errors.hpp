@@ -37,17 +37,39 @@ extern void ExternalWarning(bhcInternal *internal, const char *format, ...);
 
 inline HOST_DEVICE void RunError(ErrState *errState, uint32_t code)
 {
+#if defined(__HIP_DEVICE_COMPILE__)
+    atomicAdd(reinterpret_cast<unsigned int*>(&errState->errCount), 1u);
+    atomicOr(reinterpret_cast<unsigned int*>(&errState->error), 1u << code);
+#elif defined(__CUDA_ARCH__)
     errState->errCount.fetch_add(1u, STD::memory_order_relaxed);
     errState->error.fetch_or(1u << code, STD::memory_order_release);
+#else
+    errState->errCount.fetch_add(1u, STD::memory_order_relaxed);
+    errState->error.fetch_or(1u << code, STD::memory_order_release);
+#endif
 }
 inline HOST_DEVICE void RunWarning(ErrState *errState, uint32_t code)
 {
+#if defined(__HIP_DEVICE_COMPILE__)
+    atomicAdd(reinterpret_cast<unsigned int*>(&errState->warnCount), 1u);
+    atomicOr(reinterpret_cast<unsigned int*>(&errState->warning), 1u << code);
+#elif defined(__CUDA_ARCH__)
     errState->warnCount.fetch_add(1u, STD::memory_order_relaxed);
     errState->warning.fetch_or(1u << code, STD::memory_order_relaxed);
+#else
+    errState->warnCount.fetch_add(1u, STD::memory_order_relaxed);
+    errState->warning.fetch_or(1u << code, STD::memory_order_relaxed);
+#endif
 }
 inline HOST_DEVICE bool HasErrored(ErrState *errState)
 {
+#if defined(__HIP_DEVICE_COMPILE__)
+    return atomicOr(reinterpret_cast<unsigned int*>(&errState->error), 0u) != 0u;
+#elif defined(__CUDA_ARCH__)
     return errState->error.load(STD::memory_order_acquire) != 0u;
+#else
+    return errState->error.load(STD::memory_order_acquire) != 0u;
+#endif
 }
 inline HOST_DEVICE void ResetErrState(ErrState *errState)
 {

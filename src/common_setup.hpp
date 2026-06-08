@@ -28,7 +28,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 // #include <cfenv>
 #include <exception>
 
-#ifdef __NVCC__
+#if defined(__NVCC__) && !defined(__HIP_PLATFORM_AMD__)
 inline __device__ int __isinf(double __a) { return __nv_isinfd(__a); }
 inline __device__ int __isinff(float __a) { return __nv_isinff(__a); }
 inline __device__ int __isnan(double __a) { return __nv_isnand(__a); }
@@ -208,12 +208,11 @@ template<bool O3D, typename T> inline void trackallocate(
 template<typename T> inline void Sort(T *arr, size_t n) { std::sort(arr, arr + n); }
 template<> inline void Sort(cpx *arr, size_t n)
 {
-    // Workaround because both libstdc++ and libcu++ provide swap
-    std::complex<real> *arr2 = reinterpret_cast<std::complex<real> *>(arr);
-    std::sort(
-        arr2, arr2 + n, [](const std::complex<real> &a, const std::complex<real> &b) {
-            return a.real() > b.real(); // Based on order of decreasing real part
-        });
+    // Use cpx directly; a reinterpret_cast to std::complex was previously needed
+    // as a workaround for libstdc++/libcu++ swap ambiguity but is not needed here.
+    std::sort(arr, arr + n, [](const cpx &a, const cpx &b) {
+        return a.real() > b.real(); // Based on order of decreasing real part
+    });
 }
 
 /**

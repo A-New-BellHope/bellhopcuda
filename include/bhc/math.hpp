@@ -23,7 +23,10 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #endif
 
 #include <cfloat>
+#ifndef BHC_COMPLEX_NS
 #include <complex>
+#define BHC_COMPLEX_NS std
+#endif
 
 #define GLM_FORCE_EXPLICIT_CTOR 1
 #include <glm/vec2.hpp>
@@ -43,7 +46,7 @@ using vec3   = glm::vec<3, real, glm::defaultp>;
 using int2   = glm::vec<2, int32_t, glm::defaultp>;
 using mat2x2 = glm::mat<2, 2, real, glm::defaultp>;
 
-using cpx  = STD::complex<real>;
-using cpxf = STD::complex<float>;
+using cpx  = BHC_COMPLEX_NS::complex<real>;
+using cpxf = BHC_COMPLEX_NS::complex<float>;
 
 } // namespace bhc
