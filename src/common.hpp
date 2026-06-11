@@ -225,6 +225,7 @@ namespace bhc_hip_std {
 #include <cuda/std/cfloat>
 #include <cuda/std/atomic>
 #define STD cuda::std
+#define BHC_COMPLEX_NS cuda::std
 #define BHC_CPX_CONSTEXPR constexpr
 #define BHC_PROGRAMNAME "bellhopcuda"
 #endif // USE_HIP

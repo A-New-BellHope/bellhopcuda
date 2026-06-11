@@ -180,7 +180,12 @@ function(bhc_add_libs_exes type_name gen_extension addl_sources addl_includes ad
             set_source_files_properties(${gen_sources} PROPERTIES LANGUAGE HIP)
             set_property(TARGET ${objlibname} PROPERTY HIP_ARCHITECTURES "${CMAKE_HIP_ARCHITECTURES}")
         else()
-            set_property(TARGET ${objlibname} PROPERTY CUDA_ARCHITECTURES native)
+            if(CUDA_ARCH_OVERRIDE STREQUAL "")
+                set_property(TARGET ${objlibname} PROPERTY CUDA_ARCHITECTURES native)
+            else()
+                set_property(
+                    TARGET ${objlibname} PROPERTY CUDA_ARCHITECTURES ${CUDA_ARCH_OVERRIDE})
+            endif()
         endif()
     endif()
     set(enab2d 0)
