@@ -259,7 +259,13 @@ namespace bhc {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
 [[noreturn]] __forceinline__ __device__ void dev_bail()
 {
+#ifdef __HIP_DEVICE_COMPILE__
     __builtin_trap();
+#else
+    // nvcc's device front-end emulates the host compiler's builtins; under MSVC
+    // __builtin_trap is unknown, so use CUDA's __trap() intrinsic on that path.
+    __trap();
+#endif
     __builtin_unreachable();
 }
 #define bail() dev_bail()
