@@ -20,10 +20,9 @@ option(HIP_PRINT_REGISTERS "Print kernel register use" OFF)
 set(CMAKE_HIP_STANDARD 17) # C++17
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Set default architecture if not specified
-if(NOT DEFINED CMAKE_HIP_ARCHITECTURES OR CMAKE_HIP_ARCHITECTURES STREQUAL "")
-    set(CMAKE_HIP_ARCHITECTURES "gfx90a")
-endif()
+# HIP architecture: enable_language(HIP) in the top-level CMakeLists already
+# auto-detects the host GPU arch, honors an explicit -DCMAKE_HIP_ARCHITECTURES,
+# and errors on a host with no GPU. Pass -DCMAKE_HIP_ARCHITECTURES to override.
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(HIP_DEBUG_FLAGS "-g")
