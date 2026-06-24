@@ -32,6 +32,12 @@ project(bellhoptoplevel LANGUAGES NONE)
 
 option(BHC_ENABLE_CUDA "Build CUDA version in addition to C++ version" ON)
 option(CUDA_ALL_ARCHES "Build CUDA device code for all GPUs in system, not just newest one" OFF)
+option(BHC_ENABLE_HIP "Build HIP version for AMD GPUs" OFF)
+
+# Enable HIP language at top level if requested
+if(BHC_ENABLE_HIP)
+    enable_language(HIP)
+endif()
 
 option(BHC_BUILD_EXAMPLES "Build example programs. Requires 2D, 3D, Nx2D all enabled" ON)
 option(BHC_LIMIT_FEATURES "Limit bellhopcxx/bellhopcuda to only features supported by BELLHOP/BELLHOP3D" OFF)

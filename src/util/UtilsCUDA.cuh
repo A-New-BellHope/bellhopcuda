@@ -20,8 +20,13 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cstdio>
 #include <string>
 
+// HIP/CUDA compatibility
+#if defined(USE_HIP) || defined(__HIP_PLATFORM_AMD__)
+#include "cuda_to_hip.h"
+#endif
+
 // CUDA Runtime error messages
-#ifdef __DRIVER_TYPES_H__
+#if defined(__DRIVER_TYPES_H__) || defined(USE_HIP) || defined(__HIP_PLATFORM_AMD__)
 inline const char *_cudaGetErrorEnum(cudaError_t error)
 {
     return cudaGetErrorName(error);
@@ -432,7 +437,7 @@ template<typename T> void check(
     }
 }
 
-#ifdef __DRIVER_TYPES_H__
+#if defined(__DRIVER_TYPES_H__) || defined(USE_HIP) || defined(__HIP_PLATFORM_AMD__)
 // This will output the proper CUDA error strings in the event that a CUDA host call
 // returns an error
 #define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)

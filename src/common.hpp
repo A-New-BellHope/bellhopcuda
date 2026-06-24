@@ -51,6 +51,138 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef BHC_BUILD_CUDA
+#if defined(USE_HIP)
+// Define __HIP_PLATFORM_AMD__ for ROCm/HIP builds
+#ifndef __HIP_PLATFORM_AMD__
+#define __HIP_PLATFORM_AMD__
+#endif
+#endif
+
+#if defined(USE_HIP) || defined(__HIP_PLATFORM_AMD__)
+// HIP/ROCm build
+#include <hip/hip_runtime.h>
+#include "util/UtilsCUDA.cuh"
+#define HOST_DEVICE __host__ __device__
+#include <atomic>
+#include <cfloat>
+#if defined(_MSC_VER)
+// On Windows, MSVC std::complex math functions (exp, sqrt, log, etc.) call host-only
+// internals (_Exp, swap) that clang rejects in device code.  The clang pragma makes
+// std::complex itself and its arithmetic operators (__host__ __device__), and we then
+// provide device-callable replacements for the functions that call _Exp/swap.  This
+// preserves std::complex arithmetic (same algorithms as the CPU build) for numerical
+// consistency between CPU and GPU results.
+#pragma clang force_cuda_host_device begin
+#include <complex>
+#pragma clang force_cuda_host_device end
+namespace bhc_hip_std {
+    using std::complex;
+    using std::conj;
+    // exp(complex): e^(a+bi) = e^a*(cos(b) + i*sin(b)); avoids MSVC _Exp
+    __host__ __device__ inline std::complex<double>
+    exp(const std::complex<double> &z)
+    {
+        double ea = ::exp(z.real());
+        return std::complex<double>(ea * ::cos(z.imag()), ea * ::sin(z.imag()));
+    }
+    __host__ __device__ inline std::complex<float>
+    exp(const std::complex<float> &z)
+    {
+        float ea = ::expf(z.real());
+        return std::complex<float>(ea * ::cosf(z.imag()), ea * ::sinf(z.imag()));
+    }
+    using std::exp;
+    // sqrt(complex): Algorithm 312 (CACM vol 10, Oct 1967); avoids MSVC swap
+    __host__ __device__ inline std::complex<double>
+    sqrt(const std::complex<double> &z)
+    {
+        double a = z.real(), b = z.imag();
+        if(a == 0.0 && b == 0.0) return std::complex<double>(0.0, 0.0);
+        double t;
+        if(a >= 0.0) {
+            t = ::sqrt((a + ::hypot(a, b)) * 0.5);
+            return std::complex<double>(t, b / (2.0 * t));
+        } else {
+            t = ::sqrt((-a + ::hypot(a, b)) * 0.5);
+            return std::complex<double>(::fabs(b) / (2.0 * t), ::copysign(t, b));
+        }
+    }
+    __host__ __device__ inline std::complex<float>
+    sqrt(const std::complex<float> &z)
+    {
+        float a = z.real(), b = z.imag();
+        if(a == 0.0f && b == 0.0f) return std::complex<float>(0.0f, 0.0f);
+        float t;
+        if(a >= 0.0f) {
+            t = ::sqrtf((a + ::hypotf(a, b)) * 0.5f);
+            return std::complex<float>(t, b / (2.0f * t));
+        } else {
+            t = ::sqrtf((-a + ::hypotf(a, b)) * 0.5f);
+            return std::complex<float>(::fabsf(b) / (2.0f * t), ::copysignf(t, b));
+        }
+    }
+    using std::sqrt;
+    // log(complex): log|z| + i*arg(z); avoids MSVC swap
+    __host__ __device__ inline std::complex<double>
+    log(const std::complex<double> &z)
+    {
+        return std::complex<double>(::log(::hypot(z.real(), z.imag())),
+                                    ::atan2(z.imag(), z.real()));
+    }
+    __host__ __device__ inline std::complex<float>
+    log(const std::complex<float> &z)
+    {
+        return std::complex<float>(::logf(::hypotf(z.real(), z.imag())),
+                                   ::atan2f(z.imag(), z.real()));
+    }
+    using std::log;
+    // log10(complex): log(z) / log(10)
+    __host__ __device__ inline std::complex<double>
+    log10(const std::complex<double> &z)
+    {
+        const double rln10 = 1.0 / ::log(10.0);
+        auto l             = bhc_hip_std::log(z);
+        return std::complex<double>(l.real() * rln10, l.imag() * rln10);
+    }
+    using std::log10;
+    // abs(complex): hypot of real/imag parts
+    __host__ __device__ inline double abs(const std::complex<double> &z)
+    {
+        return ::hypot(z.real(), z.imag());
+    }
+    __host__ __device__ inline float abs(const std::complex<float> &z)
+    {
+        return ::hypotf(z.real(), z.imag());
+    }
+    using std::abs;
+    // polar: r*(cos(theta) + i*sin(theta))
+    __host__ __device__ inline std::complex<double>
+    polar(double r, double theta = 0.0)
+    {
+        return std::complex<double>(r * ::cos(theta), r * ::sin(theta));
+    }
+    using std::pow;
+    using std::acos; using std::atan; using std::atan2;
+    using std::atomic;
+    using std::copysign; using std::cos; using std::fabs; using std::fma;
+    using std::fmod; using std::isfinite;
+    using std::memory_order_acquire;
+    using std::memory_order_relaxed;
+    using std::memory_order_release;
+    using std::nextafter; using std::round; using std::sin;
+}
+#define STD bhc_hip_std
+#define BHC_COMPLEX_NS std
+#define BHC_CPX_CONSTEXPR constexpr
+#else
+#include <complex>
+#define STD std
+#define BHC_COMPLEX_NS std
+#define BHC_CPX_CONSTEXPR constexpr
+#endif
+#define BHC_PROGRAMNAME "bellhopcuda"
+#else
+// CUDA build
 #include "cuda_runtime.h"
 #include "util/UtilsCUDA.cuh"
 #define HOST_DEVICE __host__ __device__
@@ -93,11 +225,15 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <cuda/std/cfloat>
 #include <cuda/std/atomic>
 #define STD cuda::std
+#define BHC_COMPLEX_NS cuda::std
+#define BHC_CPX_CONSTEXPR constexpr
 #define BHC_PROGRAMNAME "bellhopcuda"
+#endif // USE_HIP
 #else
 #define HOST_DEVICE
 #include <atomic>
 #define STD std
+#define BHC_CPX_CONSTEXPR constexpr
 #define BHC_PROGRAMNAME "bellhopcxx"
 #endif
 
@@ -120,10 +256,16 @@ namespace bhc {
     } while(false)
 
 // bail() to be used for debugging only, not normal error reporting.
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
 [[noreturn]] __forceinline__ __device__ void dev_bail()
 {
+#ifdef __HIP_DEVICE_COMPILE__
+    __builtin_trap();
+#else
+    // nvcc's device front-end emulates the host compiler's builtins; under MSVC
+    // __builtin_trap is unknown, so use CUDA's __trap() intrinsic on that path.
     __trap();
+#endif
     __builtin_unreachable();
 }
 #define bail() dev_bail()
@@ -194,11 +336,11 @@ template<typename REAL> REAL fmsub(REAL x, REAL y, REAL z)
 ////////////////////////////////////////////////////////////////////////////////
 
 #define J cpx(RL(0.0), RL(1.0))
-HOST_DEVICE constexpr inline cpxf Cpx2Cpxf(const cpx &c)
+HOST_DEVICE BHC_CPX_CONSTEXPR inline cpxf Cpx2Cpxf(const cpx &c)
 {
     return cpxf((float)c.real(), (float)c.imag());
 }
-HOST_DEVICE constexpr inline cpx Cpxf2Cpx(const cpxf &c)
+HOST_DEVICE BHC_CPX_CONSTEXPR inline cpx Cpxf2Cpx(const cpxf &c)
 {
     return cpx((real)c.real(), (real)c.imag());
 }
@@ -212,19 +354,19 @@ inline HOST_DEVICE bool NotNearlyZero(const cpx &x)
 // CUDA::std::cpx<double> and glm::mat2x2 do not like operators being applied
 // with float literals, due to template type deduction issues.
 #ifndef BHC_USE_FLOATS
-HOST_DEVICE constexpr inline cpx operator-(float a, const cpx &b)
+HOST_DEVICE BHC_CPX_CONSTEXPR inline cpx operator-(float a, const cpx &b)
 {
     return cpx(a - b.real(), -b.imag());
 }
-HOST_DEVICE constexpr inline cpx operator*(const cpx &a, float b)
+HOST_DEVICE BHC_CPX_CONSTEXPR inline cpx operator*(const cpx &a, float b)
 {
     return cpx(a.real() * b, a.imag() * b);
 }
-HOST_DEVICE constexpr inline cpx operator*(float a, const cpx &b)
+HOST_DEVICE BHC_CPX_CONSTEXPR inline cpx operator*(float a, const cpx &b)
 {
     return cpx(a * b.real(), a * b.imag());
 }
-HOST_DEVICE constexpr inline cpx operator/(const cpx &a, float b)
+HOST_DEVICE BHC_CPX_CONSTEXPR inline cpx operator/(const cpx &a, float b)
 {
     return cpx(a.real() / b, a.imag() / b);
 }
@@ -281,7 +423,7 @@ inline HOST_DEVICE void SETXY(vec3 &v, const vec2 &xy)
 // max/min are not handled the same way as other math functions by the C++
 // standard library and therefore also by libcu++. These versions make sure
 // to use the underlying function with the correct precision.
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
 #define DEFINE_MATH_FUNC_2(BASE, DEV_F, HOST_F, DEV_D, HOST_D) \
     __device__ inline float BASE(const float &a, const float &b) { return DEV_F(a, b); } \
     __device__ inline double BASE(const double &a, const double &b) \
@@ -315,7 +457,7 @@ DEFINE_MATH_FUNC_INT_2(min, ::min, std::min)
 
 HOST_DEVICE inline float RealBitsAddInt(float r, int32_t i)
 {
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return __int_as_float(__float_as_int(r) + i);
 #else
     int32_t k;
@@ -328,7 +470,7 @@ HOST_DEVICE inline float RealBitsAddInt(float r, int32_t i)
 }
 HOST_DEVICE inline double RealBitsAddInt(double r, int32_t i)
 {
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return __longlong_as_double(__double_as_longlong(r) + (int64_t)i);
 #else
     int64_t k;

@@ -64,7 +64,7 @@ inline int64_t Int64DoubleAdd(double v, int64_t i)
 
 HOST_DEVICE inline void AtomicAddReal(float *ptr, float v)
 {
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     // Floating-point atomic add is natively supported on the GPU.
     atomicAdd(ptr, v);
 #else
@@ -101,7 +101,7 @@ HOST_DEVICE inline void AtomicAddReal(float *ptr, float v)
 
 HOST_DEVICE inline void AtomicAddReal(double *ptr, double v)
 {
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     // Double-precision atomic add is natively supported on the GPU (compute >= 6.0).
     atomicAdd(ptr, v);
 #else
@@ -147,7 +147,7 @@ template<typename REAL> HOST_DEVICE inline void AtomicAddCpx(
 
 template<typename INT> HOST_DEVICE inline INT AtomicFetchAdd(INT *ptr, INT val)
 {
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
     return atomicAdd(ptr, val);
 #elif defined(__GNUC__)
     return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);

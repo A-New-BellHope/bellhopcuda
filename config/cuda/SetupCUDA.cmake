@@ -17,12 +17,16 @@
 
 option(CUDA_PRINT_REGISTERS "Print kernel register use" OFF)
 option(CUDA_DISASSEMBLY "Save temp outputs for disassembly" OFF)
-##set(CUDA_ARCH_OVERRIDE "" CACHE STRING "Compile for this GPU architecture (e.g. 86)")
+set(CUDA_ARCH_OVERRIDE "" CACHE STRING "Compile for this GPU architecture (e.g. 86)")
 
 set(CMAKE_CUDA_STANDARD 17) # C++17
 #set(CMAKE_CUDA_SEPARABLE_COMPILATION ON) # Issues on Windows
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CUDA_ARCHITECTURES native)
+if(CUDA_ARCH_OVERRIDE STREQUAL "")
+    set(CMAKE_CUDA_ARCHITECTURES native)
+else()
+    set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_OVERRIDE})
+endif()
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 	set(NVCC_DEBUG_FLAGS "-g -G")

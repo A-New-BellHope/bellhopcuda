@@ -1,5 +1,5 @@
 # bellhopcxx / bellhopcuda
-C++/CUDA port of `BELLHOP`/`BELLHOP3D` underwater acoustics simulator.
+C++/CUDA port of `BELLHOP`/`BELLHOP3D` underwater acoustics simulator, with AMD GPU support via HIP/ROCm.
 
 ### Impressum
 
