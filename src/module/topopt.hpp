@@ -217,7 +217,7 @@ public:
             PRTFile << " T = " << std::setw(11) << atten->t
                     << "degrees   S = " << std::setw(11) << atten->Salinity
                     << " psu   pH = " << std::setw(11) << atten->pH
-                    << " z_bar = " << std::setw(11) << " m\n";
+                    << " z_bar = " << std::setw(11) << atten->z_bar << " m\n";
             break;
         case 'B':
             PRTFile << "    Biological attenuation\n";
