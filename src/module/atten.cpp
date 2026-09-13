@@ -48,7 +48,7 @@ inline real Franc_Garr(real f, const AttenInfo *atten)
     a1 = FL(8.86) / c * STD::pow(FL(10.0), FL(0.78) * atten->pH - FL(5.0));
     p1 = FL(1.0);
     f1 = FL(2.8) * STD::sqrt(atten->Salinity / 35)
-        * STD::pow(FL(1.0), FL(4.0) - FL(1245.0) / (atten->t + FL(273.0)));
+        * STD::pow(FL(10.0), FL(4.0) - FL(1245.0) / (atten->t + FL(273.0)));
 
     // Magnesium sulfate contribution
     a2 = FL(21.44) * atten->Salinity / c * (FL(1.0) + FL(0.025) * atten->t);
